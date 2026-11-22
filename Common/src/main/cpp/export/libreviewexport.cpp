@@ -105,7 +105,7 @@ bool libreviewCGMexport(const uint32_t starttime,const uint32_t endtime,const bo
     for(int id=totsen-1;id>=0;--id) {
         const int index=indices[id];
         if(SensorGlucoseData *sens=sensors->getSensorData(index)) {
-            const char *deviceID=getDeviceID(!sens->isLibre2()).data();
+            const char *deviceID=getDeviceID(!sens->libreviewLibre2()).data();
             if(sens->isDexcom()||sens->isSibionics()) {
                 const int librev=3;
                 libreVersion=librev;
@@ -123,7 +123,7 @@ bool libreviewCGMexport(const uint32_t starttime,const uint32_t endtime,const bo
                        }
                  }
             else {
-                 bool isLibre3=(sens->getinfo()->interval==SensorGlucoseData::interval5);
+                 bool isLibre3=sens->libreviewLibre3();
                 const int librev=isLibre3?3:(sens->shortsensorname()->data()[0]=='0'?1:2);
                 libreVersion=librev;
                  const int startpos=sens->getfirstnotbeforetime(nextstart);

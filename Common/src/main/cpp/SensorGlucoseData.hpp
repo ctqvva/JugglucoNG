@@ -240,6 +240,9 @@ void unSetLibreSend() {
 class SensorGlucoseData {
   bool haserror = false;
   string sensordir;
+  // The directory's last component, NUL-padded, when it is shorter than a
+  // short name; see shortsensorname().
+  std::array<char, 12> paddedshortname = padshortname(sensordir);
   // inline static  const string basedir{FILEDIR};
 public:
   WearHistoryOrigin wearHistoryOrigin;
@@ -1255,11 +1258,25 @@ public:
     return sensordir;
   }
   typedef std::array<char, 11> sensorname_t;
+  static std::array<char, 12> padshortname(std::string_view dir) {
+    std::array<char, 12> out{};
+    const size_t slash = dir.find_last_of('/');
+    const std::string_view id =
+        slash == std::string_view::npos ? dir : dir.substr(slash + 1);
+    if (id.size() < sizeof(sensorname_t))
+      std::copy(id.begin(), id.end(), out.begin());
+    return out;
+  }
   [[nodiscard]] const sensorname_t *shortsensorname() const {
     std::string_view sid = sensid();
     if (sid.length() >= 2 && sid[0] == 'X' && sid[1] == '-') {
       return reinterpret_cast<const sensorname_t *>(sid.data());
     }
+    // The open Libre 3 driver names its shell by the nine-character serial.
+    // The path's last 11 characters would be "s/0D1234ABC", which the web
+    // server's ids, Clone's serial and the Java name getters all passed on.
+    if (paddedshortname[0] && getinfo() && isManagedLibre3())
+      return reinterpret_cast<const sensorname_t *>(paddedshortname.data());
     return reinterpret_cast<const sensorname_t *>(sensordir.data() +
                                                   sensordir.length() - 11);
   }
@@ -1272,7 +1289,7 @@ public:
     if (!isSibionics()) {
       if (isLibre3())
         return std::string_view(sensordir.data() + sensordir.length() - 9, 9);
-      if (isAiDex())
+      if (isAiDex() || isManagedLibre3())
         return sensid();
       if (isAir())
         return std::string_view(sensordir.data() + sensordir.length() - 12, 12);

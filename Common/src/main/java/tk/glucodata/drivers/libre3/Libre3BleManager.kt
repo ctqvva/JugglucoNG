@@ -29,6 +29,7 @@ import android.os.Message
 import java.util.TreeSet
 import java.util.UUID
 import tk.glucodata.Applic
+import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.LiveReadingLanes
 import tk.glucodata.Log
@@ -1030,6 +1031,27 @@ class Libre3BleManager(sensorId: String) :
         UiRefreshBus.requestDataRefresh()
     }
 
+    /**
+     * Stored reading times in [fromMs, toMs]: Room's on the phone. A watch has no Room, and the
+     * native record it keeps is what its chart and history sync read, so it asks that instead.
+     * Null when the question could not be asked.
+     */
+    private fun storedTimestamps(fromMs: Long, toMs: Long): LongArray? {
+        val start = fromMs.coerceAtLeast(1L)
+        if (HistoryRepositoryAccess.isRegistered()) {
+            return HistorySyncAccess.getHistoryTimestampsForSensorOrNull(sensorId, start, toMs)
+        }
+        val samples = runCatching { Natives.getGlucoseHistoryForSensor(sensorId, start / 1000L - 1L) }
+            .onFailure { Log.stack(TAG, "$sensorId native history", it) }
+            .getOrElse { return null }
+            ?: return LongArray(0)
+        // [time_sec, auto, raw] triples.
+        return (0 until samples.size / 3).asSequence()
+            .map { samples[it * 3] * 1000L }
+            .filter { it in start..toMs }
+            .toList().toLongArray()
+    }
+
     private fun storeBackfill(
         minutes: List<VirtualGlucoseSensorBridge.Reading>,
         history: List<VirtualGlucoseSensorBridge.Reading>,
@@ -1037,13 +1059,14 @@ class Libre3BleManager(sensorId: String) :
         synchronized(readingLock) {
             if (stop) return false
             ensureNativeWindow()
+            // A watch keeps the native record only; the mirror writes below are its storage.
+            val hasRoom = HistoryRepositoryAccess.isRegistered()
             // Five-minute points that land in a hole (no stored or incoming reading within the
             // duplicate window) are mirrored natively too; the rest would overwrite minute slots.
             val gapFillers = if (history.isEmpty()) emptyList() else {
                 val from = history.minOf { it.timestampMs } - HISTORY_DUPLICATE_WINDOW_MS
                 val to = history.maxOf { it.timestampMs } + HISTORY_DUPLICATE_WINDOW_MS
-                val known = ((HistorySyncAccess.getHistoryTimestampsForSensorOrNull(sensorId, from.coerceAtLeast(1L), to)
-                    ?: return false).toList() +
+                val known = ((storedTimestamps(from, to) ?: return false).toList() +
                     minutes.map { it.timestampMs }).sorted()
                 history.filter { h -> known.none { kotlin.math.abs(it - h.timestampMs) <= HISTORY_DUPLICATE_WINDOW_MS } }
             }
@@ -1053,9 +1076,8 @@ class Libre3BleManager(sensorId: String) :
             if (minutes.isNotEmpty()) {
                 val plan = Libre3BackfillMerge.plan(
                     minutes,
-                    HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
-                        sensorId,
-                        (minutes.minOf { it.timestampMs } - MINUTE_DUPLICATE_WINDOW_MS).coerceAtLeast(1L),
+                    storedTimestamps(
+                        minutes.minOf { it.timestampMs } - MINUTE_DUPLICATE_WINDOW_MS,
                         minutes.maxOf { it.timestampMs } + MINUTE_DUPLICATE_WINDOW_MS,
                     ) ?: return false,
                     historyFillers,
@@ -1063,7 +1085,7 @@ class Libre3BleManager(sensorId: String) :
                 )
                 if (plan.replacing.isNotEmpty()) {
                     // Same timestamp as the fill-in, so Room's minute bucket replaces it.
-                    val ok = HistorySyncAccess.storeSensorHistoryBatchWithSourceBlocking(
+                    val ok = !hasRoom || HistorySyncAccess.storeSensorHistoryBatchWithSourceBlocking(
                         sensorId,
                         LongArray(plan.replacing.size) { plan.replacing[it].timestampMs },
                         FloatArray(plan.replacing.size) { plan.replacing[it].storageGlucoseMgdl },
@@ -1077,7 +1099,7 @@ class Libre3BleManager(sensorId: String) :
                 minuteRows = plan.replacing + plan.regular
                 regularMinutes = plan.regular
             }
-            if (regularMinutes.isNotEmpty()) {
+            if (hasRoom && regularMinutes.isNotEmpty()) {
                 VirtualGlucoseSensorBridge.importHistory(
                     sensorId, regularMinutes, "$LOG_LABEL clinical",
                     backfill = true,
@@ -1100,7 +1122,7 @@ class Libre3BleManager(sensorId: String) :
             }
             if (history.isNotEmpty()) {
                 // Only the previously identified holes may be mirrored with smoothed values.
-                VirtualGlucoseSensorBridge.importHistory(
+                if (hasRoom) VirtualGlucoseSensorBridge.importHistory(
                     sensorId, history, "$LOG_LABEL history",
                     backfill = true,
                     nearDuplicateWindowMs = HISTORY_DUPLICATE_WINDOW_MS,

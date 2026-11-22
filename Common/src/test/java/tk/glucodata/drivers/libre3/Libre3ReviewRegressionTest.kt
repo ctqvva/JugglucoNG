@@ -201,6 +201,31 @@ class Libre3ReviewRegressionTest {
         assertEquals(listOf(minute.timestampMs), Libre3ReviewNatives.wakes)
     }
 
+    @Test fun watchWithoutRoomStoresBackfillInTheNativeRecordAndSettles() {
+        // Wear registers no Room bridge; the native record is the watch's history.
+        HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }.set(HistoryRepositoryAccess, null)
+        val base = (System.currentTimeMillis() / 60_000L - 30L) * 60_000L
+        val minute = reading(base)
+        minutes().add(minute)
+        history().add(VirtualGlucoseSensorBridge.Reading(base, 110f)) // same slot as the minute
+        history().add(VirtualGlucoseSensorBridge.Reading(base + 10 * 60_000L, 130f)) // a hole
+        set("lastLifeCount", 101)
+        set("lastHistoricLifeCount", 100)
+        invoke("flushBackfill")
+        assertTrue(minutes().isEmpty() && history().isEmpty())
+        assertEquals(101, Libre3Persistence.getLastLifeCount(context, sensor))
+        assertEquals(100, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+        assertEquals(setOf(base / 1000L, base / 1000L + 600L), Libre3ReviewNatives.nativeSeconds)
+        assertTrue(roomWrites.isEmpty())
+
+        // The next replay of the same page finds both slots stored natively.
+        history().add(VirtualGlucoseSensorBridge.Reading(base + 10 * 60_000L, 130f))
+        val before = Libre3ReviewNatives.stockWrites
+        invoke("flushBackfill")
+        assertTrue(history().isEmpty())
+        assertEquals(before, Libre3ReviewNatives.stockWrites)
+    }
+
     @Test fun failedTimestampLookupDoesNotOverwriteNativeMinuteSlots() {
         history().add(reading())
         set("lastHistoricLifeCount", 100)
@@ -595,11 +620,12 @@ class Libre3ReviewNatives {
         var activationSec = 0L
         var stockWrites = 0
         var resolvedWrites = 0
+        val nativeSeconds = sortedSetOf<Long>()
         var activeNames = emptyArray<String>()
         var selectedName: String? = null
         val finishedNames = mutableSetOf<String>()
         fun reset() {
-            stockWrites = 0; resolvedWrites = 0; wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
+            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
             legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
         }
@@ -643,8 +669,10 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun sensorFinishedById(name: String): Boolean = name.removePrefix("E07A-") in finishedNames
         @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(ptr: Long): Long = System.currentTimeMillis() - 86_400_000L
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
-            stockWrites += t.size; return t.size
+            stockWrites += t.size; nativeSeconds.addAll(t.toList()); return t.size
         }
+        @JvmStatic @Implementation fun getGlucoseHistoryForSensor(serial: String, startSec: Long): LongArray? =
+            nativeSeconds.filter { it > startSec }.flatMap { listOf(it, 1230L, 0L) }.takeIf { it.isNotEmpty() }?.toLongArray()
         @JvmStatic @Implementation fun addResolvedGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
             resolvedWrites += t.size; return t.size
         }
