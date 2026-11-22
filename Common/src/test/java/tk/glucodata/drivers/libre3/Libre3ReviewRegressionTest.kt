@@ -253,6 +253,21 @@ class Libre3ReviewRegressionTest {
         assertTrue(get("nativeWindowChecked") as Boolean)
     }
 
+    @Test fun libreViewNumbersHistoryFromTheDriversLifeCountOrigin() {
+        // LibreView record numbers are sensor lifeCounts, so native needs the origin the driver uses.
+        set("record", Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
+        set("anchorStartMs", now + 30_000L)
+        set("nativeWindowChecked", false)
+        invoke("ensureNativeWindow")
+        assertEquals((now + 30_000L) / 1000L, Libre3ReviewNatives.activationSec)
+
+        // An NFC rescan that moves the activation hands the new origin over too.
+        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now - 600_000L, 60, 21600, 1, "test", 1))
+        manager.onNfcRecordUpdated()
+        invoke("ensureNativeWindow")
+        assertEquals((now - 600_000L) / 1000L, Libre3ReviewNatives.activationSec)
+    }
+
     @Test fun watchHandoffCarriesTheSensorItsCredentialsAndCachedKey() {
         java.security.Security.insertProviderAt(FakeAndroidKeyStore.Provider(), 1)
         val savedManaged = ManagedCurrentSensor.get()
@@ -577,18 +592,20 @@ class Libre3ReviewNatives {
         val wakes = mutableListOf<Long>()
         var accountNumber = 0L
         var wearDays = 0
+        var activationSec = 0L
         var stockWrites = 0
         var resolvedWrites = 0
         var activeNames = emptyArray<String>()
         var selectedName: String? = null
         val finishedNames = mutableSetOf<String>()
         fun reset() {
-            stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear(); accountNumber = 0L
+            stockWrites = 0; resolvedWrites = 0; wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
             legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
         }
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun setSensorWearDays(serial: String, days: Int) { wearDays = days }
+        @JvmStatic @Implementation fun setManagedLibre3Activation(serial: String, seconds: Long) { activationSec = seconds }
         @JvmStatic @Implementation fun getlibreAccountIDnumber(): Long = accountNumber
         @JvmStatic @Implementation fun setlibreAccountIDNative(account: String) { accountNumber = 0x11223344L }
         @JvmStatic @Implementation fun setlibreAccountIDnumberNative(value: Long) { accountNumber = value }

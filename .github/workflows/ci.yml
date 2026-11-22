@@ -58,6 +58,8 @@ jobs:
         run: python3 tools/test-meter-records.py
       - name: Test Nightscout upload gives way to live readings without losing history
         run: python3 tools/test-nightscout-backlog.py
+      - name: Test LibreView history for Libre 3 on the open driver
+        run: python3 tools/test-libreview-libre3-history.py
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: temurin

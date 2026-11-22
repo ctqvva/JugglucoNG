@@ -2087,6 +2087,28 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorManagedFamily)(
   env->ReleaseStringUTFChars(sensorId, str);
 }
 
+// The activation the Libre 3 driver counts lifeCount from, so the LibreView
+// upload can number five-minute history the way the sensor does. Only a
+// managed Libre 3 shell takes it (SensorGlucoseData::managedLibre3Activation).
+extern "C" JNIEXPORT void JNICALL fromjava(setManagedLibre3Activation)(
+    JNIEnv *env, jclass cl, jstring sensorId, jlong activationSec) {
+  if (!sensors || !sensorId || activationSec <= 0 || activationSec > UINT32_MAX)
+    return;
+  const char *str = env->GetStringUTFChars(sensorId, nullptr);
+  if (!str)
+    return;
+  if (SensorGlucoseData *hist = sensors->getSensorData(str)) {
+    if (!hist->error() && hist->isManagedLibre3()) {
+      auto *info = hist->getinfo();
+      if (info->libreStarttime != static_cast<uint32_t>(activationSec)) {
+        info->libreStarttime = static_cast<uint32_t>(activationSec);
+        LOGGER("setManagedLibre3Activation: %s %lld\n", str, (long long)activationSec);
+      }
+    }
+  }
+  env->ReleaseStringUTFChars(sensorId, str);
+}
+
 extern "C" JNIEXPORT jboolean JNICALL fromjava(setSensorViewMode)(
     JNIEnv *env, jclass cl, jstring sensorId, jint mode) {
   if (!sensors || !sensorId || mode < 0 || mode > 3)

@@ -1428,6 +1428,51 @@ static int getgeneration(const char *info) {
     return !(isAccuChek() || isSibionics() || isDexcom() || isAir() ||
              getinfo()->interval == interval5);
   }
+  // The open Libre 3 driver writes a managed stream shell (family 9), not the
+  // removed proprietary driver's five-minute record, so isLibre3() is false
+  // for it and isLibre2() true by elimination. LibreView asks the two below,
+  // which keep such a sensor on the Libre 3 upload.
+  static constexpr unsigned managedLibre3Family = 9u;
+  bool isManagedLibre3() const {
+    return !isLibre3() && getinfo()->managedFamilyCode() == managedLibre3Family;
+  }
+  bool libreviewLibre3() const { return isLibre3() || isManagedLibre3(); }
+  bool libreviewLibre2() const { return isLibre2() && !isManagedLibre3(); }
+  // The activation (Unix seconds) the Kotlin driver counts lifeCount from. A
+  // managed Libre 3 never takes the Libre 2 upload, the only other user of
+  // libreStarttime, so the field holds it (setManagedLibre3Activation).
+  uint32_t managedLibre3Activation() const {
+    return isManagedLibre3() ? getinfo()->libreStarttime : 0u;
+  }
+  // The stored minute at this sensor lifeCount, or nullptr.
+  const ScanData *managedLibre3Minute(int lifeCount) const {
+    const uint32_t activation = managedLibre3Activation();
+    const uint32_t start = getinfo()->starttime;
+    if (!activation || !start || lifeCount < 0)
+      return nullptr;
+    const uint32_t time = activation + static_cast<uint32_t>(lifeCount) * 60u;
+    if (time < start)
+      return nullptr;
+    const int index = static_cast<int>((time - start) / 60u);
+    if (index < static_cast<int>(getinfo()->pollstart) || index >= pollcount())
+      return nullptr;
+    const ScanData *el = beginpolls() + index;
+    if (!el->valid(0))
+      return nullptr;
+    const uint32_t stored = el->gettime();
+    if (stored + 30u < time || stored > time + 30u)
+      return nullptr;
+    return el;
+  }
+  uint32_t newestPollTime() const {
+    const ScanData *first = beginpolls();
+    for (int index = pollcount() - 1, low = std::max<int>(getinfo()->pollstart, index - 60);
+         index >= low; --index) {
+      if (first[index].valid(0))
+        return first[index].gettime();
+    }
+    return 0u;
+  }
   bool isLibre() const {
     return !(isSibionics() || isDexcom() || isAccuChek() || isAir());
   }

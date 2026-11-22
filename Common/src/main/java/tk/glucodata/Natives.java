@@ -784,6 +784,8 @@ public class Natives {
         public static native void setSensorWearDays(String sensorId, int days);
         /** ManagedSensorUiFamily.nativeCode; 0 clears. Travels in info.dat, so a Clone receiver sees it. */
         public static native void setSensorManagedFamily(String sensorId, int code);
+        /** Libre 3 only: the activation lifeCount counts from, for LibreView's history record numbers. */
+        public static native void setManagedLibre3Activation(String sensorId, long activationSec);
         public static native int getSensorManagedFamily(long dataptr);
         /** Updates an existing native record without allocating a BLE stream pointer. */
         public static native boolean setSensorViewMode(String sensorId, int mode);

@@ -347,6 +347,7 @@ class Libre3BleManager(sensorId: String) :
         val updated = Libre3Persistence.loadSensor(ctx, sensorId)
         if (updated?.startTimeMs != previousStart) {
             anchorStartMs = updated?.startTimeMs ?: 0L
+            nativeWindowChecked = false
         }
         record = updated
         ended = false
@@ -872,6 +873,9 @@ class Libre3BleManager(sensorId: String) :
                 if (ptr == 0L && Natives.ensureSensorShell(sensorId, startSec) == 0L) return
             }
             Natives.setSensorManagedFamily(sensorId, ManagedSensorUiFamily.LIBRE3.nativeCode)
+            // LibreView numbers five-minute history by lifeCount, so it needs this driver's origin.
+            val origin = lifeCountTimeMs(0)
+            if (origin > 0L) Natives.setManagedLibre3Activation(sensorId, origin / 1000L)
             // Capacity alone does not update native lifecycle metadata. Without the actual wear
             // duration, checkinfo()/the uploader can retire a 3 Plus mirror on day 14.
             val wearDays = (rec.wearMinutes + 24 * 60 - 1) / (24 * 60)

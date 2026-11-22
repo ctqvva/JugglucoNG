@@ -33,6 +33,7 @@
 #include <unistd.h>
 #ifdef LIBRENUMBERS
 #include "librenumbers.hpp"
+#include "managedlibre3history.hpp"
 #endif
 constexpr const int DEBUGLEN = 0;
 constexpr const int EXTRALEN =
@@ -466,7 +467,10 @@ bool putwhenneeded(bool libre3, SensorGlucoseData *sensdata) {
   }
   if (!sensdata->getinfo()->putsensor) {
     time_t nu = time(nullptr);
-    const char *sensorid = sensdata->showsensorname().data();
+    // The serial; both names end the sensor directory, so data() is terminated.
+    extern std::string_view libre3viewname(const SensorGlucoseData *sens);
+    const char *sensorid = (libre3 ? libre3viewname(sensdata)
+                                   : sensdata->showsensorname()).data();
     if (nu < sensdata->officialendtime()) {
       if (!(sensdata->getinfo()->putsensor = putsensor(libre3, sensorid))) {
         LOGGER("putsensor %s failed\n", sensorid);
@@ -639,7 +643,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
       }
       auto *info = sensdata->getinfo();
       if (!info->libreviewsendall) {
-        if (sensdata->isLibre2()) {
+        if (sensdata->libreviewLibre2()) {
           if (info->libreStarttime) {
             LOGGER("set starttimeiter=%d=libreStarttime=%d\n", starttimeiter,
                    info->libreStarttime);
@@ -701,7 +705,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
           }
           ++usedsensor;
         } else {
-          if (sensdata->isLibre3()) {
+          if (sensdata->libreviewLibre3()) {
             if (index >= settings->data()->startlibre3view) {
               settings->data()->haslibre3 = true;
             }
@@ -978,7 +982,7 @@ bool sendlibreviewdata(const int newcurrent, const uint32_t nu) {
           if (!sensdata)
             continue;
           if (!sensdata->getinfo()->libreviewsendall) {
-            if (sensdata->isLibre2()) {
+            if (sensdata->libreviewLibre2()) {
               sensdata->viewed.clear();
               if (newcurrent == i ||
                   sensdata->getinfo()->libreviewScan != scanids[i] ||
@@ -1096,7 +1100,7 @@ static int askhasnewcurrent2(time_t nu) {
     const auto *sens = sensors->getSensorData(i);
     if (sens->getinfo()->libreviewsendall)
       continue;
-    if (!sens->isLibre2())
+    if (!sens->libreviewLibre2())
       continue;
     if (sens->getmaxtime() < nu || libreviewPastCutoff(sens, nu))
       continue;
@@ -1137,7 +1141,7 @@ static int askhasnewcurrent3(time_t nu) {
     const auto *sens = sensors->getSensorData(i);
     if (sens->getinfo()->libreviewsendall)
       continue;
-    if (!sens->isLibre3())
+    if (!sens->libreviewLibre3())
       continue;
     if (sens->getmaxtime() < nu)
       continue;
@@ -1182,7 +1186,7 @@ int askhasnewcurrent(time_t nu) {
       if(sens->isSibionics())
          continue;
          int
-start=sens->isLibre3()?sens->getinfo()->libreviewScan:sens->getinfo()->libreCurrentIter;
+start=sens->libreviewLibre3()?sens->getinfo()->libreviewScan:sens->getinfo()->libreCurrentIter;
         int pollstart= sens->getinfo()->pollstart;
         if(start<pollstart)
             start=pollstart;
@@ -1376,7 +1380,16 @@ void clearfromDate(const uint32_t starttime, bool initall = true) {
     }
     const int streampos = firstuse->getbackuptimestream(starttime);
     uint32_t histpos = firstuse->getbackuptimehistory(starttime);
-    if (firstuse->isLibre3()) {
+    if (firstuse->isManagedLibre3()) {
+      // History goes by five-minute lifeCount slot (managedlibre3history.hpp).
+      const uint32_t activation = firstuse->managedLibre3Activation();
+      info->libreviewnotsend =
+          (activation && starttime > activation)
+              ? std::min<uint32_t>((starttime - activation) / (5 * 60),
+                                   managed_libre3_history::maxSlots)
+              : 0;
+      info->libreviewScan = streampos;
+    } else if (firstuse->libreviewLibre3()) {
       info->libreviewnotsend = histpos; // Volgend history
       info->libreviewScan = streampos;  // geef waarde van Stream op startijd
 #ifndef NOLOG
@@ -1384,7 +1397,7 @@ void clearfromDate(const uint32_t starttime, bool initall = true) {
              index, histpos, streampos, ctime(&tim));
 #endif
     } else {
-      if (firstuse->isLibre2()) {
+      if (firstuse->libreviewLibre2()) {
         info->clearLibreSendEnd(histpos);
         const int scanpos = firstuse->getbackuptimescan(starttime);
         info->realHistory = false;

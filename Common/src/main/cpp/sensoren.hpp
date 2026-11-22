@@ -161,7 +161,7 @@ public:
 #ifdef LIBRENUMBERS
     const SensorGlucoseData *sens = getSensorData();
     extern void setlibrenum3(bool);
-    setlibrenum3(sens != nullptr && sens->isLibre3());
+    setlibrenum3(sens != nullptr && sens->libreviewLibre3());
 #endif
   }
   void setversions() {
@@ -187,7 +187,7 @@ public:
     int lastsens = last();
     for (int i = settings->data()->startlibreview; i <= lastsens; i++) {
       const SensorGlucoseData *sens = getSensorData(i);
-      if (sens && sens->isLibre2()) {
+      if (sens && sens->libreviewLibre2()) {
         settings->data()->startlibreview = i;
         if (!sens->getinfo()->libreviewsendall &&
             sens->getmaxtime() > sendfrom) {
@@ -205,7 +205,7 @@ public:
         LOGGER("ERROR getSensorData(i)==NULL\n", i);
         continue;
       }
-      if (sens->isLibre3()) {
+      if (sens->libreviewLibre3()) {
         settings->data()->startlibre3view = i;
 #ifndef NOLOG
         time_t tim = sens->getmaxtime();
