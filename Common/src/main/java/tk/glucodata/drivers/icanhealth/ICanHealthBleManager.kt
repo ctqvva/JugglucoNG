@@ -115,6 +115,10 @@ class ICanHealthBleManager(
         /** Tight ack window, started once the chunk write actually left the radio. */
         private const val CORRECT_CODE_CHUNK_TIMEOUT_MS = 2_000L
 
+        /** Calibration ack windows: a loose queue guard and a tight window after the write. */
+        private const val CALIBRATION_WRITE_GUARD_MS = 10_000L
+        private const val CALIBRATION_ACK_TIMEOUT_MS = 2_000L
+
         /** Loose guard for the enqueue phase: setup ops may sit ahead of the chunk in the queue. */
         private const val CORRECT_CODE_CHUNK_GUARD_MS = 10_000L
     }
@@ -271,7 +275,10 @@ class ICanHealthBleManager(
     @Volatile private var latestCurrentRaw = Float.NaN
     @Volatile private var latestTemperatureC = Float.NaN
     @Volatile private var lastCeCalibrationCount = 0
-    @Volatile private var pendingStartedCalibration: ICanHealthCeCalibrationResult? = null
+    private val calibrationPending = ICanHealthCalibrationPending()
+    private var calibrationWrite: GattOp.Write? = null
+    private var calibrationWriteId = -1L
+    private var calibrationAckTimeout: Runnable? = null
     @Volatile private var viewModeValue = 0
     @Volatile private var viewModeInitialized = false
     @Volatile private var latestDriverGlucoseMgdl = Float.NaN
@@ -782,6 +789,7 @@ class ICanHealthBleManager(
 
     override fun terminateManagedSensor(wipeData: Boolean) {
         uiPaused = true
+        clearPendingCalibration()
         clearSoftDisconnectState()
         setPause(true)
         val currentBeforeTerminate = runCatching { Natives.lastsensorname() }.getOrNull()
@@ -807,8 +815,6 @@ class ICanHealthBleManager(
         Applic.app?.let { context ->
             runCatching { ICanHealthRegistry.removeSensor(context, SerialNumber) }
                 .onFailure { Log.stack(TAG, "terminateManagedSensor(removeSensor)", it) }
-            runCatching { ICanHealthCalibrationStore.remove(context, SerialNumber) }
-                .onFailure { Log.stack(TAG, "terminateManagedSensor(removeCalFactor)", it) }
         }
         if (shouldRehomeCurrent) {
             val nativeReplacement = SensorIdentity.resolveNativeSensorName(replacementSerial)
@@ -825,7 +831,6 @@ class ICanHealthBleManager(
 
     override fun removeManagedPersistence(context: Context) {
         ICanHealthRegistry.removeSensor(context, SerialNumber)
-        ICanHealthCalibrationStore.remove(context, SerialNumber)
     }
 
     override fun hasNativeSensorBacking(): Boolean {
@@ -948,6 +953,10 @@ class ICanHealthBleManager(
             )
             return false
         }
+        if (calibrationPending.hasPending()) {
+            Log.w(TAG, "Ignoring calibration: previous request is still outstanding")
+            return false
+        }
         val packet = ICanHealthParser.buildCalibrationPacket(
             glucoseMgDl = glucoseMgDl,
             sequenceNumber = sequenceNumber,
@@ -979,7 +988,13 @@ class ICanHealthBleManager(
                 newBg = sensorBg,
                 calik0 = planned.calik0,
             )
-            pendingStartedCalibration = started
+            val id = calibrationPending.begin(started)
+            if (id == null) {
+                Log.w(TAG, "Ignoring calibration: previous request is still outstanding")
+                return false
+            }
+            calibrationWriteId = id
+            armCalibrationAckTimeout(id, CALIBRATION_WRITE_GUARD_MS)
             Log.i(
                 TAG,
                 "iCan calibration plan finger=$glucoseMgDl seq=$sequenceNumber sensorBg=$sensorBg " +
@@ -987,7 +1002,9 @@ class ICanHealthBleManager(
                     "planK=${planned.caliK} planBg=${planned.calibBg} startK=${started.caliK} startBg=${started.calibBg}"
             )
         }
-        enqueueOp(GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, packet))
+        val write = GattOp.Write(ICanHealthConstants.CGM_SPECIFIC_OPS, packet)
+        calibrationWrite = write
+        enqueueOp(write)
         drainGattQueue()
         return true
     }
@@ -2124,6 +2141,16 @@ class ICanHealthBleManager(
         // The F2 indication may reach the handler before this callback does.
         if (write?.charUuid == characteristic.uuid) write.completionStatus = status
         finishGattOp()
+        if (write === calibrationWrite && write != null) {
+            val id = calibrationWriteId
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                armCalibrationAckTimeout(id, CALIBRATION_ACK_TIMEOUT_MS)
+            }
+            calibrationPending.onWriteResult(id, status)?.let { settleCalibration(it) }
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                handler.post { if (calibrationWrite === write) clearPendingCalibration() }
+            }
+        }
         if (status != BluetoothGatt.GATT_SUCCESS && pending != null &&
             write?.charUuid == ICanHealthConstants.CGM_SPECIFIC_OPS && write.data.contentEquals(pending)) {
             handler.post { if (gatt === mBluetoothGatt && correctCodePendingChunk === pending) resetCorrectCodeState() }
@@ -2745,20 +2772,8 @@ class ICanHealthBleManager(
 
             ICanHealthParser.parseCalibrationResult(data) != null -> {
                 val calibrationResult = ICanHealthParser.parseCalibrationResult(data) ?: return
-                if (calibrationResult == 0x01) {
-                    lastCeCalibrationCount = (lastCeCalibrationCount + 1).coerceAtMost(4)
-                    pendingStartedCalibration?.let { started ->
-                        // l0.b persists the result when caliK changed or adjustment is still active.
-                        if (started.caliK != started.calikM || started.caliAdjustBool) {
-                            ICanHealthCalibrationStore.save(Applic.app, SerialNumber, started)
-                        }
-                    }
-                    pendingStartedCalibration = null
-                    Log.i(TAG, "Sensor calibration accepted")
-                } else {
-                    pendingStartedCalibration = null
-                    Log.w(TAG, "Sensor calibration rejected with code=0x${"%02X".format(calibrationResult)}")
-                }
+                calibrationPending.onAck(calibrationWriteId, calibrationResult)
+                    ?.let { settleCalibration(it) }
             }
 
             ICanHealthParser.parseAuthResult(data) != null -> {
@@ -3105,6 +3120,42 @@ class ICanHealthBleManager(
         correctCodeNextChunk = 0
         correctCodeChainActive = false
         correctCodeRepairChain = false
+    }
+
+    private fun clearPendingCalibration() {
+        calibrationAckTimeout?.let { handler.removeCallbacks(it) }
+        calibrationAckTimeout = null
+        calibrationPending.clear()
+        calibrationWrite = null
+        calibrationWriteId = -1L
+    }
+
+    private fun settleCalibration(settlement: ICanHealthCalibrationPending.Settlement) {
+        if (settlement.code == 0x01) {
+            lastCeCalibrationCount = (lastCeCalibrationCount + 1).coerceAtMost(4)
+            if (settlement.writeSucceeded) {
+                val started = settlement.result
+                // l0.b persists the result when caliK changed or adjustment is still active.
+                if (started.caliK != started.calikM || started.caliAdjustBool) {
+                    ICanHealthCalibrationStore.save(Applic.app, SerialNumber, started)
+                }
+            }
+            Log.i(TAG, "Sensor calibration accepted")
+        } else {
+            Log.w(TAG, "Sensor calibration rejected with code=0x${"%02X".format(settlement.code)}")
+        }
+    }
+
+    private fun armCalibrationAckTimeout(id: Long, timeoutMs: Long) {
+        calibrationAckTimeout?.let { handler.removeCallbacks(it) }
+        val timeout = Runnable {
+            if (calibrationPending.isCurrent(id)) {
+                Log.w(TAG, "Calibration ack timeout — dropping pending result")
+                clearPendingCalibration()
+            }
+        }
+        calibrationAckTimeout = timeout
+        handler.postDelayed(timeout, timeoutMs)
     }
 
     /** Reconnects preserve the budget; changing sensor identity does not. */
@@ -5058,6 +5109,7 @@ class ICanHealthBleManager(
     ) {
         lastSensorInfoMarker = null
         resetCorrectCodeState()
+        clearPendingCalibration()
         gattQueue.clear()
         gattOpActive = false
         gattOpInFlight = null
@@ -5098,6 +5150,7 @@ class ICanHealthBleManager(
         pendingHistoryBatch.clear()
         lastAuthChallenge = null
         resetCorrectCodeState()
+        clearPendingCalibration()
         authRetryCount = 0
         receivedGlucoseThisConnection = false
         currentSequenceObservedAtMs = 0L

@@ -1015,6 +1015,9 @@ object ICanHealthConstants {
      */
     const val PREF_CGM_CODE_PREFIX = "icanhealth_cgm_code_"
 
+    /** Per-sensor persisted `AlgParameterBean` (calFactor) from ICanHealthCalibrationStore. */
+    const val PREF_CAL_FACTOR_PREFIX = "icanhealth_cal_factor_"
+
     /**
      * Per-install vendor iot-cloud credentials ([tk.glucodata.drivers.icanhealth.ICanCloudCreds]).
      * These override `<filesDir>/ican-cloud-creds.json` and the bundled vendor SDK pair.

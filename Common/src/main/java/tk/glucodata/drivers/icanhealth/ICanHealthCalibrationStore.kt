@@ -13,7 +13,7 @@ import android.content.Context
  */
 object ICanHealthCalibrationStore {
     private const val PREFS_NAME = "tk.glucodata_preferences"
-    private const val KEY_PREFIX = "icanhealth_cal_factor_"
+    private const val KEY_PREFIX = ICanHealthConstants.PREF_CAL_FACTOR_PREFIX
 
     fun load(context: Context, sensorId: String): ICanHealthCeCalibrationResult? {
         if (sensorId.isBlank()) return null
