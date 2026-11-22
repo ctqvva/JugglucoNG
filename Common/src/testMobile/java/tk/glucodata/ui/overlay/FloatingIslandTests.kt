@@ -104,6 +104,37 @@ class FloatingIslandTests {
     // The window
 
     @Test
+    fun landscapeGapStaysOverTheCameraWithABottomNavigationBar() {
+        // Pixel 8 Pro display and camera bounds rotated to place the camera on the right.
+        val displayHeight = 1344
+        val navigationBarHeight = 72
+        val cutoutTop = 616
+        val cutoutBottom = 726
+        val gap = cutoutBottom - cutoutTop
+        val windowHeight = 280
+        val gapStartInWindow = (windowHeight - gap) / 2
+        val anchor = FloatingIsland.CutoutAnchor(centre = 671f, displayExtent = displayHeight)
+
+        val insetGapStart = (displayHeight - navigationBarHeight - windowHeight) / 2 + gapStartInWindow
+        assertTrue(insetGapStart + gap < cutoutBottom)
+
+        val gapStart = (displayHeight - windowHeight) / 2 + anchor.windowOffset(windowHeight) + gapStartInWindow
+        assertEquals(cutoutTop, gapStart)
+        assertEquals(cutoutBottom, gapStart + gap)
+    }
+
+    @Test
+    fun alongEdgeOffsetFollowsTheCutoutAndKeepsTheWindowOnScreen() {
+        val displayWidth = 1080
+        assertEquals(-70, FloatingIsland.CutoutAnchor(470f, displayWidth).windowOffset(300))
+        assertEquals(72, FloatingIsland.CutoutAnchor(611.5f, displayWidth).windowOffset(301))
+        assertEquals(-390, FloatingIsland.CutoutAnchor(50f, displayWidth).windowOffset(300))
+        val nearEnd = FloatingIsland.CutoutAnchor(1030f, displayWidth)
+        assertEquals(390, nearEnd.windowOffset(300))
+        assertEquals(290, nearEnd.windowOffset(500))
+    }
+
+    @Test
     fun thePillsThicknessIsItsWidthBesideTheLeftOrRightEdgeAndItsHeightElse() {
         assertEquals(96, FloatingIsland.thickness(CutoutEdge.TOP, 300, 96))
         assertEquals(96, FloatingIsland.thickness(CutoutEdge.BOTTOM, 300, 96))

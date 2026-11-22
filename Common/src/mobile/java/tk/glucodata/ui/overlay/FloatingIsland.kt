@@ -2,6 +2,7 @@ package tk.glucodata.ui.overlay
 
 import tk.glucodata.service.FloatingGlucoseService.CutoutEdge
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
  * Where the island pill sits against the camera cutout, in pixels. Pure, see the tests.
@@ -29,6 +30,17 @@ internal object FloatingIsland {
      */
     fun cutoutCentre(safeInset: Int, across: Int): Float =
         if (safeInset <= 0 || across <= 0) 0f else max(0f, safeInset - across / 2f)
+
+    /** The cutout's position along its edge, in the same full-display frame as the window. */
+    data class CutoutAnchor(val centre: Float, val displayExtent: Int) {
+        // The label gap is at the window's centre. Clamp when a camera near a corner
+        // would otherwise pull the pill partly off screen.
+        fun windowOffset(windowExtent: Int): Int {
+            val available = (displayExtent - windowExtent).coerceAtLeast(0)
+            val start = (centre - windowExtent / 2f).roundToInt().coerceIn(0, available)
+            return start - available / 2
+        }
+    }
 
     /** The cutout's extent along the docked [edge]: its width on the top or bottom, its height on the left or right. */
     fun alongEdge(edge: CutoutEdge, width: Int, height: Int): Int = if (isSide(edge)) height else width
