@@ -61,9 +61,10 @@ inline std::optional<ScanIdentity> parseScan(std::string_view raw) {
         } else normalized.push_back(raw[i]);
     }
     const std::string_view text = normalized;
-    std::array<std::string_view, 7> values{};
-    constexpr std::array<std::string_view, 7> ais{"01", "11", "17", "10", "21", "240", "250"};
-    constexpr std::array<size_t, 7> fixed{14, 6, 6, 0, 0, 0, 0};
+    std::array<std::string_view, 8> values{};
+    // AI 94 (company internal info, e.g. SW14758) appears on Dexcom G7 15-day applicators.
+    constexpr std::array<std::string_view, 8> ais{"01", "11", "17", "10", "21", "240", "250", "94"};
+    constexpr std::array<size_t, 8> fixed{14, 6, 6, 0, 0, 0, 0, 0};
     size_t pos = 0;
     while (pos < text.size()) {
         if (text[pos] == '\x1d') { ++pos; continue; }
