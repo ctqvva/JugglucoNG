@@ -5,10 +5,12 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Handler
+import android.os.PowerManager
 
 internal data class SibionicsAdvertisement(
     val device: BluetoothDevice,
@@ -16,7 +18,8 @@ internal data class SibionicsAdvertisement(
 )
 
 /**
- * Performs one short scan after Android accepts connectGatt() but never reports a callback.
+ * Performs one short scan after Android accepts connectGatt() but never reports a callback,
+ * or after a connect attempt fails.
  * Some post-boot Bluetooth stacks will not connect to a saved address until its advertisement
  * has been observed again.
  */
@@ -36,7 +39,7 @@ internal class SibionicsAdvertisementRecovery(
         get() = callback != null
 
     @Synchronized
-    fun start(address: String, timeoutMs: Long): Boolean {
+    fun start(address: String, advertisedName: String?, timeoutMs: Long): Boolean {
         if (callback != null) return true
         val bluetoothScanner = runCatching {
             (appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)
@@ -70,14 +73,32 @@ internal class SibionicsAdvertisementRecovery(
             val settings = ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build()
-            // Do not depend on an offloaded address filter: observing any advertisement is
-            // short-lived, while matching the persisted address remains strict in the callback.
-            bluetoothScanner.startScan(null, settings, scanCallback)
+            // With the screen on, do not depend on an offloaded address filter: observing
+            // any advertisement is short-lived, and the callback matches the address
+            // strictly. With the screen off Android delivers nothing to an unfiltered scan
+            // at all, so every background recovery used to wait out its timeout blind.
+            bluetoothScanner.startScan(screenOffFilters(address, advertisedName), settings, scanCallback)
             true
         }.getOrElse {
             stop()
             false
         }
+    }
+
+    /** Null (unfiltered) while interactive; address OR advertised name otherwise. */
+    private fun screenOffFilters(address: String, advertisedName: String?): List<ScanFilter>? {
+        val interactive = runCatching {
+            (appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive
+        }.getOrNull() ?: true
+        if (interactive) return null
+        val filters = buildList {
+            runCatching { ScanFilter.Builder().setDeviceAddress(address.uppercase()).build() }
+                .getOrNull()?.let(::add)
+            advertisedName?.trim()?.takeIf { it.isNotEmpty() }?.let { name ->
+                runCatching { ScanFilter.Builder().setDeviceName(name).build() }.getOrNull()?.let(::add)
+            }
+        }
+        return filters.ifEmpty { null }
     }
 
     @Synchronized

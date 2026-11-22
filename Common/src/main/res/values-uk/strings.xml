@@ -1612,6 +1612,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="startjuggluco">Juggluco запущено на телефоні?\n\nWIFI та Bluetooth увімкнено?</string>
     <string name="status_raw_values_received">Підключено, отримано необроблені значення</string>
     <string name="status_waiting_for_data">Підключено, очікування даних…</string>
+    <string name="status_reconnecting">Повторне підключення…</string>
+    <string name="status_searching_for_sensor">Пошук датчика…</string>
+    <string name="status_sensor_not_found">Датчик не знайдено поблизу</string>
+    <string name="status_auth_failed">Помилка автентифікації</string>
+    <string name="status_sensor_not_responding">Датчик не відповідає</string>
     <string name="status_invalid_glucose_from_sensor">Некоректна глюкоза від сенсора</string>
     <string name="switchtowatch">Перемкнути</string>
     <string name="text">Текст</string>

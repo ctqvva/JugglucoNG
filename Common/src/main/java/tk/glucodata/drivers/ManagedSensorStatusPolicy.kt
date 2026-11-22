@@ -49,6 +49,8 @@ object ManagedSensorStatusPolicy {
         R.string.status_waiting_for_data,
         R.string.connecting,
         R.string.syncing,
+        R.string.status_reconnecting,
+        R.string.status_searching_for_sensor,
     )
 
     private fun localizedPassiveSummaryStatuses(): Set<String> {

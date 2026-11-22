@@ -2126,6 +2126,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">IDs de chat permitidos</string>
     <string name="api_source_telegram_note">O Telegram mantém atualizações do bot por até 24 horas. Introduza um ou mais IDs de chat/nomes de utilizador cujas mensagens do bot podem ser importadas.</string>
     <string name="status_waiting_for_data">Conectado, aguardando dados…</string>
+    <string name="status_reconnecting">Reconectando…</string>
+    <string name="status_searching_for_sensor">Procurando o sensor…</string>
+    <string name="status_sensor_not_found">Sensor não encontrado nas proximidades</string>
+    <string name="status_auth_failed">Falha na autenticação</string>
+    <string name="status_sensor_not_responding">O sensor não responde</string>
     <string name="status_raw_values_received">Conectado, valores brutos recebidos</string>
     <string name="status_invalid_glucose_from_sensor">Glicose inválida do sensor</string>
     <string name="sensor_display_select">Selecionar sensor para exibição</string>
