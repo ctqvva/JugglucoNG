@@ -18,6 +18,7 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import tk.glucodata.Applic
+import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.Natives
@@ -25,6 +26,7 @@ import tk.glucodata.NightscoutUploadWake
 import tk.glucodata.R
 import tk.glucodata.SensorBluetooth
 import tk.glucodata.SensorIdentity
+import tk.glucodata.SensorOwnershipRuntime
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
@@ -34,6 +36,7 @@ import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorUiFamily
 import tk.glucodata.drivers.ManagedSensorUiSnapshot
 import tk.glucodata.drivers.ManagedSensorViewModeStore
+import tk.glucodata.drivers.sibionics.SibionicsLinkPhase as Phase
 
 @SuppressLint("MissingPermission")
 class SibionicsBleManager(
@@ -42,20 +45,6 @@ class SibionicsBleManager(
 ) : SuperGattCallback(serial, dataptr, SibionicsConstants.SENSOR_GEN),
     ManagedBluetoothSensorDriver,
     ManagedSensorMaintenanceDriver {
-
-    private enum class Phase {
-        IDLE,
-        CONNECTING,
-        DISCOVERING,
-        ENABLING_NOTIFY,
-        PROBING_CHINESE,
-        AUTHENTICATING,
-        ACTIVATING,
-        SYNCING_TIME,
-        REQUESTING_DATA,
-        STREAMING,
-        ERROR,
-    }
 
     private enum class BatteryReadPurpose {
         SETUP,
@@ -100,7 +89,11 @@ class SibionicsBleManager(
         private const val BATTERY_PERIODIC_INTERVAL_MS = 6L * 60L * 60L * 1000L
         private const val STREAMING_TIMEOUT_MS = 180_000L
         private const val CHINESE_POLL_INTERVAL_MS = 60_000L
-        private const val CURRENT_FRESH_MS = 180_000L
+        // The shared scanner backs off on its own; this only stops the reconnect
+        // loop from asking it every eight seconds.
+        private const val SCAN_REQUEST_INTERVAL_MS = 2L * 60L * 1000L
+        /** Backlog pages come a reconnect apart; three minutes without one is not catching up. */
+        private const val CATCH_UP_GROWTH_WINDOW_MS = 3L * 60L * 1000L
         private const val MAX_FUTURE_DRIFT_MS = 10L * 60L * 1000L
         private const val MIN_REASONABLE_TIME_MS = 946_684_800_000L
         private const val ALGORITHM_REBUILD_DEBOUNCE_MS = 600L
@@ -156,7 +149,27 @@ class SibionicsBleManager(
         }
     }
 
+    /**
+     * Every change of phase counts as progress for [linkWatchdogRunnable]; so does
+     * each data batch ([noteSessionProgress]). Re-entering the same phase does not,
+     * so a step the driver keeps re-sending without an answer still stalls.
+     */
     @Volatile private var phase = Phase.IDLE
+        set(value) {
+            if (field != value) lastProgressMs = System.currentTimeMillis()
+            if (value != Phase.IDLE) idleReason = SibionicsIdleReason.NONE
+            field = value
+        }
+    @Volatile private var idleReason = SibionicsIdleReason.NONE
+    @Volatile private var lastProgressMs: Long = 0L
+    /** When [reconnectRunnable] is due, or 0 when none is scheduled. */
+    @Volatile private var reconnectDueAtMs: Long = 0L
+    @Volatile private var linkNotice = SibionicsLinkNotice.NONE
+    @Volatile private var linkNoticeCode: Int = 0
+    @Volatile private var linkWatchdogArmed: Boolean = false
+    @Volatile private var lastScanRequestMs: Long = 0L
+    /** Handshake restarts on this connection; a second stall reconnects instead. */
+    private var handshakeRestartsThisConnection: Int = 0
     private val handlerThread = HandlerThread("Sibionics-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
     private val advertisementRecovery = SibionicsAdvertisementRecovery(
@@ -188,7 +201,14 @@ class SibionicsBleManager(
     private var notifyChar: BluetoothGattCharacteristic? = null
     private var writeChar: BluetoothGattCharacteristic? = null
     @Volatile private var batteryLevelChar: BluetoothGattCharacteristic? = null
-    @Volatile private var retiredGatt: BluetoothGatt? = null
+    /**
+     * GATTs this driver closed. A late callback from any of them is ignored; one slot
+     * was not enough when two retirements came before the first one's callback.
+     */
+    private val retiredGatts: MutableSet<BluetoothGatt> =
+        java.util.Collections.synchronizedSet(
+            java.util.Collections.newSetFromMap(java.util.WeakHashMap<BluetoothGatt, Boolean>()),
+        )
     @Volatile private var batteryReadPurpose: BatteryReadPurpose? = null
     @Volatile private var lastBatteryPercent: Int = -1
     @Volatile private var batteryStabilizationComplete: Boolean = false
@@ -222,6 +242,8 @@ class SibionicsBleManager(
     @Volatile private var autoResetScheduled: Boolean = false
     @Volatile private var algorithmSelection: SibionicsAlgorithmSelection = SibionicsAlgorithmSelection.STOCK
     @Volatile private var historyReceivedCount: Int = 0
+    /** When the backlog last grew; a replay that stops growing is no longer catching up. */
+    @Volatile private var historyGrewAtMs: Long = 0L
     @Volatile private var historyTotalCount: Int = 0
     private val historySeenIndices = HashSet<Int>()
 
@@ -306,7 +328,6 @@ class SibionicsBleManager(
         ) {
             Log.w(SibionicsConstants.TAG, "connectGatt callback timeout serial=$SerialNumber")
             prepareForReconnect()
-            setStatus(connectingStatus())
             if (!beginAdvertisementRecovery("connectGatt callback timeout")) {
                 scheduleReconnect("connectGatt callback timeout")
             }
@@ -321,7 +342,6 @@ class SibionicsBleManager(
         ) {
             Log.w(SibionicsConstants.TAG, "GATT setup timeout phase=$phase serial=$SerialNumber")
             prepareForReconnect()
-            setStatus(connectingStatus())
             scheduleReconnect("GATT setup timeout", delayMs = 500L)
         }
     }
@@ -472,7 +492,7 @@ class SibionicsBleManager(
         )
         sessionKey = SibionicsProtocol.deriveSessionKey(variant)
         rebuildAfterNextSourceSample = algorithmSelection != SibionicsAlgorithmSelection.STOCK
-        constatstatusstr = disconnectedStatus()
+        constatstatusstr = currentStatusText()
     }
 
     override fun getService(): UUID = SibionicsConstants.SERVICE_FF30
@@ -496,7 +516,14 @@ class SibionicsBleManager(
     override fun integratesUserCalibration(isRawMode: Boolean): Boolean =
         !isRawMode && algorithmSelection.calibrationEnabled
 
-    override fun shouldShowSearchingStatusWhenIdle(): Boolean = true
+    /**
+     * The shared scanner writes "Searching for sensors" into every idle callback's
+     * status. This driver knows its address and reconnects on its own, so that text
+     * sat in the card's BLE row under a "Disconnected" header while the driver was
+     * really waiting a few seconds for its next attempt. [currentStatusText] says
+     * what the driver is doing, including when it does depend on that scan.
+     */
+    override fun shouldShowSearchingStatusWhenIdle(): Boolean = false
 
     override fun matchesManagedSensorId(sensorId: String?): Boolean =
         SibionicsConstants.matchesId(SerialNumber, sensorId) ||
@@ -514,6 +541,7 @@ class SibionicsBleManager(
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop) return false
         uiPaused = false
+        armLinkWatchdog()
         if (advertisementRecovery.isActive) {
             Log.d(SibionicsConstants.TAG, "connect coalesced during advertisement recovery serial=$SerialNumber")
             return true
@@ -522,14 +550,27 @@ class SibionicsBleManager(
         // scanner calls us before it has found a BluetoothDevice; that attempt must
         // not suppress the real connection after the scan result is bound.
         if (phase != Phase.IDLE && phase != Phase.ERROR && mBluetoothGatt != null) {
-            Log.d(SibionicsConstants.TAG, "connect coalesced phase=$phase serial=$SerialNumber")
-            return true
+            val sinceProgress = System.currentTimeMillis() - lastProgressMs
+            if (!SibionicsLinkPolicy.isStalled(phase, sinceProgress)) {
+                Log.d(SibionicsConstants.TAG, "connect coalesced phase=$phase serial=$SerialNumber")
+                return true
+            }
+            // A link that died without a callback. Declining here is what left a
+            // sensor "not connecting" until it was removed and added again.
+            Log.w(
+                SibionicsConstants.TAG,
+                "session stalled in phase=$phase for ${sinceProgress / 1000}s; reconnecting serial=$SerialNumber",
+            )
+            noteLink(SibionicsLinkNotice.NOT_RESPONDING)
+            prepareForReconnect()
         }
         if (mActiveBluetoothDevice == null) {
             hydrateBluetoothDeviceFromAddress()
         }
         if (mActiveBluetoothDevice == null) {
             phase = Phase.IDLE
+            idleReason = if (bluetoothEnabled()) SibionicsIdleReason.NEEDS_SCAN else SibionicsIdleReason.BLUETOOTH_OFF
+            publishStatus()
             return false
         }
         // Preserve the false return above: shared orchestration uses it to
@@ -538,14 +579,19 @@ class SibionicsBleManager(
             recoverStartupCheckpoint()
             return true
         }
+        // This attempt replaces any reconnect still waiting; letting that one run
+        // later would tear down the connection this call is making.
+        cancelScheduledReconnect()
         phase = Phase.CONNECTING
-        setStatus(connectingStatus())
+        publishStatus()
         val scheduled = super.connectDevice(delayMillis)
         if (scheduled) {
             armConnectCallbackTimeout(delayMillis)
         } else if (phase == Phase.CONNECTING) {
             handler.removeCallbacks(connectCallbackTimeoutRunnable)
             phase = Phase.IDLE
+            idleReason = if (bluetoothEnabled()) SibionicsIdleReason.NONE else SibionicsIdleReason.BLUETOOTH_OFF
+            publishStatus()
         }
         return scheduled
     }
@@ -561,7 +607,7 @@ class SibionicsBleManager(
         val variantSnapshot = variant
         val code = shortCode
         val sensitivitySnapshot = sensitivity
-        setStatus(waitingForDataStatus())
+        publishStatus()
         rebuildExecutor.execute {
             val result = runCatching {
                 val sources = SibionicsStartupRecovery.sourcesForCheckpoint(
@@ -575,7 +621,10 @@ class SibionicsBleManager(
                 synchronized(this@SibionicsBleManager) {
                     if (recoveryGeneration != startupRecoveryGeneration) return@synchronized
                     startupRecoveryRunning = false
-                    if (stop || uiPaused) return@synchronized
+                    if (stop || uiPaused) {
+                        publishStatus()
+                        return@synchronized
+                    }
                     if (generation != rebuildGeneration || selection != algorithmSelection ||
                         variantSnapshot != variant || code != shortCode || sensitivitySnapshot != sensitivity
                     ) {
@@ -617,8 +666,11 @@ class SibionicsBleManager(
         runCatching { mBluetoothGatt?.close() }
         mBluetoothGatt = null
         mActiveBluetoothDevice = null
+        linkWatchdogArmed = false
+        reconnectDueAtMs = 0L
         phase = Phase.IDLE
-        setStatus(disconnectedStatus())
+        idleReason = SibionicsIdleReason.NONE
+        publishStatus()
     }
 
     @Synchronized
@@ -627,15 +679,16 @@ class SibionicsBleManager(
         stop = false
         advertisementRecovery.stop()
         phase = Phase.IDLE
+        idleReason = SibionicsIdleReason.NONE
         connectDevice(0)
     }
 
     override fun onBluetoothAdapterUnavailable() {
         advertisementRecovery.stop()
-        handler.removeCallbacks(reconnectRunnable)
+        cancelScheduledReconnect()
         prepareForReconnect()
-        constatstatusstr = Applic.getContext().getString(tk.glucodata.R.string.status_bluetooth_off)
-        UiRefreshBus.requestStatusRefresh()
+        idleReason = SibionicsIdleReason.BLUETOOTH_OFF
+        publishStatus()
     }
 
     override fun terminateManagedSensor(wipeData: Boolean) {
@@ -773,8 +826,8 @@ class SibionicsBleManager(
 
     private fun handleConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         if (stop) return
-        if (gatt === retiredGatt) {
-            retiredGatt = null
+        if (gatt in retiredGatts) {
+            retiredGatts.remove(gatt)
             Log.d(SibionicsConstants.TAG, "ignore retired GATT callback state=$newState serial=$SerialNumber")
             runCatching { gatt.close() }
             return
@@ -796,6 +849,8 @@ class SibionicsBleManager(
                 handler.removeCallbacks(highPriorityCapRunnable)
                 gatt.device?.address?.let { setDeviceAddress(it) }
                 connectTime = System.currentTimeMillis()
+                handshakeRestartsThisConnection = 0
+                if (SibionicsLinkPolicy.isTransportNotice(linkNotice)) clearLinkNotice()
                 unrequestedPageSeenThisConnection = false
                 unrequestedPageCountedThisConnection = false
                 connectionRequestedBackfillPage = false
@@ -806,7 +861,7 @@ class SibionicsBleManager(
                 clearPendingWrite()
                 phase = Phase.DISCOVERING
                 armSetupStageTimeout()
-                setStatus(connectingStatus())
+                publishStatus()
                 runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
                 handler.postDelayed({ runCatching { gatt.discoverServices() } }, 250L)
                 UiRefreshBus.requestStatusRefresh()
@@ -814,6 +869,11 @@ class SibionicsBleManager(
 
             BluetoothProfile.STATE_DISCONNECTED -> {
                 val failedDuringConnect = phase == Phase.CONNECTING
+                // A drop once streaming is how the sensor ends every page; one before
+                // the first byte of data is the link failing, which the card reports.
+                if (status != BluetoothGatt.GATT_SUCCESS && phase.ordinal < Phase.REQUESTING_DATA.ordinal) {
+                    noteLink(SibionicsLinkNotice.LINK_STATUS, status)
+                }
                 handler.removeCallbacks(connectCallbackTimeoutRunnable)
                 handler.removeCallbacks(setupStageTimeoutRunnable)
                 Log.i(SibionicsConstants.TAG, "disconnected status=$status serial=$SerialNumber")
@@ -826,10 +886,10 @@ class SibionicsBleManager(
                 batteryLevelChar = null
                 resetBatterySession()
                 phase = Phase.IDLE
+                idleReason = SibionicsIdleReason.NONE
                 runCatching { gatt.close() }
                 mBluetoothGatt = null
                 mActiveBluetoothDevice = null
-                setStatus(disconnectedStatus())
                 handler.removeCallbacks(chinesePollRunnable)
                 handler.removeCallbacks(streamingTimeoutRunnable)
                 handler.removeCallbacks(handshakeTimeoutRunnable)
@@ -854,7 +914,7 @@ class SibionicsBleManager(
                         scheduleReconnect("disconnect status=$status", delay)
                     }
                 }
-                UiRefreshBus.requestStatusRefresh()
+                publishStatus()
             }
         }
     }
@@ -863,16 +923,16 @@ class SibionicsBleManager(
         if (!isCurrentGattCallback(gatt, "services discovered")) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             handler.removeCallbacks(setupStageTimeoutRunnable)
-            setStatus("Discovery failed: $status")
-            scheduleReconnect("discover failed")
+            noteLink(SibionicsLinkNotice.SERVICE_MISSING, status)
+            scheduleReconnect("discover failed status=$status")
             return
         }
         service = gatt.getService(SibionicsConstants.SERVICE_FF30)
         val svc = service
         if (svc == null) {
             handler.removeCallbacks(setupStageTimeoutRunnable)
-            setStatus("Sibionics FF30 service missing")
-            scheduleReconnect("missing service")
+            noteLink(SibionicsLinkNotice.SERVICE_MISSING)
+            scheduleReconnect("missing FF30 service")
             return
         }
         notifyChar = svc.getCharacteristic(SibionicsConstants.CHAR_NOTIFY_FF31)
@@ -886,8 +946,8 @@ class SibionicsBleManager(
         )
         if (notifyChar == null || writeChar == null) {
             handler.removeCallbacks(setupStageTimeoutRunnable)
-            setStatus("Sibionics FF31/FF32 missing")
-            scheduleReconnect("missing chars")
+            noteLink(SibionicsLinkNotice.SERVICE_MISSING)
+            scheduleReconnect("missing FF31/FF32")
             return
         }
         phase = Phase.ENABLING_NOTIFY
@@ -972,7 +1032,7 @@ class SibionicsBleManager(
 
     private fun isCurrentGatt(gatt: BluetoothGatt): Boolean {
         val activeGatt = mBluetoothGatt
-        return gatt !== retiredGatt && (activeGatt == null || gatt === activeGatt)
+        return gatt !in retiredGatts && (activeGatt == null || gatt === activeGatt)
     }
 
     private fun handleCharacteristicRead(
@@ -1159,7 +1219,7 @@ class SibionicsBleManager(
                 handler.removeCallbacks(chineseDataTimeoutRunnable)
                 if (phase != Phase.STREAMING) {
                     phase = Phase.REQUESTING_DATA
-                    setStatus(waitingForDataStatus())
+                    publishStatus()
                     scheduleChineseDataTimeout()
                 }
             }
@@ -1173,6 +1233,7 @@ class SibionicsBleManager(
                 handler.removeCallbacks(chineseProbeTimeoutRunnable)
                 handler.removeCallbacks(chineseDataTimeoutRunnable)
                 phase = Phase.STREAMING
+                noteSessionProgress()
                 processChineseEntries(result.entries)
                 scheduleChinesePoll()
                 scheduleStreamingTimeout()
@@ -1211,6 +1272,7 @@ class SibionicsBleManager(
                 confirmProtocolMode(SibionicsConstants.ProtocolMode.V120)
                 handler.removeCallbacks(handshakeTimeoutRunnable)
                 phase = Phase.STREAMING
+                noteSessionProgress()
                 armHighPriorityCap()
                 processV120Entries(result.entries)
                 scheduleStreamingTimeout()
@@ -1253,8 +1315,8 @@ class SibionicsBleManager(
                 synchronized(algorithmLock) {
                     algorithm.configure(shortCode, sensitivity, variant, algorithmSelection)
                 }
-                setStatus("Authenticated")
                 phase = Phase.ACTIVATING
+                publishStatus()
                 writeCommand(SibionicsProtocol.buildActivationPacket(), "activation", retryWhenBusy = true)
                 scheduleHandshakeTimeout()
             }
@@ -1287,7 +1349,7 @@ class SibionicsBleManager(
             SibionicsProtocol.ResponseType.STREAMING_READY -> {
                 clearV120StepTimeouts()
                 phase = Phase.STREAMING
-                setStatus(waitingForDataStatus())
+                publishStatus()
                 scheduleStreamingTimeout()
             }
         }
@@ -1323,7 +1385,11 @@ class SibionicsBleManager(
     private fun sendAuthPacket() {
         val groups = keyGroups()
         if (groups.isEmpty()) {
-            setStatus("No V120 key")
+            // Cannot happen with the built-in key table; never leave the link hanging on it.
+            Log.e(SibionicsConstants.TAG, "no V120 key group for ${variant.id} serial=$SerialNumber")
+            noteLink(SibionicsLinkNotice.AUTH_FAILED)
+            phase = Phase.ERROR
+            scheduleReconnect("no V120 key")
             return
         }
         val selected = groups[keyGroupIndex.coerceIn(0, groups.lastIndex)]
@@ -1335,7 +1401,7 @@ class SibionicsBleManager(
             return
         }
         phase = Phase.AUTHENTICATING
-        setStatus("Authenticating")
+        publishStatus()
         writeCommand(
             SibionicsProtocol.buildAuthPacket(SibionicsConstants.macBytes(mActiveDeviceAddress), key),
             "auth",
@@ -1350,7 +1416,7 @@ class SibionicsBleManager(
         if (keyGroupIndex >= groups.size) {
             resetKeyGroupRotation()
             phase = Phase.ERROR
-            setStatus("Auth failed")
+            noteLink(SibionicsLinkNotice.AUTH_FAILED)
             Log.w(SibionicsConstants.TAG, "V120 auth failed: $reason")
             scheduleReconnect("auth failed")
             return
@@ -1383,10 +1449,10 @@ class SibionicsBleManager(
         }
         if (probing) {
             phase = Phase.PROBING_CHINESE
-            setStatus("Probing")
+            publishStatus()
         } else if (phase != Phase.STREAMING) {
             phase = Phase.REQUESTING_DATA
-            setStatus(waitingForDataStatus())
+            publishStatus()
         }
         val packet = SibionicsProtocol.buildChineseDataRequest(
             nextDataRequestIndex().coerceAtLeast(1),
@@ -1397,7 +1463,7 @@ class SibionicsBleManager(
 
     private fun processChineseEntries(entries: List<SibionicsProtocol.ChineseEntry>) {
         if (entries.isEmpty()) {
-            setStatus(waitingForDataStatus())
+            publishStatus()
             return
         }
         observeCalibrationRevision()
@@ -1450,7 +1516,7 @@ class SibionicsBleManager(
 
     private fun processV120Entries(entries: List<SibionicsProtocol.V120Entry>) {
         if (entries.isEmpty()) {
-            setStatus(waitingForDataStatus())
+            publishStatus()
             return
         }
         observeCalibrationRevision()
@@ -1611,6 +1677,7 @@ class SibionicsBleManager(
     private fun updateChineseHistoryProgress(entries: List<SibionicsProtocol.ChineseEntry>) {
         if (entries.isEmpty()) return
         historySeenIndices.addAll(entries.map { it.index })
+        if (historySeenIndices.size > historyReceivedCount) historyGrewAtMs = System.currentTimeMillis()
         historyReceivedCount = historySeenIndices.size
         historyTotalCount = SibionicsProtocol.estimateChineseHistoryTotal(
             previousTotal = historyTotalCount,
@@ -1623,6 +1690,7 @@ class SibionicsBleManager(
         if (entries.isEmpty()) return
         val now = System.currentTimeMillis()
         historySeenIndices.addAll(entries.map { it.index })
+        if (historySeenIndices.size > historyReceivedCount) historyGrewAtMs = System.currentTimeMillis()
         historyReceivedCount = historySeenIndices.size
         val estimates = entries.mapNotNull { entry ->
             val candidateStart = entry.eventTimeMs - entry.index * SibionicsConstants.READING_INTERVAL_MS
@@ -1647,15 +1715,8 @@ class SibionicsBleManager(
             // become unnecessarily slow on conservative Android Bluetooth stacks.
             settleConnectionPriority()
             scheduleBatteryRefreshAfterStreaming()
-            setStatus(connectedStatus())
-        } else if (SibionicsSessionPolicy.shouldShowHistoryProgress(
-                historyReceivedCount,
-                historyTotalCount,
-                hasReceivedLiveReading = lastLiveIndexSeen >= 0,
-            )
-        ) {
-            setStatus(historyProgressStatus())
         }
+        publishStatus()
     }
 
     private fun processEntry(
@@ -2136,7 +2197,6 @@ class SibionicsBleManager(
             if (lastIndex <= 1) {
                 // No exact state to protect: this is a plain replay from the start.
                 beginAlgorithmRehydration(cursor, "local source journal incomplete")
-                setStatus(waitingForDataStatus())
                 scheduleReconnect("local algorithm source backfill")
                 return@post
             }
@@ -2440,7 +2500,8 @@ class SibionicsBleManager(
             reading.sampleMs,
             SibionicsConstants.SENSOR_GEN,
         )
-        setStatus(connectedStatus())
+        clearLinkNotice()
+        publishStatus()
         Log.i(
             SibionicsConstants.TAG,
             "live idx=${reading.index} mgdl=%.1f raw=%.1f temp=%.1f".format(
@@ -2584,8 +2645,8 @@ class SibionicsBleManager(
             return true
         }
         pendingResetCommand = true
+        noteLink(SibionicsLinkNotice.RESET_QUEUED)
         connectDevice(0)
-        setStatus("Reset queued")
         return true
     }
 
@@ -2622,8 +2683,7 @@ class SibionicsBleManager(
             SibionicsConstants.TAG,
             "reset sent; keeping session start=$startTimeMs idx=$lastIndex until the sensor shows a new one",
         )
-        setStatus("Reset sent")
-        UiRefreshBus.requestStatusRefresh()
+        noteLink(SibionicsLinkNotice.RESET_SENT)
     }
 
     private val postResetDiscardTimeoutRunnable = Runnable {
@@ -2884,9 +2944,11 @@ class SibionicsBleManager(
             displayName = mygetDeviceName(),
             deviceAddress = mActiveDeviceAddress ?: record?.address ?: "Unknown",
             uiFamily = ManagedSensorUiFamily.SIBIONICS,
-            connectionStatus = if (phase == Phase.STREAMING) connectedStatus() else constatstatusstr.orEmpty(),
-            detailedStatus = getDetailedBleStatus(),
-            subtitleStatus = getDetailedBleStatus().ifBlank { constatstatusstr.orEmpty() },
+            // The header says what the link is doing; this row only what last went
+            // wrong. It used to repeat whatever text the shared scanner left behind.
+            connectionStatus = linkNoticeText(),
+            detailedStatus = currentStatusText(),
+            subtitleStatus = currentStatusText(),
             showConnectionStatusInDetails = true,
             startTimeMs = startTimeMs,
             officialEndMs = officialEndMs(),
@@ -2909,6 +2971,8 @@ class SibionicsBleManager(
             sensorDetailTelemetry = detailTelemetry(),
             isVendorPaired = true,
             isVendorConnected = mBluetoothGatt != null && phase == Phase.STREAMING,
+            catchingUp = (historyTransferActive || algorithmRehydrating) &&
+                System.currentTimeMillis() - historyGrewAtMs < CATCH_UP_GROWTH_WINDOW_MS,
             sensorRemainingHours = remainingHours(),
             sensorAgeHours = ageHours(),
             batteryPercent = if (variant == SibionicsConstants.Variant.SIBIONICS2) lastBatteryPercent else -1,
@@ -2916,10 +2980,33 @@ class SibionicsBleManager(
 //            vendorFirmware = SibionicsConstants.initialProtocolMode(variant, protocolMode).name,
         )
 
-    override fun getDetailedBleStatus(): String {
-        if (uiPaused || stop) return disconnectedStatus()
-        return when (phase) {
-            Phase.IDLE -> disconnectedStatus()
+    override fun getDetailedBleStatus(): String = currentStatusText()
+
+    private fun bluetoothEnabled(): Boolean = runCatching {
+        (Applic.app?.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter?.isEnabled
+    }.getOrNull() ?: true
+
+    private fun currentLinkView(): SibionicsLinkView = SibionicsLinkPolicy.view(
+        phase = phase,
+        idleReason = idleReason,
+        paused = uiPaused || stop,
+        bluetoothOn = bluetoothEnabled(),
+        restoring = startupRecoveryRunning,
+        inHistoryTransfer = historyTransferActive || algorithmRehydrating,
+        historyShowable = SibionicsSessionPolicy.shouldShowHistoryProgress(
+            historyReceivedCount,
+            historyTotalCount,
+            hasReceivedLiveReading = lastLiveIndexSeen >= 0,
+        ),
+        hasLiveReading = lastLiveIndexSeen >= 0,
+        hasAnyReading = latestReadingTimeMs > 0L,
+    )
+
+    private fun currentStatusText(): String = when (currentLinkView()) {
+        SibionicsLinkView.DISCONNECTED -> disconnectedStatus()
+        SibionicsLinkView.BLUETOOTH_OFF -> appString(R.string.status_bluetooth_off, "Bluetooth off")
+        SibionicsLinkView.CONNECTING -> connectingStatus()
+        SibionicsLinkView.PHASE_STEP -> when (phase) {
             Phase.CONNECTING -> connectingStatus()
             Phase.DISCOVERING -> "Discovering"
             Phase.ENABLING_NOTIFY -> "Subscribing"
@@ -2928,18 +3015,47 @@ class SibionicsBleManager(
             Phase.ACTIVATING -> "Activating"
             Phase.SYNCING_TIME -> "Syncing time"
             Phase.REQUESTING_DATA -> "Requesting data"
-            Phase.STREAMING -> when {
-                lastLiveIndexSeen >= 0 -> connectedStatus()
-                SibionicsSessionPolicy.shouldShowHistoryProgress(
-                    historyReceivedCount,
-                    historyTotalCount,
-                    hasReceivedLiveReading = false,
-                ) -> historyProgressStatus()
-                latestReadingTimeMs > 0L -> connectedStatus()
-                else -> waitingForDataStatus()
-            }
-            Phase.ERROR -> constatstatusstr.orEmpty().ifBlank { "Error" }
+            else -> connectingStatus()
         }
+        SibionicsLinkView.WAITING_FOR_DATA -> waitingForDataStatus()
+        SibionicsLinkView.HISTORY -> historyProgressStatus()
+        SibionicsLinkView.CONNECTED -> connectedStatus()
+        SibionicsLinkView.FAILED -> linkNoticeText().ifBlank {
+            appString(R.string.status_connection_failed, "Connection failed")
+        }
+    }
+
+    private fun linkNoticeText(): String = when (linkNotice) {
+        SibionicsLinkNotice.NONE -> ""
+        SibionicsLinkNotice.LINK_STATUS ->
+            appString(R.string.status_connection_failed, "Connection failed") + " ($linkNoticeCode)"
+        SibionicsLinkNotice.NOT_FOUND -> appString(R.string.status_sensor_not_found, "Sensor not found nearby")
+        SibionicsLinkNotice.AUTH_FAILED -> appString(R.string.status_auth_failed, "Authentication failed")
+        SibionicsLinkNotice.NOT_RESPONDING -> appString(R.string.status_sensor_not_responding, "Sensor not responding")
+        SibionicsLinkNotice.SERVICE_MISSING ->
+            appString(R.string.status_connection_failed, "Connection failed") +
+                if (linkNoticeCode != 0) " ($linkNoticeCode)" else ""
+        SibionicsLinkNotice.RESET_QUEUED -> "Reset queued"
+        SibionicsLinkNotice.RESET_SENT -> "Reset sent"
+    }
+
+    private fun appString(resId: Int, fallback: String): String =
+        runCatching { Applic.app.getString(resId) }.getOrNull() ?: fallback
+
+    private fun noteLink(notice: SibionicsLinkNotice, code: Int = 0) {
+        linkNotice = notice
+        linkNoticeCode = code
+        publishStatus()
+    }
+
+    private fun clearLinkNotice() {
+        linkNotice = SibionicsLinkNotice.NONE
+        linkNoticeCode = 0
+    }
+
+    /** A data batch arrived: the session is alive even when its phase did not change. */
+    private fun noteSessionProgress() {
+        lastProgressMs = System.currentTimeMillis()
     }
 
     override fun requestBatteryRefresh(): Boolean {
@@ -3036,8 +3152,12 @@ class SibionicsBleManager(
         return "$label ${historyReceivedCount.coerceAtLeast(0)}/${historyTotalCount.coerceAtLeast(historyReceivedCount)}"
     }
 
-    private fun setStatus(status: String) {
-        constatstatusstr = status
+    /**
+     * constatstatusstr is what the ongoing notification and the AOD overlay show for
+     * the active sensor, so it carries the same text as the card header.
+     */
+    private fun publishStatus() {
+        constatstatusstr = currentStatusText()
         UiRefreshBus.requestStatusRefresh()
     }
 
@@ -3075,14 +3195,17 @@ class SibionicsBleManager(
         ) {
             return advertisementRecovery.isActive
         }
-        handler.removeCallbacks(reconnectRunnable)
+        cancelScheduledReconnect()
         phase = Phase.IDLE
-        setStatus(connectingStatus())
         Log.i(SibionicsConstants.TAG, "scan for saved sensor after $reason serial=$SerialNumber")
-        return advertisementRecovery.start(
+        val started = advertisementRecovery.start(
             address = address!!,
+            advertisedName = pendingMatchedBleName.ifBlank { record?.bleName.orEmpty() },
             timeoutMs = ADVERTISEMENT_RECOVERY_TIMEOUT_MS,
         )
+        idleReason = if (started) SibionicsIdleReason.SEARCHING else SibionicsIdleReason.NONE
+        publishStatus()
+        return started
     }
 
     private fun finishAdvertisementRecovery(advertisement: SibionicsAdvertisement?) {
@@ -3090,6 +3213,8 @@ class SibionicsBleManager(
         if (advertisement == null) {
             Log.w(SibionicsConstants.TAG, "saved sensor advertisement not seen serial=$SerialNumber")
             phase = Phase.IDLE
+            linkNotice = SibionicsLinkNotice.NOT_FOUND
+            linkNoticeCode = 0
             scheduleReconnect("advertisement recovery timeout")
             return
         }
@@ -3106,8 +3231,97 @@ class SibionicsBleManager(
     private fun scheduleReconnect(reason: String, delayMs: Long = RECONNECT_DELAY_MS) {
         if (stop || uiPaused) return
         Log.i(SibionicsConstants.TAG, "schedule reconnect in ${delayMs}ms: $reason")
+        val delay = delayMs.coerceAtLeast(0L)
         handler.removeCallbacks(reconnectRunnable)
-        handler.postDelayed(reconnectRunnable, delayMs.coerceAtLeast(0L))
+        reconnectDueAtMs = System.currentTimeMillis() + delay
+        if (phase == Phase.IDLE) idleReason = SibionicsIdleReason.RECONNECT_SCHEDULED
+        handler.postDelayed(reconnectRunnable, delay)
+        armLinkWatchdog()
+        publishStatus()
+    }
+
+    private fun cancelScheduledReconnect() {
+        handler.removeCallbacks(reconnectRunnable)
+        reconnectDueAtMs = 0L
+        if (idleReason == SibionicsIdleReason.RECONNECT_SCHEDULED) idleReason = SibionicsIdleReason.NONE
+    }
+
+    /**
+     * One check every [SibionicsLinkPolicy.WATCHDOG_INTERVAL_MS] while the driver is
+     * enabled. Each failure path schedules its own retry, but a single one that did
+     * not — a refused connect, a lost callback, a pause that came and went — used to
+     * leave the sensor idle until it was removed and added again.
+     */
+    private fun armLinkWatchdog() {
+        if (linkWatchdogArmed || stop || uiPaused) return
+        linkWatchdogArmed = true
+        // Callers race on the flag from several threads; removing first keeps one chain.
+        handler.removeCallbacks(linkWatchdogRunnable)
+        handler.postDelayed(linkWatchdogRunnable, SibionicsLinkPolicy.WATCHDOG_INTERVAL_MS)
+    }
+
+    private val linkWatchdogRunnable = Runnable {
+        linkWatchdogArmed = false
+        if (stop || uiPaused) return@Runnable
+        runCatching { checkLinkHealth() }
+            .onFailure { Log.stack(SibionicsConstants.TAG, "link watchdog", it) }
+        armLinkWatchdog()
+    }
+
+    private fun checkLinkHealth() {
+        if (CloneSensorRegistry.isCloneSensor(SerialNumber) ||
+            SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)
+        ) return
+        val now = System.currentTimeMillis()
+        val bluetoothOn = bluetoothEnabled()
+        if (!bluetoothOn && phase == Phase.IDLE && idleReason != SibionicsIdleReason.BLUETOOTH_OFF) {
+            idleReason = SibionicsIdleReason.BLUETOOTH_OFF
+            publishStatus()
+        }
+        val action = SibionicsLinkPolicy.watchdogAction(
+            phase = phase,
+            idleReason = idleReason,
+            sinceProgressMs = now - lastProgressMs,
+            reconnectOverdueMs = if (reconnectDueAtMs > 0L) now - reconnectDueAtMs else 0L,
+            recoveryActive = advertisementRecovery.isActive,
+            restoring = startupRecoveryRunning,
+            bluetoothOn = bluetoothOn,
+        )
+        when (action) {
+            SibionicsWatchdogAction.NONE -> Unit
+            SibionicsWatchdogAction.RECYCLE -> {
+                Log.w(
+                    SibionicsConstants.TAG,
+                    "watchdog: no progress in phase=$phase for ${(now - lastProgressMs) / 1000}s; " +
+                        "reconnecting serial=$SerialNumber",
+                )
+                noteLink(SibionicsLinkNotice.NOT_RESPONDING)
+                prepareForReconnect()
+                connectOrScan("watchdog recycle")
+            }
+            SibionicsWatchdogAction.CONNECT -> {
+                Log.i(
+                    SibionicsConstants.TAG,
+                    "watchdog: idle reason=$idleReason with nothing scheduled; connecting serial=$SerialNumber",
+                )
+                connectOrScan("watchdog")
+            }
+        }
+    }
+
+    /**
+     * connectDevice() returns false only when there is no device to connect to; the
+     * shared scanner is what finds one then, so ask it (at most every two minutes,
+     * it backs off on its own).
+     */
+    private fun connectOrScan(reason: String) {
+        if (connectDevice(0)) return
+        if (stop || uiPaused || idleReason != SibionicsIdleReason.NEEDS_SCAN) return
+        val now = System.currentTimeMillis()
+        if (now - lastScanRequestMs < SCAN_REQUEST_INTERVAL_MS) return
+        lastScanRequestMs = now
+        Log.i(SibionicsConstants.TAG, "no device for $SerialNumber ($reason); asking the shared scanner")
+        runCatching { SensorBluetooth.startscan() }
     }
 
     private fun armConnectCallbackTimeout(requestedDelayMs: Long) {
@@ -3155,9 +3369,10 @@ class SibionicsBleManager(
     }
 
     private val reconnectRunnable = Runnable {
+        reconnectDueAtMs = 0L
         if (!stop && !uiPaused) {
             prepareForReconnect()
-            connectDevice(0)
+            connectOrScan("reconnect")
         }
     }
 
@@ -3182,7 +3397,7 @@ class SibionicsBleManager(
         resetBatterySession()
         mActiveBluetoothDevice = null
         phase = Phase.IDLE
-        retiredGatt = staleGatt
+        staleGatt?.let(retiredGatts::add)
         // Also cancels a delayed SuperGattCallback connection task. Closing only
         // the visible GATT can otherwise leave connectPending=true forever.
         closeGattTransport()
@@ -3200,8 +3415,17 @@ class SibionicsBleManager(
 
     private val handshakeTimeoutRunnable = Runnable {
         if (phase == Phase.ACTIVATING || phase == Phase.SYNCING_TIME || phase == Phase.REQUESTING_DATA) {
-            setStatus("Handshake timeout")
-            sendAuthPacket()
+            if (handshakeRestartsThisConnection >= 1) {
+                // Authenticating again on a link that already stalled once only cycles
+                // auth → stall → auth for as long as the sensor keeps the link up.
+                Log.w(SibionicsConstants.TAG, "handshake stalled again in phase=$phase; reconnecting")
+                noteLink(SibionicsLinkNotice.NOT_RESPONDING)
+                scheduleReconnect("handshake stalled", delayMs = 500L)
+            } else {
+                handshakeRestartsThisConnection++
+                Log.w(SibionicsConstants.TAG, "handshake timeout in phase=$phase; authenticating again")
+                sendAuthPacket()
+            }
         }
     }
 
@@ -3247,10 +3471,17 @@ class SibionicsBleManager(
         handler.postDelayed(streamingTimeoutRunnable, STREAMING_TIMEOUT_MS)
     }
 
+    /**
+     * Armed by every data batch, so firing means nothing arrived for
+     * [STREAMING_TIMEOUT_MS]. It used to also require the last *sample* to be stale;
+     * a sensor clock running ahead made a silent link look fresh, the check passed,
+     * and the timer was never armed again.
+     */
     private val streamingTimeoutRunnable = Runnable {
-        if (phase == Phase.STREAMING && System.currentTimeMillis() - latestReadingTimeMs > CURRENT_FRESH_MS) {
-            setStatus(waitingForDataStatus())
-            scheduleReconnect("streaming timeout")
+        if (phase == Phase.STREAMING && !stop && !uiPaused) {
+            Log.w(SibionicsConstants.TAG, "no data for ${STREAMING_TIMEOUT_MS / 1000}s while streaming; reconnecting")
+            noteLink(SibionicsLinkNotice.NOT_RESPONDING)
+            scheduleReconnect("streaming timeout", delayMs = 0L)
         }
     }
 }

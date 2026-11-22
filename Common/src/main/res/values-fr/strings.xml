@@ -2131,6 +2131,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">ID de chat autorisés</string>
     <string name="api_source_telegram_note">Telegram conserve les mises à jour du bot jusqu’à 24 heures. Saisissez un ou plusieurs ID de chat ou noms d’utilisateur dont les messages au bot peuvent être importés.</string>
     <string name="status_waiting_for_data">Connecté, en attente de données…</string>
+    <string name="status_sensor_not_found">Capteur introuvable à proximité</string>
+    <string name="status_auth_failed">Échec de l\'authentification</string>
+    <string name="status_sensor_not_responding">Le capteur ne répond pas</string>
+    <string name="sensor_out_of_reach_title">Aucun signal du capteur</string>
+    <string name="sensor_out_of_reach_title_short">Aucun signal</string>
+    <string name="sensor_out_of_reach_body">Vérifiez qu’il est à proximité et pas déchargé</string>
+    <string name="sensor_out_of_reach_battery">Batterie du capteur faible (%1$d %%)</string>
+    <string name="sensor_waiting_for_reading">En attente d’une mesure</string>
     <string name="status_raw_values_received">Connecté, valeurs brutes reçues</string>
     <string name="status_invalid_glucose_from_sensor">Glycémie non valide du capteur</string>
     <string name="sensor_display_select">Sélectionner le capteur à afficher</string>

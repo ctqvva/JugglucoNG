@@ -2192,6 +2192,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">Разрешённые chat ID</string>
     <string name="api_source_telegram_note">Telegram хранит обновления бота до 24 часов. Укажите один или несколько chat ID/имён пользователей, сообщения которых можно импортировать.</string>
     <string name="status_waiting_for_data">Подключено, ожидание данных…</string>
+    <string name="status_sensor_not_found">Датчик не найден поблизости</string>
+    <string name="status_auth_failed">Ошибка аутентификации</string>
+    <string name="status_sensor_not_responding">Датчик не отвечает</string>
+    <string name="sensor_out_of_reach_title">Нет сигнала от сенсора</string>
+    <string name="sensor_out_of_reach_title_short">Нет сигнала</string>
+    <string name="sensor_out_of_reach_body">Проверьте, что он рядом и не разряжен</string>
+    <string name="sensor_out_of_reach_battery">Низкий заряд сенсора (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Ожидание показаний</string>
     <string name="status_raw_values_received">Подключено, получены сырые значения</string>
     <string name="status_invalid_glucose_from_sensor">Некорректная глюкоза от сенсора</string>
     <string name="sensor_display_select">Выбрать датчик для отображения</string>

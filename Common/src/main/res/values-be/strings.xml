@@ -1605,6 +1605,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="startjuggluco">Juggluco запушчана на тэлефоне?\n\nWIFI і Bluetooth уключаны?</string>
     <string name="status_raw_values_received">Падключана, атрыманы неапрацаваныя значэнні</string>
     <string name="status_waiting_for_data">Падключана, чаканне даных…</string>
+    <string name="status_sensor_not_found">Датчык побач не знойдзены</string>
+    <string name="status_auth_failed">Памылка аўтэнтыфікацыі</string>
+    <string name="status_sensor_not_responding">Датчык не адказвае</string>
+    <string name="sensor_out_of_reach_title">Няма сігналу ад сэнсара</string>
+    <string name="sensor_out_of_reach_title_short">Няма сігналу</string>
+    <string name="sensor_out_of_reach_body">Праверце, ці ён побач і ці не разраджаны</string>
+    <string name="sensor_out_of_reach_battery">Нізкі зарад сэнсара (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Чаканне паказанняў</string>
     <string name="status_invalid_glucose_from_sensor">Некарэктная глюкоза ад сэнсара</string>
     <string name="stream">Паток</string>
     <string name="switchtowatch">Пераключыць</string>
