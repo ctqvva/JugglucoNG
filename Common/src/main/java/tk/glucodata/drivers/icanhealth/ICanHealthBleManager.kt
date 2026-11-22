@@ -290,7 +290,9 @@ class ICanHealthBleManager(
         private set
     @Volatile private var vendorSoftwareVersion: String = ""
     private val pendingHistoryBatch = LinkedHashMap<Int, PendingHistoryReading>()
-    private val recentLiveGlucoseMgdl = ArrayDeque<Float>(RECENT_GLUCOSE_WINDOW_SIZE)
+    private data class RecentGlucose(val sequenceNumber: Int, val mgDl: Float)
+
+    private val recentLiveGlucose = ArrayDeque<RecentGlucose>(RECENT_GLUCOSE_WINDOW_SIZE)
     private val rejectedOnboardingAddresses = CopyOnWriteArraySet<String>()
 
     private data class PendingAddressRebind(
@@ -964,12 +966,17 @@ class ICanHealthBleManager(
             glucoseKey = glucoseKey,
         ) ?: return false
         if (latestCurrentRaw.isFinite() && latestCurrentRaw > 0f && latestTemperatureC.isFinite() && latestTemperatureC > 0f) {
-            val recentHistory = recentLiveGlucoseMgdl.toList()
+            val recentGlucose = recentLiveGlucose.toList()
+            val recentHistory = ICanHealthCeCalibration.vendorBgWindow(
+                recent = recentGlucose.map { it.sequenceNumber to it.mgDl },
+                currentSequence = sequenceNumber,
+                intervalMinutes = readingIntervalMinutes(),
+            )
             // Vendor contract (RU SDK l0.a): planCalib's first argument is the fingerstick value
             // from SdkCalRecord.getGluValue(), the second is the sensor's glucose from the record;
             // the coefficients come from the per-sensor calFactor persisted by planCalib, or from
             // AlgParameterBean defaults when none is stored yet (caliK=1, caliAdjustNo=-1, ...).
-            val sensorBg = recentLiveGlucoseMgdl.lastOrNull() ?: glucoseMgDl.toFloat()
+            val sensorBg = recentGlucose.lastOrNull()?.mgDl ?: glucoseMgDl.toFloat()
             val stored = ICanHealthCalibrationStore.load(Applic.app, SerialNumber)
                 ?: ICanHealthCeCalibration.vendorDefaults()
             val planned = ICanHealthCeCalibration.planCalib(
@@ -2338,7 +2345,7 @@ class ICanHealthBleManager(
             val previousLiveSequence = lastHandledLiveSequence
             lastHandledLiveSequence = reading.sequenceNumber
             lastHandledLiveTimestampMs = sampleTimeMs
-            rememberRecentGlucose(reading.glucoseMgdl)
+            rememberRecentGlucose(reading.glucoseMgdl, reading.sequenceNumber)
             updatePersistedHistoryTailTimestamp(sampleTimeMs)
             rememberCoveredEdge(reading.sequenceNumber, sampleTimeMs)
             scheduleForegroundNotificationRefresh()
@@ -3834,14 +3841,14 @@ class ICanHealthBleManager(
         return Float.NaN
     }
 
-    private fun rememberRecentGlucose(glucoseMgdl: Float) {
-        if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f) {
+    private fun rememberRecentGlucose(glucoseMgdl: Float, sequenceNumber: Int) {
+        if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f || sequenceNumber < 0) {
             return
         }
-        if (recentLiveGlucoseMgdl.size >= RECENT_GLUCOSE_WINDOW_SIZE) {
-            recentLiveGlucoseMgdl.removeFirst()
+        if (recentLiveGlucose.size >= RECENT_GLUCOSE_WINDOW_SIZE) {
+            recentLiveGlucose.removeFirst()
         }
-        recentLiveGlucoseMgdl.addLast(glucoseMgdl)
+        recentLiveGlucose.addLast(RecentGlucose(sequenceNumber, glucoseMgdl))
     }
 
     private fun recordHistoryBackfillSample(

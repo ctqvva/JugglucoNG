@@ -175,6 +175,25 @@ class ICanHealthCeCalibrationTests {
     }
 
     @Test
+    fun vendorBgWindowMatchesDaoBoundsAndOrdering() {
+        val recent = (0..12).map { it * 3 to (100f + it) }
+        // Bounds [current-30, current-interval] with interval 3 => 10 readings, current excluded.
+        val window = ICanHealthCeCalibration.vendorBgWindow(recent, currentSequence = 30, intervalMinutes = 3)
+        assertEquals(10, window.size)
+        assertEquals(100f, window.first(), 0f)
+        assertEquals(109f, window.last(), 0f)
+        assertEquals(window.sorted(), window)
+    }
+
+    @Test
+    fun vendorBgWindowRejectsInvalidInputs() {
+        val recent = listOf(0 to 100f, 3 to 101f)
+        assertTrue(ICanHealthCeCalibration.vendorBgWindow(recent, -1, 3).isEmpty())
+        assertTrue(ICanHealthCeCalibration.vendorBgWindow(recent, 30, 0).isEmpty())
+        assertTrue(ICanHealthCeCalibration.vendorBgWindow(recent, 2, 3).isEmpty())
+    }
+
+    @Test
     fun vendorDefaultsMatchBlankCalFactorBean() {
         // RU SDK l0.a: AlgParameterBean(0,0,0,0,0,0, 0x3F, null) — 0x3F is Kotlin's
         // default-argument mask, so the fields are 1,false,-1,-1,1,1.
