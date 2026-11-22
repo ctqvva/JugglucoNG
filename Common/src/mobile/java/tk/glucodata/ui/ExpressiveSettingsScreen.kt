@@ -644,7 +644,7 @@ fun ExpressiveSettingsScreen(
                 )
                 SettingsItem(
                     title = stringResource(R.string.libre3_managed_title),
-                    subtitle = stringResource(R.string.libre3_managed_enable_desc),
+                    subtitle = stringResource(R.string.libre3_managed_settings_desc),
                     icon = Symbols.NfcFilled,
                     iconTint = sharingColor,
                     position = CardPosition.MIDDLE,

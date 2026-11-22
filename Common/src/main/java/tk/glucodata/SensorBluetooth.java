@@ -1940,7 +1940,9 @@ public class SensorBluetooth {
             int vers = Natives.getLibreVersion(dataptr);
             if (libreVersion == 3) {
                 if (vers == 3) {
-                    return new Libre3GattCallback(name, dataptr);
+                    // Libre 3 runs only on the Kotlin driver now; a sensor the removed
+                    // proprietary driver was reading moves to it here.
+                    return tk.glucodata.drivers.libre3.Libre3Registry.adoptLegacySensor(Applic.app, name, dataptr);
                 }
             }
             if (tk.glucodata.BuildConfig.DexCom == 1) {

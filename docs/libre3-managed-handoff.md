@@ -1,19 +1,27 @@
-# Kotlin-managed Libre 3 / 3 Plus: test handoff
+# Libre 3 / 3 Plus driver: test handoff
 
 PR: https://github.com/ctqvva/JugglucoNG/pull/839
 
-Status: experimental, off by default. Software validation is recorded in the PR.
-No phone, watch or physical sensor has been used to validate this driver. The
-steps below are the remaining end-user acceptance tests, not a claim of success.
+Status: the only Libre 3 driver. Abbott's `liblibre3extension.so`, `libcrl_dp.so` and
+`libinit.so`, their loader and the proprietary Java driver are removed; there is no
+switch back. Software validation is recorded in the PR. No phone, watch or physical
+sensor has been used to validate this driver. The steps below are the remaining
+end-user acceptance tests, not a claim of success.
+
+Sensors the removed driver was reading move over at the first start after the update,
+without a rescan: their native record keeps the BLE address, PIN, start time and wear
+length, and the driver authorizes with the downloaded identities. The old record is
+finished (its history stays) and the main-sensor role moves with it. A record without
+a stored PIN or address needs one NFC scan.
 
 ## Setup
 
 1. Install the Mobile APK from the PR's successful **current-head** CI build.
    Record the commit, app version, Android version, sensor model and region.
 2. Keep a working independent glucose reader available during this first test.
-3. Open **Settings → Kotlin Libre 3 driver**. This page is available on a fresh
+3. Open **Settings → Libre 3**. This page is available on a fresh
    install without a LibreView account or an existing sensor.
-4. Enable the driver while online. It automatically downloads the required
+4. Open it while online. It automatically downloads the required
    connection credentials from the pinned public source, decompresses them,
    checks SHA-256 and the certificate/key match, and saves them encrypted on the
    phone. Wait for the saved identity set to appear. If a download fails, check
@@ -23,7 +31,6 @@ steps below are the remaining end-user acceptance tests, not a claim of success.
    Juggluco. An absent account ID refuses the scan with the legacy 0xF8 result.
    Only choose this phone's own ID deliberately, for the intended activation.
 6. Scan the Libre 3 / 3 Plus sensor with NFC once the credentials are ready.
-   Enabling affects new NFC scans; it does not convert existing pairings.
 
 Do not send identity JSON, private keys, NFC PINs, kAuth, account IDs or unredacted
 HCI captures in a public issue. App keys and cached authorization are encrypted
@@ -35,8 +42,9 @@ excluded from settings import and export; Android application backup is disabled
 | Scenario | Steps | Expected result / evidence |
 |---|---|---|
 | Fresh activation (A0) | Scan an unused test sensor, accept the dialog, wait for warmup. | Full authorization completes, current reading appears after warmup. Calendar offer initially checked. Record timing and status. |
-| Existing-sensor takeover (A8) | With the matching receiver ID, rescan a sensor started by the legacy driver. | One managed callback; legacy callback retired. Current and recovered history appear. Calendar offer initially unchecked. |
-| Takeover with two active sensors | Select the Libre 3, then rescan to switch drivers. Repeat in the opposite direction and with the other sensor selected. | The selected Libre 3 keeps the main role through either driver switch. If the other sensor is selected, it keeps the main role. |
+| Update from a build with the proprietary driver | Install over a build that was reading a Libre 3, online, without scanning. | The sensor reconnects on this driver after the credential download; the old series ends where the new one starts. The selected Libre 3 keeps the main role. |
+| Existing-sensor takeover (A8) | With the matching receiver ID, rescan a sensor started by Juggluco or the official app. | One managed callback. Current and recovered history appear. Calendar offer initially unchecked. |
+| Watch direct | With a Libre 3 on the phone, choose direct-to-watch. | The watch receives the pairing, credentials and cached key, connects with the cached key, and the phone yields. |
 | Cached reconnect | Move out of range, return; then disconnect/reconnect once in settings. | Re-authorizes using cached kAuth without another NFC scan; no duplicate callbacks or duplicate Room rows. |
 | Bluetooth toggle | Turn Bluetooth off for two minutes and on again. | Driver recovers; missing minutes backfill without a cursor jump or an endless setup loop. |
 | Process death / reboot | After receiving readings, force-stop and reopen; repeat with reboot. | Sensor record survives, cached authorization reconnects, stored history remains. |
@@ -112,15 +120,16 @@ services used are the generic managed-sensor mirror and lifecycle services.
 
 ## Integration limitations and unresolved hardware questions
 
-- **Phone → watch direct takeover is unsupported.** Libre 3 records and
-  device-bound Keystore secrets are not transferred by `ManagedSensorHandoff`.
-  Direct-routing requests and automatic provisioning are refused for this family.
-  Keep this sensor reading on the phone; displaying forwarded phone data on a
-  watch is separate. Wear compilation/tests do not establish direct takeover.
+- **Phone → watch direct takeover** carries the NFC record, backfill progress, the
+  identity sets the sensor uses and its cached kAuth in the managed handoff payload
+  (`Libre3Persistence.exportForWatch` / `importFromPhone`). Keystore-sealed values
+  travel unsealed inside the Wear Data Layer and are sealed again on the watch. A watch
+  that was reading a Libre 3 through the removed driver converts its own record the same
+  way as the phone and downloads credentials itself if it is online. Not hardware-tested.
 - **Legacy history continuity:** managed ID is `<serial>`; legacy ID was
-  `E07A-XX<serial>`. Existing history remains in its original series. A8 is needed
-  to pair an active legacy sensor; the proprietary native auth blob cannot be
-  converted. The new driver retires the legacy callback to avoid competing links.
+  `E07A-XX<serial>`. Existing history remains in its original series. The
+  proprietary 149-byte auth blob cannot be converted, so the first connection after
+  the update is a full authorization with the downloaded identities.
 - **Earlier WIP installs:** a native mirror created by an earlier preview may have
   smaller mapped storage geometry. Writes are bounded to the actual capacity,
   and that mirror is never cleared to enlarge it. Restart the app once after
@@ -143,8 +152,8 @@ services used are the generic managed-sensor mirror and lifecycle services.
   rather than the private-key payload. Advanced file import/custom sources and
   the `-Plibre3IdentitySource=...` build override remain available.
 - **Removal:** Remove clears cached keys and blocks automatic provisioning until
-  an explicit download/import/enable action. Reopening the page does not undo it.
-- **Exported settings:** enable, receiver-source choice and custom source metadata
+  an explicit download or import. Reopening the page does not undo it.
+- **Exported settings:** the receiver-source choice and custom source metadata
   are in a separate exportable preference file. The receiver ID, PINs, identities
   and cached authorization stay local and are excluded from settings exports.
 - **Earlier Health Connect exports:** previews used records without client IDs.

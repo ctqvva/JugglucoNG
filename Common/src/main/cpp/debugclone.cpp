@@ -86,7 +86,8 @@ x86_64    rax        rax    rdi    rsi    rdx    r10    r8    r9
 #include "debugclone.hpp"
 #include "maximum.hpp"
 #include "destruct.hpp"
-extern bool libre3initialized;
+// Was set by the removed Libre 3 library loader; nothing starts the version-3 debugger now.
+bool libre3initialized=false;
 std::string_view syscallstr[callmax];
 #ifdef __ARM_NR_BASE
 #include "armmax.hpp"

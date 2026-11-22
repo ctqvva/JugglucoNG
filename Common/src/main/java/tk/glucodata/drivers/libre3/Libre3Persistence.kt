@@ -90,7 +90,6 @@ object Libre3Persistence {
     const val SETTINGS_PREFS_NAME = "tk.glucodata_libre3_settings"
     private const val PREFS = PREFS_NAME
     private const val KEY_SENSORS = "sensors"
-    private const val KEY_ENABLED = "enabled"
     private const val KEY_RECEIVER_ID = "receiver_id"
     private const val KEY_RECEIVER_SOURCE = "receiver_source"
 
@@ -106,7 +105,7 @@ object Libre3Persistence {
     private fun settings(context: Context, requireDurableMigration: Boolean = false): SharedPreferences {
         val target = context.getSharedPreferences(SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
         val old = prefs(context)
-        val keys = listOf(KEY_ENABLED, KEY_RECEIVER_SOURCE, KEY_CUSTOM_SOURCE).filter { old.contains(it) }
+        val keys = listOf(KEY_RECEIVER_SOURCE, KEY_CUSTOM_SOURCE).filter { old.contains(it) }
         if (keys.isNotEmpty()) {
             val out = target.edit()
             for (key in keys.filterNot { target.contains(it) }) {
@@ -135,13 +134,6 @@ object Libre3Persistence {
     fun migrateSettingsForExport(context: Context) { settings(context, requireDurableMigration = true) }
 
     // ---- install-wide settings ----
-
-    /** Route Libre 3 NFC scans to this driver instead of the legacy native one. */
-    fun isEnabled(context: Context): Boolean = settings(context).getBoolean(KEY_ENABLED, false)
-
-    fun setEnabled(context: Context, enabled: Boolean) {
-        settings(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
-    }
 
     fun getReceiverSource(context: Context): Int = settings(context).getInt(KEY_RECEIVER_SOURCE, RECEIVER_FROM_LIBREVIEW_ACCOUNT)
 
@@ -450,5 +442,87 @@ object Libre3Persistence {
 
     fun setEnded(context: Context, sensorId: String, ended: Boolean) {
         prefs(context).edit().putBoolean("$sensorId.ended", ended).apply()
+    }
+
+    // ---- phone → watch ----
+
+    /**
+     * Everything a watch needs to run this sensor's driver: the NFC record, backfill progress,
+     * the identity sets it authorizes with and its cached kAuth. Secrets are sealed with this
+     * device's Keystore, so they travel unsealed inside the Wear Data Layer's own encryption
+     * and the watch seals them again with its key. Null for a sensor this driver does not hold.
+     */
+    fun exportForWatch(context: Context, sensorId: String): org.json.JSONObject? {
+        val record = loadSensor(context, sensorId) ?: return null
+        val p = prefs(context)
+        val selected = selectedIdentityVersion(context)
+        val paired = pairedIdentityLabel(context, sensorId)?.substringBefore('/', "")?.takeIf { it.isNotEmpty() }
+        val sets = org.json.JSONArray()
+        for (version in listOfNotNull(paired, selected).distinct()) {
+            val meta = identityVersions(context).firstOrNull { it.id == version } ?: continue
+            val bytes = Libre3SecretBox.open(p.getString(payloadKey(version), null)) ?: continue
+            sets.put(org.json.JSONObject().put("id", version).put("sha256", meta.sha256).put("origin", meta.origin)
+                .put("payload", Base64.encodeToString(bytes, Base64.NO_WRAP)))
+        }
+        val out = org.json.JSONObject()
+            .put("sensor", record.sensorId)
+            .put("address", record.bleAddress)
+            .put("pin", Libre3Bytes.hex(record.blePin))
+            .put("start", record.startTimeMs)
+            .put("warmup", record.warmupMinutes)
+            .put("wear", record.wearMinutes)
+            .put("receiver", record.receiverId)
+            .put("firmware", record.firmware)
+            .put("secver", record.securityVersion)
+            .put("lastLife", getLastLifeCount(context, sensorId))
+            .put("lastHist", getLastHistoricLifeCount(context, sensorId))
+            .put("anchor", getAnchor(context, sensorId))
+            .put("fillers", p.getString("$sensorId.fillers", "") ?: "")
+            .put("ended", isEnded(context, sensorId))
+            .put("selected", selected ?: org.json.JSONObject.NULL)
+            .put("identities", sets)
+        loadCachedAuth(context, sensorId)?.let { (key, label) -> out.put("kauth", Libre3Bytes.hex(key)).put("kauthIdentity", label) }
+        return out
+    }
+
+    /** The watch side of [exportForWatch]. Returns the sensor id, or null for an unusable entry. */
+    @Synchronized
+    fun importFromPhone(context: Context, json: org.json.JSONObject): String? {
+        val sensorId = json.optString("sensor").trim().takeIf { it.isNotEmpty() } ?: return null
+        val pin = Libre3Bytes.parseHex(json.optString("pin"))?.takeIf { it.size == 4 } ?: return null
+        val address = json.optString("address").takeIf { it.isNotBlank() } ?: return null
+        val sets = json.optJSONArray("identities") ?: org.json.JSONArray()
+        for (i in 0 until sets.length()) {
+            val set = sets.optJSONObject(i) ?: continue
+            runCatching {
+                installIdentities(context, set.getString("id"), set.getString("sha256"),
+                    Base64.decode(set.getString("payload"), Base64.NO_WRAP), set.optString("origin", "phone"))
+            }.onFailure { Log.w("Libre3Persistence", "identity set from phone not installed: ${it.message}") }
+        }
+        json.optString("selected").takeIf { it.isNotEmpty() && it != "null" }
+            ?.let { runCatching { selectIdentityVersion(context, it) } }
+        saveSensor(context, Libre3SensorRecord(
+            sensorId = sensorId,
+            bleAddress = address,
+            blePin = pin,
+            startTimeMs = json.optLong("start"),
+            warmupMinutes = json.optInt("warmup", 60),
+            wearMinutes = json.optInt("wear"),
+            receiverId = json.optLong("receiver"),
+            firmware = json.optString("firmware"),
+            securityVersion = json.optInt("secver"),
+        ))
+        // saveSensor starts a fresh pairing; this one carries on where the phone was.
+        val edit = prefs(context).edit()
+            .putInt("$sensorId.lastLife", json.optInt("lastLife"))
+            .putInt("$sensorId.lastHist", json.optInt("lastHist"))
+            .putString("$sensorId.fillers", json.optString("fillers"))
+            .putBoolean("$sensorId.ended", json.optBoolean("ended"))
+        json.optLong("anchor").takeIf { it > 0L }?.let { edit.putLong("$sensorId.anchor", it) }
+        check(edit.commit()) { "could not persist the sensor from the phone" }
+        val key = Libre3Bytes.parseHex(json.optString("kauth"))
+        val label = json.optString("kauthIdentity").takeIf { it.isNotEmpty() }
+        if (key != null && key.size == 16 && label != null) saveCachedAuth(context, sensorId, key, label, credentialRevision(context))
+        return sensorId
     }
 }

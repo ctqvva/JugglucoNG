@@ -44,11 +44,10 @@ class Libre3FirstSetupTests {
 
     @Test fun freshSetupNeedsNoLibreViewAccountAndHidesManualSourceFields() {
         compose.setContent { JugglucoTheme(ThemeMode.DARK) { Libre3SettingsScreen(rememberNavController()) } }
-        compose.onNodeWithText(app.getString(R.string.libre3_managed_enable)).assertExists()
         compose.onNodeWithText(app.getString(R.string.libre3_managed_receiver_account)).assertExists()
         compose.onNodeWithText(app.getString(R.string.libre3_managed_source_url)).assertDoesNotExist()
-        val entries = SettingsSearchIndex.entries.filter { it.title in setOf(R.string.libre3_managed_title, R.string.libre3_managed_enable, R.string.libre3_managed_receiver_account) }
-        assertEquals(3, entries.size)
+        val entries = SettingsSearchIndex.entries.filter { it.title in setOf(R.string.libre3_managed_title, R.string.libre3_managed_receiver_account) }
+        assertEquals(2, entries.size)
         assertTrue(entries.all { it.condition == null })
     }
 
@@ -108,7 +107,7 @@ class Libre3FirstSetupTests {
 
     @Test fun failedSettingsMigrationStillAllowsSetupToOpenAndRetry() {
         val legacy = app.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
-        legacy.edit().putBoolean("enabled", false).putInt("receiver_source", Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT).commit()
+        legacy.edit().putInt("receiver_source", Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT).commit()
         var failWrites = true
         lateinit var context: Context
         compose.setContent {
@@ -133,11 +132,11 @@ class Libre3FirstSetupTests {
                 JugglucoTheme(ThemeMode.DARK) { Libre3ManagedDriverSection() }
             }
         }
-        compose.onNodeWithText(app.getString(R.string.libre3_managed_enable)).assertExists()
-        assertTrue(legacy.contains("enabled"))
+        compose.onNodeWithText(app.getString(R.string.libre3_managed_receiver_account)).assertExists()
+        assertTrue(legacy.contains("receiver_source"))
         failWrites = false
         Libre3Persistence.migrateSettingsForExport(context)
-        assertFalse(legacy.contains("enabled"))
+        assertFalse(legacy.contains("receiver_source"))
     }
 
 }

@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.drivers.VirtualGlucoseSensorBridge.Reading
 
-/** Hand-over between the legacy and Kotlin Libre 3 drivers, and minute vs. five-minute merging. */
+/** Hand-over from the removed proprietary Libre 3 driver, and minute vs. five-minute merging. */
 class Libre3HandoverTest {
     private fun root(): File = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
         .first { File(it, "Common/src/main/cpp/g.cpp").isFile }
@@ -45,16 +45,30 @@ class Libre3HandoverTest {
         assertFalse(nfc.contains("SensorBluetooth.sensorEnded("))
     }
 
-    @Test fun legacyScanRetiresTheKotlinDriverBeforeAddingItsOwn() {
+    @Test fun libre3HasNoProprietaryPathLeft() {
         val scan = src("Common/src/main/java/tk/glucodata/ScanNfcV.java")
-        val retire = scan.indexOf("Libre3Registry.retireManagedForLegacyScan(main, name)")
-        assertTrue(retire > 0 && retire < scan.indexOf("SensorBluetooth.resetDeviceOrFree(streamptr, name)"))
-        val nfc = src("Common/src/main/java/tk/glucodata/drivers/libre3/Libre3ManagedNfc.kt")
-        val body = nfc.substringAfter("fun retireManagedForLegacyScan(")
-        // Terminates the link, drops the pairing so a restart does not rebuild it, retires the object.
-        assertTrue(body.contains("terminateManagedSensor(wipeData = false)"))
-        assertTrue(body.contains("Libre3Persistence.removeSensor(context, serial)"))
-        assertTrue(body.contains("SensorBluetooth.retireCallback(it)"))
+        val libre3 = scan.substringAfter("static private int[] libre3scan(").substringBefore("static public synchronized void scan(")
+        assertTrue(libre3.contains("Libre3ManagedNfc.scanForUi(tag)"))
+        // A Libre 3 tag never waits for an imported vendor library.
+        assertTrue(scan.contains("!tk.glucodata.drivers.libre3.Libre3ManagedNfc.isLibre3Tag(tag) && !Natives.gethaslibrary()"))
+        for (gone in listOf("Common/src/libre3", "Common/src/main/cpp/libre3/loadlibs.cpp", "Common/src/main/cpp/libre3/bluetooth.cpp")) {
+            assertFalse(gone, File(root(), gone).exists())
+        }
+        val inputs = src("scripts/dist/build-inputs.json")
+        val active = inputs.substringBefore("\"removedFiles\"")
+        for (lib in listOf("liblibre3extension.so", "libcrl_dp.so", "libinit.so")) {
+            assertFalse(lib, active.contains(lib))
+            assertTrue(lib, inputs.substringAfter("\"removedFiles\"").contains(lib))
+        }
+        // The roster builds the Kotlin driver where the proprietary one used to start.
+        val blue = src("Common/src/main/java/tk/glucodata/SensorBluetooth.java")
+        assertTrue(blue.contains("Libre3Registry.adoptLegacySensor(Applic.app, name, dataptr)"))
+    }
+
+    @Test fun legacySerialComesFromTheNativeName() {
+        assertEquals("0RRC989AQ", Libre3Registry.legacySerial("E07A-XX0RRC989AQ", "XX0RRC989AQ"))
+        assertEquals("0RRC989AQ", Libre3Registry.legacySerial("XX0RRC989AQ", "XX0RRC989AQ"))
+        assertEquals("0RRC989AQ", Libre3Registry.legacySerial("odd", "ab0RRC989AQ"))
     }
 
     private fun r(t: Long, v: Float) = Reading(timestampMs = t, glucoseMgdl = v)

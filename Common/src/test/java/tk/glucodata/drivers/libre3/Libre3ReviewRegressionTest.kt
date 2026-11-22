@@ -253,10 +253,46 @@ class Libre3ReviewRegressionTest {
         assertTrue(get("nativeWindowChecked") as Boolean)
     }
 
-    @Test fun watchTakeoverIsRefusedForPersistedLibre3Sensors() {
-        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
-        assertFalse(ManagedSensorHandoff.supportsSensor(sensor))
-        assertTrue(ManagedSensorHandoff.supportsSensor("unrelated"))
+    @Test fun watchHandoffCarriesTheSensorItsCredentialsAndCachedKey() {
+        java.security.Security.insertProviderAt(FakeAndroidKeyStore.Provider(), 1)
+        val savedManaged = ManagedCurrentSensor.get()
+        try {
+            val identity = Libre3AppIdentity.create("app", ByteArray(30) + byteArrayOf(0x44, 0x44),
+                Libre3Bytes.parseHex(Libre3GattSessionSimulationTest.CERT_HEX)!!)
+            val json = Libre3AppIdentity.toJson(listOf(identity)).toByteArray()
+            Libre3Persistence.installIdentities(context, "v1", Libre3IdentityProvisioning.sha256Hex(json), json, "test")
+            val record = Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", byteArrayOf(1, 2, 3, 4), now, 60, 21600, 77, "1.4.2.30", 1)
+            Libre3Persistence.saveSensor(context, record)
+            Libre3Persistence.setBackfillMarks(context, sensor, 700, 690)
+            Libre3Persistence.setAnchor(context, sensor, now + 5_000)
+            val kAuth = ByteArray(16) { 7 }
+            assertTrue(Libre3Persistence.saveCachedAuth(context, sensor, kAuth, "v1/app", Libre3Persistence.credentialRevision(context)))
+            ManagedCurrentSensor.set(sensor)
+            SensorIdentity.invalidateCaches()
+            val payload = ManagedSensorHandoff.createOutgoingPayload(context, refresh = true)
+            assertTrue(String(payload).contains("\"libre3\""))
+
+            // The watch: none of the phone's preferences or Keystore keys.
+            context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+            FakeAndroidKeyStore.keys.clear()
+            ManagedCurrentSensor.clear()
+            SensorIdentity.invalidateCaches()
+            assertTrue(ManagedSensorHandoff.applyIncoming(context, payload))
+
+            assertEquals(record, Libre3Persistence.loadSensor(context, sensor))
+            assertEquals(700, Libre3Persistence.getLastLifeCount(context, sensor))
+            assertEquals(690, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+            assertEquals(now + 5_000, Libre3Persistence.getAnchor(context, sensor))
+            val cached = Libre3Persistence.loadCachedAuth(context, sensor)!!
+            assertArrayEquals(kAuth, cached.first)
+            assertEquals("v1/app", cached.second)
+            assertEquals(listOf("v1/app"), Libre3Persistence.loadIdentitiesForSensor(context, sensor).map { it.label })
+            assertEquals(sensor, ManagedCurrentSensor.get())
+        } finally {
+            ManagedCurrentSensor.set(savedManaged)
+            java.security.Security.removeProvider("AndroidKeyStore")
+            FakeAndroidKeyStore.keys.clear()
+        }
     }
 
 
@@ -362,14 +398,13 @@ class Libre3ReviewRegressionTest {
     @Test fun nonSecretSettingsMigrateToExportablePreferences() {
         val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
         val source = Libre3IdentitySource.custom("https://example.test/keys", "a".repeat(64))!!
-        local.edit().putBoolean("enabled", true).putInt("receiver_source", Libre3Persistence.RECEIVER_OWN)
+        local.edit().putInt("receiver_source", Libre3Persistence.RECEIVER_OWN)
             .putString("identity_custom_source", source.toSpec()).putLong("receiver_id", 123L).commit()
-        assertTrue(Libre3Persistence.isEnabled(context))
         assertEquals(Libre3Persistence.RECEIVER_OWN, Libre3Persistence.getReceiverSource(context))
         assertEquals(source, Libre3Persistence.effectiveIdentitySource(context))
         val exportable = context.getSharedPreferences(Libre3Persistence.SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
-        assertEquals(setOf("enabled", "receiver_source", "identity_custom_source"), exportable.all.keys)
-        assertFalse(local.contains("enabled"))
+        assertEquals(setOf("receiver_source", "identity_custom_source"), exportable.all.keys)
+        assertFalse(local.contains("receiver_source"))
         assertTrue(local.contains("receiver_id"))
     }
 
@@ -403,25 +438,24 @@ class Libre3ReviewRegressionTest {
     @Test fun failedMigrationKeepsChoicesUsableAndRetriesBeforeExport() {
         val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
         val source = Libre3IdentitySource.custom("https://example.test/keys", "a".repeat(64))!!
-        local.edit().putBoolean("enabled", true).putInt("receiver_source", Libre3Persistence.RECEIVER_OWN)
+        local.edit().putInt("receiver_source", Libre3Persistence.RECEIVER_OWN)
             .putString("identity_custom_source", source.toSpec()).putLong("receiver_id", 123L).commit()
         var failWrites = true
         val failing = failedPreferenceWrites(Libre3Persistence.SETTINGS_PREFS_NAME) { failWrites }
-        assertTrue(Libre3Persistence.isEnabled(failing))
         assertEquals(Libre3Persistence.RECEIVER_OWN, Libre3Persistence.getReceiverSource(failing))
         assertEquals(source, Libre3Persistence.effectiveIdentitySource(failing))
-        assertTrue(local.getBoolean("enabled", false))
+        assertTrue(local.contains("receiver_source"))
         assertTrue(runCatching { Libre3Persistence.migrateSettingsForExport(failing) }.isFailure)
         // Edits made while migration is pending must win over stale legacy values.
-        Libre3Persistence.setEnabled(failing, false)
+        Libre3Persistence.setReceiverSource(failing, Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT)
         Libre3Persistence.setCustomIdentitySource(failing, null)
-        assertFalse(Libre3Persistence.isEnabled(failing))
+        assertEquals(Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT, Libre3Persistence.getReceiverSource(failing))
         assertNull(Libre3Persistence.customIdentitySource(failing))
         failWrites = false
         Libre3Persistence.migrateSettingsForExport(failing)
-        assertFalse(Libre3Persistence.isEnabled(context))
+        assertEquals(Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT, Libre3Persistence.getReceiverSource(context))
         assertNull(Libre3Persistence.customIdentitySource(context))
-        assertFalse(local.contains("enabled"))
+        assertFalse(local.contains("receiver_source"))
         assertEquals(123L, local.getLong("receiver_id", 0L))
     }
 
@@ -461,6 +495,41 @@ class Libre3ReviewRegressionTest {
         assertEquals(sensor, SensorIdentity.resolveMainSensor())
     }
 
+    @Test fun sensorOfTheRemovedProprietaryDriverMovesWithoutARescan() = withHandoverRoster { _, legacyName ->
+        Libre3ReviewNatives.selectedName = legacyName
+        Libre3ReviewNatives.accountNumber = 0x1_6f0d8378L
+        Libre3ReviewNatives.legacyAddress = "cc:22:df:b8:f9:58"
+        Libre3ReviewNatives.legacyPin = byteArrayOf(0x32, 0x25, 0xec.toByte(), 0x72)
+        Libre3ReviewNatives.legacyStartMs = now
+        Libre3ReviewNatives.legacyEndMs = now + 15L * 24 * 60 * 60_000
+        val successor = Libre3Registry.adoptLegacySensor(context, legacyName, 41L)
+        assertTrue(successor is Libre3BleManager)
+        assertEquals(sensor, successor.SerialNumber)
+        val record = Libre3Persistence.loadSensor(context, sensor)!!
+        assertEquals("CC:22:DF:B8:F9:58", record.bleAddress)
+        assertEquals("3225ec72", Libre3Bytes.hex(record.blePin))
+        assertEquals(now, record.startTimeMs)
+        assertEquals(15 * 24 * 60, record.wearMinutes)
+        assertEquals(0x6f0d8378L, record.receiverId) // the ID the removed driver sent in A0/A8
+        // The legacy record is finished (its history stays) and its stream pointer released.
+        assertTrue(Libre3ReviewNatives.sensorFinishedById("E07A-$legacyName"))
+        assertEquals(listOf(41L), Libre3ReviewNatives.freed)
+        // The main role moves with it; SensorBluetooth puts the returned driver in the roster.
+        assertEquals(sensor, ManagedCurrentSensor.get())
+        SensorBluetooth.gattcallbacks.add(successor)
+        SensorIdentity.invalidateCaches()
+        assertEquals(sensor, SensorIdentity.resolveMainSensor())
+        successor.close()
+    }
+
+    @Test fun legacySensorWithoutStoredPairingWaitsForAScan() = withHandoverRoster { _, legacyName ->
+        Libre3ReviewNatives.legacyAddress = "CC:22:DF:B8:F9:58"
+        val successor = Libre3Registry.adoptLegacySensor(context, legacyName, 41L)
+        assertFalse(Libre3Persistence.hasSensor(context, sensor))
+        assertEquals(sensor, successor.SerialNumber)
+        successor.close()
+    }
+
     @Test fun unrelatedSelectionSurvivesLegacyTakeover() = withHandoverRoster { legacy, _ ->
         Libre3ReviewNatives.selectedName = "OTHER"
         SensorBluetooth.gattcallbacks.add(legacy)
@@ -471,29 +540,16 @@ class Libre3ReviewRegressionTest {
         assertEquals("OTHER", SensorIdentity.resolveMainSensor())
     }
 
-    @Test fun selectedKotlinSensorTransfersBackToLegacyAfterItsPairingIsRemoved() = withHandoverRoster { _, legacyName ->
-        Libre3Persistence.saveSensor(context, pairing())
-        ManagedCurrentSensor.set(sensor)
-        Libre3ReviewNatives.selectedName = "OTHER"
-        SensorBluetooth.gattcallbacks.add(manager)
-        assertEquals(sensor, SensorIdentity.resolveMainSensor())
-        Libre3Registry.retireManagedForLegacyScan(context, legacyName)
-        assertFalse(SensorBluetooth.gattcallbacks.contains(manager))
-        assertFalse(Libre3Persistence.hasSensor(context, sensor))
-        assertNull(ManagedCurrentSensor.get())
-        assertEquals(legacyName, SensorIdentity.resolveMainSensor())
-    }
-
     @Test fun failedMigrationCleanupDoesNotCrashOrOverwriteDestinationChoices() {
         val local = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
-        local.edit().putBoolean("enabled", true).putLong("receiver_id", 123L).commit()
+        local.edit().putInt("receiver_source", Libre3Persistence.RECEIVER_OWN).putLong("receiver_id", 123L).commit()
         val failing = failedPreferenceWrites(Libre3Persistence.PREFS_NAME) { true }
-        assertTrue(Libre3Persistence.isEnabled(failing))
-        Libre3Persistence.setEnabled(failing, false)
+        assertEquals(Libre3Persistence.RECEIVER_OWN, Libre3Persistence.getReceiverSource(failing))
+        Libre3Persistence.setReceiverSource(failing, Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT)
         // Simulate legacy keys returning from disk when a failed cleanup is reopened.
-        local.edit().putBoolean("enabled", true).commit()
-        assertFalse(Libre3Persistence.isEnabled(context))
-        assertFalse(local.contains("enabled"))
+        local.edit().putInt("receiver_source", Libre3Persistence.RECEIVER_OWN).commit()
+        assertEquals(Libre3Persistence.RECEIVER_FROM_LIBREVIEW_ACCOUNT, Libre3Persistence.getReceiverSource(context))
+        assertFalse(local.contains("receiver_source"))
         assertEquals(123L, local.getLong("receiver_id", 0L))
     }
 
@@ -529,6 +585,7 @@ class Libre3ReviewNatives {
         fun reset() {
             stockWrites = 0; resolvedWrites = 0; wearDays = 0; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
+            legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
         }
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun setSensorWearDays(serial: String, days: Int) { wearDays = days }
@@ -541,6 +598,21 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun setlibreAccountIDnumber(value: Long) {
             Shadow.directlyOn<Any?, Natives>(Natives::class.java, "setlibreAccountIDnumber", org.robolectric.util.ReflectionHelpers.ClassParameter.from(java.lang.Long.TYPE, value))
         }
+        // A legacy native Libre 3 record, as the removed proprietary driver left it.
+        var legacyAddress: String? = null
+        var legacyPin: ByteArray? = null
+        var legacyStartMs = 0L
+        var legacyEndMs = 0L
+        val freed = mutableListOf<Long>()
+        @JvmStatic @Implementation fun resolveFullSensorName(name: String): String? =
+            if (name.startsWith("XX")) "E07A-$name" else null
+        @JvmStatic @Implementation fun getDeviceAddress(dataptr: Long, getnew: Boolean): String? = legacyAddress
+        @JvmStatic @Implementation fun getsensorptr(dataptr: Long): Long = if (dataptr != 0L) dataptr + 1 else 0L
+        @JvmStatic @Implementation fun getpin(sensorptr: Long): ByteArray? = legacyPin
+        @JvmStatic @Implementation fun getSensorStartmsec(dataptr: Long): Long = legacyStartMs
+        @JvmStatic @Implementation fun getSensorEndTime(dataptr: Long, official: Boolean): Long = legacyEndMs
+        @JvmStatic @Implementation fun getSensorWarmupMinutesByName(name: String): Int = 60
+        @JvmStatic @Implementation fun freedataptr(dataptr: Long) { freed += dataptr }
         @JvmStatic @Implementation fun getuseuploader(): Boolean = true
         @JvmStatic @Implementation fun gethealthConnect(): Boolean = true
         @JvmStatic @Implementation fun wakeNightscoutForLiveReading(source: String, at: Long): Boolean { wakes += at; return true }

@@ -318,7 +318,6 @@ android {
             vendorInputs.files.each { input ->
                 doNotStrip "**/${new File(input.path).name}"
             }
-            doNotStrip '**/libinit.so'
             doNotStrip '**/lib[A-Za-mo-z]?*.so'
         }
     }
@@ -361,12 +360,10 @@ android {
     }
 
     sourceSets {
-        // src/dex and src/libre3 used to be flavour source sets. Those flavours are
-        // gone (everything is built in), so their sources belong to main now.
-        // src/libre3/jniLibs is deliberately NOT listed: every .so in it is already
-        // in src/main/jniLibs, byte for byte. Source-set layering used to hide that.
+        // src/dex used to be a flavour source set. Those flavours are gone
+        // (everything is built in), so its sources belong to main now.
         main {
-            java.srcDirs += ['src/dex/java', 'src/libre3/java']
+            java.srcDirs += ['src/dex/java']
         }
         // These used to hang off the mobileGoogle/wearGoogle flavour combinations.
         // Note `+=`: src/mobile/java and src/mobile/res are the flavour's own

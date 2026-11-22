@@ -594,6 +594,36 @@ fromjava(getSensorManagedFamilyFromSensorptr)(JNIEnv *env, jclass cl,
   const auto *info = sens ? sens->getinfo() : nullptr;
   return info ? static_cast<jint>(info->managedFamilyCode()) : 0;
 }
+// Kept from the removed proprietary Libre 3 driver: iCan reads the life counts, and moving
+// a sensor to the Kotlin Libre 3 driver reads the BLE PIN its NFC scan stored.
+extern "C" JNIEXPORT jint JNICALL fromjava(getlastLifeCountReceived)(JNIEnv *env, jclass thiz,jlong sensorptr) {
+	if(SensorGlucoseData *sens=reinterpret_cast<SensorGlucoseData *>(sensorptr)) {
+		return sens->getinfo()->lastLifeCountReceived;
+		}
+	return 0;
+	}
+extern "C" JNIEXPORT jint JNICALL fromjava(getlastHistoricLifeCountReceived)(JNIEnv *env, jclass thiz,jlong sensorptr) {
+	if(SensorGlucoseData *sens=reinterpret_cast<SensorGlucoseData *>(sensorptr)) {
+		int lastpos=sens->getinfo()->lastHistoricLifeCountReceivedPos;
+		if(!lastpos)
+			return 0;
+		Glucose *item=sens->getglucose(lastpos);
+		return item->id;
+		}
+	return 0;
+	}
+extern "C" JNIEXPORT jbyteArray JNICALL fromjava(getpin)(JNIEnv *env, jclass thiz,jlong sensorptr) {
+	SensorGlucoseData *sens=reinterpret_cast<SensorGlucoseData *>(sensorptr);
+	if(!sens) {
+		LOGAR("getpin sensorptr==null");
+		return nullptr;
+		}
+	const jbyte *pin=reinterpret_cast<const jbyte *>(&sens->getinfo()->pin);
+	constexpr const int pinlen=4; 
+	jbyteArray uit=env->NewByteArray(pinlen);
+	env->SetByteArrayRegion(uit, 0, pinlen,pin);
+	return uit;
+	}
 extern "C" JNIEXPORT void JNICALL fromjava(updateUsedSensors)(JNIEnv *env,
                                                               jclass cl) {
   setusedsensors();

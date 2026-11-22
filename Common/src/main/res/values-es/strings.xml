@@ -3680,12 +3680,11 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="floating_layout_order_desc">Arrastra un asa para mover un elemento</string>
 
     <!-- Kotlin Libre 3 driver -->
-    <string name="libre3_managed_title">Controlador de Libre 3 en Kotlin (experimental)</string>
-    <string name="libre3_managed_enable">Usar el controlador de Libre 3 en Kotlin</string>
-    <string name="libre3_managed_enable_desc">Conéctate a Libre 3 / 3 Plus con el controlador en Kotlin. Las credenciales de conexión necesarias se descargan automáticamente al activarlo.</string>
+    <string name="libre3_managed_title">Libre 3</string>
+    <string name="libre3_managed_settings_desc">ID del receptor y credenciales de conexión</string>
     <string name="libre3_managed_receiver_account">Usar la cuenta de LibreView como ID del receptor</string>
     <string name="libre3_managed_receiver_desc">ID del receptor enviado en el comando NFC: %1$s. Mantén el ID de la cuenta para sensores iniciados antes con Juggluco; desactiva esta opción para usar un ID propio de este teléfono.</string>
-    <string name="libre3_managed_identity_none">Las credenciales de conexión aún no se han descargado. Activa el controlador o selecciona Descargar identidades y, después, escanea el sensor.</string>
+    <string name="libre3_managed_identity_none">Las credenciales de conexión aún no se han descargado. Selecciona Descargar identidades y, después, escanea el sensor.</string>
     <string name="libre3_managed_identity_list">Conjunto de identidades de la aplicación %1$s: %2$s</string>
     <string name="libre3_managed_identity_desc">La aplicación descarga y verifica automáticamente las credenciales de conexión y las guarda cifradas en este teléfono para usarlas sin conexión. La importación de archivos y las fuentes personalizadas son opciones avanzadas.</string>
     <string name="libre3_managed_identity_source">Fuente %1$s (sha256 %2$s…) de %3$s</string>
@@ -3699,7 +3698,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="libre3_managed_identity_remove">Eliminar</string>
     <string name="libre3_managed_identity_imported">Se han importado %1$d identidades de la aplicación</string>
     <string name="libre3_managed_identity_import_failed">No se han podido cargar las credenciales de conexión: %1$s</string>
-    <string name="libre3_managed_identity_missing">Las credenciales de conexión no están disponibles. Abre Ajustes → Controlador de Libre 3 en Kotlin, comprueba la conexión a Internet y vuelve a intentar la descarga. No se ha modificado el sensor.</string>
+    <string name="libre3_managed_identity_missing">Las credenciales de conexión no están disponibles. Abre Ajustes → Libre 3, comprueba la conexión a Internet y vuelve a intentar la descarga. No se ha modificado el sensor.</string>
     <string name="libre3_status_device_rejected">El dispositivo no es un Libre 3 (faltan servicios); vuelve a escanear el sensor</string>
     <string name="libre3_status_certificate_rejected">No se reconoce el certificado del sensor; vuelve a escanearlo</string>
     <string name="libre3_status_identity_missing">No se ha importado ninguna identidad de aplicación para Libre 3</string>

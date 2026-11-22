@@ -47,8 +47,6 @@ import static android.view.View.GONE;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Applic.mgdLmult;
-import static tk.glucodata.BuildConfig.libreVersion;
-import static tk.glucodata.Libre3.libre3NFC;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Log.showbytes;
 import static tk.glucodata.MainActivity.systembarBottom;
@@ -147,155 +145,17 @@ public class ScanNfcV {
     }
 
     static private int[] libre3scan(GlucoseCurve curve, MainActivity main, Vibrator vibrator, Tag tag) {
-        if (tk.glucodata.drivers.libre3.Libre3ManagedNfc.isEnabled()) {
-            // Kotlin-managed Libre 3 driver: no native Libre 3 code on this path.
-            final int[] managed = tk.glucodata.drivers.libre3.Libre3ManagedNfc.scanForUi(tag);
-            vibrator.cancel();
-            if (managed[0] == tk.glucodata.drivers.libre3.Libre3ManagedNfc.RESULT_PAIRED) {
-                askpermission = true;
-                askcalendar = true;
-                curve.render.badscan = managedCalendar(main,
-                        tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastPairedSensorId());
-            } else
-                failure(vibrator);
-            curve.requestRender();
-            return managed;
-        }
-        int value = 0;
-        int ret = 0x100000;
-        if (android.os.Build.VERSION.SDK_INT >= 26) {
-            long streamptr;
-            streamptr = libre3NFC(tag);
-            vibrator.cancel();
-            if (streamptr == 2L) {
-                {
-                    if (doLog) {
-                        Log.i(LOG_ID, "streamptr==2");
-                    }
-                    ;
-                }
-                ;
-                ret = 0xFD;
-            } else {
-                if (libreVersion == 3) {
-                    if (streamptr >= 0L && streamptr < 7L) {
-                        switch ((int) (streamptr & 0xFFFFFFF)) {
-                            case 0: {
-                                if (getlibreAccountIDnumber() == 0) {
-                                    if (doLog)
-                                        Log.i(LOG_ID, "zero account ID");
-                                    ret = 0xF8;
-                                } else {
-                                    if (doLog)
-                                        Log.i(LOG_ID, "streamptr==0");
-                                    ret = 0xFA;
-                                }
-                            }
-                                ;
-                                break;
-                            case 1: {
-                                {
-                                    if (doLog) {
-                                        Log.i(LOG_ID, "streamptr==1");
-                                    }
-                                    ;
-                                }
-                                ;
-                                ret = 0xFB;
-                            }
-                                ;
-                                break;
-                            case 5: {
-                                {
-                                    if (doLog) {
-                                        Log.i(LOG_ID, "terminated");
-                                    }
-                                    ;
-                                }
-                                ;
-                                ret = 13;
-                                break;
-                            }
-                            case 6: {
-                                {
-                                    if (doLog) {
-                                        Log.i(LOG_ID, "ended");
-                                    }
-                                    ;
-                                }
-                                ;
-                                ret = 4;
-                                break;
-                            }
-                            default: {
-                                if (streamptr > 0L && streamptr < 4L) {
-                                    {
-                                        if (doLog) {
-                                            Log.i(LOG_ID, "0<streamptr<4");
-                                        }
-                                        ;
-                                    }
-                                    ;
-                                    ret = 0xFA;
-                                }
-                            }
-                        }
-                    } else {
-                        var name = Natives.getSensorName(streamptr);
-                        if (name == null) {
-                            {
-                                if (doLog) {
-                                    Log.i(LOG_ID, "name==null");
-                                }
-                                ;
-                            }
-                            ;
-                            ret = 0xFA;
-                            Natives.freedataptr(streamptr);
-                        } else {
-                            {
-                                if (doLog) {
-                                    Log.i(LOG_ID, "scanned " + name);
-                                }
-                                ;
-                            }
-                            ;
-                            // The Kotlin driver may still own this sensor from an earlier scan; a
-                            // successful legacy scan takes it over, so retire that driver first.
-                            tk.glucodata.drivers.libre3.Libre3Registry.retireManagedForLegacyScan(main, name);
-                            if (SensorBluetooth.resetDeviceOrFree(streamptr, name))
-                                askpermission = true;
-                            ret = 0xFC;
-                            value = 1;
-                            askcalendar = true;
-                            curve.render.badscan = calendar(main, ret, name, getlibreAccountIDnumber());
-                        }
-                    }
-                } else {
-                    {
-                        if (doLog) {
-                            Log.i(LOG_ID, "libreVersion!=3");
-                        }
-                        ;
-                    }
-                    ;
-                    ret = 0xFE;
-                }
-            }
-            if (ret != 0xFC)
-                failure(vibrator);
-        } else {
-            {
-                if (doLog) {
-                    Log.i(LOG_ID, "No Libre 3 Android <8");
-                }
-                ;
-            }
-            ;
-            ret = 0xF9;
-        }
+        final int[] managed = tk.glucodata.drivers.libre3.Libre3ManagedNfc.scanForUi(tag);
+        vibrator.cancel();
+        if (managed[0] == tk.glucodata.drivers.libre3.Libre3ManagedNfc.RESULT_PAIRED) {
+            askpermission = true;
+            askcalendar = true;
+            curve.render.badscan = managedCalendar(main,
+                    tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastPairedSensorId());
+        } else
+            failure(vibrator);
         curve.requestRender();
-        return new int[] { ret, value };
+        return managed;
     }
 
     static public synchronized void scan(GlucoseCurve curve, Tag tag) {
@@ -313,10 +173,8 @@ public class ScanNfcV {
         startvibration(vibrator);
         curve.render.stepresult = GlucoseCurve.STEPBACK;
         {
-            // The legacy library is not needed when the Kotlin Libre 3 driver takes the scan.
-            final boolean managedLibre3 = tk.glucodata.drivers.libre3.Libre3ManagedNfc.isEnabled()
-                    && tk.glucodata.drivers.libre3.Libre3ManagedNfc.isLibre3Tag(tag);
-            if (!managedLibre3 && !Natives.gethaslibrary()) {
+            // Libre 3 needs no library; this check is for Libre 1/2 only.
+            if (!tk.glucodata.drivers.libre3.Libre3ManagedNfc.isLibre3Tag(tag) && !Natives.gethaslibrary()) {
                 vibrator.cancel();
                 failure(vibrator);
                 return;

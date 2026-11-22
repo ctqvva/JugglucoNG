@@ -917,29 +917,16 @@ public class Natives {
          * public static native String getGuardianLastNameName( );
          */
 
-        // public static native long interpret3NFC1(byte[] b);
-        public static native long interpret3NFC2(byte[] nfc1, byte[] b, long time);
 
-        public static native long getLibre3secs(byte[] nfc1ar);
 
-        public static native long getLibre3Sensorptr(String sensorid, long starttime);
 
-        public static native long getLibre3SensorptrPD(String sensorid, long starttime, byte[] pin,
-                        String deviceaddress);
 
-        public static native long saveLibre3MinuteL(long sensorptr, byte[] mindata);
 
-        public static native boolean saveLibre3fastData(long sensorptr, byte[] mindata);
 
-        public static native boolean saveLibre3History(long sensorptr, byte[] mindata);
 
-        public static native int libre3EventLog(long sensorptr, byte[] logs);
 
-        public static native void setLibre3kAuth(long sensorptr, byte[] kauthin);
 
-        public static native byte[] getLibre3kAuth(long sensorptr);
 
-        public static native int libre3processpatchstatus(long sensorptr, byte[] status);
 
         public static native byte[] getpin(long sensorptr);
 
@@ -947,11 +934,8 @@ public class Natives {
 
         public static native int getlastHistoricLifeCountReceived(long sensorptr);
 
-        public static native byte[] libre3ControlHistory(int arg, int from);
 
-        public static native byte[] libre3ClinicalControl(int arg, int from);
 
-        public static native byte[] libre3EventLogControl(int arg);
 
         public static native void initjuggluco(String filesdir);
 
@@ -967,13 +951,8 @@ public class Natives {
 
         public static native void showbytes(String mess, byte[] ar);
 
-        // public static native boolean loadECDHCrypto( );
-        // public static native boolean loadNFC( );
-        public static native int startTimeIDsum(byte[] uit, long time, long accountID);
 
-        public static native int processint(int i2, byte[] bArr, byte[] bArr2);
 
-        public static native byte[] processbar(int i2, byte[] bArr, byte[] bArr2);
 
         public static native boolean getShownintro();
 
@@ -987,17 +966,12 @@ public class Natives {
 
         public static native void setkerfstokblack(boolean val);
 
-        public static native long initcrypt(long prev, byte[] key, byte[] iv);
 
-        public static native void endcrypt(long jptr);
 
-        public static native byte[] intEncrypt(long cryptptr, int kind, byte[] plain);
 
-        public static native byte[] intDecrypt(long cryptptr, int kind, byte[] encrypted);
 
         public static native float thresholdchange(float drate);
 
-        // public static native void enddebug();
         public static native boolean message(byte[] data);
 
         public static native boolean getBlueMessage(int index);

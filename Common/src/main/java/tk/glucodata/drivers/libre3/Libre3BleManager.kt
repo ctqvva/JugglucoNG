@@ -338,6 +338,9 @@ class Libre3BleManager(sensorId: String) :
     }
 
     /** NFC refreshed this sensor's address/PIN/start: adopt it and start over with a clean link. */
+    /** Stopped only because no connection credentials were installed. */
+    fun isWaitingForCredentials(): Boolean = missingIdentity && !stop && !ended
+
     fun onNfcRecordUpdated() {
         val ctx = Applic.app ?: return
         val previousStart = record?.startTimeMs
@@ -360,6 +363,15 @@ class Libre3BleManager(sensorId: String) :
     // ---- connection ----
 
     override fun connectionAttemptTimeoutMillis(): Long = 120_000L
+
+    // Carried over from the removed proprietary driver (#728). A direct connect gives Android
+    // ~30 s to reach the sensor and then reports status 147 (133 before Android 15). With a
+    // second Libre 3 streaming, retrying the same way timed out every 30 s forever; upstream
+    // users cleared that loop with autoConnect. So after one attempt that never reached the
+    // sensor, let the stack hold the address instead.
+    @Volatile private var directConnectUnreachable = false
+
+    override fun useAutoConnect(): Boolean = super.useAutoConnect() || directConnectUnreachable
 
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
@@ -419,11 +431,15 @@ class Libre3BleManager(sensorId: String) :
             runCatching { gatt.close() }
             return
         }
+        val reachedSensor = linkUp
         linkUp = false
+        if (!reachedSensor && !directConnectUnreachable &&
+            (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) {
+            directConnectUnreachable = true
+            Log.i(TAG, "$sensorId: direct connect timed out (status=$status); reconnecting with autoConnect")
+        }
         runCatching { gatt.close() }
         if (mBluetoothGatt === gatt) mBluetoothGatt = null
-        // The connect mode stays the user's setting: the legacy driver's autoConnect fallback
-        // (#728) was measured for that driver only, and this one has no field data yet.
         classifyLinkLossDuringHandshake()
         Log.i(TAG, "$sensorId: disconnected status=$status in $phase")
         noteLossOfSignal(System.currentTimeMillis())
@@ -601,6 +617,8 @@ class Libre3BleManager(sensorId: String) :
         } else {
             if (identities.isEmpty()) {
                 missingIdentity = true
+                // Reconnects once the download lands; until then this waits instead of retrying.
+                Libre3Registry.requestCredentials()
                 return failSetup(text(tk.glucodata.R.string.libre3_status_identity_missing), stopUntilUser = true)
             }
             val identity = pickIdentity(ctx, identities)

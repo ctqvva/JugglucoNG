@@ -54,11 +54,6 @@ object ManagedSensorHandoff {
         "view_mode_",
     )
 
-    /** Libre 3 credentials are device-bound and have no watch transfer implementation yet. */
-    @JvmStatic
-    fun supportsSensor(sensorId: String?): Boolean =
-        ManagedSensorIdentityRegistry.resolvePersistedFamily(sensorId) != tk.glucodata.drivers.ManagedSensorUiFamily.LIBRE3
-
     @JvmStatic
     fun createOutgoingPayload(context: Context? = Applic.app): ByteArray =
         createOutgoingPayload(context, refresh = false)
@@ -87,6 +82,15 @@ object ManagedSensorHandoff {
             }
         }
         root.put("entries", entries)
+        // Libre 3 secrets are sealed with this device's Keystore, so they cannot travel as
+        // preference entries; the driver exports them for the watch to seal again.
+        if (ctx != null) {
+            val libre3 = JSONArray()
+            tk.glucodata.drivers.libre3.Libre3Persistence.sensorIds(ctx)
+                .filter { id -> candidates.any { SensorIdentity.matches(it, id) } }
+                .forEach { id -> tk.glucodata.drivers.libre3.Libre3Persistence.exportForWatch(ctx, id)?.let(libre3::put) }
+            if (libre3.length() > 0) root.put("libre3", libre3)
+        }
         // A Dexcom has no preferences to carry; its setup is the scan it came from.
         DexcomWatchSetup.attach(root, SensorIdentity.resolveMainSensor())
         // Which namespaces actually travelled is otherwise invisible: a receiver that comes up
@@ -130,6 +134,7 @@ object ManagedSensorHandoff {
                 val entry = entries.optJSONObject(index) ?: continue
                 importEntry(ctx, entry)
             }
+            if (parts.managed) importLibre3(ctx, root.optJSONArray("libre3"))
             managedSensor
                 ?.takeIf { parts.managed }
                 ?.let { sensorId ->
@@ -169,6 +174,19 @@ object ManagedSensorHandoff {
         }.getOrElse { th ->
             Log.stack(LOG_ID, "applyIncoming", th)
             false
+        }
+    }
+
+    private fun importLibre3(context: Context, sensors: JSONArray?) {
+        if (sensors == null) return
+        for (i in 0 until sensors.length()) {
+            val json = sensors.optJSONObject(i) ?: continue
+            val id = runCatching { tk.glucodata.drivers.libre3.Libre3Persistence.importFromPhone(context, json) }
+                .onFailure { Log.stack(LOG_ID, "Libre 3 handoff", it) }.getOrNull() ?: continue
+            // A driver already running here picks up the new pairing; otherwise the
+            // ensurePersistedManagedCallbacks() below builds one.
+            tk.glucodata.drivers.libre3.Libre3Registry.findDriver(id)?.onNfcRecordUpdated()
+            Log.i(LOG_ID, "Libre 3 $id received")
         }
     }
 

@@ -3413,12 +3413,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_order_desc">Dra i ett handtag för att flytta ett objekt</string>
 
     <!-- Kotlin Libre 3 driver -->
-    <string name="libre3_managed_title">Kotlin-drivrutin för Libre 3 (experimentell)</string>
-    <string name="libre3_managed_enable">Använd Kotlin-drivrutinen för Libre 3</string>
-    <string name="libre3_managed_enable_desc">Anslut Libre 3 / 3 Plus med Kotlin-drivrutinen. Nödvändiga anslutningsuppgifter hämtas automatiskt vid aktivering.</string>
+    <string name="libre3_managed_title">Libre 3</string>
+    <string name="libre3_managed_settings_desc">Mottagar-ID och anslutningsuppgifter</string>
     <string name="libre3_managed_receiver_account">Använd LibreView-kontot som mottagar-ID</string>
     <string name="libre3_managed_receiver_desc">Mottagar-ID i NFC-kommandot: %1$s. Behåll konto-ID för sensorer som tidigare startats med Juggluco; stäng av för ett eget ID för telefonen.</string>
-    <string name="libre3_managed_identity_none">Anslutningsuppgifterna har inte hämtats ännu. Aktivera drivrutinen eller välj ”Hämta identiteter” och skanna sedan sensorn.</string>
+    <string name="libre3_managed_identity_none">Anslutningsuppgifterna har inte hämtats ännu. Välj ”Hämta identiteter” och skanna sedan sensorn.</string>
     <string name="libre3_managed_identity_list">Appidentitetsuppsättning %1$s: %2$s</string>
     <string name="libre3_managed_identity_desc">Appen hämtar och kontrollerar anslutningsuppgifter automatiskt och lagrar dem krypterat på telefonen för offlinebruk. Filimport och egna källor är valfria avancerade inställningar.</string>
     <string name="libre3_managed_identity_source">Källa %1$s (sha256 %2$s…) från %3$s</string>
@@ -3432,7 +3431,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_remove">Ta bort</string>
     <string name="libre3_managed_identity_imported">%1$d appidentiteter importerade</string>
     <string name="libre3_managed_identity_import_failed">Kunde inte läsa in anslutningsuppgifter: %1$s</string>
-    <string name="libre3_managed_identity_missing">Anslutningsuppgifter saknas. Öppna Inställningar → Kotlin-drivrutin för Libre 3, kontrollera internet och försök hämta igen. Sensorn har inte ändrats.</string>
+    <string name="libre3_managed_identity_missing">Anslutningsuppgifter saknas. Öppna Inställningar → Libre 3, kontrollera internet och försök hämta igen. Sensorn har inte ändrats.</string>
     <string name="libre3_status_device_rejected">Enheten är inte en Libre 3 (tjänster saknas); skanna sensorn igen</string>
     <string name="libre3_status_certificate_rejected">Sensorcertifikatet känns inte igen; skanna sensorn igen</string>
     <string name="libre3_status_identity_missing">Ingen Libre 3-appidentitet importerad</string>

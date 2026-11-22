@@ -1,8 +1,8 @@
-// Libre3ManagedNfc.kt — NFC scan and sensor registration for the Kotlin Libre 3 driver.
+// Libre3ManagedNfc.kt — NFC scan and sensor registration for the Libre 3 driver.
 //
-// Replaces, for sensors this driver owns, the legacy path NFC.java → startTimeIDsum →
-// interpret3NFC2 → native sensor record. The patch-info read and the A0/A8 command are plain
-// ISO 15693 transceives through the existing AlgNfcV helper.
+// Replaced the proprietary path (NFC.java → libcrl_dp's activation data → native record),
+// which is removed. The patch-info read and the A0/A8 command are plain ISO 15693
+// transceives through the existing AlgNfcV helper.
 
 package tk.glucodata.drivers.libre3
 
@@ -50,9 +50,6 @@ object Libre3ManagedNfc {
         data class WrongReceiver(val serial: String) : Outcome()
         data class Failed(val reason: String) : Outcome()
     }
-
-    @JvmStatic
-    fun isEnabled(): Boolean = Applic.app?.let { Libre3Persistence.isEnabled(it) } ?: false
 
     /** Same UID test ScanNfcV uses to tell a Libre 3 tag from a Libre 1/2 one. */
     @JvmStatic
@@ -235,8 +232,8 @@ object Libre3Registry {
     /**
      * A sensor moving from the legacy native driver to this one must not keep its old callback:
      * both would connect to the same address with different keys. Finishing the native record
-     * keeps its history and stops it from being rebuilt; rescanning with this driver disabled
-     * brings the legacy path back.
+     * keeps its history and stops it from being rebuilt; the legacy driver no
+     * longer exists, so it cannot come back.
      */
     private fun finishLegacySensor(serial: String): List<SuperGattCallback> {
         val legacyName = Libre3IdentityAdapter.legacyNativeName(serial)
@@ -261,24 +258,91 @@ object Libre3Registry {
     }
 
     /**
-     * The inverse hand-over: a legacy NFC scan has just taken this sensor (legacy name
-     * [legacyName], e.g. "XX<serial>"). Stop the Kotlin driver for it and drop its pairing, or
-     * both drivers would compete for the sensor, and the saved record would bring this one back
-     * after a restart. History stays in Room; a later Kotlin scan pairs it again.
+     * A sensor the removed proprietary driver was reading. Its native record still holds what
+     * the NFC scan gave it (BLE address, PIN, start time), which is all this driver needs: it
+     * authorizes with the downloaded identities, so no rescan is necessary. The legacy record
+     * is finished (its history stays), the main-sensor role moves over, and the callback
+     * returned here takes the legacy one's place in the roster.
      */
     @JvmStatic
-    fun retireManagedForLegacyScan(context: Context, legacyName: String?) {
-        val name = legacyName?.trim().takeIf { !it.isNullOrEmpty() } ?: return
-        val serial = Libre3Persistence.sensorIds(context).firstOrNull { isLegacyCallbackName(name, it) } ?: return
-        val handover = CurrentSensorSelection.captureDriverHandover { SensorIdentity.matches(it, serial) }
-        Log.i(TAG, "Legacy scan of $name takes $serial over from the Kotlin Libre 3 driver")
-        val drivers = SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>().filter { it.matchesManagedSensorId(serial) }
-        // Stops the link and finishes the managed native mirror while its record still claims it.
-        drivers.forEach { runCatching { it.terminateManagedSensor(wipeData = false) }.onFailure { e -> Log.stack(TAG, "terminate", e) } }
-        if (drivers.isEmpty()) runCatching { Natives.finishSensorById(serial) }
-        Libre3Persistence.removeSensor(context, serial)
+    fun adoptLegacySensor(appContext: Context?, legacyName: String, dataptr: Long): SuperGattCallback {
+        val full = runCatching { Natives.resolveFullSensorName(legacyName) }.getOrNull() ?: legacyName
+        val serial = legacySerial(full, legacyName)
+        val context = appContext ?: Applic.app
+        if (context != null && !Libre3Persistence.hasSensor(context, serial)) {
+            val record = runCatching { legacyRecord(serial, legacyName, dataptr) }
+                .onFailure { Log.stack(TAG, "legacy record $legacyName", it) }.getOrNull()
+            if (record != null) {
+                Libre3Persistence.saveSensor(context, record)
+                Log.i(TAG, "Moved $full from the removed proprietary driver to $serial")
+            } else {
+                Log.w(TAG, "$full has no BLE address or PIN; it needs one NFC scan")
+            }
+        }
+        val selected = SensorIdentity.resolveMainSensor()?.let { isLegacyCallbackName(it, serial) } == true
+        if (dataptr != 0L) runCatching { Natives.freedataptr(dataptr) }
+        runCatching { Natives.finishSensorById(Libre3IdentityAdapter.legacyNativeName(serial)) }
+            .onFailure { Log.stack(TAG, "finishSensorById", it) }
         SensorIdentity.invalidateCaches()
-        drivers.forEach { runCatching { SensorBluetooth.retireCallback(it) }.onFailure { e -> Log.stack(TAG, "retireCallback", e) } }
-        SensorBluetooth.finishDriverHandover(handover, name)
+        if (selected) CurrentSensorSelection.select(serial)
+        return Libre3BleManager(serial)
+    }
+
+    internal fun legacySerial(fullName: String, callbackName: String): String = when {
+        fullName.startsWith(LEGACY_PREFIX, ignoreCase = true) -> fullName.substring(LEGACY_PREFIX.length)
+        callbackName.length == 11 && callbackName.startsWith("XX", ignoreCase = true) -> callbackName.substring(2)
+        else -> callbackName.takeLast(9)
+    }
+
+    private const val LEGACY_PREFIX = "E07A-XX"
+
+    private fun legacyRecord(serial: String, legacyName: String, dataptr: Long): Libre3SensorRecord? {
+        if (dataptr == 0L) return null
+        val address = Natives.getDeviceAddress(dataptr, false)?.takeIf { it.isNotBlank() } ?: return null
+        val sensorPtr = Natives.getsensorptr(dataptr)
+        val pin = if (sensorPtr != 0L) Natives.getpin(sensorPtr) else null
+        if (pin == null || pin.size != 4) return null
+        val start = Natives.getSensorStartmsec(dataptr)
+        val end = Natives.getSensorEndTime(dataptr, true)
+        val wear = if (start > 0L && end > start) ((end - start) / 60_000L).toInt() else 14 * 24 * 60
+        val warmup = runCatching { Natives.getSensorWarmupMinutesByName(legacyName) }.getOrDefault(0).takeIf { it in 1..255 } ?: 60
+        return Libre3SensorRecord(
+            sensorId = serial,
+            bleAddress = address.uppercase(),
+            blePin = pin,
+            startTimeMs = start,
+            warmupMinutes = warmup,
+            wearMinutes = wear,
+            // What the removed driver sent in A0/A8, so a later Kotlin scan keeps working.
+            receiverId = Natives.getlibreAccountIDnumber() and 0xFFFFFFFFL,
+            firmware = "",
+            securityVersion = 0,
+        )
+    }
+
+    private val provisioning = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * A driver found no connection credentials. Download them in the background (once at a
+     * time) and wake every driver that was waiting, so a moved or handed-over sensor connects
+     * without anyone opening Settings.
+     */
+    @JvmStatic
+    fun requestCredentials() {
+        val context = Applic.app ?: return
+        if (!provisioning.compareAndSet(false, true)) return
+        Thread({
+            try {
+                if (runCatching { Libre3Persistence.ensureIdentities(context) }
+                        .onFailure { Log.w(TAG, "credential download failed: ${it.message}") }
+                        .getOrDefault(false)) {
+                    SensorBluetooth.gattcallbacks.filterIsInstance<Libre3BleManager>()
+                        .filter { it.isWaitingForCredentials() }
+                        .forEach { it.softReconnect() }
+                }
+            } finally {
+                provisioning.set(false)
+            }
+        }, "Libre3Credentials").start()
     }
 }

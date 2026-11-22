@@ -44,19 +44,17 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.symbols.Symbols
 
 /**
- * Settings for the Kotlin-managed Libre 3 driver: whether Libre 3 NFC scans use it, where the
- * NFC receiver ID comes from, and the app identity sets it authorizes with (downloaded from a
+ * Settings for the Libre 3 driver: where the NFC receiver ID comes from, and the app identity sets it authorizes with (downloaded from a
  * digest-pinned source, or imported from a file; the app ships none).
  */
 @Composable
 fun Libre3ManagedDriverSection() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var enabled by remember { mutableStateOf(Libre3Persistence.isEnabled(context)) }
     var labels by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedVersion by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
-    var provisionAfterLoad by remember { mutableStateOf(enabled && !Libre3Persistence.autoProvisionBlocked(context)) }
+    var provisionAfterLoad by remember { mutableStateOf(!Libre3Persistence.autoProvisionBlocked(context)) }
     var showAdvanced by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -132,25 +130,11 @@ fun Libre3ManagedDriverSection() {
         val source = Libre3Persistence.effectiveIdentitySource(context)
         if (provisionAfterLoad && loaded) {
             provisionAfterLoad = false
-            if (enabled && labels.isEmpty() && source != null && !busy) download(source)
+            if (labels.isEmpty() && source != null && !busy) download(source)
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        SettingsSwitchItem(
-            searchAnchor = SettingsSearchAnchors.forRow(R.string.libre3_managed_enable),
-            title = stringResource(R.string.libre3_managed_enable),
-            subtitle = stringResource(R.string.libre3_managed_enable_desc),
-            checked = enabled,
-            onCheckedChange = {
-                enabled = it
-                Libre3Persistence.setEnabled(context, it)
-                provisionAfterLoad = it
-            },
-            icon = Symbols.NfcFilled,
-            iconTint = MaterialTheme.colorScheme.secondary,
-            position = CardPosition.TOP,
-        )
         SettingsSwitchItem(
             searchAnchor = SettingsSearchAnchors.forRow(R.string.libre3_managed_receiver_account),
             title = stringResource(R.string.libre3_managed_receiver_account),
@@ -166,7 +150,7 @@ fun Libre3ManagedDriverSection() {
             },
             icon = Symbols.KeyFilled,
             iconTint = MaterialTheme.colorScheme.secondary,
-            position = CardPosition.BOTTOM,
+            position = CardPosition.SINGLE,
         )
     }
     if (receiverSaveFailed) {

@@ -24,8 +24,9 @@ class Libre3DriverGuardTest {
         assertFalse(outside.contains("persistMarks()"))
     }
 
-    @Test fun noUnmeasuredConnectModeOverride() {
-        assertFalse(manager.contains("useAutoConnect")) // ConnectModeLeverTests exempts this guard by name
+    @Test fun autoConnectFallbackIsThe728Gate() {
+        // The only Libre 3 driver now carries the measured #728 fallback (ConnectModeLeverTests).
+        assertTrue(manager.contains("override fun useAutoConnect(): Boolean = super.useAutoConnect() || directConnectUnreachable"))
     }
 
     @Test fun libre3PairingPrefsNeverLeaveThePhoneInSettingsExport() {
