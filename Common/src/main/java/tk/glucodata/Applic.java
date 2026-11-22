@@ -975,6 +975,9 @@ public class Applic extends Application implements androidx.work.Configuration.P
             ;
             libre3init.init();
             SuperGattCallback.initAlarmTalk();
+            if (!isWearable && !DontTalk) {
+                VoiceAudioTrigger.initialize(this);
+            }
             // A poll alarm may be the component that starts this process. Restore cloud-only
             // callbacks before registering network listeners so the receiver and onAvailable
             // can repair polling without waiting for MainActivity to initialize Bluetooth.

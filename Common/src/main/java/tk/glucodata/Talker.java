@@ -595,6 +595,7 @@ private boolean queueSpeech(String message,boolean chime) {
             if(speakResult==TextToSpeech.SUCCESS) {
                 queued=true;
                 health.record(true,engineReady);
+                VoiceAudioTrigger.recordSpokenNow(System.currentTimeMillis());
                 if(doLog) {Log.i(LOG_ID,"success speak "+message);}
                 return true;
                 }
@@ -728,8 +729,14 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
 volatile static long nexttime=0L;
 void selspeak(String message) {
     if(!DontTalk) {
-        var now=System.currentTimeMillis();
-        if(now>nexttime && SpeakSchedule.INSTANCE.isWithinSchedule(Applic.app)) {
+        final Context app=Applic.app;
+        final boolean autoActive=VoiceAudioTrigger.isAutoReadingSpeechActive(app);
+        final boolean manualAllowed=SuperGattCallback.dotalk && SpeakSchedule.INSTANCE.isWithinSchedule(app);
+        if(!autoActive && !manualAllowed)
+            return;
+        final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(app,cursep);
+        final long now=System.currentTimeMillis();
+        if(now>nexttime) {
             // Claim the slot before speaking, so two readings arriving back to back cannot both
             // announce - then hand nearly all of it back if the engine refused the utterance.
             // Charging a failed attempt the full separation interval made the engine-health
@@ -739,12 +746,36 @@ void selspeak(String message) {
             // for 2 x cursep - 10 minutes at a 300s separation, 33 minutes at 999s, with every
             // further failure costing another interval of silence. Retrying on the next reading
             // instead makes detection ~2 minutes regardless of how the user set the interval.
-            nexttime=now+cursep;
-            if(!speak(message,getChimeBeforeGlucose(Applic.app))) {
-                nexttime=now+Math.min(cursep,FAILED_SPEAK_RETRY_MS);
+            nexttime=now+sepMs;
+            final AudioAttributes attrs=VoiceAudioTrigger.useMediaStreamNow(app)?mediaAudio:notification_audio;
+            if(!speak(message,attrs,getChimeBeforeGlucose(app))) {
+                nexttime=now+Math.min(sepMs,FAILED_SPEAK_RETRY_MS);
                 }
             }
           }
+    }
+
+/** Clamp nexttime down to the default separation when a longer car/BT interval ends. */
+static void clampNextTimeToDefault(long nowMs) {
+    final long maxNext=nowMs+cursep;
+    if(nexttime>maxNext)
+        nexttime=maxNext;
+    }
+
+/** One-shot current-value announcement shortly after a car/Bluetooth audio device connects. */
+boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean chime) {
+    if(DontTalk)
+        return false;
+    final long now=System.currentTimeMillis();
+    if(VoiceAudioTrigger.wasSpokenRecently(now))
+        return false;
+    final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(Applic.app,cursep);
+    nexttime=now+sepMs;
+    final AudioAttributes attrs=useMediaStream?mediaAudio:notification_audio;
+    if(speak(message,attrs,chime))
+        return true;
+    nexttime=now+Math.min(sepMs,FAILED_SPEAK_RETRY_MS);
+    return false;
     }
 static final private double base2=Math.log(2);
 static final private double multiplyer=10000.0/base2;
@@ -836,7 +867,11 @@ private static View[] slider(MainActivity context,float init) {
     }
 public static boolean shouldtalk() {
     if(!DontTalk) {
-        return  SuperGattCallback.dotalk||Natives.gettouchtalk()||Natives.speakmessages()||Natives.speakalarms();
+        return  SuperGattCallback.dotalk
+                || Natives.gettouchtalk()
+                || Natives.speakmessages()
+                || Natives.speakalarms()
+                || VoiceAudioTrigger.isSpeakingActive(Applic.app);
         }
     else
         return false;

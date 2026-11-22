@@ -33,6 +33,7 @@ bedtime fill
 block fill
 bloodtype fill
 bluetooth fill
+bluetooth_audio fill
 bluetooth_connected fill
 bluetooth_disabled fill
 bluetooth_searching fill mirrored
@@ -62,6 +63,7 @@ delete_sweep fill
 deselect fill
 developer_mode fill
 devices fill
+directions_car fill
 directions_run fill mirrored
 dns fill
 do_not_disturb_on fill
@@ -91,6 +93,7 @@ fullscreen fill
 functions fill
 graphic_eq fill
 group fill
+headphones fill
 health_and_safety fill
 help outline mirrored
 history fill

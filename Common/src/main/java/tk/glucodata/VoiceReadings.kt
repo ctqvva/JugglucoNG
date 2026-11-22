@@ -11,7 +11,9 @@ import kotlin.math.ceil
  * outside Settings: the dashboard toggle and the glucose notification action (#840).
  *
  * Only spoken readings are switched. Spoken alarms, alarm sounds and everything else stay
- * as configured.
+ * as configured. When readings are speaking automatically because a chosen car or Bluetooth
+ * audio device is connected, turning voice off mutes that connection session without changing
+ * the saved Bluetooth auto-speak setting.
  */
 object VoiceReadings {
     private const val PREFS = "tk.glucodata_preferences"
@@ -24,27 +26,38 @@ object VoiceReadings {
     /** Ticks whenever the on/off state or its settings change, from any surface. */
     val changes: StateFlow<Long> = changeCount.asStateFlow()
 
-    /** What the user would hear: off, speaking, or on but held back by the schedule. */
+    /** What the user would hear: off, speaking (manually or via car/BT audio), or held by schedule. */
     data class Status(
         val on: Boolean,
         val intervalSeconds: Int,
         /** Schedule start in minutes after midnight while outside the schedule, else null. */
         val resumesAtMinutes: Int?,
+        val autoAudioActive: Boolean = false,
+        val autoAudioDeviceName: String? = null,
+        val autoAudioViaCar: Boolean = false,
     )
 
     @JvmStatic
     fun isOn(): Boolean = !Applic.DontTalk && Natives.getVoiceActive()
 
+    /** True when readings are currently speaking either manually or via car/Bluetooth audio. */
+    @JvmStatic
+    fun isActive(context: Context): Boolean {
+        if (Applic.DontTalk) return false
+        return isOn() || VoiceAudioTrigger.isAutoReadingSpeechActive(context)
+    }
+
     /**
      * Quick controls show only for people who use voice readings: on now, turned on
-     * before (from any surface), or given a schedule.
+     * before (from any surface), given a schedule, or enabled for car/Bluetooth audio.
      */
     @JvmStatic
     fun isInUse(context: Context): Boolean {
         if (Applic.DontTalk) return false
         return isOn() ||
             prefs(context).getBoolean(KEY_USED, false) ||
-            SpeakSchedule.isEnabled(context)
+            SpeakSchedule.isEnabled(context) ||
+            VoiceAudioTrigger.isEnabled(context)
     }
 
     /** The dashboard switch beside the chart; on by default, off in Voice settings. */
@@ -69,19 +82,48 @@ object VoiceReadings {
     @JvmStatic
     fun setOn(context: Context, on: Boolean) {
         if (Applic.DontTalk) return
-        Talker.setSpeakGlucose(context, on)
-        if (on) markUsed(context)
+        val app = context.applicationContext
+        if (VoiceAudioTrigger.isMatchedDeviceConnected(app)) {
+            if (!on) {
+                if (isOn()) {
+                    Talker.setSpeakGlucose(app, false)
+                }
+                VoiceAudioTrigger.setSessionMuted(app, true)
+                return
+            } else if (VoiceAudioTrigger.isSessionMuted()) {
+                VoiceAudioTrigger.setSessionMuted(app, false)
+                return
+            }
+        }
+        Talker.setSpeakGlucose(app, on)
+        if (on) markUsed(app)
         changed()
     }
 
     fun status(context: Context): Status {
-        val on = isOn()
-        val resumes = if (on && !SpeakSchedule.isWithinSchedule(context)) {
+        val manualOn = isOn()
+        val autoActive = VoiceAudioTrigger.isAutoReadingSpeechActive(context)
+        val effectiveOn = manualOn || autoActive
+        val defaultInterval = Talker.getSeparationSeconds()
+        val intervalSeconds = if (autoActive) {
+            VoiceAudioTrigger.effectiveIntervalSeconds(context, defaultInterval)
+        } else {
+            defaultInterval
+        }
+        val resumes = if (manualOn && !autoActive && !SpeakSchedule.isWithinSchedule(context)) {
             SpeakSchedule.getStartMinutes(context)
         } else {
             null
         }
-        return Status(on, Talker.getSeparationSeconds(), resumes)
+        val match = if (autoActive) VoiceAudioTrigger.currentMatch(context) else null
+        return Status(
+            on = effectiveOn,
+            intervalSeconds = intervalSeconds,
+            resumesAtMinutes = resumes,
+            autoAudioActive = autoActive,
+            autoAudioDeviceName = match?.displayLabel,
+            autoAudioViaCar = match?.viaCarMode == true,
+        )
     }
 
     /** "Every reading", "Every 5 min", or "From 07:00" while the schedule holds it back. */

@@ -945,7 +945,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         previousglucosesensorid = SerialNumber;
         final var fview = Floating.floatview;
         // MainActivity.showmessage=null;
-        final boolean alarmSpeechStarted = glucoseAlertStarted && !DontTalk && Natives.speakalarms();
+        final boolean alarmSpeechStarted = glucoseAlertStarted && !DontTalk
+                && VoiceAudioTrigger.isAlarmSpeechEnabled(Applic.app);
         if (alarmSpeechStarted)
             Talker.nexttime = 0L;
         if (fview != null)
@@ -995,7 +996,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         UiRefreshBus.requestDataRefresh();
 
         if (!DontTalk) {
-            if (dotalk && !alarmSpeechStarted) {
+            final boolean autoVoiceActive = VoiceAudioTrigger.refreshAndCheckReadingSpeech(Applic.app);
+            if ((dotalk || autoVoiceActive) && !alarmSpeechStarted) {
                 // `talker` is a plain static field that endtalk() can null from another thread
                 // between the dotalk check and the deref - read it into a local once.
                 final Talker currentTalker = talker;

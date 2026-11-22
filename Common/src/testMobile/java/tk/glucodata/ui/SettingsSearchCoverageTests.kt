@@ -67,8 +67,11 @@ class SettingsSearchCoverageTests {
             "offset",
         )
         because(
-            "part of a control that is indexed itself (times of the voice schedule, colours of the range card, …)",
-            "voice_schedule_from", "voice_schedule_until", "chart_limits_title", "glucose_range_title",
+            "part of a control that is indexed itself (times of the voice schedule, Bluetooth audio options, colours of the range card, …)",
+            "voice_schedule_from", "voice_schedule_until",
+            "voice_bt_devices_title", "voice_bt_car_mode_title",
+            "voice_bt_speak_alarms_title", "voice_bt_announce_connect_title", "voice_bt_media_stream_title",
+            "chart_limits_title", "glucose_range_title",
             "glucose_arrow_forecast_title", "glucose_chart_range_colors_title", "glucose_app_chart_range_colors_title",
             "prediction_analysis_past_title", "settings_section_display",
         )

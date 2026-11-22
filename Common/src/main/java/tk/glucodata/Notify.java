@@ -2798,15 +2798,17 @@ public class Notify {
         // Speech is sound: a quiet window and Do Not Disturb silence it too.
         final boolean speechSilenced = quietSilencesSound || dndBlocksEffects;
         if (!DontTalk) {
-            if (glucosealarm && Natives.speakalarms() && !speechSilenced) {
+            if (glucosealarm && VoiceAudioTrigger.isAlarmSpeechEnabled(app) && !speechSilenced) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                 // Read the static into a local before dereferencing it: endtalk() nulls
                 // SuperGattCallback.talker from another thread, and it is null until the first
                 // newtalker(). Every other call site already guards; the alarm path did not.
                 final Talker alarmTalker = SuperGattCallback.talker;
                 if (current != null && alarmTalker != null) {
-                    alarmTalker.speak(GlucoseSpeech.format(Applic.app,current),
-                            disturb ? ScanNfcV.audioattributes : notification_audio);
+                    final AudioAttributes alarmSpeechAudio = disturb
+                            ? ScanNfcV.audioattributes
+                            : (VoiceAudioTrigger.useMediaStreamNow(app) ? Talker.mediaAudio : notification_audio);
+                    alarmTalker.speak(GlucoseSpeech.format(Applic.app,current), alarmSpeechAudio);
                 }
             }
         }
@@ -2880,7 +2882,7 @@ public class Notify {
                     stopvibratealarm();
                 }
                 final CurrentDisplaySource.Snapshot closingSpeech = !DontTalk && glucosealarm
-                        && Natives.speakalarms() && !speechSilenced
+                        && VoiceAudioTrigger.isAlarmSpeechEnabled(app) && !speechSilenced
                         ? resolveNotificationCurrentSnapshot() : null;
                 // Own continuing speech and the closing delay before releasing alarm focus.
                 // The reservation is distinct from utterance ownership, so late completion of
@@ -2895,8 +2897,10 @@ public class Notify {
                                     Log.e(LOG_ID, "alarm speech: no talker, dropping utterance");
                                     return;
                                 }
-                                if (!delayedTalker.speak(GlucoseSpeech.format(Applic.app,closingSpeech),
-                                        disturb ? ScanNfcV.audioattributes : notification_audio)) {
+                                final AudioAttributes closingAudio = disturb
+                                        ? ScanNfcV.audioattributes
+                                        : (VoiceAudioTrigger.useMediaStreamNow(app) ? Talker.mediaAudio : notification_audio);
+                                if (!delayedTalker.speak(GlucoseSpeech.format(Applic.app,closingSpeech), closingAudio)) {
                                     Log.e(LOG_ID, "alarm speech: engine refused utterance");
                                 }
                             } finally {
@@ -4370,7 +4374,7 @@ public class Notify {
         if (isWearable || !GLUCOSENOTIFICATION.equals(type)) return 0;
         try {
             if (!VoiceReadings.showInNotification(app) || !VoiceReadings.isInUse(app)) return 0;
-            return VoiceReadings.isOn() ? 1 : 2;
+            return VoiceReadings.isActive(app) ? 1 : 2;
         } catch (Throwable th) {
             Log.stack(LOG_ID, "voiceReadingsActionState", th);
             return 0;

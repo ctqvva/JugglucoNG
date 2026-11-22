@@ -68,8 +68,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import java.util.Locale
+import kotlin.math.ceil
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
@@ -79,6 +81,8 @@ import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
+import tk.glucodata.VoiceAudioPolicy
+import tk.glucodata.VoiceAudioTrigger
 import tk.glucodata.VoiceReadings
 import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
@@ -132,6 +136,9 @@ fun TalkerSettingsScreen(navController: NavController) {
     var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
     var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
     var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
+    val btAudioState by VoiceAudioTrigger.state.collectAsStateWithLifecycle()
+    var showBtDevicesSheet by remember { mutableStateOf(false) }
+    var btIntervalMenuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -139,6 +146,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 
     DisposableEffect(activity) {
         Talker.ensureComposeTalker(activity)
+        VoiceAudioTrigger.acquireUiMonitoring(activity)
         val listener = Runnable {
             val loadedVoices = Talker.getVoiceNames().toList()
             voiceNames = loadedVoices
@@ -154,6 +162,7 @@ fun TalkerSettingsScreen(navController: NavController) {
         listener.run()
         Talker.setPreviewDoneListener { previewingVoiceIndex = -1 }
         onDispose {
+            VoiceAudioTrigger.releaseUiMonitoring(activity)
             Talker.removeVoiceOptionsListener(listener)
             Talker.setPreviewDoneListener(null)
             Talker.stopPreview()
@@ -221,6 +230,12 @@ fun TalkerSettingsScreen(navController: NavController) {
                 SpeakSchedule.setEndMinutes(activity, mins)
                 showEndPicker = false
             }
+        )
+    }
+    if (showBtDevicesSheet) {
+        VoiceAudioDeviceSheet(
+            snapshot = btAudioState,
+            onDismiss = { showBtDevicesSheet = false },
         )
     }
 
@@ -489,6 +504,99 @@ fun TalkerSettingsScreen(navController: NavController) {
                         position = CardPosition.BOTTOM,
                         onClick = { showEndPicker = true }
                     )
+                }
+            }
+
+            // Automatic voice announcements when connected to car or Bluetooth audio (#653, #1002).
+            val btConfig = btAudioState.config
+            val btStatusSubtitle = formatBtAudioStatus(context, btAudioState)
+            val btDevicesSummary = formatBtDevicesSummary(context, btAudioState)
+            val defaultIntervalLabel = formatIntervalLabel(context, uiState.separationSeconds)
+            val btIntervalLabel = formatBtIntervalLabel(context, btConfig.intervalSeconds, defaultIntervalLabel)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_bt_audio_title),
+                    subtitle = btStatusSubtitle,
+                    checked = btConfig.enabled,
+                    onCheckedChange = { VoiceAudioTrigger.setEnabled(activity, it) },
+                    icon = Symbols.DirectionsCarFilled,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = if (btConfig.enabled) CardPosition.TOP else CardPosition.SINGLE,
+                    animatePosition = true,
+                    searchAnchor = SettingsSearchAnchors.VOICE_BT_AUDIO,
+                )
+                if (btConfig.enabled) {
+                    SettingsItem(
+                        title = stringResource(R.string.voice_bt_devices_title),
+                        subtitle = btDevicesSummary,
+                        icon = Symbols.BluetoothAudioFilled,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE,
+                        onClick = { showBtDevicesSheet = true },
+                    )
+                    DropdownSettingsCard(
+                        title = stringResource(R.string.voice_bt_interval_title),
+                        value = btIntervalLabel,
+                        icon = Symbols.TimerFilled,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        position = CardPosition.MIDDLE,
+                        expanded = btIntervalMenuExpanded,
+                        onExpandedChange = { btIntervalMenuExpanded = it },
+                    ) {
+                        val presets = VoiceAudioPolicy.INTERVAL_PRESETS_SECONDS
+                        presets.forEachIndexed { index, seconds ->
+                            val label = formatBtIntervalLabel(context, seconds, defaultIntervalLabel)
+                            SelectableDropdownMenuItem(
+                                selected = btConfig.intervalSeconds == seconds,
+                                shapes = MenuDefaults.itemShape(index, presets.size),
+                                text = { Text(label) },
+                                onClick = {
+                                    btIntervalMenuExpanded = false
+                                    VoiceAudioTrigger.setIntervalSeconds(activity, seconds)
+                                },
+                            )
+                        }
+                    }
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.voice_bt_speak_alarms_title),
+                        subtitle = stringResource(R.string.voice_bt_speak_alarms_desc),
+                        checked = btConfig.speakAlarms,
+                        onCheckedChange = { VoiceAudioTrigger.setSpeakAlarms(activity, it) },
+                        icon = Symbols.NotificationsActiveFilled,
+                        iconTint = MaterialTheme.colorScheme.error,
+                        position = CardPosition.MIDDLE,
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.voice_bt_announce_connect_title),
+                        subtitle = stringResource(R.string.voice_bt_announce_connect_desc),
+                        checked = btConfig.announceOnConnect,
+                        onCheckedChange = { VoiceAudioTrigger.setAnnounceOnConnect(activity, it) },
+                        icon = Symbols.PlayArrowFilled,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = CardPosition.MIDDLE,
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.voice_bt_media_stream_title),
+                        subtitle = stringResource(R.string.voice_bt_media_stream_desc),
+                        checked = btConfig.useMediaStream,
+                        onCheckedChange = { VoiceAudioTrigger.setUseMediaStream(activity, it) },
+                        icon = Symbols.MusicNoteFilled,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.BOTTOM,
+                    )
+                }
+            }
+
+            if (btConfig.enabled && btAudioState.activeMatch.matched && btAudioState.sessionMuted) {
+                FilledTonalButton(
+                    onClick = { VoiceAudioTrigger.setSessionMuted(activity, false) },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = ButtonDefaults.ContentPadding,
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Icon(Symbols.VolumeUpFilled, contentDescription = null)
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.voice_bt_resume_session))
                 }
             }
 
@@ -788,6 +896,78 @@ private fun talkerSliderProgressToRatio(progress: Float): Float {
 
 private fun formatTalkerRatio(value: Float): String {
     return String.format(Locale.US, "%.2f", value)
+}
+
+private fun formatIntervalLabel(context: Context, seconds: Int): String {
+    if (seconds <= 60) return context.getString(R.string.voice_every_reading)
+    val minutes = ceil(seconds / 60.0).toInt()
+    return context.getString(R.string.voice_every_minutes, minutes)
+}
+
+private fun formatBtIntervalLabel(context: Context, seconds: Int, defaultLabel: String): String {
+    if (seconds <= 0) return context.getString(R.string.voice_bt_interval_same, defaultLabel)
+    return formatIntervalLabel(context, seconds)
+}
+
+private fun formatBtAudioStatus(context: Context, state: VoiceAudioTrigger.Snapshot): String {
+    val config = state.config
+    if (!config.enabled) return context.getString(R.string.voice_bt_audio_desc)
+    val match = state.activeMatch
+    if (match.matched) {
+        val label = match.displayLabel
+            ?: if (match.viaCarMode) context.getString(R.string.voice_bt_car_mode_label)
+            else context.getString(R.string.voice_bt_audio_fallback_label)
+        return if (state.sessionMuted) {
+            context.getString(R.string.voice_bt_status_paused, label)
+        } else {
+            context.getString(R.string.voice_bt_status_active, label)
+        }
+    }
+    return when {
+        config.scope == VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO ->
+            context.getString(R.string.voice_bt_status_waiting_any)
+        config.savedDevices.size == 1 ->
+            context.getString(R.string.voice_bt_status_waiting_device, config.savedDevices.first().name)
+        config.savedDevices.size > 1 ->
+            context.getString(R.string.voice_bt_status_waiting_count, config.savedDevices.size)
+        config.includeCarMode ->
+            context.getString(R.string.voice_bt_status_waiting_car_mode)
+        else ->
+            context.getString(R.string.voice_bt_status_no_devices)
+    }
+}
+
+private fun formatBtDevicesSummary(context: Context, state: VoiceAudioTrigger.Snapshot): String {
+    val config = state.config
+    if (config.scope == VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO) {
+        return if (config.includeCarMode) {
+            context.getString(R.string.voice_bt_devices_any_and_car)
+        } else {
+            context.getString(R.string.voice_bt_scope_any)
+        }
+    }
+    val saved = config.savedDevices
+    if (saved.isEmpty()) {
+        val connectedName = state.connectedDevices.firstOrNull()?.name?.takeIf { it.isNotBlank() }
+        if (connectedName != null) {
+            return context.getString(R.string.voice_bt_devices_connected_hint, connectedName)
+        }
+        return if (config.includeCarMode) {
+            context.getString(R.string.voice_bt_car_mode_label)
+        } else {
+            context.getString(R.string.voice_bt_devices_none_summary)
+        }
+    }
+    val base = if (saved.size == 1) {
+        saved.first().name
+    } else {
+        context.getString(R.string.voice_bt_devices_more_format, saved.first().name, saved.size - 1)
+    }
+    return if (config.includeCarMode) {
+        "$base · ${context.getString(R.string.voice_bt_car_mode_label)}"
+    } else {
+        base
+    }
 }
 
 @Composable

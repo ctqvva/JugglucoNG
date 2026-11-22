@@ -106,7 +106,13 @@ fun VoiceReadingsChartPill(
                 role = Role.Switch,
                 onValueChange = { VoiceReadings.setOn(context.applicationContext, it) }
             )
-            .semantics { contentDescription = listOfNotNull(title, summary).joinToString(", ") }
+            .semantics {
+                contentDescription = listOfNotNull(
+                    title,
+                    status.autoAudioDeviceName.takeIf { status.autoAudioActive },
+                    summary,
+                ).joinToString(", ")
+            }
             .animateContentSize()
             .padding(horizontal = if (showLabel) 12.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -117,6 +123,8 @@ fun VoiceReadingsChartPill(
                 !status.on -> Symbols.VolumeOffFilled
                 // On, but the schedule keeps it quiet until the time beside it.
                 status.resumesAtMinutes != null -> Symbols.ScheduleFilled
+                status.autoAudioActive && status.autoAudioViaCar -> Symbols.DirectionsCarFilled
+                status.autoAudioActive -> Symbols.BluetoothConnectedFilled
                 else -> Symbols.VolumeUpFilled
             },
             contentDescription = null,
