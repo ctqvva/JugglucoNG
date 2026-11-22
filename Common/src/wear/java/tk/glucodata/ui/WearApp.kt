@@ -66,7 +66,7 @@ fun WearApp() {
     val navController = rememberSwipeDismissableNavController()
     // System back (button/bezel gesture) pops the stack; at the root it
     // backgrounds the app like the legacy watch UI did, never finishing it.
-    // Swipe-to-dismiss stays handled by SwipeDismissableNavHost.
+    // Swipe-to-dismiss is handled by SwipeDismissableNavHost (see wear styles.xml).
     val activity = LocalContext.current as? Activity
     BackHandler {
         if (navController.previousBackStackEntry != null) {
