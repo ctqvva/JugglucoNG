@@ -257,6 +257,7 @@ fun SettingsItem(
     modifier: Modifier = Modifier,
     subtitleStyle: TextStyle? = null,
     searchAnchor: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) = SettingsItem(
     title = AnnotatedString(title),
     subtitle = subtitle?.let(::AnnotatedString),
@@ -269,6 +270,7 @@ fun SettingsItem(
     modifier = modifier,
     subtitleStyle = subtitleStyle,
     searchAnchor = searchAnchor,
+    containerColor = containerColor,
 )
 
 /** The same row with styled text, for a search result that marks the words it matched. */
@@ -285,6 +287,7 @@ fun SettingsItem(
     modifier: Modifier = Modifier,
     subtitleStyle: TextStyle? = null,
     searchAnchor: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) {
     val shape = if (animatePosition) animatedCardShape(position) else cardShape(position)
     Surface(
@@ -294,7 +297,7 @@ fun SettingsItem(
             .fillMaxWidth()
             .settingsSearchAnchor(searchAnchor, shape),
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh // restored color
+        color = containerColor
     ) {
         AdaptiveTrailingRow(
             modifier = Modifier
@@ -400,6 +403,7 @@ fun SettingsSwitchItem(
     modifier: Modifier = Modifier,
     subtitleStyle: TextStyle? = null,
     searchAnchor: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) {
     SettingsItem(
         title = title,
@@ -414,6 +418,7 @@ fun SettingsSwitchItem(
         modifier = modifier,
         subtitleStyle = subtitleStyle,
         searchAnchor = searchAnchor,
+        containerColor = containerColor,
         trailingContent = {
             StyledSwitch(
                 checked = checked,
@@ -509,12 +514,13 @@ fun SettingsControlsCard(
     position: CardPosition = CardPosition.SINGLE,
     animatePosition: Boolean = false,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = if (animatePosition) animatedCardShape(position) else cardShape(position),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh
+        color = containerColor
     ) {
         // A slider's touch target leaves ~14dp under its track and a choice keeps 12dp
         // under its buttons, so the bottom padding and the gaps are 8dp, not 16.
@@ -548,6 +554,7 @@ fun SettingsSlider(
     steps: Int = 0,
     modifier: Modifier = Modifier,
     searchAnchor: String? = null,
+    onValueChangeFinished: (() -> Unit)? = null,
 ) {
     Column(
     modifier = modifier
@@ -563,6 +570,7 @@ fun SettingsSlider(
         Slider(
             value = value,
             onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
             valueRange = range,
             steps = steps,
             colors = SliderDefaults.colors(
