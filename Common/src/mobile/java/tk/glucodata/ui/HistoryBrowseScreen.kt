@@ -908,6 +908,12 @@ fun HistoryBrowseScreen(
                                 deltaRateMgdlPerMinute = rowDeltas[readingPoint]?.rateMgdlPerMinute,
                                 sensorId = sensorId,
                                 calibrations = calibrations,
+                                // Entries grouped onto this reading are shown only here, as on the dashboard.
+                                journalEntries = item.journalEntries,
+                                journalPresetsById = journalPresetsById,
+                                journalFoodsById = journalFoodsById,
+                                journalChipExpanded = false,
+                                onJournalEntryClick = onJournalEntryClick,
                                 highlightLeadRow = false,
                                 showLeadingAction = journalEnabled && onAddJournalEntry != null,
                                 onLeadingActionClick = if (journalEnabled && onAddJournalEntry != null) {
