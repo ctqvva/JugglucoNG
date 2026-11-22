@@ -845,7 +845,12 @@ private fun VoiceBluetoothAudioCard(
     val subordinateSurface = MaterialTheme.colorScheme.surfaceContainer
 
     val intervalPresets = VoiceAudioPolicy.INTERVAL_PRESETS_SECONDS
-    val currentPresetIndex = intervalPresets.indexOf(config.intervalSeconds).coerceAtLeast(0)
+    val normalizedInterval = if (config.intervalSeconds == 60) {
+        VoiceAudioPolicy.INTERVAL_EVERY_READING
+    } else {
+        config.intervalSeconds
+    }
+    val currentPresetIndex = intervalPresets.indexOf(normalizedInterval).coerceAtLeast(0)
     var sliderIndex by rememberSaveable(config.intervalSeconds) {
         mutableFloatStateOf(currentPresetIndex.toFloat())
     }
@@ -866,10 +871,9 @@ private fun VoiceBluetoothAudioCard(
             searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_bt_audio_title),
         )
 
-        // Subordinate options reuse the standard SettingsItem / SettingsControlsCard /
-        // SettingsSwitchItem components (full 72dp height, 16dp padding, titleMedium/bodyMedium,
-        // standard row ripple) on a softer recessed surface with no icon tiles so the hierarchy
-        // stays obvious without shrinking text or cramping whitespace.
+        // Audio devices stays at full primary prominence (surfaceContainerHigh + IconTile) right
+        // under the master toggle; secondary tuning options sit underneath on recessed
+        // surfaceContainer with no icon tiles so the hierarchy stays clear without cramping.
         AnimatedVisibility(
             visible = config.enabled,
             enter = expandVertically() + fadeIn(),
@@ -885,15 +889,9 @@ private fun VoiceBluetoothAudioCard(
                     title = stringResource(R.string.voice_bt_devices_title),
                     subtitle = formatBtDevicesSummary(context, state),
                     onClick = onOpenDevices,
-                    trailingContent = {
-                        Icon(
-                            imageVector = Symbols.ChevronRightFilled,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
+                    icon = Symbols.BluetoothAudioFilled,
+                    iconTint = MaterialTheme.colorScheme.secondary,
                     position = CardPosition.MIDDLE,
-                    containerColor = subordinateSurface,
                 )
 
                 SettingsControlsCard(

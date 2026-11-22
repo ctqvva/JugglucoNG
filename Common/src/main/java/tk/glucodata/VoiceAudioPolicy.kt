@@ -85,8 +85,22 @@ object VoiceAudioPolicy {
         val bypassSchedule: Boolean,
     )
 
-    /** Preset intervals offered in the Voice screen (0 = same as default Voice interval). */
-    val INTERVAL_PRESETS_SECONDS: List<Int> = listOf(0, 60, 180, 300, 600, 900, 1800)
+    /** Interval value meaning "use the default Voice separation setting". */
+    const val INTERVAL_DEFAULT: Int = 0
+
+    /** Interval value meaning "speak every distinct reading with no extra time separation". */
+    const val INTERVAL_EVERY_READING: Int = 1
+
+    /** Preset intervals offered in the Voice screen. */
+    val INTERVAL_PRESETS_SECONDS: List<Int> = listOf(
+        INTERVAL_DEFAULT,
+        INTERVAL_EVERY_READING,
+        180,
+        300,
+        600,
+        900,
+        1800,
+    )
 
     /** Wait briefly after BT audio connects so car stereos finish opening A2DP before TTS starts. */
     const val CONNECT_SETTLE_DELAY_MS: Long = 4_000L
@@ -268,10 +282,11 @@ object VoiceAudioPolicy {
         val sessionPaused = config.enabled && activeMatch.matched && sessionMuted
         val autoActive = config.enabled && activeMatch.matched && !sessionMuted
         val safeDefaultInterval = defaultIntervalSeconds.coerceAtLeast(1)
-        val effectiveInterval = if (autoActive && config.intervalSeconds > 0) {
-            config.intervalSeconds
-        } else {
-            safeDefaultInterval
+        val effectiveInterval = when {
+            !autoActive || config.intervalSeconds == INTERVAL_DEFAULT -> safeDefaultInterval
+            config.intervalSeconds == INTERVAL_EVERY_READING -> 0
+            config.intervalSeconds > INTERVAL_EVERY_READING -> config.intervalSeconds
+            else -> safeDefaultInterval
         }
         return EffectiveDecision(
             autoActive = autoActive,
@@ -362,7 +377,22 @@ object VoiceAudioPolicy {
         if (previous.triggerKey == current.triggerKey) return false
         val sameCarProjectionHandoff = previous.viaCarMode && current.viaCarMode &&
             (previous.triggerKey == "car_mode" || current.triggerKey == "car_mode")
-        return !sameCarProjectionHandoff
+        if (sameCarProjectionHandoff) return false
+        // In ANY_BLUETOOTH_AUDIO scope, the same physical device can refine between name-only
+        // ("any_bt:name:...") and MAC-addressed ("any_bt:mac:...") once profile state arrives.
+        val prevKey = previous.triggerKey
+        val currKey = current.triggerKey
+        val nameToMacRefinement = prevKey != null && currKey != null &&
+            ((prevKey.startsWith("any_bt:name:") && currKey.startsWith("any_bt:mac:")) ||
+                (prevKey.startsWith("any_bt:mac:") && currKey.startsWith("any_bt:name:")))
+        if (nameToMacRefinement) {
+            val prevName = normalizeName(previous.displayLabel)
+            val currName = normalizeName(current.displayLabel)
+            if (prevName.isNotEmpty() && prevName == currName) {
+                return false
+            }
+        }
+        return true
     }
 
     /**

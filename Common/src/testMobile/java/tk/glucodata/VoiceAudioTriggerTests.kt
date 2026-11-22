@@ -360,7 +360,8 @@ class VoiceAudioTriggerTests {
     }
 
     @Test
-    fun androidAutoProjectionProvider_activatesEvenWithoutUiCarMode() {
+    fun androidAutoProjectionProvider_updatesAsyncAndNeverQueriesOnReadingPath() {
+        FakeCarConnectionProvider.queryCount.set(0)
         FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
         Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
             .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
@@ -373,20 +374,64 @@ class VoiceAudioTriggerTests {
         // Confirm UiModeManager is NOT in car mode (Android 12+ behavior).
         assertFalse(uiMode.currentModeType == Configuration.UI_MODE_TYPE_CAR)
 
-        // Run refresh off main thread (as BLE/alarm paths do) so provider is queried directly.
-        val worker = Thread { VoiceAudioTrigger.refreshState(app) }
-        worker.start()
-        worker.join(5_000L)
-
+        // Wait for startup's async projection refresh to settle, then verify activation.
+        val startupLatch = java.util.concurrent.CountDownLatch(1)
+        Applic.scheduler.execute { startupLatch.countDown() }
+        assertTrue(startupLatch.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        VoiceAudioTrigger.refreshCarProjectionNow(app)
         assertTrue("Android Auto CarConnection projection must activate voice", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
         assertEquals("car_mode", VoiceAudioTrigger.currentMatch(app).triggerKey)
 
-        // Disconnect projection -> immediately deactivates.
+        // Critical: the live glucose reading path (off the main thread) must NEVER perform a
+        // synchronous contentResolver.query() against the external Android Auto provider.
+        val queriesBeforeReading = FakeCarConnectionProvider.queryCount.get()
+        var activeOnWorker = false
+        val worker = Thread { activeOnWorker = VoiceAudioTrigger.refreshAndCheckReadingSpeech(app) }
+        worker.start()
+        worker.join(5_000L)
+        assertTrue(activeOnWorker)
+        assertEquals(
+            "Glucose reading path must read cached projection state without synchronous IPC",
+            queriesBeforeReading,
+            FakeCarConnectionProvider.queryCount.get(),
+        )
+
+        // Disconnect projection via async projection refresh -> deactivates cleanly.
         FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
-        val worker2 = Thread { VoiceAudioTrigger.refreshState(app) }
-        worker2.start()
-        worker2.join(5_000L)
+        VoiceAudioTrigger.refreshCarProjectionNow(app)
         assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+    }
+
+    @Test
+    fun everyReadingCarInterval_doesNotSkipFastConsecutiveReadings() {
+        VoiceTriggerTestNatives.voiceSeparationVal = 300
+        Talker.getvalues()
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setIntervalSeconds(app, VoiceAudioPolicy.INTERVAL_EVERY_READING)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("AA:BB:CC:DD:EE:44", "Fast Car")))
+        VoiceAudioTrigger.refreshState(app)
+        assertEquals(0L, VoiceAudioTrigger.effectiveIntervalMs(app, 300_000L))
+
+        val talker = SuperGattCallback.talker!!
+        talker.engineReady = true
+        Talker.nexttime = 0L
+        VoiceTriggerTestEngine.speakCount = 0
+
+        talker.selspeak("6.1, stable")
+        val afterFirst = System.currentTimeMillis()
+        assertEquals(1, VoiceTriggerTestEngine.speakCount)
+        assertTrue(
+            "Every reading preset must not advance nexttime ahead into the future",
+            Talker.nexttime <= afterFirst,
+        )
+        // Wait 5ms so System.currentTimeMillis() advances past `afterFirst` naturally — no 60s throttle.
+        Thread.sleep(5L)
+        talker.selspeak("6.2, stable")
+        assertEquals("Every reading preset must speak consecutive readings without 60s skipping", 2, VoiceTriggerTestEngine.speakCount)
     }
 }
 
@@ -400,6 +445,7 @@ class FakeCarConnectionProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
         sortOrder: String?,
     ): Cursor {
+        queryCount.incrementAndGet()
         val cursor = MatrixCursor(arrayOf(VoiceAudioTrigger.CAR_CONNECTION_COLUMN))
         cursor.addRow(arrayOf(state))
         return cursor
@@ -413,6 +459,7 @@ class FakeCarConnectionProvider : ContentProvider() {
     companion object {
         @Volatile
         var state: Int = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+        val queryCount = java.util.concurrent.atomic.AtomicInteger(0)
     }
 }
 
@@ -432,16 +479,19 @@ class VoiceTriggerTestEngine : ShadowTextToSpeech() {
         utteranceId: String?,
     ): Int {
         attributesAtSpeak = currentAttributes
+        speakCount++
         return super.speak(text, queueMode, params, utteranceId)
     }
 
     companion object {
         var currentAttributes: AudioAttributes? = null
         var attributesAtSpeak: AudioAttributes? = null
+        var speakCount: Int = 0
 
         fun reset() {
             currentAttributes = null
             attributesAtSpeak = null
+            speakCount = 0
         }
     }
 }

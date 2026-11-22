@@ -748,10 +748,10 @@ void selspeak(String message) {
             // for 2 x cursep - 10 minutes at a 300s separation, 33 minutes at 999s, with every
             // further failure costing another interval of silence. Retrying on the next reading
             // instead makes detection ~2 minutes regardless of how the user set the interval.
-            nexttime=now+sepMs;
+            nexttime=sepMs>0L ? (now+sepMs) : now;
             final AudioAttributes attrs=VoiceAudioTrigger.useMediaStreamNow(app)?mediaAudio:notification_audio;
             if(!speak(message,attrs,getChimeBeforeGlucose(app))) {
-                nexttime=now+Math.min(sepMs,FAILED_SPEAK_RETRY_MS);
+                nexttime=now+(sepMs>0L ? Math.min(sepMs,FAILED_SPEAK_RETRY_MS) : FAILED_SPEAK_RETRY_MS);
                 }
             }
           }
@@ -775,7 +775,7 @@ boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean
     if(VoiceAudioTrigger.wasSpokenRecently(now))
         return false;
     final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(app,cursep);
-    nexttime=now+sepMs;
+    nexttime=sepMs>0L ? (now+sepMs) : now;
     final AudioAttributes attrs=useMediaStream?mediaAudio:notification_audio;
     if(speak(message,attrs,chime))
         return true;

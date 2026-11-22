@@ -333,12 +333,46 @@ class VoiceAudioPolicyTests {
         val carA = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:01", "Car A", viaCarMode = true)
         val carB = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:02", "Car B", viaCarMode = true)
         val carMode = VoiceAudioPolicy.ActiveMatch(true, "car_mode", null, viaCarMode = true)
+        val anyNameOnly = VoiceAudioPolicy.ActiveMatch(true, "any_bt:name:car stereo", "Car Stereo", viaCarMode = true)
+        val anyMacRefined = VoiceAudioPolicy.ActiveMatch(true, "any_bt:mac:AA:BB:CC:DD:EE:01", "Car Stereo", viaCarMode = true)
+        val anyOtherDevice = VoiceAudioPolicy.ActiveMatch(true, "any_bt:mac:11:22:33:44:55:66", "Earbuds", viaCarMode = false)
 
         assertTrue("Headphones -> Car is a distinct session", VoiceAudioPolicy.isDistinctSessionSwitch(buds, carA))
         assertTrue("Car A -> Car B is a distinct session", VoiceAudioPolicy.isDistinctSessionSwitch(carA, carB))
         assertFalse("Same device stays same session", VoiceAudioPolicy.isDistinctSessionSwitch(carA, carA))
         assertFalse("Android Auto <-> Car BT handoff stays same in-car session", VoiceAudioPolicy.isDistinctSessionSwitch(carMode, carA))
         assertFalse("Car BT <-> Android Auto handoff stays same in-car session", VoiceAudioPolicy.isDistinctSessionSwitch(carA, carMode))
+        assertFalse(
+            "ANY_BLUETOOTH_AUDIO name -> MAC refinement for same device must keep session pause",
+            VoiceAudioPolicy.isDistinctSessionSwitch(anyNameOnly, anyMacRefined),
+        )
+        assertFalse(
+            "ANY_BLUETOOTH_AUDIO MAC -> name refinement for same device must keep session pause",
+            VoiceAudioPolicy.isDistinctSessionSwitch(anyMacRefined, anyNameOnly),
+        )
+        assertTrue(
+            "ANY_BLUETOOTH_AUDIO switch to a different device must reset session pause",
+            VoiceAudioPolicy.isDistinctSessionSwitch(anyNameOnly, anyOtherDevice),
+        )
+    }
+
+    @Test
+    fun resolveEffective_everyReadingPresetUsesZeroSeparation() {
+        val config = VoiceAudioPolicy.Config(
+            enabled = true,
+            intervalSeconds = VoiceAudioPolicy.INTERVAL_EVERY_READING,
+        )
+        val active = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:FF", "My Car", viaCarMode = true)
+        val decision = VoiceAudioPolicy.resolveEffective(
+            manualSpeakGlucose = false,
+            withinSchedule = true,
+            manualSpeakAlarms = false,
+            defaultIntervalSeconds = 60,
+            config = config,
+            activeMatch = active,
+            sessionMuted = false,
+        )
+        assertEquals(0, decision.effectiveIntervalSeconds)
     }
 
     @Test

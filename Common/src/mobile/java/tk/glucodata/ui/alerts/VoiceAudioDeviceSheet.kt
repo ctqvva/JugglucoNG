@@ -375,8 +375,8 @@ private fun SelectableAudioDeviceRow(
 }
 
 internal fun formatVoiceIntervalLabel(context: Context, seconds: Int): String {
-    if (seconds <= 60) return context.getString(R.string.voice_every_reading)
-    val minutes = ceil(seconds / 60.0).toInt()
+    if (seconds <= VoiceAudioPolicy.INTERVAL_EVERY_READING) return context.getString(R.string.voice_every_reading)
+    val minutes = ceil(seconds / 60.0).toInt().coerceAtLeast(1)
     return context.getString(R.string.voice_every_minutes, minutes)
 }
 

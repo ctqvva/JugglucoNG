@@ -217,7 +217,7 @@ object VoiceAudioTrigger {
         if (!isSupported()) return
         val app = context.applicationContext
         prefs(app).edit().putBoolean(KEY_CAR_MODE, include).apply()
-        if (include) refreshCarProjectionAsync(app)
+        if (include && (isEnabled(app) || hasUiMonitors())) refreshCarProjectionAsync(app)
         refreshState(app)
         VoiceReadings.changed()
     }
@@ -396,7 +396,12 @@ object VoiceAudioTrigger {
         if (!isSupported() || context == null) return safeDefault
         val config = loadConfig(context)
         val autoActive = config.enabled && synchronized(lock) { lastMatch.matched && !sessionMuted }
-        return if (autoActive && config.intervalSeconds > 0) config.intervalSeconds else safeDefault
+        return when {
+            !autoActive || config.intervalSeconds == VoiceAudioPolicy.INTERVAL_DEFAULT -> safeDefault
+            config.intervalSeconds == VoiceAudioPolicy.INTERVAL_EVERY_READING -> 0
+            config.intervalSeconds > VoiceAudioPolicy.INTERVAL_EVERY_READING -> config.intervalSeconds
+            else -> safeDefault
+        }
     }
 
     @JvmStatic
@@ -831,15 +836,19 @@ object VoiceAudioTrigger {
     private fun refreshCarProjectionAsync(app: Context) {
         try {
             Applic.scheduler.execute {
-                val updated = queryCarProjectionProvider(app)
-                val changed = updated != carProjectionState
-                carProjectionState = updated
-                if (changed) {
-                    refreshState(app)
-                }
+                refreshCarProjectionNow(app)
             }
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "refreshCarProjectionAsync", t)
+        }
+    }
+
+    internal fun refreshCarProjectionNow(app: Context) {
+        val updated = queryCarProjectionProvider(app)
+        val previous = carProjectionState
+        carProjectionState = updated
+        if (updated != previous || (updated != CONNECTION_TYPE_NOT_CONNECTED && !isMatchedDeviceConnected(app))) {
+            refreshState(app)
         }
     }
 
@@ -868,13 +877,11 @@ object VoiceAudioTrigger {
     }
 
     private fun queryInCarMode(context: Context): Boolean {
-        // Authoritative Android Auto / AAOS projection state (works on Android 12+).
-        val liveProjection = if (Looper.myLooper() != Looper.getMainLooper()) {
-            queryCarProjectionProvider(context).also { carProjectionState = it }
-        } else {
-            carProjectionState
-        }
-        if (liveProjection == CONNECTION_TYPE_PROJECTION || liveProjection == CONNECTION_TYPE_NATIVE) {
+        // Always read the cached Android Auto / AAOS projection state so glucose processing
+        // never performs synchronous cross-process IPC against an external content provider.
+        // The cache is kept up to date asynchronously on startup and CAR_CONNECTION_UPDATED.
+        val cachedProjection = carProjectionState
+        if (cachedProjection == CONNECTION_TYPE_PROJECTION || cachedProjection == CONNECTION_TYPE_NATIVE) {
             return true
         }
         // Retain UiModeManager car mode as a separate signal for car docks and Android 8–11.
