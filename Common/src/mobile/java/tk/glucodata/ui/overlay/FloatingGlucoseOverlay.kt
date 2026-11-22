@@ -447,13 +447,15 @@ internal fun FloatingOverlayBody(
     val sideIslandVerticalPadding = (fontSize * 0.32f).coerceIn(3f, 8f).dp
     val sideIslandSplitPadding = (fontSize * 0.18f).coerceIn(2f, 6f).dp
     val textMeasurer = rememberTextMeasurer()
-    val readingLine = remember(style.fontSize, style.fontFamily, style.fontWeight) {
+    val density = LocalDensity.current
+    // Keyed on the density too: a new font or display size changes the line's pixel height.
+    val readingLine = remember(style.fontSize, style.fontFamily, style.fontWeight, density, textMeasurer) {
         textMeasurer.measure(
             "0",
             TextStyle(fontSize = style.fontSize.sp, fontFamily = style.fontFamily, fontWeight = style.fontWeight)
         ).size.height
     }
-    val rowStackLimit = with(LocalDensity.current) { (readingLine * RowStackLines).toDp() }
+    val rowStackLimit = with(density) { (readingLine * RowStackLines).toDp() }
         .let { lines -> if (stackLimit.isSpecified) minOf(lines, stackLimit) else lines }
 
     fun blocks(items: List<FloatingLayoutItem>) = floatingLayoutBlocks(
