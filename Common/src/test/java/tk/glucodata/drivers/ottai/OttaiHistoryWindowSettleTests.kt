@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.drivers.ottai.OttaiBleManager.HistoryHole
+import tk.glucodata.drivers.ottai.OttaiBleManager.HistoryWindowProgress
 import tk.glucodata.drivers.ottai.OttaiBleManager.MissingRange
 
 /**
@@ -78,5 +79,44 @@ class OttaiHistoryWindowSettleTests {
         val retired = OttaiBleManager.noteHoleLedgerFailures(holes, listOf(MissingRange(12, 14)), maxAttempts = 5)
         assertEquals(listOf(HistoryHole(10, 20, 5)), retired)
         assertEquals(listOf(HistoryHole(50, 60, 0)), holes)
+    }
+
+    @Test
+    fun aRunOverlappingAHoleLedgersThePartTheHoleMisses() {
+        // Unledgered empty-live [100,160) ended with [100,120) missing; an older hole has [100,110).
+        val holes = mutableListOf(HistoryHole(100, 110, 1))
+        OttaiBleManager.noteHoleLedgerFailures(holes, listOf(MissingRange(100, 120)))
+        assertEquals(listOf(HistoryHole(100, 110, 2), HistoryHole(110, 120, 1)), holes)
+    }
+
+    @Test
+    fun aRunSpanningSeveralHolesLedgersEveryGapBetweenThem() {
+        val holes = mutableListOf(HistoryHole(110, 120, 0), HistoryHole(130, 140, 0))
+        OttaiBleManager.noteHoleLedgerFailures(holes, listOf(MissingRange(100, 150)))
+        assertEquals(
+            listOf(
+                HistoryHole(100, 110, 1), HistoryHole(110, 120, 1), HistoryHole(120, 130, 1),
+                HistoryHole(130, 140, 1), HistoryHole(140, 150, 1),
+            ),
+            holes,
+        )
+    }
+
+    @Test
+    fun aRunInsideAHoleAddsNothing() {
+        val holes = mutableListOf(HistoryHole(100, 200, 0))
+        OttaiBleManager.noteHoleLedgerFailures(holes, listOf(MissingRange(120, 130)))
+        assertEquals(listOf(HistoryHole(100, 200, 1)), holes)
+    }
+
+    @Test
+    fun aWindowMarksRecordsAgainstItsOwnBounds() {
+        // A frame for the old window [0,30) must not set bits in a new window [100,130).
+        val window = HistoryWindowProgress(100, 130)
+        window.mark(listOf(5, 6, 105, 140))
+        val runs = OttaiBleManager.historyWindowRuns(window.start, window.settled)
+        assertEquals(listOf(MissingRange(105, 106)), runs.settled)
+        assertTrue(window.covers(100, 130))
+        assertFalse(window.covers(0, 30))
     }
 }

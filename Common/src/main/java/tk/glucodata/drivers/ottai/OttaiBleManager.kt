@@ -640,8 +640,13 @@ class OttaiBleManager(
         /**
          * Counts one failed delivery against every hole that overlaps any of [ranges] (once per
          * hole however many ranges touch it, so a window with several missing runs spends one
-         * attempt, not one per run), ledgers the ranges no hole covers, and drops the holes that
-         * reached [maxAttempts]. Returns the retired holes.
+         * attempt, not one per run), ledgers the stretches of [ranges] no hole covers, and drops
+         * the holes that reached [maxAttempts]. Returns the retired holes.
+         *
+         * Only the uncovered stretches are added: a range that merely overlaps a hole would
+         * otherwise either duplicate it or, if skipped, lose the part the hole doesn't reach
+         * (an unledgered "empty-live" window [100,160) missing [100,120) next to a hole
+         * [100,110)).
          */
         internal fun noteHoleLedgerFailures(
             holes: MutableList<HistoryHole>,
@@ -654,15 +659,22 @@ class OttaiBleManager(
             for (h in existing) {
                 if (valid.any { h.start < it.endExclusive && it.start < h.endExclusive }) h.attempts++
             }
+            val covering = existing.sortedBy { it.start }
             for (range in valid) {
-                if (existing.none { it.start < range.endExclusive && range.start < it.endExclusive }) {
-                    // Deliberately not capped at MAX_HISTORY_HOLES the way addHistoryHole is. That
-                    // cap drops the OLDEST window and loses its records; here every entry already
-                    // carries a failure and is retired by the attempt cap, so the ledger drains on
-                    // its own. Applying the size cap would discard a window that still has
-                    // retries left in favour of one that is already on its way out.
-                    holes += HistoryHole(range.start, range.endExclusive, 1)
+                // Deliberately not capped at MAX_HISTORY_HOLES the way addHistoryHole is. That
+                // cap drops the OLDEST window and loses its records; here every entry already
+                // carries a failure and is retired by the attempt cap, so the ledger drains on
+                // its own. Applying the size cap would discard a window that still has
+                // retries left in favour of one that is already on its way out.
+                var cursor = range.start
+                for (h in covering) {
+                    if (h.endExclusive <= cursor) continue
+                    if (h.start >= range.endExclusive) break
+                    if (h.start > cursor) holes += HistoryHole(cursor, h.start, 1)
+                    cursor = maxOf(cursor, h.endExclusive)
+                    if (cursor >= range.endExclusive) break
                 }
+                if (cursor < range.endExclusive) holes += HistoryHole(cursor, range.endExclusive, 1)
             }
             holes.sortBy { it.start }
             val retired = holes.filter { it.attempts >= maxAttempts }
@@ -1113,11 +1125,14 @@ class OttaiBleManager(
     // heard from. Guards the retry budget against a chunk that keeps re-delivering its head
     // (see historyRetriesAfterFrame). Reset in issueHistoryRequest when the window changes.
     @Volatile private var historyChunkBestDataNo = -1
-    // Per record of the window in flight (index = dataNo - activeHistoryStart): true once the
-    // record is settled (see historyWindowRuns). Only settled runs leave the hole ledger; the
-    // highest dataNo seen says when the sensor finished answering, not that all of it arrived.
-    // Replaced together with historyChunkBestDataNo.
-    @Volatile private var historyWindowSettled = BooleanArray(0)
+    // Which records of the window in flight are settled (see historyWindowRuns). Only settled
+    // runs leave the hole ledger; the highest dataNo seen says when the sensor finished
+    // answering, not that all of it arrived. The window carries its own bounds and is read and
+    // written only under historyWindowLock: records are marked from the BLE binder thread while
+    // the handler issues, settles and clears windows, so bounds and array read separately could
+    // belong to different windows and set bits for records that never arrived.
+    private val historyWindowLock = Any()
+    private var historyWindowProgress: HistoryWindowProgress? = null
     // Persisted ledger of requested-but-undelivered history windows. A gap-driven request
     // records its window here at request time; only actually-arrived data (or the cross-
     // session attempt cap) removes it — so watchdog skips, chain teardown, disconnects and
@@ -1129,6 +1144,20 @@ class OttaiBleManager(
     // while iterating, read-modify-write of attempts), so a lock is required rather than a
     // concurrent collection.
     internal data class HistoryHole(var start: Int, var endExclusive: Int, var attempts: Int)
+
+    /** Settled flags of one requested history window, indexed from its own [start]. */
+    internal class HistoryWindowProgress(val start: Int, val endExclusive: Int) {
+        val settled = BooleanArray(endExclusive - start)
+
+        fun covers(start: Int, endExclusive: Int) = start == this.start && endExclusive == this.endExclusive
+
+        fun mark(dataNos: List<Int>) {
+            for (dataNo in dataNos) {
+                val index = dataNo - start
+                if (index in settled.indices) settled[index] = true
+            }
+        }
+    }
 
     /** A history window split into settled and unsettled runs; see [historyWindowRuns]. */
     internal data class HistoryWindowRuns(val settled: List<MissingRange>, val unsettled: List<MissingRange>)
@@ -4776,7 +4805,11 @@ class OttaiBleManager(
             // any other window is a fresh one and starts with nothing delivered.
             if (start != activeHistoryStart || start + count != activeHistoryEndExclusive) {
                 historyChunkBestDataNo = -1
-                historyWindowSettled = BooleanArray(count)
+            }
+            synchronized(historyWindowLock) {
+                if (historyWindowProgress?.covers(start, start + count) != true) {
+                    historyWindowProgress = HistoryWindowProgress(start, start + count)
+                }
             }
             activeHistoryStart = start
             activeHistoryEndExclusive = start + count
@@ -4821,6 +4854,7 @@ class OttaiBleManager(
     }
 
     private fun continueHistoryAfterPayload(readings: List<OttaiReading>): Boolean {
+        val activeStart = activeHistoryStart
         val activeEndExclusive = activeHistoryEndExclusive
         if (activeEndExclusive <= 0) return pendingHistoryReason != null
         // Callers pass the ceiling-filtered plausible list: only plausible progress resets the
@@ -4839,9 +4873,9 @@ class OttaiBleManager(
         // The sensor reached the end of the window. Only the records that actually arrived and
         // settled leave the ledger; a lost frame in the middle, or records that could not be
         // judged yet, stay on it and are charged one attempt, for the hole retry to fetch again.
-        val runs = settleHistoryWindow(activeHistoryStart, activeEndExclusive)
+        val runs = settleHistoryWindow(activeStart, activeEndExclusive)
         if (runs.unsettled.isNotEmpty()) {
-            Log.w(TAG, "history chunk [$activeHistoryStart,$activeEndExclusive) ended with unsettled " +
+            Log.w(TAG, "history chunk [$activeStart,$activeEndExclusive) ended with unsettled " +
                 runs.unsettled.joinToString { "[${it.start},${it.endExclusive})" })
         }
         cancelHistoryWatchdog()
@@ -4917,7 +4951,7 @@ class OttaiBleManager(
         cancelHistoryWatchdog()
         historyRetryCount = 0
         historyChunkBestDataNo = -1
-        historyWindowSettled = BooleanArray(0)
+        synchronized(historyWindowLock) { historyWindowProgress = null }
         pendingHistoryReason = null
         pendingHistoryNextStart = 0
         pendingHistoryEndExclusive = 0
@@ -4963,24 +4997,24 @@ class OttaiBleManager(
 
     /** Marks history records of the window in flight as settled; see [historyWindowRuns]. */
     private fun markHistorySettled(dataNos: List<Int>) {
-        val start = activeHistoryStart
-        val settled = historyWindowSettled
-        if (start < 0) return
-        for (dataNo in dataNos) {
-            val index = dataNo - start
-            if (index in settled.indices) settled[index] = true
-        }
+        synchronized(historyWindowLock) { historyWindowProgress?.mark(dataNos) }
     }
 
     /**
      * Closes the books on window `[start, endExclusive)`: settled runs leave the ledger, the
      * rest are charged one failed attempt. Used when the window completes and when it is given
      * up, so what did arrive before a stall is not fetched again.
+     *
+     * The window is detached under the lock, so a frame that lands afterwards cannot mark it;
+     * its records count as unsettled and are fetched again, never the other way round.
      */
     private fun settleHistoryWindow(start: Int, endExclusive: Int): HistoryWindowRuns {
         if (endExclusive <= start || start < 0) return HistoryWindowRuns(emptyList(), emptyList())
-        val settled = historyWindowSettled.takeIf { it.size == endExclusive - start && start == activeHistoryStart }
-            ?: BooleanArray(endExclusive - start)
+        val settled = synchronized(historyWindowLock) {
+            historyWindowProgress?.takeIf { it.covers(start, endExclusive) }
+                ?.also { historyWindowProgress = null }
+                ?.settled
+        } ?: BooleanArray(endExclusive - start)
         val runs = historyWindowRuns(start, settled)
         for (run in runs.settled) trimHistoryHoles(run.start, run.endExclusive)
         noteHoleFailures(runs.unsettled)
