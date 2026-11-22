@@ -2391,20 +2391,26 @@ fun SensorCard(
                             label = "sensorReachLine",
                         ) { lost ->
                         if (lost) {
-                            // The reading chip as ever; the Bluetooth chip at the end grows over
-                            // the status text, saying what to check.
+                            // The line's two chips grown to one height: how long since the last
+                            // reading (not the stale value), and the Bluetooth chip spread over
+                            // the status text.
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                currentSnapshot?.let { snapshot ->
-                                    SensorCurrentValueChip(snapshot = snapshot, accentColor = sensorTint)
+                                if (reachState.lastReadingMs > 0L) {
+                                    SensorSilenceAgeChip(
+                                        lastReadingMs = reachState.lastReadingMs,
+                                        accentColor = sensorTint,
+                                        modifier = Modifier.fillMaxHeight(),
+                                    )
                                 }
                                 SensorOutOfReachChip(
                                     state = reachState,
                                     host = SensorReachPromptHost.SENSOR_CARD,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
                                 )
                             }
                         } else {

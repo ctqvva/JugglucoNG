@@ -2120,7 +2120,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_responding">Il sensore non risponde</string>
     <string name="sensor_out_of_reach_title">Nessun segnale dal sensore</string>
     <string name="sensor_out_of_reach_title_short">Nessun segnale</string>
-    <string name="sensor_out_of_reach_body">Controlla che sia vicino e non scarico</string>
+    <string name="sensor_out_of_reach_body">Riprovo a connettermi</string>
     <string name="sensor_out_of_reach_battery">Batteria del sensore scarica (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">In attesa di una lettura</string>
     <string name="status_raw_values_received">Connesso, valori grezzi ricevuti</string>

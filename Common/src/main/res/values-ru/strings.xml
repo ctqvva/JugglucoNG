@@ -2197,7 +2197,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_responding">Датчик не отвечает</string>
     <string name="sensor_out_of_reach_title">Нет сигнала от сенсора</string>
     <string name="sensor_out_of_reach_title_short">Нет сигнала</string>
-    <string name="sensor_out_of_reach_body">Проверьте, что он рядом и не разряжен</string>
+    <string name="sensor_out_of_reach_body">Пытаемся подключиться</string>
     <string name="sensor_out_of_reach_battery">Низкий заряд сенсора (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Ожидание показаний</string>
     <string name="status_raw_values_received">Подключено, получены сырые значения</string>

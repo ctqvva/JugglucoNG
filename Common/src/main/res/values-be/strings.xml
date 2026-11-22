@@ -1610,7 +1610,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_responding">Датчык не адказвае</string>
     <string name="sensor_out_of_reach_title">Няма сігналу ад сэнсара</string>
     <string name="sensor_out_of_reach_title_short">Няма сігналу</string>
-    <string name="sensor_out_of_reach_body">Праверце, ці ён побач і ці не разраджаны</string>
+    <string name="sensor_out_of_reach_body">Спрабуем падключыцца</string>
     <string name="sensor_out_of_reach_battery">Нізкі зарад сэнсара (%1$d%%)</string>
     <string name="sensor_waiting_for_reading">Чаканне паказанняў</string>
     <string name="status_invalid_glucose_from_sensor">Некарэктная глюкоза ад сэнсара</string>
