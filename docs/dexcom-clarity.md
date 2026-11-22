@@ -145,22 +145,54 @@ against independent single-block invocations and ordinary bytewise XOR. The
 same equation held when tracing the real ARM64 instructions offline. These
 comparisons establish the chaining and leave `D` as a reference operation.
 
-The remaining operation is `D` itself. The call at `0x26592d4` dispatches to
-the block routine at `0x2656270` after the ciphertext has been transformed by
-the helper at `0x26784a0`. The block routine reads all 17 consecutive 16-byte
-regions of the context at offsets `0x10` through `0x11f`. Changing one bit in
-that context changed the decoded result. It also indexes tables outside the
-exported ABI. Two early lookup groups are affine over XOR. Two subsequent
-groups have the differential distribution of the AES S-box for every nonzero
-input difference. The surrounding format and output helpers apply further
-transforms. This is consistent with a white-box AES construction. The AES
-variant, state encodings, and relationship between the context words and a
-standard AES key schedule remain unverified.
+### Single-block operation
 
-To replace the library, an implementation needs the specification or source
-for that block operation. One route is a verified mapping to a standard
-primitive with a defined format for an authorized wrapping key. Another is
-the original table-generation and encoding specification with redistributable
-inputs. The public ABI supplies neither that mapping nor the tables outside
-the ABI. A source implementation must match the actual provider before it can
-replace `unwrap` on the upload path.
+For format `1` with a zero IV, `D` runs the input transform at `0x26784a0`,
+the block routine at `0x2656270`, the output helper at `0x271e5f4`, and the
+ABI decode rows. Calling these stages separately reproduced `D` on 128
+single blocks. For both the input transform and the output helper composed
+with the ABI rows, exhaustive single-byte sweeps found 16 reversible affine
+byte maps, each affecting one output byte. Combining the byte maps matched
+all 128 full-block probes. The output helper's raw byte substitutions become
+affine after the ABI rows are applied.
+
+The block routine reads 17 consecutive 16-byte regions of the context at
+offsets `0x10` through `0x11f`. Changing a context bit changed the decoded
+result. The first two lookup groups are affine. The stages at offsets `0x30`
+through `0xd0` use six distinct 16-row groups. All 96 rows match the AES
+S-box differential distribution for every nonzero input difference. The
+table-index routing follows inverse ShiftRows. Comparing the relative linear
+maps between the four output bytes of each table, which cancels the input
+substitution, matched the AES inverse MixColumns matrix up to reversible
+changes of byte basis in all four columns of all six groups.
+
+The late helper at `0x277848c` changes the state representation. Portable
+C++ versions of its two arithmetic subroutines matched the actual ARM64
+instructions on 512 inputs apiece. `0x270aa88` performs a seeded ELF-style
+hash over 16 context bytes. `0x27b66dc` groups 12 masks into three sets of
+four, then takes byte parities of the XOR of the four masked words in each
+set. It packs the resulting 24 bits as two 12-bit values, XORs them with the
+quotient and remainder of its tag divided by 93,139, and recombines them in
+that radix.
+
+The unresolved part is how the late helper uses that representation across
+the lookup groups at `0x2c489d5` and `0x2de907c`. Each has 4,096 distinct
+32-bit outputs with a 32-bit affine span. The last word lookup group in
+`0x2656270` and its 16 terminal byte substitutions are affine. The remaining
+work is to establish the nonlinear round boundaries through the late helper
+and relate the context masks and folded words to a standard key schedule.
+The measurements establish inverse AES structure within `D`. They leave the
+complete block equivalence, AES variant, and independently buildable
+single-block replacement unverified.
+
+### Authorized Clarity upload registration
+
+Dexcom's developer portal offers sandbox credentials and upgrades for access
+to Dexcom-generated data. Its public endpoints and scopes include no Clarity
+write grant. A separate inquiry can ask whether Dexcom offers an inbound
+Clarity integration for patient-authorized uploads and, if so, request its
+supported client registration, sandbox, and upload specification. Dexcom
+lists Developer Support Requests and Strategic Partnerships as intake routes.
+[Scopes and Access](https://developer.dexcom.com/docs/dexcom/scopes-access) ·
+[Endpoint Overview](https://developer.dexcom.com/docs/dexcomv3/endpoint-overview) ·
+[Partner with Dexcom](https://www.dexcom.com/en-us/global-partner-intake-requests)
