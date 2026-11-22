@@ -241,6 +241,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
     }
     var receiveTreatments by rememberSaveable { mutableStateOf(JournalTreatmentUploader.getReceiveTreatments()) }
     var uploadIob by rememberSaveable { mutableStateOf(NightPost.getUploadIob()) }
+    var uploadSensorStart by rememberSaveable { mutableStateOf(NightPost.getUploadSensorStart()) }
     // The journal is switched on and off on its own screen, so once per visit is enough.
     val journalEnabled = remember(context) { tk.glucodata.JournalEnabled.isOn(context) }
     var isV3 by rememberSaveable { mutableStateOf(Natives.getnightscoutV3()) }
@@ -508,6 +509,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     }
                 }
                 if (upload) {
+                    add(SettingsSearchAnchors.forRow(R.string.nightscout_upload_sensor_start))
                     add(SettingsSearchAnchors.NIGHTSCOUT_V3)
                 } else {
                     add(SettingsSearchAnchors.forRow(R.string.nightscout_follow_interval_title))
@@ -933,6 +935,22 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_UPLOAD_IOB
                             )
                         }
+                        // Sensor metadata, not a journal entry: stays with the journal off.
+                        SettingsSwitchItem(
+                            title = stringResource(R.string.nightscout_upload_sensor_start),
+                            searchAnchor = SettingsSearchAnchors.forRow(R.string.nightscout_upload_sensor_start),
+                            subtitle = stringResource(R.string.nightscout_upload_sensor_start_desc),
+                            checked = uploadSensorStart,
+                            onCheckedChange = {
+                                uploadSensorStart = it
+                                NightPost.setUploadSensorStart(it)
+                                if (it) Natives.wakeuploader()
+                            },
+                            icon = Symbols.CloudUploadFilled,
+                            iconTint = MaterialTheme.colorScheme.secondary,
+                            enabled = isActive,
+                            position = if (journalEnabled) CardPosition.MIDDLE else CardPosition.TOP
+                        )
                         SettingsSwitchItem(
                             title = stringResource(R.string.nightscout_use_v3_api),
                             subtitle = stringResource(R.string.nightscout_use_v3_api_desc),
@@ -944,7 +962,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             icon = Symbols.ApiFilled,
                             iconTint = MaterialTheme.colorScheme.secondary,
                             enabled = isActive,
-                            position = if (journalEnabled) CardPosition.BOTTOM else CardPosition.SINGLE,
+                            position = CardPosition.BOTTOM,
                             searchAnchor = SettingsSearchAnchors.NIGHTSCOUT_V3
                         )
                     }
