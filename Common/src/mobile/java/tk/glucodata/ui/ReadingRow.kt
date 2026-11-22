@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -528,113 +529,52 @@ fun ReadingRow(
                     }
                 }
             } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = rowMinHeight)
-                        .padding(start = 16.dp),
-                    // Keep the timestamp and glucose anchored to the first chip line when
-                    // compact entries wrap. Extra chip lines grow only the middle slot.
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .defaultMinSize(minHeight = rowMinHeight)
-                            .then(
-                                if (onBaselineHeightMeasured != null) {
-                                    Modifier.onSizeChanged { onBaselineHeightMeasured(it.height) }
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ReadingTime()
-
-                        if (showLeadingAction) {
-                            Box(
-                                modifier = Modifier.width(leadingActionSlotWidth),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                JournalAddAffordance()
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(if (showLeadingAction) 16.dp else 12.dp))
-
-                    if (hasInlineJournalEntries) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .defaultMinSize(minHeight = rowMinHeight)
-                                .padding(
-                                    top = if (journalChipExpanded) 8.dp else 0.dp,
-                                    end = 8.dp,
-                                    bottom = if (journalChipExpanded) 8.dp else 0.dp
-                                ),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (journalChipExpanded) {
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    journalEntries.forEach { entry ->
-                                        JournalInlineChip(
-                                            entry = entry,
-                                            unit = unit,
-                                            insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
-                                            food = entry.foodId?.let(journalFoodsById::get),
-                                            expanded = true,
-                                            onClick = { onJournalEntryClick?.invoke(entry) }
-                                        )
-                                    }
-                                }
+                JournalReadingRowLayout(
+                    rowMinHeight = rowMinHeight,
+                    leadingGap = if (showLeadingAction) 16.dp else 12.dp,
+                    valueMinWidth = valueMinWidth,
+                    expandedChips = journalChipExpanded,
+                    lead = {
+                        Row(
+                            modifier = if (onBaselineHeightMeasured != null) {
+                                Modifier.onSizeChanged { onBaselineHeightMeasured(it.height) }
                             } else {
-                                CompactJournalFlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    firstLineSlotHeight = rowMinHeight
+                                Modifier
+                            },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ReadingTime()
+
+                            if (showLeadingAction) {
+                                Box(
+                                    modifier = Modifier.width(leadingActionSlotWidth),
+                                    contentAlignment = Alignment.CenterEnd
                                 ) {
-                                    journalEntries.forEach { entry ->
-                                        JournalInlineChip(
-                                            entry = entry,
-                                            unit = unit,
-                                            insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
-                                            food = entry.foodId?.let(journalFoodsById::get),
-                                            expanded = false,
-                                            onClick = { onJournalEntryClick?.invoke(entry) }
-                                        )
-                                    }
+                                    JournalAddAffordance()
                                 }
                             }
                         }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .defaultMinSize(minHeight = rowMinHeight),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
+                    },
+                    chips = {
+                        journalEntries.forEach { entry ->
+                            JournalInlineChip(
+                                entry = entry,
+                                unit = unit,
+                                insulinPreset = entry.insulinPresetId?.let(journalPresetsById::get),
+                                food = entry.foodId?.let(journalFoodsById::get),
+                                expanded = journalChipExpanded,
+                                onClick = { onJournalEntryClick?.invoke(entry) }
+                            )
+                        }
+                    },
+                    value = {
+                        Box(contentAlignment = Alignment.CenterEnd) {
                             MultiSensorValueContent(
                                 modifier = Modifier.padding(start = 12.dp, end = 16.dp)
                             )
                         }
                     }
-
-                    if (hasInlineJournalEntries) {
-                        Box(
-                            modifier = Modifier
-                                .defaultMinSize(minWidth = valueMinWidth, minHeight = rowMinHeight),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
-                            MultiSensorValueContent(
-                                modifier = Modifier.padding(start = 12.dp, end = 16.dp)
-                            )
-                        }
-                    }
-                }
+                )
             }
 
             if (index < totalCount - 1) {
@@ -680,77 +620,142 @@ fun ReadingRow(
 }
 
 /**
- * Packs compact journal chips by their visible bounds while keeping the first line aligned
- * with the reading's fixed-height timestamp and value slots.
+ * A reading row that carries journal chips: time (and the add button) at the start, the value
+ * at the end, chips in between. The value keeps its width; the chips get what is left and wrap
+ * onto further lines there. When even one chip cannot show its whole label in that gap, as when
+ * a calibrated value sits beside its source value, every chip of the row moves to its own line
+ * under the time and value instead. That line starts where chips start on the other rows and
+ * runs to the value's end edge.
  */
 @Composable
-private fun CompactJournalFlowRow(
-    modifier: Modifier = Modifier,
-    firstLineSlotHeight: Dp,
-    horizontalSpacing: Dp = 6.dp,
-    verticalSpacing: Dp = 4.dp,
-    content: @Composable () -> Unit
+private fun JournalReadingRowLayout(
+    rowMinHeight: Dp,
+    leadingGap: Dp,
+    valueMinWidth: Dp,
+    expandedChips: Boolean,
+    lead: @Composable () -> Unit,
+    chips: @Composable () -> Unit,
+    value: @Composable () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Layout(
-        modifier = modifier,
-        content = content
-    ) { measurables, constraints ->
-        val horizontalSpacingPx = horizontalSpacing.roundToPx()
-        val verticalSpacingPx = verticalSpacing.roundToPx()
-        val firstLineSlotHeightPx = firstLineSlotHeight.roundToPx()
-        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-        val placeables = measurables.map { it.measure(childConstraints) }
-        val xPositions = IntArray(placeables.size)
-        val lineIndices = IntArray(placeables.size)
-        val lineHeights = mutableListOf<Int>()
-        val availableWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else Int.MAX_VALUE
-
-        var lineIndex = 0
-        var lineX = 0
-        var usedWidth = 0
-        placeables.forEachIndexed { index, placeable ->
-            val spacedX = if (lineX == 0) 0 else lineX + horizontalSpacingPx
-            if (lineX > 0 && spacedX + placeable.width > availableWidth) {
-                lineIndex += 1
-                lineX = 0
-            } else {
-                lineX = spacedX
-            }
-            while (lineHeights.size <= lineIndex) lineHeights.add(0)
-            xPositions[index] = lineX
-            lineIndices[index] = lineIndex
-            lineHeights[lineIndex] = maxOf(lineHeights[lineIndex], placeable.height)
-            lineX += placeable.width
-            usedWidth = maxOf(usedWidth, lineX)
-        }
-
-        val lineY = IntArray(lineHeights.size)
-        var firstLineInset = 0
-        if (lineHeights.isNotEmpty()) {
-            firstLineInset = ((firstLineSlotHeightPx - lineHeights[0]) / 2).coerceAtLeast(0)
-            lineY[0] = firstLineInset
-            for (index in 1 until lineHeights.size) {
-                lineY[index] = lineY[index - 1] + lineHeights[index - 1] + verticalSpacingPx
-            }
-        }
-        val contentHeight = if (lineHeights.isEmpty()) {
-            firstLineSlotHeightPx
+        contents = listOf(lead, chips, value),
+        modifier = modifier.fillMaxWidth()
+    ) { (leadMeasurables, chipMeasurables, valueMeasurables), constraints ->
+        val startPadding = ROW_START_PADDING.roundToPx()
+        val gap = leadingGap.roundToPx()
+        val leadMeasurable = leadMeasurables.single()
+        val valueMeasurable = valueMeasurables.single()
+        val leadWidth = leadMeasurable.maxIntrinsicWidth(Constraints.Infinity)
+        val width = if (constraints.hasBoundedWidth) {
+            constraints.maxWidth
         } else {
-            maxOf(firstLineSlotHeightPx, lineY.last() + lineHeights.last() + firstLineInset)
+            startPadding + leadWidth + gap + valueMeasurable.maxIntrinsicWidth(Constraints.Infinity)
         }
-        val requestedWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else usedWidth
+        val chipsStart = (startPadding + leadWidth + gap).coerceAtMost(width)
+        val valueMaxWidth = width - chipsStart
+        val valuePlaceable = valueMeasurable.measure(
+            Constraints(minWidth = valueMinWidth.roundToPx().coerceAtMost(valueMaxWidth), maxWidth = valueMaxWidth)
+        )
+        val inlineChipsWidth = (valueMaxWidth - valuePlaceable.width - INLINE_CHIPS_END_PADDING.roundToPx()).coerceAtLeast(0)
+        // Compact chips hold one line, so they need their full natural width. Expanded chips
+        // wrap their own text and only fail once their longest word no longer fits.
+        val chipNeeds = chipMeasurables.map {
+            if (expandedChips) it.minIntrinsicWidth(Constraints.Infinity) else it.maxIntrinsicWidth(Constraints.Infinity)
+        }
+        val chipsOwnLine = journalChipsNeedOwnLine(chipNeeds, inlineChipsWidth)
 
-        layout(
-            width = requestedWidth.coerceIn(constraints.minWidth, constraints.maxWidth),
-            height = contentHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
-        ) {
-            placeables.forEachIndexed { index, placeable ->
-                val childLine = lineIndices[index]
-                val centeredY = lineY[childLine] + (lineHeights[childLine] - placeable.height) / 2
-                placeable.placeRelative(xPositions[index], centeredY)
+        val lineMinHeight = if (chipsOwnLine) minOf(rowMinHeight, OWN_LINE_FIRST_LINE_HEIGHT).roundToPx() else rowMinHeight.roundToPx()
+        val leadPlaceable = leadMeasurable.measure(
+            Constraints(minHeight = lineMinHeight, maxWidth = (width - startPadding).coerceAtLeast(0))
+        )
+        val valueTop = ((lineMinHeight - valuePlaceable.height) / 2).coerceAtLeast(0)
+
+        val chipsWidth = if (chipsOwnLine) {
+            (width - chipsStart - OWN_LINE_CHIPS_END_PADDING.roundToPx()).coerceAtLeast(0)
+        } else {
+            inlineChipsWidth
+        }
+        val chipPlaceables = chipMeasurables.map { it.measure(Constraints(maxWidth = chipsWidth)) }
+        val lines = packJournalChipLines(
+            widths = IntArray(chipPlaceables.size) { chipPlaceables[it].width },
+            heights = IntArray(chipPlaceables.size) { chipPlaceables[it].height },
+            availableWidth = chipsWidth,
+            spacing = (if (expandedChips) 8.dp else 6.dp).roundToPx()
+        )
+        val lineSpacing = 4.dp.roundToPx()
+        val lineTops = IntArray(lines.lineHeights.size)
+        for (line in 1 until lineTops.size) {
+            lineTops[line] = lineTops[line - 1] + lines.lineHeights[line - 1] + lineSpacing
+        }
+        val chipsHeight = if (lineTops.isEmpty()) 0 else lineTops.last() + lines.lineHeights.last()
+
+        val chipsTop: Int
+        val chipsBottom: Int
+        if (chipsOwnLine) {
+            chipsTop = maxOf(leadPlaceable.height, valueTop + valuePlaceable.height)
+            chipsBottom = chipsTop + chipsHeight + OWN_LINE_CHIPS_BOTTOM_PADDING.roundToPx()
+        } else if (expandedChips) {
+            // Same as the padded, centred slot the expanded chips always had.
+            val padding = 8.dp.roundToPx()
+            val slotHeight = maxOf(lineMinHeight, chipsHeight + 2 * padding)
+            chipsTop = padding + (slotHeight - 2 * padding - chipsHeight) / 2
+            chipsBottom = slotHeight
+        } else {
+            // The first chip line centres on the time and value; later lines hang below it.
+            val firstLineInset = ((lineMinHeight - (lines.lineHeights.firstOrNull() ?: 0)) / 2).coerceAtLeast(0)
+            chipsTop = firstLineInset
+            chipsBottom = maxOf(lineMinHeight, firstLineInset + chipsHeight + firstLineInset)
+        }
+        val height = maxOf(leadPlaceable.height, valueTop + valuePlaceable.height, chipsBottom)
+
+        layout(width, height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+            leadPlaceable.placeRelative(startPadding, 0)
+            valuePlaceable.placeRelative(width - valuePlaceable.width, valueTop)
+            chipPlaceables.forEachIndexed { index, placeable ->
+                val line = lines.line[index]
+                val inLine = if (expandedChips) 0 else (lines.lineHeights[line] - placeable.height) / 2
+                placeable.placeRelative(chipsStart + lines.x[index], chipsTop + lineTops[line] + inLine)
             }
         }
     }
+}
+
+private val ROW_START_PADDING = 16.dp
+private val INLINE_CHIPS_END_PADDING = 8.dp
+/** The value's own end padding, so chips on their own line end where the value does. */
+private val OWN_LINE_CHIPS_END_PADDING = 16.dp
+private val OWN_LINE_FIRST_LINE_HEIGHT = 48.dp
+private val OWN_LINE_CHIPS_BOTTOM_PADDING = 12.dp
+
+/** True when some chip is wider than the gap beside the value, so the chips need a line of their own. */
+internal fun journalChipsNeedOwnLine(chipWidths: List<Int>, inlineWidth: Int): Boolean =
+    chipWidths.any { it > inlineWidth }
+
+/** Where each chip lands when packed left to right: its x in its line, which line, and each line's height. */
+internal class JournalChipLines(val x: IntArray, val line: IntArray, val lineHeights: IntArray)
+
+internal fun packJournalChipLines(widths: IntArray, heights: IntArray, availableWidth: Int, spacing: Int): JournalChipLines {
+    val x = IntArray(widths.size)
+    val line = IntArray(widths.size)
+    val lineHeights = mutableListOf<Int>()
+    var lineIndex = 0
+    var lineX = 0
+    widths.forEachIndexed { index, width ->
+        val spacedX = if (lineX == 0) 0 else lineX + spacing
+        if (lineX > 0 && spacedX + width > availableWidth) {
+            lineIndex += 1
+            lineX = 0
+        } else {
+            lineX = spacedX
+        }
+        while (lineHeights.size <= lineIndex) lineHeights.add(0)
+        x[index] = lineX
+        line[index] = lineIndex
+        lineHeights[lineIndex] = maxOf(lineHeights[lineIndex], heights[index])
+        lineX += width
+    }
+    return JournalChipLines(x, line, lineHeights.toIntArray())
 }
 
 @Composable
