@@ -46,7 +46,7 @@ base_methods = '\n'.join(method(base, signature) for signature in [
 ])
 libre_methods = '\n'.join(method(libre, signature) for signature in [
     'protected boolean useAutoConnect(', 'protected long connectionAttemptTimeoutMillis(',
-    'private boolean acceptGattCallback(', 'private void cancelDisconnectDeadline(',
+    'private boolean streaming(', 'private boolean acceptGattCallback(', 'private void cancelDisconnectDeadline(',
     'private void resetConnectionState(', 'private synchronized void retryAfterDisconnect(',
     'private synchronized void requestDisconnect(', 'public synchronized void disconnect(',
     'public synchronized boolean connectDevice(', 'public synchronized boolean reconnect(',
@@ -56,7 +56,7 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
     'private Runnable forCurrentGatt(', 'private void endBLEHandler(',
     'private void streamPacketReceived(', 'private synchronized void streamSilent(',
-    'private void logLinkEnd(',
+    'private void logLinkEnd(', 'private void holdRelink(',
 ])
 
 # Fields and all lifecycle/entry-point methods above come from production sources.
@@ -179,6 +179,8 @@ java += field(libre, 'private final GattConnectDeadline<BluetoothGatt> disconnec
 java += field(libre, 'private static final long STREAM_SILENCE_MILLIS', ';')
 java += field(libre, 'private final GattConnectDeadline<BluetoothGatt> streamDeadline', '}, this::streamSilent);')
 java += field(libre, 'private long linkConnectedAt', ';') + field(libre, 'private int linkPackets', ';')
+java += field(libre, 'private static final long RELINK_DELAY_MILLIS', ';') + field(libre, 'private boolean linkWasUp', ';')
+java += field(libre, 'private long relinkNotBefore', ';')
 java += r'''
     BluetoothGatt disconnectingGatt;
     long reconnectDelayMillis;
@@ -262,7 +264,8 @@ java += r'''
         cb.charcha[0]=nudgeNow-6_000L;
         cb.setPause(true);cb.close();cb.setPause(false);
         check(!cb.hasLocallyConnectedGatt(),"closed handoff retained a local connection");
-        cb.reconnect(nudgeNow);Applic.scheduler.advance(0);
+        // close() hung up a link that was up, so the nudge waits out the relink delay.
+        cb.reconnect(nudgeNow);Applic.scheduler.advance(RELINK_DELAY_MILLIS);
         check(cb.mActiveBluetoothDevice.calls==2,
                 "recent glucose suppressed idle ownership nudge after unpause");
         // A GATT reference whose attempt never connected is not a healthy link either.
@@ -339,15 +342,45 @@ java += r'''
         check(Notify.signalLoss==1,"signal-loss notification repeated for the same outage");
         cb.onConnectionStateChange(current,8,0);Applic.scheduler.advance(0);
         check(BleErrorHistory.events.equals(List.of("Loss of signal")),"disconnect code replaced the loss-of-signal event");
-        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2&&cb.mBluetoothGatt!=current,"silent stream got no fresh GATT");
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==1,"reconnected before the old link could drop");
+        Applic.scheduler.advance(RELINK_DELAY_MILLIS);
+        check(cb.mActiveBluetoothDevice.calls==2&&cb.mBluetoothGatt!=current,"silent stream got no fresh GATT");
         BluetoothGatt fresh=cb.mBluetoothGatt;cb.onConnectionStateChange(fresh,0,2);
         for(int minute=0;minute<5;minute++){Applic.scheduler.advance(60_000);cb.onCharacteristicChanged(fresh,new BluetoothGattCharacteristic());}
         check(fresh.disconnected==0&&cb.mBluetoothGatt==fresh&&cb.mActiveBluetoothDevice.calls==2,"retired stream deadline acted on replacement");
 
+        // Tester trace 2026-11-21: app start and adding a Sibionics sensor called connectDevice on a
+        // streaming link; the restart reconnected within milliseconds and never logged in again.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
+        cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());
+        Applic.scheduler.advance(60_000);check(cb.connectDevice(0),"connect request on a streaming link refused");
+        check(current.disconnected==0&&cb.mBluetoothGatt==current&&cb.mActiveBluetoothDevice.calls==1,"connect request restarted a streaming link");
+        // A link without a frame is still restarted, but only after the old link had time to drop.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
+        cb.connectDevice(0);check(current.disconnected==1,"handshaking link not restarted");
+        cb.onConnectionStateChange(current,0,0);Applic.scheduler.advance(RELINK_DELAY_MILLIS-1);
+        check(current.closed==1&&cb.mActiveBluetoothDevice.calls==1,"own hang-up reconnected onto the old link");
+        Applic.scheduler.advance(1);check(cb.mActiveBluetoothDevice.calls==2,"own hang-up never reconnected");
+        // A drop the sensor or the radio reported needs no wait.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.onConnectionStateChange(current,8,0);Applic.scheduler.advance(0);
+        check(cb.mActiveBluetoothDevice.calls==2,"remote drop waited for the relink delay");
+        // Manual Reconnect pauses first, so DISCONNECTED takes the stop -> close() path, then
+        // resumes after 500 ms and asks for a connect 200 ms later. The wait still holds.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
+        cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());
+        cb.setPause(true);cb.disconnect();cb.onConnectionStateChange(current,0,0);
+        check(current.closed==1,"paused hang-up not closed");
+        Applic.scheduler.advance(500);cb.setPause(false);cb.connectDevice(200);
+        Applic.scheduler.advance(RELINK_DELAY_MILLIS-501);
+        check(cb.mActiveBluetoothDevice.calls==1,"manual reconnect skipped the relink delay");
+        Applic.scheduler.advance(1);check(cb.mActiveBluetoothDevice.calls==2,"manual reconnect never connected");
+
         // A handshake that stalls after CONNECTED is bounded by the same deadline.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
         Applic.scheduler.advance(150_000);check(current.disconnected==1,"stalled handshake not recovered");
-        Applic.scheduler.advance(2_000);check(current.closed==1&&cb.mActiveBluetoothDevice.calls==2,"stalled handshake got no fresh GATT");
+        Applic.scheduler.advance(2_000);check(current.closed==1&&cb.mActiveBluetoothDevice.calls==1,"stalled handshake reconnected onto the old link");
+        Applic.scheduler.advance(RELINK_DELAY_MILLIS);check(cb.mActiveBluetoothDevice.calls==2,"stalled handshake got no fresh GATT");
 
         // Pause and close cancel it.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.setPause(true);
@@ -364,7 +397,8 @@ java += r'''
         cb.onConnectionStateChange(old,0,2);check(old.discoveries==1,"late connected result restarted login while disconnecting");
         cb.onServicesDiscovered(old,0);cb.onCharacteristicChanged(old,null);
         Applic.scheduler.advance(999);check(old.closed==0,"fallback early");
-        Applic.scheduler.advance(1);check(old.closed==1&&cb.mActiveBluetoothDevice.calls==2,"missing DISCONNECTED did not recover after 2s");
+        Applic.scheduler.advance(1);check(old.closed==1&&cb.mActiveBluetoothDevice.calls==1,"missing DISCONNECTED did not close after 2s");
+        Applic.scheduler.advance(RELINK_DELAY_MILLIS);check(cb.mActiveBluetoothDevice.calls==2,"missing DISCONNECTED did not recover");
         ignoredCallbacks(cb,old);current=cb.mBluetoothGatt;fallback.task.run();
         check(cb.mBluetoothGatt==current&&cb.mActiveBluetoothDevice.calls==2,"dispatched fallback disturbed replacement");
 
@@ -407,7 +441,7 @@ java += r'''
 
         // Service/descriptor failures use the bounded path too.
         cb=fresh();old=cb.mBluetoothGatt;old.discoverySucceeds=false;cb.onConnectionStateChange(old,0,2);
-        Applic.scheduler.advance(2_000);check(old.closed==1&&cb.mActiveBluetoothDevice.calls==2,"discovery failure stuck");
+        Applic.scheduler.advance(2_000+RELINK_DELAY_MILLIS);check(old.closed==1&&cb.mActiveBluetoothDevice.calls==2,"discovery failure stuck");
         cb=fresh();old=cb.mBluetoothGatt;cb.onDescriptorWrite(old,null,133);
         Applic.scheduler.advance(2_000);check(old.closed==1&&cb.mActiveBluetoothDevice.calls==2,"descriptor failure stuck");
         cb=fresh();old=cb.mBluetoothGatt;cb.justenablednotification=true;cb.onConnectionStateChange(old,19,0);
