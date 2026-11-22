@@ -326,6 +326,12 @@ android {
     }
     testOptions {
         unitTests {
+            all {
+                systemProperty 'robolectric.dependency.repo.url',
+                    'https://maven-central.storage-download.googleapis.com/maven2/'
+                systemProperty 'robolectric.dependency.repo.id',
+                    'google-maven-central'
+            }
             // tk.glucodata.Log falls back to android.util.Log whenever Applic.Nativesloaded is
             // false, which it always is under plain JVM unit tests. Without this, any test that
             // reaches a logging statement dies with "Method i in android.util.Log not mocked"
@@ -334,6 +340,7 @@ android {
             // Room migration tests run under Robolectric (plan task H3), which needs the
             // merged resources and assets.
             includeAndroidResources = true
+            
         }
     }
     dependenciesInfo {
