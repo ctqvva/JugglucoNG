@@ -259,6 +259,66 @@ class VoiceAudioTriggerTests {
             Talker.nexttime <= beforeDisconnect + 70_000L,
         )
     }
+
+    @Test
+    fun pausingDuringCarSession_preservesManualSpeakGlucoseAcrossResumeAndDisconnect() {
+        VoiceTriggerTestNatives.voiceActiveVal = true
+        SuperGattCallback.dotalk = true
+        val carMac = "AA:BB:CC:DD:EE:11"
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "Family Car")))
+        VoiceAudioTrigger.refreshState(app)
+        assertTrue(VoiceReadings.isActive(app))
+
+        // Pause during drive -> readings stop, but manual Speak glucose stays persisted as true.
+        VoiceReadings.setOn(app, false)
+        assertTrue(VoiceAudioTrigger.isSessionPaused(app))
+        assertFalse(VoiceReadings.isActive(app))
+        assertTrue("Manual Speak glucose must not be overwritten on session pause", VoiceReadings.isOn())
+
+        val talker = SuperGattCallback.talker ?: Talker(app).also { SuperGattCallback.talker = it }
+        talker.engineReady = true
+        Talker.nexttime = 0L
+        talker.selspeak("6.4, stable")
+        assertNull("Paused session must not speak readings", VoiceTriggerTestEngine.attributesAtSpeak)
+
+        // Resume -> active again.
+        VoiceReadings.setOn(app, true)
+        assertFalse(VoiceAudioTrigger.isSessionPaused(app))
+        assertTrue(VoiceReadings.isActive(app))
+
+        // Pause again, then disconnect -> manual Speak glucose resumes automatically outside the car.
+        VoiceReadings.setOn(app, false)
+        assertFalse(VoiceReadings.isActive(app))
+        shadowOf(audio).setOutputDevices(emptyList())
+        VoiceAudioTrigger.refreshState(app)
+        assertFalse(VoiceAudioTrigger.isSessionPaused(app))
+        assertTrue("Manual Speak glucose must remain on after leaving the car", VoiceReadings.isOn())
+        assertTrue(VoiceReadings.isActive(app))
+    }
+
+    @Test
+    fun speakConnectAnnouncement_doesNotSpeakWhenSessionWasPausedOrDisconnected() {
+        val carMac = "AA:BB:CC:DD:EE:22"
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "Work Van")))
+        VoiceAudioTrigger.refreshState(app)
+        val talker = SuperGattCallback.talker!!
+        talker.engineReady = true
+
+        VoiceAudioTrigger.setSessionMuted(app, true)
+        assertFalse(
+            "Paused session must not emit a connect announcement",
+            talker.speakConnectAnnouncement("5.9, stable", true, false),
+        )
+        assertNull(VoiceTriggerTestEngine.attributesAtSpeak)
+    }
 }
 
 @Implements(TextToSpeech::class)

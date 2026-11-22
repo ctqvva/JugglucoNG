@@ -44,6 +44,7 @@ object VoiceReadings {
     @JvmStatic
     fun isActive(context: Context): Boolean {
         if (Applic.DontTalk) return false
+        if (VoiceAudioTrigger.isSessionPaused(context)) return false
         return isOn() || VoiceAudioTrigger.isAutoReadingSpeechActive(context)
     }
 
@@ -84,16 +85,10 @@ object VoiceReadings {
         if (Applic.DontTalk) return
         val app = context.applicationContext
         if (VoiceAudioTrigger.isMatchedDeviceConnected(app)) {
-            if (!on) {
-                if (isOn()) {
-                    Talker.setSpeakGlucose(app, false)
-                }
-                VoiceAudioTrigger.setSessionMuted(app, true)
-                return
-            } else if (VoiceAudioTrigger.isSessionMuted()) {
-                VoiceAudioTrigger.setSessionMuted(app, false)
-                return
-            }
+            // Pause or resume just this car/Bluetooth connection session without mutating
+            // the user's persistent manual "Speak glucose" setting.
+            VoiceAudioTrigger.setSessionMuted(app, !on)
+            return
         }
         Talker.setSpeakGlucose(app, on)
         if (on) markUsed(app)
@@ -101,16 +96,17 @@ object VoiceReadings {
     }
 
     fun status(context: Context): Status {
+        val sessionPaused = VoiceAudioTrigger.isSessionPaused(context)
         val manualOn = isOn()
         val autoActive = VoiceAudioTrigger.isAutoReadingSpeechActive(context)
-        val effectiveOn = manualOn || autoActive
+        val effectiveOn = !sessionPaused && (manualOn || autoActive)
         val defaultInterval = Talker.getSeparationSeconds()
         val intervalSeconds = if (autoActive) {
             VoiceAudioTrigger.effectiveIntervalSeconds(context, defaultInterval)
         } else {
             defaultInterval
         }
-        val resumes = if (manualOn && !autoActive && !SpeakSchedule.isWithinSchedule(context)) {
+        val resumes = if (effectiveOn && manualOn && !autoActive && !SpeakSchedule.isWithinSchedule(context)) {
             SpeakSchedule.getStartMinutes(context)
         } else {
             null

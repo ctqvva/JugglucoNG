@@ -730,6 +730,8 @@ volatile static long nexttime=0L;
 void selspeak(String message) {
     if(!DontTalk) {
         final Context app=Applic.app;
+        if(VoiceAudioTrigger.isSessionPaused(app))
+            return;
         final boolean autoActive=VoiceAudioTrigger.isAutoReadingSpeechActive(app);
         final boolean manualAllowed=SuperGattCallback.dotalk && SpeakSchedule.INSTANCE.isWithinSchedule(app);
         if(!autoActive && !manualAllowed)
@@ -766,10 +768,13 @@ static void clampNextTimeToDefault(long nowMs) {
 boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean chime) {
     if(DontTalk)
         return false;
+    final Context app=Applic.app;
+    if(!VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+        return false;
     final long now=System.currentTimeMillis();
     if(VoiceAudioTrigger.wasSpokenRecently(now))
         return false;
-    final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(Applic.app,cursep);
+    final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(app,cursep);
     nexttime=now+sepMs;
     final AudioAttributes attrs=useMediaStream?mediaAudio:notification_audio;
     if(speak(message,attrs,chime))

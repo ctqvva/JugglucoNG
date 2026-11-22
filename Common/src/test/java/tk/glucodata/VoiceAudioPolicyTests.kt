@@ -247,4 +247,89 @@ class VoiceAudioPolicyTests {
             )
         )
     }
+
+    @Test
+    fun isReadingFreshForConnectAnnouncement_rejectsStaleHistoryFallbackReadings() {
+        val now = 1_700_000_000_000L
+        val timeout = 330_000L // 5.5 min (Notify.glucosetimeout)
+
+        assertTrue(VoiceAudioPolicy.isReadingFreshForConnectAnnouncement(now - 60_000L, now, timeout))
+        assertTrue(VoiceAudioPolicy.isReadingFreshForConnectAnnouncement(now - timeout, now, timeout))
+        assertFalse(
+            "20-minute-old history fallback reading must not be announced as current",
+            VoiceAudioPolicy.isReadingFreshForConnectAnnouncement(now - 20 * 60_000L, now, timeout),
+        )
+        assertFalse(VoiceAudioPolicy.isReadingFreshForConnectAnnouncement(0L, now, timeout))
+        assertFalse(VoiceAudioPolicy.isReadingFreshForConnectAnnouncement(now + 120_000L, now, timeout))
+    }
+
+    @Test
+    fun enrichConnectedAudioOutput_doesNotGuessMacForAmbiguousPairedNamesAndPrefersProfileCache() {
+        val bonded = listOf(
+            VoiceAudioPolicy.BondedHint("AA:BB:CC:DD:EE:01", "Car Multimedia", isCar = true),
+            VoiceAudioPolicy.BondedHint("AA:BB:CC:DD:EE:02", "Car Multimedia", isCar = true),
+            VoiceAudioPolicy.BondedHint("11:22:33:44:55:66", "Unique Car", isCar = true),
+        )
+        val savedSecondCar = VoiceAudioPolicy.SavedDevice(
+            id = "mac:AA:BB:CC:DD:EE:02",
+            address = "AA:BB:CC:DD:EE:02",
+            name = "Car Multimedia",
+            isCar = true,
+        )
+
+        // Two paired devices share "Car Multimedia" and AudioManager omits MAC + no profile cache:
+        // must keep address null (so name fallback matches the selected car) instead of guessing MAC 01.
+        val ambiguous = VoiceAudioPolicy.enrichConnectedAudioOutput(
+            rawAddress = null,
+            rawName = "Car Multimedia",
+            profileConnected = emptyList(),
+            bondedHints = bonded,
+            looksLikeCarName = { false },
+        )!!
+        assertNull("Ambiguous paired name must not invent an arbitrary MAC", ambiguous.address)
+        assertTrue(ambiguous.isCarAudio)
+        assertTrue(VoiceAudioPolicy.devicesMatch(savedSecondCar, ambiguous))
+
+        // When the actual connected profile broadcast identifies MAC 02, prefer it over bonded list.
+        val fromProfile = VoiceAudioPolicy.enrichConnectedAudioOutput(
+            rawAddress = null,
+            rawName = "Car Multimedia",
+            profileConnected = listOf(
+                VoiceAudioPolicy.ConnectedDevice("AA:BB:CC:DD:EE:02", "Car Multimedia", true, true)
+            ),
+            bondedHints = bonded,
+            looksLikeCarName = { false },
+        )!!
+        assertEquals("AA:BB:CC:DD:EE:02", fromProfile.address)
+        assertTrue(VoiceAudioPolicy.devicesMatch(savedSecondCar, fromProfile))
+
+        // Unambiguous single paired device still enriches its MAC cleanly.
+        val unique = VoiceAudioPolicy.enrichConnectedAudioOutput(
+            rawAddress = null,
+            rawName = "Unique Car",
+            profileConnected = emptyList(),
+            bondedHints = bonded,
+            looksLikeCarName = { false },
+        )!!
+        assertEquals("11:22:33:44:55:66", unique.address)
+    }
+
+    @Test
+    fun resolveEffective_sessionPauseSuppressesManualReadingSpeechWithoutChangingManualFlag() {
+        val config = VoiceAudioPolicy.Config(enabled = true, speakAlarms = true)
+        val active = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:FF", "My Car", viaCarMode = true)
+
+        val paused = VoiceAudioPolicy.resolveEffective(
+            manualSpeakGlucose = true,
+            withinSchedule = true,
+            manualSpeakAlarms = true,
+            defaultIntervalSeconds = 60,
+            config = config,
+            activeMatch = active,
+            sessionMuted = true,
+        )
+        assertFalse(paused.autoActive)
+        assertFalse("Pausing a car session must silence readings even when manual speech is on", paused.shouldSpeakReading)
+        assertTrue("Manual alarm speech stays untouched when readings are paused", paused.shouldSpeakAlarm)
+    }
 }

@@ -28,6 +28,13 @@ object VoiceAudioPolicy {
         val isCar: Boolean = false,
     )
 
+    /** Metadata from a paired (bonded) Bluetooth device used to enrich audio outputs. */
+    data class BondedHint(
+        val address: String,
+        val name: String,
+        val isCar: Boolean,
+    )
+
     /** A currently connected audio output observed from the system. */
     data class ConnectedDevice(
         val address: String?,
@@ -249,6 +256,7 @@ object VoiceAudioPolicy {
         activeMatch: ActiveMatch,
         sessionMuted: Boolean,
     ): EffectiveDecision {
+        val sessionPaused = config.enabled && activeMatch.matched && sessionMuted
         val autoActive = config.enabled && activeMatch.matched && !sessionMuted
         val safeDefaultInterval = defaultIntervalSeconds.coerceAtLeast(1)
         val effectiveInterval = if (autoActive && config.intervalSeconds > 0) {
@@ -258,12 +266,90 @@ object VoiceAudioPolicy {
         }
         return EffectiveDecision(
             autoActive = autoActive,
-            shouldSpeakReading = (manualSpeakGlucose && withinSchedule) || autoActive,
+            shouldSpeakReading = !sessionPaused && ((manualSpeakGlucose && withinSchedule) || autoActive),
             shouldSpeakAlarm = manualSpeakAlarms || (autoActive && config.speakAlarms),
             effectiveIntervalSeconds = effectiveInterval,
             useMediaStream = autoActive && config.useMediaStream,
             bypassSchedule = autoActive,
         )
+    }
+
+    /**
+     * Enriches a single Bluetooth audio output reported by AudioManager with connected profile
+     * state and paired Bluetooth metadata without inventing an arbitrary MAC for ambiguous names.
+     *
+     * Priority when AudioManager omits a MAC address:
+     * 1. An unambiguous connected A2DP/HFP profile device matching the name.
+     * 2. An unambiguous single paired device matching the name.
+     * 3. If multiple paired devices share the same name (e.g. two "Car Multimedia" head units),
+     *    keep [ConnectedDevice.address] as null so [devicesMatch] uses name fallback instead of
+     *    treating a guessed MAC as authoritative.
+     */
+    fun enrichConnectedAudioOutput(
+        rawAddress: String?,
+        rawName: String?,
+        profileConnected: List<ConnectedDevice>,
+        bondedHints: List<BondedHint>,
+        looksLikeCarName: (String) -> Boolean,
+    ): ConnectedDevice? {
+        var mac = normalizeAddress(rawAddress)
+        var name = rawName?.trim().orEmpty()
+        val normName = normalizeName(name)
+        var isCar = false
+
+        if (mac == null && normName.isNotEmpty()) {
+            val matchingProfiles = profileConnected.filter {
+                normalizeAddress(it.address) != null && normalizeName(it.name) == normName
+            }
+            val distinctMacs = matchingProfiles.mapNotNull { normalizeAddress(it.address) }.distinct()
+            if (distinctMacs.size == 1) {
+                mac = distinctMacs.first()
+                isCar = matchingProfiles.any { it.isCarAudio }
+            }
+        }
+
+        if (mac != null) {
+            val exactBonded = bondedHints.firstOrNull { normalizeAddress(it.address) == mac }
+            if (exactBonded != null) {
+                if (exactBonded.name.isNotBlank()) name = exactBonded.name.trim()
+                isCar = isCar || exactBonded.isCar
+            }
+        } else if (normName.isNotEmpty()) {
+            val nameMatches = bondedHints.filter { normalizeName(it.name) == normName }
+            if (nameMatches.size == 1) {
+                val unique = nameMatches.first()
+                mac = normalizeAddress(unique.address)
+                if (unique.name.isNotBlank()) name = unique.name.trim()
+                isCar = isCar || unique.isCar
+            } else if (nameMatches.size > 1) {
+                // Ambiguous paired name: never guess which MAC is connected.
+                isCar = isCar || nameMatches.any { it.isCar }
+            }
+        }
+
+        isCar = isCar || looksLikeCarName(name)
+        if (mac == null && name.isEmpty()) return null
+        return ConnectedDevice(
+            address = mac,
+            name = name.ifBlank { mac.orEmpty() },
+            isBluetoothAudio = true,
+            isCarAudio = isCar,
+        )
+    }
+
+    /**
+     * Checks that a resolved reading is genuinely current before speaking it on connect.
+     * `CurrentDisplaySource.resolveCurrent` can fall back to older history rows during an outage;
+     * announcing a 20-minute-old reading as current while starting to drive would be misleading.
+     */
+    fun isReadingFreshForConnectAnnouncement(
+        readingTimeMs: Long,
+        nowMs: Long,
+        maxAgeMs: Long,
+    ): Boolean {
+        if (readingTimeMs <= 0L || maxAgeMs <= 0L) return false
+        val ageMs = nowMs - readingTimeMs
+        return ageMs <= maxAgeMs && ageMs >= -60_000L
     }
 
     /**

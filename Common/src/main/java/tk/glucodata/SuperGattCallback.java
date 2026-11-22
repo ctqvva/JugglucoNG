@@ -997,7 +997,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
         if (!DontTalk) {
             final boolean autoVoiceActive = VoiceAudioTrigger.refreshAndCheckReadingSpeech(Applic.app);
-            if ((dotalk || autoVoiceActive) && !alarmSpeechStarted) {
+            final boolean sessionPaused = VoiceAudioTrigger.isSessionPaused(Applic.app);
+            if (!sessionPaused && (dotalk || autoVoiceActive) && !alarmSpeechStarted) {
                 // `talker` is a plain static field that endtalk() can null from another thread
                 // between the dotalk check and the deref - read it into a local once.
                 final Talker currentTalker = talker;
