@@ -996,6 +996,37 @@ class AiDexAlgorithmRuntimeTests {
         assertTrue(executor.pending.isEmpty())
     }
 
+    @Test fun aReadingDeletedFromHistoryIsNotAStockRepairFailure() {
+        // Real Room: a deleted reading leaves a tombstone, and its minute stays in the journal.
+        val dao = HistoryDatabase.getInstance(Applic.app).historyDao()
+        runBlocking { dao.deleteAllDeletedReadings() }
+        HistoryRepositoryAccess.register(tk.glucodata.data.MobileHistoryRepositoryBridge)
+        try {
+            val kept = sample(1, 101f)
+            val deleted = sample(2, 102f)
+            assertTrue(runtime.live(kept))
+            assertTrue(runtime.live(deleted))
+            assertNotNull(runBlocking { tk.glucodata.data.HistoryRepository(Applic.app).deleteReading(deleted.timestampMs, serial) })
+            // A reconnect backfills an older minute; its batch is in Room before completion.
+            val backfilled = sample(0, 100f).copy(origin = AiDexSourceSample.HISTORY)
+            runtime.record(listOf(backfilled))
+            assertTrue(HistorySyncAccess.storeSensorHistoryBatchBlocking(serial, longArrayOf(backfilled.timestampMs),
+                floatArrayOf(backfilled.factoryMgDl), floatArrayOf(0f)))
+            runtime.historyComplete()
+            executor.runNext()
+            assertFalse(runtime.failed)
+            assertNotEquals(Applic.app.getString(R.string.aidex_algorithm_failed), driver.getDetailedBleStatus())
+            assertFalse(runtime.controller.needsReplay())
+            val stored = HistoryRepositoryAccess.getHistoryForSensor(serial, 0L, false)!!.map { it.timestamp }
+            assertEquals(listOf(backfilled.timestampMs, kept.timestampMs), stored) // the deletion stands
+            // The next reading does not retry a repair that has nothing to do.
+            assertTrue(runtime.live(sample(3, 103f)))
+            assertTrue(executor.pending.isEmpty())
+        } finally {
+            runBlocking { dao.deleteAllDeletedReadings() }
+        }
+    }
+
     @Test fun stockRepairWritesOnlyMissingOrStaleRows() {
         val held = (0..4).map { sample(it, 100f + it) }
         runtime.record(held)
