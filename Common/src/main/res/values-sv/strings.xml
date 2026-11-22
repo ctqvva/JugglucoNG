@@ -2125,6 +2125,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">Tillåtna chatt-ID:n</string>
     <string name="api_source_telegram_note">Telegram sparar botuppdateringar i upp till 24 timmar. Ange ett eller flera chatt-ID:n eller användarnamn vars botmeddelanden får importeras.</string>
     <string name="status_waiting_for_data">Ansluten, väntar på data…</string>
+    <string name="status_sensor_not_found">Sensorn hittades inte i närheten</string>
+    <string name="status_auth_failed">Autentiseringen misslyckades</string>
+    <string name="status_sensor_not_responding">Sensorn svarar inte</string>
+    <string name="sensor_out_of_reach_title">Ingen signal från sensorn</string>
+    <string name="sensor_out_of_reach_title_short">Ingen signal</string>
+    <string name="sensor_out_of_reach_body">Försöker fortfarande ansluta</string>
+    <string name="sensor_out_of_reach_battery">Låg batterinivå i sensorn (%1$d %%)</string>
+    <string name="sensor_waiting_for_reading">Väntar på en mätning</string>
     <string name="status_raw_values_received">Ansluten, råvärden mottagna</string>
     <string name="status_invalid_glucose_from_sensor">Ogiltigt glukosvärde från sensorn</string>
     <string name="sensor_display_select">Välj sensor för visning</string>

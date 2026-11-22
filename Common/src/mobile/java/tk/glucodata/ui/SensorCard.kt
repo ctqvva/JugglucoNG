@@ -68,6 +68,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
@@ -430,12 +431,13 @@ private fun SensorDetailList(modifier: Modifier = Modifier, content: @Composable
 @Composable
 private fun sensorQuietButtonContainer(): Color = MaterialTheme.colorScheme.surfaceDim.copy(alpha = 0.5f)
 
-private enum class SensorLinkState { UP, WAITING, DOWN }
+private enum class SensorLinkState { UP, WAITING, SEARCHING, DOWN }
 
 /**
  * The Bluetooth link at a glance. Up: the sign with three waves leaving it, as many lit as the
  * signal is strong, and a tap puts the figure they are drawn from beside it for a moment.
- * Waiting (searching, warming up): the sign with its waves unlit. Down: the struck-through
+ * Searching (no link yet, the driver connecting): the waves light one after another.
+ * Waiting (warming up and the like): the sign with its waves unlit. Down: the struck-through
  * sign on the error container. It is a chip the size of the reading chip at the line's other end.
  */
 /**
@@ -586,7 +588,10 @@ private fun SensorLinkMark(state: SensorLinkState, rssi: Int?, accent: Color, mo
                 tint = color,
                 modifier = Modifier.size(if (down) 16.dp else 12.dp),
             )
-            if (!down) {
+            if (state == SensorLinkState.SEARCHING) {
+                SearchingSignalWaves(color = color)
+            }
+            if (!down && state != SensorLinkState.SEARCHING) {
                 // Waves leaving the sign, nearest first: as many lit as the signal is strong.
                 androidx.compose.foundation.Canvas(modifier = Modifier.size(width = 12.dp, height = 20.dp)) {
                     val rtl = layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl
@@ -2366,18 +2371,72 @@ fun SensorCard(
                         sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
                         else -> null
                     }
-                    if (currentSnapshot != null || sensorStatusText != null) {
+                    // A sensor the phone has not reached for a while turns the whole line into
+                    // what to do about it; one that is linked but silent swaps its stale value
+                    // for how long it has been waiting.
+                    val reachState = rememberSensorReach(sensor.serial, currentSnapshot?.timeMillis ?: 0L)
+                    val outOfReach = !sensor.isCloneSource && reachState.reach == tk.glucodata.drivers.SensorReach.OUT_OF_REACH
+                    val quiet = !sensor.isCloneSource && reachState.reach == tk.glucodata.drivers.SensorReach.QUIET
+                    val reachFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val reachFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    val reachResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
+                    if (currentSnapshot != null || sensorStatusText != null || outOfReach) {
                         Spacer(modifier = Modifier.height(12.dp))
+                        AnimatedContent(
+                            targetState = outOfReach,
+                            transitionSpec = {
+                                (fadeIn(reachFadeIn) togetherWith fadeOut(reachFadeOut))
+                                    .using(SizeTransform(clip = false) { _, _ -> reachResize })
+                            },
+                            label = "sensorReachLine",
+                        ) { lost ->
+                        if (lost) {
+                            // The line's two chips grown to one height: how long since the last
+                            // reading (not the stale value), and the Bluetooth chip spread over
+                            // the status text.
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                if (reachState.lastReadingMs > 0L) {
+                                    SensorSilenceAgeChip(
+                                        lastReadingMs = reachState.lastReadingMs,
+                                        accentColor = sensorTint,
+                                        modifier = Modifier.fillMaxHeight(),
+                                    )
+                                }
+                                SensorOutOfReachChip(
+                                    state = reachState,
+                                    host = SensorReachPromptHost.SENSOR_CARD,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                )
+                            }
+                        } else {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             currentSnapshot?.let { snapshot ->
-                                SensorCurrentValueChip(
-                                    snapshot = snapshot,
-                                    accentColor = sensorTint
-                                )
+                                AnimatedContent(
+                                    targetState = quiet,
+                                    transitionSpec = {
+                                        (fadeIn(reachFadeIn) togetherWith fadeOut(reachFadeOut))
+                                            .using(SizeTransform(clip = false) { _, _ -> reachResize })
+                                    },
+                                    label = "sensorReadingChip",
+                                ) { waiting ->
+                                    if (waiting) {
+                                        SensorQuietChip(lastReadingMs = snapshot.timeMillis)
+                                    } else {
+                                        SensorCurrentValueChip(
+                                            snapshot = snapshot,
+                                            accentColor = sensorTint
+                                        )
+                                    }
+                                }
                             }
                             if (sensor.isCloneSource) {
                                 CloneSourceMark(
@@ -2387,7 +2446,7 @@ fun SensorCard(
                                     iconSize = 18.dp,
                                 )
                             }
-                            sensorStatusText?.let { status ->
+                            (if (quiet) stringResource(R.string.sensor_waiting_for_reading) else sensorStatusText)?.let { status ->
                                 SensorStatusText(
                                     status = status,
                                     color = if (sensor.isCloneSource && !cloneHasRecentData) {
@@ -2420,6 +2479,8 @@ fun SensorCard(
                                 SensorLinkMark(
                                     state = when {
                                         linkDown -> SensorLinkState.DOWN
+                                        // Between links the last signal level is history, not signal.
+                                        reachState.linkUp == false -> SensorLinkState.SEARCHING
                                         isStreaming -> SensorLinkState.UP
                                         else -> SensorLinkState.WAITING
                                     },
@@ -2427,6 +2488,8 @@ fun SensorCard(
                                     accent = sensorTint,
                                 )
                             }
+                        }
+                        }
                         }
                     }
 //                } // Close Column (content)

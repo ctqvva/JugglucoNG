@@ -7,7 +7,9 @@
         <item name="windowActionBar">false</item>
        <item name="android:windowActionBar">false</item>
        <item name="android:windowContentOverlay">@null</item>
-       <item name="android:windowSwipeToDismiss">false</item>
+       <!-- On API 36+ SwipeDismissableNavHost only gets swipe-back through the
+            system back gesture, which false disables (values-v36/bools.xml). -->
+       <item name="android:windowSwipeToDismiss">@bool/wear_window_swipe_to_dismiss</item>
 <!--       <item name="android:textAppearanceButton">@style/textAppearanceButton</item> -->
        <item name="android:spinnerStyle">@style/myspinnerstyle</item>
      <item name="android:buttonStyle">@style/mybuttonstyle</item>

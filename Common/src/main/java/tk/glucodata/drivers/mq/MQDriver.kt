@@ -92,6 +92,7 @@ interface MQDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenanceDrive
             supportsManualCalibration = supportsManualCalibration(),
             supportsHardwareReset = supportsResetAction(),
             isVendorConnected = callback.mActiveBluetoothDevice != null,
+            readsOverBluetooth = this !is MQFollowerManager,
             isSensorExpired = runCatching { isSensorExpired() }.getOrDefault(false),
             sensorRemainingHours = runCatching { getSensorRemainingHours() }.getOrDefault(-1),
             sensorAgeHours = runCatching { getSensorAgeHours() }.getOrDefault(-1),

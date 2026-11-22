@@ -938,6 +938,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_error_code">Мэдрэгчийн алдааны код</string>
     <string name="status_disconnected">Салсан</string>
     <string name="status_waiting_for_data">Холбогдсон, өгөгдөл хүлээж байна…</string>
+    <string name="status_sensor_not_found">Ойролцоо мэдрэгч олдсонгүй</string>
+    <string name="status_auth_failed">Баталгаажуулалт амжилтгүй</string>
+    <string name="status_sensor_not_responding">Мэдрэгч хариу өгөхгүй байна</string>
+    <string name="sensor_out_of_reach_title">Мэдрэгчээс дохио алга</string>
+    <string name="sensor_out_of_reach_title_short">Дохио алга</string>
+    <string name="sensor_out_of_reach_body">Холбогдохыг оролдсоор байна</string>
+    <string name="sensor_out_of_reach_battery">Мэдрэгчийн батарей сул (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Уншилт хүлээж байна</string>
     <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авлаа</string>
     <string name="select_sensor_type">Мэдрэгчийн төрлийг сонгох</string>
     <string name="choose_theme">Загвар сонгох</string>
