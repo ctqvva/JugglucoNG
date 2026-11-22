@@ -13,6 +13,14 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Context
 import android.media.AudioAttributes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,9 +32,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -37,36 +49,44 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -74,24 +94,30 @@ import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
+import kotlin.math.roundToInt
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
+import tk.glucodata.VoiceAudioPolicy
 import tk.glucodata.VoiceAudioTrigger
 import tk.glucodata.VoiceReadings
+import tk.glucodata.ui.StatusPalette
+import tk.glucodata.ui.components.AdaptiveTrailingRow
 import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
-import tk.glucodata.ui.components.SettingsNavSwitchItem
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.cardShape
+import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.components.SliderHeader
 import tk.glucodata.ui.components.SliderHeaderGap
+import tk.glucodata.ui.components.SliderHeaderStyle
 import tk.glucodata.ui.util.findActivity
 import tk.glucodata.ui.symbols.Symbols
 
@@ -136,6 +162,7 @@ fun TalkerSettingsScreen(navController: NavController) {
     var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
     var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
     val btAudioState by VoiceAudioTrigger.state.collectAsStateWithLifecycle()
+    var showBtDevicesSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -227,6 +254,12 @@ fun TalkerSettingsScreen(navController: NavController) {
                 SpeakSchedule.setEndMinutes(activity, mins)
                 showEndPicker = false
             }
+        )
+    }
+    if (showBtDevicesSheet) {
+        VoiceAudioDeviceSheet(
+            snapshot = btAudioState,
+            onDismiss = { showBtDevicesSheet = false },
         )
     }
 
@@ -499,15 +532,16 @@ fun TalkerSettingsScreen(navController: NavController) {
             }
 
             // Automatic voice announcements when connected to car or Bluetooth audio (#653, #1002).
-            SettingsNavSwitchItem(
-                title = stringResource(R.string.voice_bt_audio_title),
-                subtitle = formatBtAudioStatus(context, btAudioState),
-                checked = btAudioState.config.enabled,
-                onCheckedChange = { VoiceAudioTrigger.setEnabled(activity, it) },
-                onClick = { navController.navigate("settings/alerts/talker/bluetooth-audio") },
-                icon = Symbols.DirectionsCarFilled,
-                iconTint = MaterialTheme.colorScheme.primary,
-                position = CardPosition.SINGLE,
+            VoiceBluetoothAudioCard(
+                state = btAudioState,
+                defaultSeparationSeconds = uiState.separationSeconds,
+                onEnabledChange = { VoiceAudioTrigger.setEnabled(activity, it) },
+                onResumeSession = { VoiceAudioTrigger.setSessionMuted(activity, false) },
+                onOpenDevices = { showBtDevicesSheet = true },
+                onIntervalChange = { VoiceAudioTrigger.setIntervalSeconds(activity, it) },
+                onSpeakAlarmsChange = { VoiceAudioTrigger.setSpeakAlarms(activity, it) },
+                onAnnounceOnConnectChange = { VoiceAudioTrigger.setAnnounceOnConnect(activity, it) },
+                onUseMediaStreamChange = { VoiceAudioTrigger.setUseMediaStream(activity, it) },
             )
 
             // Where the one-tap on/off switch shows (#840); each can be turned off on its own.
@@ -806,6 +840,260 @@ private fun talkerSliderProgressToRatio(progress: Float): Float {
 
 private fun formatTalkerRatio(value: Float): String {
     return String.format(Locale.US, "%.2f", value)
+}
+
+@Composable
+private fun VoiceBluetoothAudioCard(
+    state: VoiceAudioTrigger.Snapshot,
+    defaultSeparationSeconds: Int,
+    onEnabledChange: (Boolean) -> Unit,
+    onResumeSession: () -> Unit,
+    onOpenDevices: () -> Unit,
+    onIntervalChange: (Int) -> Unit,
+    onSpeakAlarmsChange: (Boolean) -> Unit,
+    onAnnounceOnConnectChange: (Boolean) -> Unit,
+    onUseMediaStreamChange: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val config = state.config
+    val cardRadius = cardShape(CardPosition.SINGLE)
+    val headerShape = if (config.enabled) {
+        RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+    } else {
+        cardRadius
+    }
+    val headerInteraction = remember { MutableInteractionSource() }
+
+    val intervalPresets = VoiceAudioPolicy.INTERVAL_PRESETS_SECONDS
+    val currentPresetIndex = intervalPresets.indexOf(config.intervalSeconds).coerceAtLeast(0)
+    var sliderIndex by rememberSaveable(config.intervalSeconds) {
+        mutableFloatStateOf(currentPresetIndex.toFloat())
+    }
+    val selectedPresetSeconds = intervalPresets[sliderIndex.roundToInt().coerceIn(0, intervalPresets.lastIndex)]
+    val defaultIntervalLabel = formatVoiceIntervalLabel(context, defaultSeparationSeconds)
+    val selectedIntervalLabel = formatBtIntervalValue(context, selectedPresetSeconds, defaultIntervalLabel)
+
+    val isSpeakingActive = config.enabled && state.activeMatch.matched && !state.sessionMuted
+    val statusColor = if (isSpeakingActive) {
+        StatusPalette.success()
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .settingsSearchAnchor(
+                SettingsSearchAnchors.forRow(R.string.voice_bt_audio_title),
+                cardRadius,
+            ),
+        shape = cardRadius,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column {
+            AdaptiveTrailingRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(headerShape)
+                    .toggleable(
+                        value = config.enabled,
+                        interactionSource = headerInteraction,
+                        indication = ripple(bounded = true),
+                        role = Role.Switch,
+                        onValueChange = onEnabledChange,
+                    )
+                    .heightIn(min = 72.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                trailingContent = {
+                    StyledSwitch(
+                        checked = config.enabled,
+                        onCheckedChange = null,
+                        interactionSource = headerInteraction,
+                    )
+                },
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(
+                        icon = Symbols.DirectionsCarFilled,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.voice_bt_audio_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = formatBtAudioStatus(context, state),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = statusColor,
+                        )
+                    }
+                }
+            }
+
+            // Subordinate options sit on surfaceContainerHighest (matching AlertSettingsExpanded
+            // and QuietWindowCard) with edge-to-edge touch rows and one 16dp text edge.
+            AnimatedVisibility(
+                visible = config.enabled,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                ) {
+                    if (state.activeMatch.matched && state.sessionMuted) {
+                        FilledTonalButton(
+                            onClick = onResumeSession,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                                .heightIn(min = 48.dp),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding,
+                        ) {
+                            Icon(Symbols.VolumeUpFilled, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.voice_bt_resume_session))
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .clickable(onClick = onOpenDevices)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.voice_bt_devices_title),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = formatBtDevicesSummary(context, state),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Icon(
+                            imageVector = Symbols.ChevronRightFilled,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        SliderHeader(
+                            label = stringResource(R.string.voice_bt_interval_title),
+                            value = selectedIntervalLabel,
+                            style = SliderHeaderStyle.Compact,
+                        )
+                        Spacer(Modifier.height(SliderHeaderGap))
+                        Slider(
+                            value = sliderIndex,
+                            onValueChange = { sliderIndex = it },
+                            onValueChangeFinished = {
+                                val nextSeconds = intervalPresets[
+                                    sliderIndex.roundToInt().coerceIn(0, intervalPresets.lastIndex)
+                                ]
+                                if (nextSeconds != config.intervalSeconds) {
+                                    onIntervalChange(nextSeconds)
+                                }
+                            },
+                            valueRange = 0f..intervalPresets.lastIndex.toFloat(),
+                            steps = (intervalPresets.size - 2).coerceAtLeast(0),
+                            colors = SliderDefaults.colors(
+                                activeTickColor = Color.Transparent,
+                                inactiveTickColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                    )
+
+                    SubordinateSwitchRow(
+                        title = stringResource(R.string.voice_bt_speak_alarms_title),
+                        subtitle = stringResource(R.string.voice_bt_speak_alarms_desc),
+                        checked = config.speakAlarms,
+                        onCheckedChange = onSpeakAlarmsChange,
+                    )
+                    SubordinateSwitchRow(
+                        title = stringResource(R.string.voice_bt_announce_connect_title),
+                        subtitle = stringResource(R.string.voice_bt_announce_connect_desc),
+                        checked = config.announceOnConnect,
+                        onCheckedChange = onAnnounceOnConnectChange,
+                    )
+                    SubordinateSwitchRow(
+                        title = stringResource(R.string.voice_bt_media_stream_title),
+                        subtitle = stringResource(R.string.voice_bt_media_stream_desc),
+                        checked = config.useMediaStream,
+                        onCheckedChange = onUseMediaStreamChange,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubordinateSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .toggleable(
+                value = checked,
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true),
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        StyledSwitch(
+            checked = checked,
+            onCheckedChange = null,
+            interactionSource = interactionSource,
+        )
+    }
 }
 
 @Composable

@@ -86,6 +86,10 @@ class SettingsSearchCoverageTests {
             "mirror_auto_detect_ip", "mirror_send_data", "mirror_receive_data",
         )
         because(
+            "on the Bluetooth audio devices sheet, found through Bluetooth & car audio",
+            "voice_bt_car_mode_title",
+        )
+        because(
             "on a sensor's card or in a setup wizard, outside Settings",
             "calibration", "sibionics_uncertainty_ribbon", "aidex_key_management_title", "libre_setup_step_libreview",
             "ottai_account_title", "ottai_saved_sensors_title",

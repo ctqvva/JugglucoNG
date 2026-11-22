@@ -11,7 +11,6 @@ import tk.glucodata.RestrictedModeConfig
 internal object RestrictedModeRoutes {
     const val ALARMS = "settings/alerts"
     const val VOICE = "settings/alerts/talker"
-    const val VOICE_BT_AUDIO = "settings/alerts/talker/bluetooth-audio"
     const val DISPLAY_CHARTS = "settings/display-colors"
     const val DISPLAY_NOTIFICATION = "settings/notification-display"
     const val DISPLAY_FLOATING = "settings/floating-display"
@@ -42,7 +41,7 @@ internal object RestrictedModeRoutes {
         route in alwaysOpen -> true
         route == "journal" -> config.allowJournal
         route == ALARMS -> config.allowAlarmSettings
-        route == VOICE || route == VOICE_BT_AUDIO -> config.allowVoiceSettings
+        route == VOICE -> config.allowVoiceSettings
         route in displayRoutes -> config.allowDisplaySettings
         // Everything else needs full mode: every other screen under settings, and the
         // calibration list, which holds the calibration settings and "clear all".
