@@ -271,6 +271,7 @@ class ICanHealthBleManager(
     @Volatile private var latestCurrentRaw = Float.NaN
     @Volatile private var latestTemperatureC = Float.NaN
     @Volatile private var lastCeCalibrationCount = 0
+    @Volatile private var pendingStartedCalibration: ICanHealthCeCalibrationResult? = null
     @Volatile private var viewModeValue = 0
     @Volatile private var viewModeInitialized = false
     @Volatile private var latestDriverGlucoseMgdl = Float.NaN
@@ -806,6 +807,8 @@ class ICanHealthBleManager(
         Applic.app?.let { context ->
             runCatching { ICanHealthRegistry.removeSensor(context, SerialNumber) }
                 .onFailure { Log.stack(TAG, "terminateManagedSensor(removeSensor)", it) }
+            runCatching { ICanHealthCalibrationStore.remove(context, SerialNumber) }
+                .onFailure { Log.stack(TAG, "terminateManagedSensor(removeCalFactor)", it) }
         }
         if (shouldRehomeCurrent) {
             val nativeReplacement = SensorIdentity.resolveNativeSensorName(replacementSerial)
@@ -822,6 +825,7 @@ class ICanHealthBleManager(
 
     override fun removeManagedPersistence(context: Context) {
         ICanHealthRegistry.removeSensor(context, SerialNumber)
+        ICanHealthCalibrationStore.remove(context, SerialNumber)
     }
 
     override fun hasNativeSensorBacking(): Boolean {
@@ -952,28 +956,30 @@ class ICanHealthBleManager(
         ) ?: return false
         if (latestCurrentRaw.isFinite() && latestCurrentRaw > 0f && latestTemperatureC.isFinite() && latestTemperatureC > 0f) {
             val recentHistory = recentLiveGlucoseMgdl.toList()
-            // Vendor contract: planCalib(algBg, newBg, bgList, caliK, calik0, calikM) and
-            // startCalib(caliK, caliAdjustBool, caliAdjustNo, newBg, calik0). `newBg` is the
-            // *sensor's* glucose, not the fingerstick; caliK/calik0/calikM are calibration
-            // coefficients, not measurements — their real source is the correctCode table
-            // (server or SN fallback) persisted per sensor, which the driver does not have yet.
-            // The 1f placeholders below are therefore inert, not a calibration.
+            // Vendor contract (RU SDK l0.a): planCalib's first argument is the fingerstick value
+            // from SdkCalRecord.getGluValue(), the second is the sensor's glucose from the record;
+            // the coefficients come from the per-sensor calFactor persisted by planCalib, or from
+            // AlgParameterBean defaults when none is stored yet (caliK=1, caliAdjustNo=-1, ...).
             val sensorBg = recentLiveGlucoseMgdl.lastOrNull() ?: glucoseMgDl.toFloat()
+            val stored = ICanHealthCalibrationStore.load(Applic.app, SerialNumber)
+                ?: ICanHealthCeCalibration.vendorDefaults()
             val planned = ICanHealthCeCalibration.planCalib(
-                algBg = sensorBg,
+                algBg = glucoseMgDl.toFloat(),
                 newBg = sensorBg,
                 bgList = recentHistory,
-                caliK = 1f,
-                calik0 = 1f,
-                calikM = 1f,
+                caliK = stored.caliK,
+                calik0 = stored.calik0,
+                calikM = stored.calikM,
             )
+            ICanHealthCalibrationStore.save(Applic.app, SerialNumber, planned)
             val started = ICanHealthCeCalibration.startCalib(
-                caliK = 1f,
-                caliAdjustBool = lastCeCalibrationCount <= 0,
-                caliAdjustNo = lastCeCalibrationCount,
+                caliK = planned.caliK,
+                caliAdjustBool = planned.caliAdjustBool,
+                caliAdjustNo = planned.caliAdjustNo,
                 newBg = sensorBg,
-                calik0 = 1f,
+                calik0 = planned.calik0,
             )
+            pendingStartedCalibration = started
             Log.i(
                 TAG,
                 "iCan calibration plan finger=$glucoseMgDl seq=$sequenceNumber sensorBg=$sensorBg " +
@@ -2741,8 +2747,16 @@ class ICanHealthBleManager(
                 val calibrationResult = ICanHealthParser.parseCalibrationResult(data) ?: return
                 if (calibrationResult == 0x01) {
                     lastCeCalibrationCount = (lastCeCalibrationCount + 1).coerceAtMost(4)
+                    pendingStartedCalibration?.let { started ->
+                        // l0.b persists the result when caliK changed or adjustment is still active.
+                        if (started.caliK != started.calikM || started.caliAdjustBool) {
+                            ICanHealthCalibrationStore.save(Applic.app, SerialNumber, started)
+                        }
+                    }
+                    pendingStartedCalibration = null
                     Log.i(TAG, "Sensor calibration accepted")
                 } else {
+                    pendingStartedCalibration = null
                     Log.w(TAG, "Sensor calibration rejected with code=0x${"%02X".format(calibrationResult)}")
                 }
             }

@@ -58,6 +58,19 @@ data class ICanHealthCeCalibrationResult(
 object ICanHealthCeCalibration {
 
     /**
+     * Blank `SdkCgmDeviceInfo.calFactor` → all six Kotlin defaults of `AlgParameterBean`.
+     * `l0.a` builds it with argument mask `0x3F`, which is a default-argument mask, not a field.
+     */
+    fun vendorDefaults() = ICanHealthCeCalibrationResult(
+        caliK = 1f,
+        caliAdjustBool = false,
+        caliAdjustNo = -1,
+        calibBg = -1f,
+        calik0 = 1f,
+        calikM = 1f,
+    )
+
+    /**
      * `AlgNamespace::planCalib` (`0x11b8b4`).
      *
      * [caliK] is accepted for signature parity with the vendor API; the binary does not read it in
