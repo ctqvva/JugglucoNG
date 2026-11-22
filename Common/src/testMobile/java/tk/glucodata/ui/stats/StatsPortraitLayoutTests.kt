@@ -132,7 +132,7 @@ class StatsPortraitLayoutTests {
         compose.onNodeWithText("Very high", useUnmergedTree = true).assertDoesNotExist()
     }
 
-    @Test fun ringCentreFollowsTheHighlightedBandAndTheHoleClearsIt() {
+    @Test fun ringRowsStayBesideTheRingAndARowOrTheHoleSetsTheHighlight() {
         var scale by mutableFloatStateOf(1f)
         var width by mutableIntStateOf(328)
         var selected by mutableStateOf<TirBand?>(null)
@@ -150,19 +150,22 @@ class StatsPortraitLayoutTests {
         for (w in listOf(288, 328, 400)) for (s in listOf(1f, 1.3f)) {
             compose.runOnIdle { width = w; scale = s }
             val card = compose.onNodeWithTag("overview").fetchSemanticsNode().boundsInRoot
-            val dial = compose.onNodeWithContentDescription("75% In range", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val dial = compose.onNodeWithContentDescription("75% TIR", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
             assertTrue("ring outside the card at $w/$s", dial.right <= card.right && dial.bottom <= card.bottom)
-            val percent = compose.onNodeWithText("75.2%", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-            assertTrue("row percent outside the card at $w/$s: $percent $card", percent.right <= card.right + 0.5f)
-            assertFalse("row percent under the ring at $w/$s: $percent $dial", percent.overlaps(dial))
+            for (text in listOf("75.2%", "14.6%", "0.0%")) {
+                val percent = compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+                assertTrue("$text outside the card at $w/$s", percent.right <= card.right + 0.5f)
+                assertFalse("$text under the ring at $w/$s", percent.overlaps(dial))
+            }
         }
         compose.onNodeWithText("Very low", useUnmergedTree = true).performClick()
         compose.runOnIdle { assertEquals(TirBand.VERY_LOW, selected) }
-        compose.onNodeWithContentDescription("15% Very low", useUnmergedTree = true).assertExists()
         // The hole in the middle clears the highlight, as tapping off the rows does.
-        compose.onNodeWithContentDescription("15% Very low", useUnmergedTree = true).performTouchInput { click(center) }
+        compose.onNodeWithContentDescription("75% TIR", useUnmergedTree = true).performTouchInput { click(center) }
         compose.runOnIdle { assertNull(selected) }
-        compose.onNodeWithText("Very high", useUnmergedTree = true).assertDoesNotExist()
+        // An empty band is listed, as the ring card always did, but is no target.
+        compose.onNodeWithText("Very high", useUnmergedTree = true).performClick()
+        compose.runOnIdle { assertNull(selected) }
     }
 
     @Test fun dayPartsCombineIntoOneWindowWithItsOwnTimesAndClearBackToTheWholeDay() {
