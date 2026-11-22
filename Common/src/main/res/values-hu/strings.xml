@@ -964,6 +964,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_sensor_not_found">A szenzor nem található a közelben</string>
     <string name="status_auth_failed">Sikertelen hitelesítés</string>
     <string name="status_sensor_not_responding">A szenzor nem válaszol</string>
+    <string name="sensor_out_of_reach_title">Az érzékelő hatótávon kívül</string>
+    <string name="sensor_out_of_reach_body">Tartsa a telefont az érzékelő közelében, magától újracsatlakozik</string>
+    <string name="sensor_out_of_reach_battery">Tartsa a telefont az érzékelő közelében; alacsony akkumulátor (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Várakozás mérésre</string>
     <string name="status_raw_values_received">Csatlakoztatva, nyers értékek fogadva</string>
     <string name="status_invalid_glucose_from_sensor">Érvénytelen glükózérték a szenzortól</string>
     <string name="select_sensor_type">Szenzortípus kiválasztása</string>

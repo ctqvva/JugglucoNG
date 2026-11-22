@@ -68,6 +68,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
@@ -2307,18 +2308,51 @@ fun SensorCard(
                         sensor.connectionStatus.isNotEmpty() -> sensor.connectionStatus
                         else -> null
                     }
-                    if (currentSnapshot != null || sensorStatusText != null) {
+                    // A sensor the phone has not reached for a while turns the whole line into
+                    // what to do about it; one that is linked but silent swaps its stale value
+                    // for how long it has been waiting.
+                    val reachState = rememberSensorReach(sensor.serial, currentSnapshot?.timeMillis ?: 0L)
+                    val outOfReach = !sensor.isCloneSource && reachState.reach == tk.glucodata.drivers.SensorReach.OUT_OF_REACH
+                    val quiet = !sensor.isCloneSource && reachState.reach == tk.glucodata.drivers.SensorReach.QUIET
+                    val reachFadeIn = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val reachFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    val reachResize = MaterialTheme.motionScheme.defaultSpatialSpec<androidx.compose.ui.unit.IntSize>()
+                    if (currentSnapshot != null || sensorStatusText != null || outOfReach) {
                         Spacer(modifier = Modifier.height(12.dp))
+                        AnimatedContent(
+                            targetState = outOfReach,
+                            transitionSpec = {
+                                (fadeIn(reachFadeIn) togetherWith fadeOut(reachFadeOut))
+                                    .using(SizeTransform(clip = false) { _, _ -> reachResize })
+                            },
+                            label = "sensorReachLine",
+                        ) { lost ->
+                        if (lost) {
+                            SensorOutOfReachPrompt(state = reachState, host = SensorReachPromptHost.SENSOR_CARD)
+                        } else {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             currentSnapshot?.let { snapshot ->
-                                SensorCurrentValueChip(
-                                    snapshot = snapshot,
-                                    accentColor = sensorTint
-                                )
+                                AnimatedContent(
+                                    targetState = quiet,
+                                    transitionSpec = {
+                                        (fadeIn(reachFadeIn) togetherWith fadeOut(reachFadeOut))
+                                            .using(SizeTransform(clip = false) { _, _ -> reachResize })
+                                    },
+                                    label = "sensorReadingChip",
+                                ) { waiting ->
+                                    if (waiting) {
+                                        SensorQuietChip(lastReadingMs = snapshot.timeMillis)
+                                    } else {
+                                        SensorCurrentValueChip(
+                                            snapshot = snapshot,
+                                            accentColor = sensorTint
+                                        )
+                                    }
+                                }
                             }
                             if (sensor.isCloneSource) {
                                 CloneSourceMark(
@@ -2328,7 +2362,7 @@ fun SensorCard(
                                     iconSize = 18.dp,
                                 )
                             }
-                            sensorStatusText?.let { status ->
+                            (if (quiet) stringResource(R.string.sensor_waiting_for_reading) else sensorStatusText)?.let { status ->
                                 SensorStatusText(
                                     status = status,
                                     color = if (sensor.isCloneSource && !cloneHasRecentData) {
@@ -2368,6 +2402,8 @@ fun SensorCard(
                                     accent = sensorTint,
                                 )
                             }
+                        }
+                        }
                         }
                     }
 //                } // Close Column (content)

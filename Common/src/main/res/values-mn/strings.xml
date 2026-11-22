@@ -943,6 +943,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="status_sensor_not_found">Ойролцоо мэдрэгч олдсонгүй</string>
     <string name="status_auth_failed">Баталгаажуулалт амжилтгүй</string>
     <string name="status_sensor_not_responding">Мэдрэгч хариу өгөхгүй байна</string>
+    <string name="sensor_out_of_reach_title">Мэдрэгч хүрээнээс гадуур</string>
+    <string name="sensor_out_of_reach_body">Утсаа мэдрэгчийн ойролцоо байлгана уу — өөрөө дахин холбогдоно</string>
+    <string name="sensor_out_of_reach_battery">Утсаа мэдрэгчийн ойролцоо байлгана уу — батарей сул (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Уншилт хүлээж байна</string>
     <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авлаа</string>
     <string name="select_sensor_type">Мэдрэгчийн төрлийг сонгох</string>
     <string name="choose_theme">Загвар сонгох</string>

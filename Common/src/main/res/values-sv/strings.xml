@@ -2130,6 +2130,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">Sensorn hittades inte i närheten</string>
     <string name="status_auth_failed">Autentiseringen misslyckades</string>
     <string name="status_sensor_not_responding">Sensorn svarar inte</string>
+    <string name="sensor_out_of_reach_title">Sensorn utom räckhåll</string>
+    <string name="sensor_out_of_reach_body">Håll telefonen nära sensorn; den återansluter av sig själv</string>
+    <string name="sensor_out_of_reach_battery">Håll telefonen nära sensorn; låg batterinivå (%1$d %%)</string>
+    <string name="sensor_waiting_for_reading">Väntar på en mätning</string>
     <string name="status_raw_values_received">Ansluten, råvärden mottagna</string>
     <string name="status_invalid_glucose_from_sensor">Ogiltigt glukosvärde från sensorn</string>
     <string name="sensor_display_select">Välj sensor för visning</string>

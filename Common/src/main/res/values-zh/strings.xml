@@ -2146,6 +2146,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">附近未找到传感器</string>
     <string name="status_auth_failed">认证失败</string>
     <string name="status_sensor_not_responding">传感器无响应</string>
+    <string name="sensor_out_of_reach_title">传感器不在范围内</string>
+    <string name="sensor_out_of_reach_body">请将手机靠近传感器，它会自动重新连接</string>
+    <string name="sensor_out_of_reach_battery">请将手机靠近传感器，电量低（%1$d%%）</string>
+    <string name="sensor_waiting_for_reading">正在等待读数</string>
     <string name="status_raw_values_received">已连接，已收到原始值</string>
     <string name="status_invalid_glucose_from_sensor">传感器葡萄糖值无效</string>
     <string name="sensor_display_select">选择要显示的传感器</string>

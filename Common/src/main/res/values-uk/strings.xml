@@ -1617,6 +1617,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">Датчик не знайдено поблизу</string>
     <string name="status_auth_failed">Помилка автентифікації</string>
     <string name="status_sensor_not_responding">Датчик не відповідає</string>
+    <string name="sensor_out_of_reach_title">Сенсор поза зоною зв’язку</string>
+    <string name="sensor_out_of_reach_body">Тримайте телефон поруч із сенсором — він перепідключиться сам</string>
+    <string name="sensor_out_of_reach_battery">Тримайте телефон поруч із сенсором — низький заряд батареї (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Очікування показань</string>
     <string name="status_invalid_glucose_from_sensor">Некоректна глюкоза від сенсора</string>
     <string name="switchtowatch">Перемкнути</string>
     <string name="text">Текст</string>

@@ -2136,6 +2136,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_sensor_not_found">Capteur introuvable à proximité</string>
     <string name="status_auth_failed">Échec de l\'authentification</string>
     <string name="status_sensor_not_responding">Le capteur ne répond pas</string>
+    <string name="sensor_out_of_reach_title">Capteur hors de portée</string>
+    <string name="sensor_out_of_reach_body">Gardez le téléphone près du capteur ; il se reconnectera tout seul</string>
+    <string name="sensor_out_of_reach_battery">Gardez le téléphone près du capteur ; batterie faible (%1$d %%)</string>
+    <string name="sensor_waiting_for_reading">En attente d’une mesure</string>
     <string name="status_raw_values_received">Connecté, valeurs brutes reçues</string>
     <string name="status_invalid_glucose_from_sensor">Glycémie non valide du capteur</string>
     <string name="sensor_display_select">Sélectionner le capteur à afficher</string>

@@ -1078,6 +1078,14 @@ fun DashboardScreen(
                     nowMillis = freshnessTick
                 )
             }
+            // The sensor card's out-of-reach prompt, repeated here for the main sensor:
+            // the hero only says the value is old, not that the phone cannot get to it.
+            val sensorReach = rememberSensorReach(
+                serial = sensorName.ifBlank { activeSensorList.firstOrNull().orEmpty() },
+                lastReadingMs = maxOf(dashboardCurrentSnapshot?.timeMillis ?: 0L, latestPoint?.timestamp ?: 0L),
+            )
+            val showSensorReachPrompt = hasSensorContext &&
+                sensorReach.reach == tk.glucodata.drivers.SensorReach.OUT_OF_REACH
             val adaptiveMetrics = rememberAdaptiveWindowMetrics()
             val isLandscape = adaptiveMetrics.isLandscape
             val topContentInset = padding.calculateTopPadding()
@@ -1628,6 +1636,17 @@ fun DashboardScreen(
                         }
                     }
 
+                    if (showSensorReachPrompt) {
+                        item(key = "sensor-reach") {
+                            SensorOutOfReachPrompt(
+                                state = sensorReach,
+                                host = SensorReachPromptHost.DASHBOARD,
+                                onClick = onNavigateToSensors,
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
+
                     // Pinned metrics live in the narrow left column here, two rows of
                     // two, rather than four cells squeezed across it.
                     if (showPinnedStats) {
@@ -1949,6 +1968,19 @@ fun DashboardScreen(
                                 }
                             )
                         }
+                    }
+                }
+
+                if (showSensorReachPrompt) {
+                    item(key = "sensor-reach") {
+                        SensorOutOfReachPrompt(
+                            state = sensorReach,
+                            host = SensorReachPromptHost.DASHBOARD,
+                            onClick = onNavigateToSensors,
+                            modifier = Modifier
+                                .animateItem()
+                                .padding(horizontal = contentHorizontalPadding),
+                        )
                     }
                 }
 

@@ -92,6 +92,8 @@ class SibionicsBleManager(
         // The shared scanner backs off on its own; this only stops the reconnect
         // loop from asking it every eight seconds.
         private const val SCAN_REQUEST_INTERVAL_MS = 2L * 60L * 1000L
+        /** Backlog pages come a reconnect apart; three minutes without one is not catching up. */
+        private const val CATCH_UP_GROWTH_WINDOW_MS = 3L * 60L * 1000L
         private const val MAX_FUTURE_DRIFT_MS = 10L * 60L * 1000L
         private const val MIN_REASONABLE_TIME_MS = 946_684_800_000L
         private const val ALGORITHM_REBUILD_DEBOUNCE_MS = 600L
@@ -240,6 +242,8 @@ class SibionicsBleManager(
     @Volatile private var autoResetScheduled: Boolean = false
     @Volatile private var algorithmSelection: SibionicsAlgorithmSelection = SibionicsAlgorithmSelection.STOCK
     @Volatile private var historyReceivedCount: Int = 0
+    /** When the backlog last grew; a replay that stops growing is no longer catching up. */
+    @Volatile private var historyGrewAtMs: Long = 0L
     @Volatile private var historyTotalCount: Int = 0
     private val historySeenIndices = HashSet<Int>()
 
@@ -679,36 +683,6 @@ class SibionicsBleManager(
         connectDevice(0)
     }
 
-    /**
-     * Pausing from outside — a watch taking the sensor over, Clone mirroring it, a
-     * handover — sets [stop] and drops the link. The disconnect that follows used to
-     * be ignored while stopped, so the phase and the dead GATT survived the pause and
-     * every connect after the resume was coalesced into that corpse.
-     */
-    override fun setPause(pause: Boolean) {
-        super.setPause(pause)
-        if (pause) {
-            handler.post { if (stop) releaseSessionWhilePaused("paused") }
-        } else {
-            // Most resumers connect straight away; the watchdog covers one that does not.
-            handler.post {
-                armLinkWatchdog()
-                publishStatus()
-            }
-        }
-    }
-
-    private fun releaseSessionWhilePaused(reason: String) {
-        advertisementRecovery.stop()
-        cancelScheduledReconnect()
-        if (mBluetoothGatt != null || phase != Phase.IDLE) {
-            Log.i(SibionicsConstants.TAG, "releasing BLE session ($reason) phase=$phase serial=$SerialNumber")
-        }
-        prepareForReconnect()
-        idleReason = SibionicsIdleReason.NONE
-        publishStatus()
-    }
-
     override fun onBluetoothAdapterUnavailable() {
         advertisementRecovery.stop()
         cancelScheduledReconnect()
@@ -851,6 +825,7 @@ class SibionicsBleManager(
     }
 
     private fun handleConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+        if (stop) return
         if (gatt in retiredGatts) {
             retiredGatts.remove(gatt)
             Log.d(SibionicsConstants.TAG, "ignore retired GATT callback state=$newState serial=$SerialNumber")
@@ -860,14 +835,6 @@ class SibionicsBleManager(
         if (mBluetoothGatt != null && gatt !== mBluetoothGatt) {
             Log.d(SibionicsConstants.TAG, "ignore stale GATT callback state=$newState serial=$SerialNumber")
             runCatching { gatt.close() }
-            return
-        }
-        if (stop) {
-            // Paused, but the session still has to end here: returning early kept the
-            // phase and this GATT, and the resume was then coalesced into them.
-            Log.i(SibionicsConstants.TAG, "GATT state=$newState while paused; closing serial=$SerialNumber")
-            if (mBluetoothGatt == null) runCatching { gatt.close() }
-            releaseSessionWhilePaused("link change while paused")
             return
         }
         when (newState) {
@@ -1710,6 +1677,7 @@ class SibionicsBleManager(
     private fun updateChineseHistoryProgress(entries: List<SibionicsProtocol.ChineseEntry>) {
         if (entries.isEmpty()) return
         historySeenIndices.addAll(entries.map { it.index })
+        if (historySeenIndices.size > historyReceivedCount) historyGrewAtMs = System.currentTimeMillis()
         historyReceivedCount = historySeenIndices.size
         historyTotalCount = SibionicsProtocol.estimateChineseHistoryTotal(
             previousTotal = historyTotalCount,
@@ -1722,6 +1690,7 @@ class SibionicsBleManager(
         if (entries.isEmpty()) return
         val now = System.currentTimeMillis()
         historySeenIndices.addAll(entries.map { it.index })
+        if (historySeenIndices.size > historyReceivedCount) historyGrewAtMs = System.currentTimeMillis()
         historyReceivedCount = historySeenIndices.size
         val estimates = entries.mapNotNull { entry ->
             val candidateStart = entry.eventTimeMs - entry.index * SibionicsConstants.READING_INTERVAL_MS
@@ -3002,6 +2971,8 @@ class SibionicsBleManager(
             sensorDetailTelemetry = detailTelemetry(),
             isVendorPaired = true,
             isVendorConnected = mBluetoothGatt != null && phase == Phase.STREAMING,
+            catchingUp = (historyTransferActive || algorithmRehydrating) &&
+                System.currentTimeMillis() - historyGrewAtMs < CATCH_UP_GROWTH_WINDOW_MS,
             sensorRemainingHours = remainingHours(),
             sensorAgeHours = ageHours(),
             batteryPercent = if (variant == SibionicsConstants.Variant.SIBIONICS2) lastBatteryPercent else -1,
