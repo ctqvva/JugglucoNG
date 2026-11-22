@@ -79,6 +79,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
@@ -1331,20 +1332,17 @@ private fun RangeRing(
         val size = (maxWidth - RingSpacing - rowsNeed).coerceIn(RingMin, RingMax)
         val stackedSize = RingMax.coerceAtMost(maxWidth)
         val dial: @Composable (Modifier) -> Unit = { dialModifier ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RingDial(
-                    rows = ringRows,
-                    inRange = inRange,
-                    shares = shares,
-                    presences = presences,
-                    noData = noData,
-                    selectedBand = selectedBand,
-                    onBandSelected = onBandSelected,
-                    modifier = dialModifier
-                )
-                // Under the ring, as it always was, so the opening keeps its full headline.
-                if (!noData) inRangeDelta?.takeIf { abs(it) >= 1f }?.let { InRangeDelta(it) }
-            }
+            RingDial(
+                rows = ringRows,
+                inRange = inRange,
+                inRangeDelta = inRangeDelta?.takeIf { !noData && abs(it) >= 1f },
+                shares = shares,
+                presences = presences,
+                noData = noData,
+                selectedBand = selectedBand,
+                onBandSelected = onBandSelected,
+                modifier = dialModifier
+            )
         }
         if (stacked) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1396,6 +1394,7 @@ private fun ringSlots(
 private fun RingDial(
     rows: List<TirBandRow>,
     inRange: Float,
+    inRangeDelta: Float?,
     shares: List<State<Float>>,
     presences: List<State<Float>>,
     noData: Boolean,
@@ -1423,10 +1422,14 @@ private fun RingDial(
     val number = if (noData) "" else NumberFormat.getIntegerInstance().format(inRange.roundToInt())
     val tone = tirHeatColor(inRange)
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val change = inRangeDelta?.let { stringResource(R.string.gri_vs_previous, formatSignedNumber(it)) }
 
     BoxWithConstraints(
         modifier = modifier
-            .clearAndSetSemantics { contentDescription = "$value $caption" }
+            .clearAndSetSemantics {
+                contentDescription = "$value $caption"
+                change?.let { stateDescription = it }
+            }
             .drawBehind {
                 val stroke = RingStroke.toPx()
                 val radius = (size.minDimension - stroke) / 2f
@@ -1522,16 +1525,21 @@ private fun RingDial(
             MaterialTheme.typography.labelMedium,
             MaterialTheme.typography.labelSmall
         )
+        // The delta sits under the caption inside the hole, so the ring keeps its place in
+        // the row; its line is counted before the headline and caption are picked.
+        val deltaHeight = if (inRangeDelta == null) 0f else with(density) {
+            maxOf(16.dp.toPx(), MaterialTheme.typography.labelMedium.lineHeight.toPx())
+        }
         // The largest headline and caption whose block fits inside the hole; the caption
         // gives way first, since the number is what the ring is for.
-        val (valueStyle, captionStyle) = remember(value, caption, inner, density, styles, captions) {
+        val (valueStyle, captionStyle) = remember(value, caption, inner, density, styles, captions, deltaHeight) {
             val room = with(density) { inner.toPx() }
             val pairs = styles.flatMap { style -> captions.map { style to it } }
             pairs.firstOrNull { (style, captionStyle) ->
                 val number = measurer.measure(value, style.copy(fontFeatureSettings = "tnum"), maxLines = 1).size
                 val label = measurer.measure(caption, captionStyle, maxLines = 1).size
                 val w = maxOf(number.width, label.width).toFloat()
-                val h = (number.height + label.height).toFloat()
+                val h = number.height + label.height + deltaHeight
                 kotlin.math.sqrt(w * w + h * h) <= room
             } ?: (styles.last() to captions.last())
         }
@@ -1556,6 +1564,7 @@ private fun RingDial(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(max = inner)
             )
+            inRangeDelta?.let { InRangeDelta(it) }
         }
     }
 }
