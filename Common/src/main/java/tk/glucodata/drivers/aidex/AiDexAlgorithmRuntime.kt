@@ -245,6 +245,7 @@ internal class AiDexAlgorithmRuntime(
             Log.i("AiDexAlgorithm", "Recovering original sensor history for $serial from $missing")
             requestSourceHistory(missing)
         } else if (!awaitingSourceHistory) {
+            if (!failed) Log.w("AiDexAlgorithm", "Original sensor history for $serial from $missing is unavailable")
             failed = true
         }
         UiRefreshBus.requestStatusRefresh()
@@ -293,6 +294,7 @@ internal class AiDexAlgorithmRuntime(
                 } finally { rewritingHistory = false }
                 if (!written) {
                     // Bounded by the caller; afterwards the next live/history event retries.
+                    Log.w("AiDexAlgorithm", "Stock repair could not store ${stale.size} minutes for $serial from ${stale.first().timestampMs}")
                     failed = true
                     roomRepairNeeded = true
                     UiRefreshBus.requestStatusRefresh()
