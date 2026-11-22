@@ -56,6 +56,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.roundToInt
 import tk.glucodata.data.settings.FloatingSettingsRepository
 import tk.glucodata.ui.theme.MainFontFile
 import tk.glucodata.ui.GlucosePoint
@@ -95,7 +96,7 @@ fun FloatingGlucoseOverlay(
     val cornerRadius by repository.cornerRadius.collectAsState(initial = 28f)
     val opacity by repository.backgroundOpacity.collectAsState(initial = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
     val isDynamicIsland by repository.isDynamicIslandEnabled.collectAsState(initial = false)
-    val verticalOffset by repository.islandVerticalOffset.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
+    val islandNudge by repository.islandNudge.collectAsState(initial = FloatingSettingsRepository.DEFAULT_ISLAND_NUDGE)
     val manualGap by repository.islandGap.collectAsState(initial = 0f)
     val useSubtleOutline by repository.useSubtleOutline.collectAsState(initial = false)
     val layoutOrder by repository.layoutOrder.collectAsState(initial = FloatingLayoutOrder.DEFAULT)
@@ -185,7 +186,7 @@ fun FloatingGlucoseOverlay(
     
     // Gap Calculation
     // Use manual gap if > 0, otherwise detected width. Default 70dp if all else fails.
-    val isVerticalIsland = cutoutEdge == CutoutEdge.LEFT || cutoutEdge == CutoutEdge.RIGHT
+    val isVerticalIsland = FloatingIsland.isSide(cutoutEdge)
     val finalGap = if (manualGap > 0f) {
         manualGap.dp
     } else if (cutoutSize > 0.dp) {
@@ -290,7 +291,8 @@ fun FloatingGlucoseOverlay(
     if (isDynamicIsland) {
         CutoutOffsetLayout(
             edge = cutoutEdge,
-            offset = verticalOffset.dp,
+            centre = cutoutData.centre,
+            nudge = islandNudge.dp,
             modifier = Modifier
                 .wrapContentSize()
                 .then(dragModifier)
@@ -829,37 +831,31 @@ fun AsymmetricCenteringRow(
     }
 }
 
+/**
+ * Puts the pill [content] a gap in from the screen edge it is docked to ([edge]), so that
+ * it is centred on the cutout [centre] from that edge (0 when not known), then moved by
+ * [nudge] away from the edge. The gap depends on the pill's own thickness across the edge,
+ * so it is worked out from the measured pill; see [FloatingIsland].
+ */
 @Composable
 private fun CutoutOffsetLayout(
     edge: CutoutEdge,
-    offset: androidx.compose.ui.unit.Dp,
+    centre: Dp,
+    nudge: Dp,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    when (edge) {
-        CutoutEdge.LEFT -> Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.width(offset))
-            }
-            content()
-        }
-        CutoutEdge.RIGHT -> Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-            content()
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.width(offset))
-            }
-        }
-        CutoutEdge.BOTTOM -> Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            content()
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.height(offset))
-            }
-        }
-        else -> Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            if (offset > 0.dp) {
-                Spacer(modifier = Modifier.height(offset))
-            }
-            content()
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val pill = measurables.single().measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val gap = FloatingIsland.edgeGap(
+            centre = centre.toPx(),
+            nudge = nudge.toPx(),
+            thickness = FloatingIsland.thickness(edge, pill.width, pill.height).toFloat(),
+            noCutoutGap = FloatingIsland.NO_CUTOUT_GAP_DP.dp.toPx()
+        ).roundToInt()
+        val placement = FloatingIsland.place(edge, pill.width, pill.height, gap)
+        layout(placement.width, placement.height) {
+            pill.place(placement.pillX, placement.pillY)
         }
     }
 }

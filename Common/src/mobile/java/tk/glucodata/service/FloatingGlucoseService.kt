@@ -42,6 +42,7 @@ import tk.glucodata.ui.overlay.OverlayScreenArea
 import tk.glucodata.ui.overlay.clampOverlayPixels
 import tk.glucodata.ui.overlay.overlayPixels
 import tk.glucodata.ui.overlay.overlayPosition
+import tk.glucodata.ui.overlay.FloatingIsland
 import tk.glucodata.Natives
 
 class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -138,8 +139,11 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
 
     // State for Dynamic Island
     data class CutoutData(
+        /** The cutout's extent along the docked edge: the gap between the pill's two labels. */
         val size: androidx.compose.ui.unit.Dp,
         val edge: CutoutEdge,
+        /** Distance from the docked edge to the middle of the cutout, 0 when not known. */
+        val centre: androidx.compose.ui.unit.Dp = 0.dp,
         /** The status bar's height, 0 when unknown: how tall the island can grow at the top. */
         val barHeight: androidx.compose.ui.unit.Dp = 0.dp,
     )
@@ -325,23 +329,54 @@ class FloatingGlucoseService : Service(), LifecycleOwner, ViewModelStoreOwner, S
     @Suppress("DEPRECATION")
     private fun resolveCutoutData(
         anchorView: View?,
-        cutout: android.view.DisplayCutout?,
+        windowCutout: android.view.DisplayCutout?,
         statusBarPx: Int,
     ): CutoutData {
         val density = resources.displayMetrics.density
         val edge = resolveIslandEdge(anchorView)
-        val cutoutRect = when (edge) {
-            CutoutEdge.LEFT -> cutout?.boundingRects?.minByOrNull { it.left }
-            CutoutEdge.RIGHT -> cutout?.boundingRects?.maxByOrNull { it.right }
-            CutoutEdge.BOTTOM -> cutout?.boundingRects?.maxByOrNull { it.bottom }
-            else -> cutout?.boundingRects?.minByOrNull { it.top }
+        // The display's own cutout, in display coordinates for its current rotation (Android
+        // 10 and up). That of the window insets (windowCutout) is relative to our overlay
+        // window and clipped to it: the pill's window is no taller than the cutout, and its
+        // height depends on where the pill sits, which depends on the cutout's middle. The
+        // insets still trigger this, as a rotation dispatches them again, and stand in below
+        // Android 10.
+        val displayCutout = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            (anchorView?.display ?: windowManager?.defaultDisplay)?.cutout
+        } else {
+            null
         }
-        val gapPx = cutoutRect?.width()?.takeIf { it > 0 }
-            ?: cutoutRect?.height()?.takeIf { it > 0 }
-            ?: 0
+        val cutout = displayCutout ?: windowCutout
+        val cutoutRect = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            when (edge) {
+                CutoutEdge.LEFT -> cutout?.boundingRectLeft
+                CutoutEdge.RIGHT -> cutout?.boundingRectRight
+                CutoutEdge.BOTTOM -> cutout?.boundingRectBottom
+                else -> cutout?.boundingRectTop
+            }?.takeUnless { it.isEmpty }
+        } else {
+            when (edge) {
+                CutoutEdge.LEFT -> cutout?.boundingRects?.minByOrNull { it.left }
+                CutoutEdge.RIGHT -> cutout?.boundingRects?.maxByOrNull { it.right }
+                CutoutEdge.BOTTOM -> cutout?.boundingRects?.maxByOrNull { it.bottom }
+                else -> cutout?.boundingRects?.minByOrNull { it.top }
+            }
+        }
+        val rectWidth = cutoutRect?.width() ?: 0
+        val rectHeight = cutoutRect?.height() ?: 0
+        // The label gap is the cutout's extent along the docked edge: in landscape the
+        // rect's height, not its width, which runs across the edge.
+        val gapPx = FloatingIsland.alongEdge(edge, rectWidth, rectHeight)
+        val safeInset = when (edge) {
+            CutoutEdge.LEFT -> cutout?.safeInsetLeft
+            CutoutEdge.RIGHT -> cutout?.safeInsetRight
+            CutoutEdge.BOTTOM -> cutout?.safeInsetBottom
+            else -> cutout?.safeInsetTop
+        } ?: 0
+        val centrePx = FloatingIsland.cutoutCentre(safeInset, FloatingIsland.acrossEdge(edge, rectWidth, rectHeight))
         return CutoutData(
             size = if (gapPx > 0) (gapPx / density).dp else 0.dp,
             edge = edge,
+            centre = (centrePx / density).dp,
             barHeight = (statusBarPx.coerceAtLeast(0) / density).dp,
         )
     }

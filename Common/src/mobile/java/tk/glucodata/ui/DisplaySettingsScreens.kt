@@ -495,7 +495,7 @@ fun FloatingGlucoseSettingsScreen(
     val cornerRadius by repository.cornerRadius.collectAsStateWithLifecycle(initialValue = 28f)
     val opacity by repository.backgroundOpacity.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_BACKGROUND_OPACITY)
     val isDynamicIsland by repository.isDynamicIslandEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val verticalOffset by repository.islandVerticalOffset.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_ISLAND_VERTICAL_OFFSET)
+    val islandNudge by repository.islandNudge.collectAsStateWithLifecycle(initialValue = FloatingSettingsRepository.DEFAULT_ISLAND_NUDGE)
     val manualGap by repository.islandGap.collectAsStateWithLifecycle(initialValue = 0f)
     val useSubtleOutline by repository.useSubtleOutline.collectAsStateWithLifecycle(initialValue = false)
     val layoutOrder by repository.layoutOrder.collectAsStateWithLifecycle(initialValue = FloatingLayoutOrder.DEFAULT)
@@ -606,11 +606,11 @@ fun FloatingGlucoseSettingsScreen(
                 SettingsControlsCard(position = CardPosition.BOTTOM) {
                     SettingsSlider(
                         title = stringResource(R.string.offset),
-                        valueText = stringResource(R.string.dp_value, verticalOffset.toInt()),
-                        value = verticalOffset,
-                        onValueChange = { repository.setIslandVerticalOffset(it) },
-                        range = 0f..50f,
-                        steps = 50
+                        valueText = stringResource(R.string.dp_value, islandNudge.roundToInt()),
+                        value = islandNudge,
+                        onValueChange = { repository.setIslandNudge(it.roundToInt().toFloat()) },
+                        range = -20f..20f,
+                        steps = 39
                     )
                     val gapDisplay = if (manualGap == 0f) stringResource(R.string.auto) else stringResource(R.string.dp_value, manualGap.toInt())
                     SettingsSlider(
