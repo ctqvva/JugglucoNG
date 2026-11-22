@@ -122,3 +122,45 @@ arguments. Comparison uses 387 synthetic ciphertext and IV pairs and checks all
 three import operations. It reports counts or the first mismatch, and requires at
 least one successful import. The runner builds without OAuth or upload transport
 and emits no key values. A successful comparison covers those inputs only.
+
+## ARM64 decoder investigation
+
+The ARM64 library extracted from the public 11.5.6 APK matched the SHA-256 in
+the provider table above. In that ELF, `jg_clarity_abi` is at virtual address
+`0x2f20000`. The relocation for its `unwrap` pointer at offset `0x10` resolves
+to `0x26591a4`. These addresses are relative to the library load base.
+
+After the engine applies its ABI output decode rows, format `1` implements
+16-byte CBC decryption. For ciphertext blocks `C[0]`, `C[1]`, and so on, the
+decoded output is `D(C[0]) XOR IV` followed by `D(C[i]) XOR C[i-1]`. Here `D`
+is the decoded one-block operation with an all-zero IV. The ABI also overwrites
+its IV buffer with an encoded form of the final ciphertext block. The engine
+discards this update when it returns from a session-key import.
+
+The CBC equation matched **579 inputs and 1,158 blocks** when the actual
+provider was loaded with `dlopen` on an ARM64 Android emulator. The inputs
+included single-bit changes to the ciphertext and IV, as well as varied
+one-, two-, and three-block messages. Each multiblock result was checked
+against independent single-block invocations and ordinary bytewise XOR. The
+same equation held when tracing the real ARM64 instructions offline. These
+comparisons establish the chaining and leave `D` as a reference operation.
+
+The remaining operation is `D` itself. The call at `0x26592d4` dispatches to
+the block routine at `0x2656270` after the ciphertext has been transformed by
+the helper at `0x26784a0`. The block routine reads all 17 consecutive 16-byte
+regions of the context at offsets `0x10` through `0x11f`. Changing one bit in
+that context changed the decoded result. It also indexes tables outside the
+exported ABI. Two early lookup groups are affine over XOR. Two subsequent
+groups have the differential distribution of the AES S-box for every nonzero
+input difference. The surrounding format and output helpers apply further
+transforms. This is consistent with a white-box AES construction. The AES
+variant, state encodings, and relationship between the context words and a
+standard AES key schedule remain unverified.
+
+To replace the library, an implementation needs the specification or source
+for that block operation. One route is a verified mapping to a standard
+primitive with a defined format for an authorized wrapping key. Another is
+the original table-generation and encoding specification with redistributable
+inputs. The public ABI supplies neither that mapping nor the tables outside
+the ABI. A source implementation must match the actual provider before it can
+replace `unwrap` on the upload path.
