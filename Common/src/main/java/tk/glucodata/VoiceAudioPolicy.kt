@@ -84,7 +84,7 @@ object VoiceAudioPolicy {
     )
 
     /** Preset intervals offered in the Voice screen (0 = same as default Voice interval). */
-    val INTERVAL_PRESETS_SECONDS: List<Int> = listOf(0, 60, 180, 300, 600, 900, 1800)
+    val INTERVAL_PRESETS_SECONDS: List<Int> = listOf(0, 60, 300, 600, 900)
 
     /** Wait briefly after BT audio connects so car stereos finish opening A2DP before TTS starts. */
     const val CONNECT_SETTLE_DELAY_MS: Long = 4_000L
