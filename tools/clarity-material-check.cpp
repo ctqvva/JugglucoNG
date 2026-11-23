@@ -2,6 +2,7 @@
 // Compare a portable material file with the reference provider's stream.
 // The reference tool writes BlockMaterial, a case count and the cases.
 #include "net/clarity/block_decoder.hpp"
+#include "net/clarity/cipher.hpp"
 #include "net/clarity/material.hpp"
 #include <array>
 #include <cstdint>
@@ -27,9 +28,13 @@ int main(int argc, char **argv) {
     return 2;
   }
   const auto material = loadMaterial(argv[1]);
-  const auto wrapKey = recoverSessionWrapKey(material.block);
-  if (!wrapKey) {
-    std::fprintf(stderr, "failed to recover AES-256 session-wrap key from material\n");
+  const auto compact = toKeyMaterial(material);
+  Bytes wrapKey;
+  for (const auto &k : compact.keys)
+    if (k.name == sessionWrapKeyName)
+      wrapKey = k.value;
+  if (wrapKey.size() != 32) {
+    std::fprintf(stderr, "failed to resolve AES-256 session-wrap key from material\n");
     return 1;
   }
   std::array<std::uint8_t, sizeof(BlockMaterial)> ignored{};
@@ -49,14 +54,26 @@ int main(int argc, char **argv) {
                    static_cast<unsigned long long>(i));
       return 1;
     }
-    const auto result = unwrapSessionKey(test.ciphertext, test.iv, material.block);
-    if (result != UnwrapResult(test.expected)) {
-      std::fprintf(stderr, "mismatch in case %llu\n",
+    if (!material.keyOnly) {
+      const auto result =
+          unwrapSessionKey(test.ciphertext, test.iv, material.block);
+      if (result != UnwrapResult(test.expected)) {
+        std::fprintf(stderr, "block decoder mismatch in case %llu\n",
+                     static_cast<unsigned long long>(i + 1));
+        return 1;
+      }
+    }
+    const auto aesResult = aes256cbc(
+        wrapKey, Bytes(test.iv.begin(), test.iv.end()),
+        Bytes(test.ciphertext.begin(), test.ciphertext.end()), false);
+    if (aesResult != Bytes(test.expected.begin(), test.expected.end())) {
+      std::fprintf(stderr, "AES-256-CBC mismatch in case %llu\n",
                    static_cast<unsigned long long>(i + 1));
       return 1;
     }
   }
-  std::printf("material file matched %llu reference unwrap cases\n",
+  std::printf("%s material file matched %llu reference unwrap cases\n",
+              material.keyOnly ? "key-only" : "full+key-only",
               static_cast<unsigned long long>(count));
   return 0;
 }

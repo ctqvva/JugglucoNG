@@ -45,6 +45,12 @@ bool materialPath(const std::string &path) {
   return path.ends_with(".mat") || path.ends_with(".clarity-material");
 }
 std::string configuredMaterialPath(const std::string &path) {
+#ifdef CLARITY_JUGGLUCO_LOG
+  (void)path;
+  if (globalbasedir.empty())
+    return {};
+  return std::string(globalbasedir) + "/clarity-indexed/clarity.mat";
+#else
   if (const char *environment = std::getenv("CLARITY_MATERIAL_FILE");
       environment && *environment)
     return environment;
@@ -56,20 +62,15 @@ std::string configuredMaterialPath(const std::string &path) {
 #endif
   if (materialPath(path))
     return path;
-#ifdef CLARITY_JUGGLUCO_LOG
-  if (!globalbasedir.empty()) {
-    const auto candidate =
-        std::string(globalbasedir) + "/clarity-indexed/clarity.mat";
-    if (access(candidate.c_str(), R_OK) == 0)
-      return candidate;
-  }
-#endif
   return {};
+#endif
 }
 std::optional<Bytes> resolveSessionWrapKey(const ProviderMaterial &material) {
   for (const auto &key : material.keys)
     if (key.name == sessionWrapKeyName && key.value.size() == 32)
       return key.value;
+  if (material.keyOnly)
+    return std::nullopt;
   if (const auto recovered = portable::recoverSessionWrapKey(material.block))
     return Bytes(recovered->begin(), recovered->end());
   return std::nullopt;
@@ -77,11 +78,17 @@ std::optional<Bytes> resolveSessionWrapKey(const ProviderMaterial &material) {
 void validate(const ProviderMaterial &material) {
   if (material.keys.empty() || material.keys.size() > maxApplicationKeys)
     throw Error("Invalid Clarity provider key table");
-  for (const auto &key : material.keys)
+  bool hasWrapKey = false;
+  for (const auto &key : material.keys) {
     if (key.name.empty() || key.name.size() >= sizeof(NativeKey::name) ||
         (key.value.size() != 32 && key.value.size() != 64) ||
         (key.name == sessionWrapKeyName && key.value.size() != 32))
       throw Error("Invalid Clarity provider key table");
+    if (key.name == sessionWrapKeyName)
+      hasWrapKey = true;
+  }
+  if (material.keyOnly && !hasWrapKey)
+    throw Error("Invalid Clarity provider key table");
 }
 } // namespace
 struct Engine::Impl {
@@ -96,6 +103,8 @@ struct Engine::Impl {
       if (k.name == sessionWrapKeyName)
         explicitSessionWrapKey = true;
     sessionWrapKey = resolveSessionWrapKey(*material);
+    if (material->keyOnly && !sessionWrapKey)
+      throw Error("Missing Clarity session-wrap key");
     diagnostic(
         "portable crypto provider ready (AES/HMAC and session-key decoder)");
   }
@@ -123,6 +132,10 @@ struct Engine::Impl {
       }
       return;
     }
+#ifdef CLARITY_JUGGLUCO_LOG
+    diagnostic("error: Clarity material is unavailable");
+    throw Error("Clarity crypto material is not installed");
+#else
     library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (!library) {
       const char *reason = dlerror();
@@ -147,6 +160,7 @@ struct Engine::Impl {
     }
     diagnostic(
         "compact crypto provider ready (AES/HMAC and session-key decoder)");
+#endif
   }
   void close() {
     if (library && dlclose(library) != 0)

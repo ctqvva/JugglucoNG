@@ -3,7 +3,10 @@
 #include <bit>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
 using namespace clarity;
 
@@ -220,6 +223,53 @@ void whiteBoxKeyRecovery() {
   corrupted.context[5][0] ^= 1;
   expect(!portable::recoverSessionWrapKey(corrupted).has_value(),
          "BGE rejects inconsistent AES-256 key schedule");
+
+  // Full -> key-only conversion and 3,368-byte compact format round-trip.
+  ProviderMaterial full{};
+  full.block = block;
+  for (unsigned index = 0; index < 10; ++index) {
+    full.keys.push_back({"QEK_test_" + std::to_string(index), Bytes(32, 0x11)});
+    full.keys.push_back({"REK_test_" + std::to_string(index), Bytes(32, 0x22)});
+    full.keys.push_back({"HSK_test_" + std::to_string(index), Bytes(64, 0x33)});
+  }
+  full.keys.push_back({"WBCloakedSigKey", Bytes(64, 0x44)});
+  const auto compact = toKeyMaterial(full);
+  expect(compact.keyOnly, "toKeyMaterial marks material as keyOnly");
+  expect(compact.keys.size() == 32, "toKeyMaterial produces 32 keys");
+  const auto encodedCompact = encodeMaterial(compact);
+  expect(encodedCompact.size() == 40 + 32 * 104,
+         "key-only material file is exactly 3,368 bytes (no lookup tables)");
+  const auto parsedCompact = parseMaterial(encodedCompact);
+  expect(parsedCompact.keyOnly, "parsed key-only flag preserved");
+  expect(parsedCompact.keys.size() == 32, "parsed key-only key count");
+  expect(parsedCompact.keys.back().name == sessionWrapKeyName &&
+             parsedCompact.keys.back().value == rawKey,
+         "parsed key-only SessionWrapKey matches NIST AES-256 key");
+
+  auto missingWrap = compact;
+  missingWrap.keys.pop_back();
+  expectThrow([&] { encodeMaterial(missingWrap); },
+              "key-only material without SessionWrapKey rejected");
+
+  namespace fs = std::filesystem;
+  const auto dir =
+      fs::temp_directory_path() / ("clarity-mat-test-" + std::to_string(::getpid()));
+  fs::remove_all(dir);
+  fs::create_directories(dir);
+  const auto path = (dir / "clarity.mat").string();
+  saveKeyMaterial(path, full);
+  struct stat st{};
+  expect(::stat(path.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600 &&
+             st.st_size == 40 + 32 * 104,
+         "saveKeyMaterial writes 0600 3,368-byte key-only file");
+  const auto diskLoaded = loadMaterial(path);
+  expect(diskLoaded.keyOnly && diskLoaded.keys.size() == 32 &&
+             diskLoaded.keys.back().value == rawKey,
+         "loadMaterial reads key-only file from disk");
+  expect(::chmod(path.c_str(), 0644) == 0, "chmod 0644 for permission test");
+  expectThrow([&] { loadMaterial(path); },
+              "loadMaterial rejects group/world-accessible material file");
+  fs::remove_all(dir);
 }
 } // namespace
 

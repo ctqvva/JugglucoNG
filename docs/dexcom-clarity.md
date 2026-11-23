@@ -46,36 +46,32 @@ requested in [issue 790](https://github.com/ctqvva/JugglucoNG/issues/790).
 The uploader identifies itself as Dexcom's G7 app. It is unofficial and Dexcom can
 break it at any time.
 
-## The provider library
+## Crypto provider and key material
 
-The request crypto needs Dexcom's application keys and session-key decoder.
-Upstream packages them as `liblibre_receiver_skb.so` (it also serves upstream's
-Libre receiver; NG only uses the exported `jg_clarity_abi` table) and the native code
-`dlopen`s it by name. Without it the screen opens but every upload and sign-in fails
-with "Cannot load Clarity provider".
+The request crypto needs 31 application keys (`QEK_0..9`, `REK_0..9`, `HSK_0..9`,
+`WBCloakedSigKey`) and the 32-byte AES-256 session-wrapping key (`SessionWrapKey`).
+Upstream packages them inside `liblibre_receiver_skb.so` alongside its white-box
+session-key decoder. JugglucoNG replaces the native provider executable entirely
+with portable C++20 and standard `AES-256-CBC`/`HMAC-SHA256` (`engine.cpp`,
+`cipher.cpp`, `block_decoder.cpp`, `material.cpp`), and does not package or
+`dlopen` `liblibre_receiver_skb.so`.
 
-| ABI | size | sha256 |
+In application builds (`CLARITY_JUGGLUCO_LOG`), `Engine` loads only from the
+app-private file `<app data>/clarity-indexed/clarity.mat` (`O_NOFOLLOW`, verified
+regular file owned by the app UID with mode `0600`, inside an `allowBackup="false"`
+app data directory; paths and key contents are never logged). Environment variable
+and system property overrides are compiled out of app builds, and there is no
+`dlopen` fallback. Without `clarity.mat`, sign-in discovery and uploads report
+`Clarity crypto material is not installed`.
+
+| Upstream reference ABI | size | sha256 |
 |---|---:|---|
 | arm64-v8a | 4468408 | `7b946a3012ad278a74c9cccfc7da615582a494ae963439e8c9f0b6931b7fa038` |
 | armeabi-v7a | 4819728 | `b8b2fad33c68e46762a11b6e08fa0e2e38a3f60d5acdae165af0097109877492` |
 
-Source: `lib/<abi>/liblibre_receiver_skb.so` inside upstream's
+Reference source: `lib/<abi>/liblibre_receiver_skb.so` inside upstream's
 `Juggluco-11.5.6.apk` (SourceForge, linked from juggluco.nl/Juggluco/download.html;
 the copy used had sha256 `454bf168e74514f388d83234c3b65f9e3d0baf08924fe698d9c629c7489af4a0`).
-Both builds depend only on `libc.so`.
-
-To use it locally:
-
-```sh
-unzip -j Juggluco-11.5.6.apk 'lib/arm64-v8a/liblibre_receiver_skb.so' -d Common/src/main/jniLibs/arm64-v8a/
-unzip -j Juggluco-11.5.6.apk 'lib/armeabi-v7a/liblibre_receiver_skb.so' -d Common/src/main/jniLibs/armeabi-v7a/
-```
-
-The inventory in `scripts/dist/build-inputs.json` lists both files, so the pinned
-1.2.3-Alpha APK cannot supply them yet and the inventory is in bootstrap state. Ship
-it with the documented procedure in [distribution.md](distribution.md#update-vendor-library--test--release--new-baseline):
-a local release with the files present, then `scripts/update-build-inputs.sh --baseline <version>`.
-Review redistribution of the library first.
 
 ## Build
 
@@ -199,17 +195,16 @@ Only the reference process loaded the provider library.
 
 ### Portable provider material
 
-The portable decoder still needs the provider's lookup tables, affine maps and
-application keys. `ProviderMaterial` serializes all of them, plus the ABI
-output rows, into a versioned little-endian file (`JGCLMAT`, version 1). The
-file is about 193 KiB. It is **not** part of the repository or the APK: it
-contains vendor key material and must not be redistributed.
-
-`tools/clarity-material.cpp` extracts the material from the pinned Juggluco
-11.5.6 ARM64 provider. It is tied to that library's load-relative addresses and
-verifies the ABI and `unwrap` address before reading anything. Build it for
-ARM64 Android with the NDK, run it on a device or emulator with the provider,
-and pull the result:
+By default, `tools/clarity-material.cpp` extracts the white-box tables from the
+pinned Juggluco 11.5.6 ARM64 provider in memory, recovers `SessionWrapKey` via
+`recoverSessionWrapKey` (verifying the 10-round AES-256 key schedule), drops all
+lookup tables, and writes a **3,368-byte key-only file** (`JGCLMAT` v1 with
+`blockSize = 0`, `decodeSize = 0`, and 32 keys: the 31 application keys plus
+`SessionWrapKey`). Pass `--full` to retain the 193 KiB white-box tables for
+table-level testing, or `--strip <in.mat> <out.mat>` to convert an existing full
+file to the 3,368-byte key-only format. The file is **not** part of the
+repository or the APK: it contains vendor key material and must not be
+redistributed.
 
 ```sh
 aarch64-linux-android26-clang++ -std=c++20 -O2 -static-libstdc++ \
@@ -224,33 +219,26 @@ adb shell /data/local/tmp/clarity-material \
 adb pull /data/local/tmp/clarity.mat
 ```
 
-`Engine` uses the material when `CLARITY_MATERIAL_FILE` names it, when an
-Android system property `debug.juggluco.clarity_material` names it, when the
-constructor path ends in `.mat`/`.clarity-material`, or when
-`<app data>/clarity-indexed/clarity.mat` is present in the app. Otherwise it
-keeps the existing `dlopen` behavior. The portable path never loads an
-executable and builds on the host as well as on Android:
+In the Android app (`CLARITY_JUGGLUCO_LOG`), `Engine` loads only from the
+app-private `<app data>/clarity-indexed/clarity.mat` (`0600`, owned by the app
+UID), which can also be installed via `Natives.clarityImport` (passing either a
+key-only or full `.mat` payload writes the 3,368-byte key-only file with mode
+`0600`). In standalone host/NDK test runners (`!CLARITY_JUGGLUCO_LOG`), `Engine`
+also accepts `CLARITY_MATERIAL_FILE`, `debug.juggluco.clarity_material`, or a
+`.mat`/`.clarity-material` constructor path:
 
 ```sh
-# Compare the material file with the real provider's two-block results.
-adb shell /data/local/tmp/native-unwrap-reference \
-  /data/local/tmp/liblibre_receiver_skb.so | \
-  ./material-check clarity.mat
+# Compare the 3,368-byte key-only material file with the real provider's two-block results.
+./material-check clarity.mat < reference-stream.bin
 
-# Exercise Engine itself: all keys, AES/HMAC, key selection and verify.
+# Exercise Engine and Provider protocol round-trips on host or Android.
 ./material-engine-check clarity.mat reference-stream.bin
 ```
 
 The committed checks are `python3 tools/test-clarity-material.py` (file format,
-rejection cases and BGE white-box AES-256 key recovery) and
+key-only stripping, rejection cases and BGE white-box AES-256 key recovery) and
 `python3 tools/test-clarity-native.py` (outbox and storage). The
 reference-stream checks are local because they need the vendor library.
-
-The portable path removes the executable dependency, not the proprietary
-material. An APK can run it by placing `clarity.mat` in
-`<app data>/clarity-indexed/clarity.mat` (or setting the debug property); the
-build still packages the provider for the default path until the material
-question below is resolved.
 
 ### AES-256 reduction and BGE key recovery
 
@@ -294,14 +282,39 @@ two-block `unwrap` operation with ABI output decoding reduces to standard,
 unpadded `AES-256-CBC` decryption (`aes256cbc(K, iv, cipher, false)`).
 
 When `Engine` loads a `ProviderMaterial` whose keys include `SessionWrapKey`
-(without white-box tables), it unwraps session keys directly via `aes256cbc`.
-When loaded from a full `BlockMaterial`, `Engine` recovers the AES-256 key via
-`recoverSessionWrapKey` and verifies that `aes256cbc` agrees with the 14-round
-decoder on every import. Both the table-backed `Engine` and the key-only
-`Engine` matched **20,482 of 20,482** two-block reference outputs from the
-upstream ARM64 provider. Because the recovered 32-byte session-wrap key and the
-31 application keys are vendor key material, they are never committed to source
-control.
+(the 3,368-byte key-only format without white-box tables), it unwraps session
+keys directly via `aes256cbc`. When loaded from a full `BlockMaterial`, `Engine`
+recovers the AES-256 key via `recoverSessionWrapKey` and verifies that
+`aes256cbc` agrees with the 14-round decoder on every import. Both the
+3,368-byte key-only `Engine` and the table-backed `Engine` matched
+**20,482 of 20,482** two-block reference outputs from the upstream ARM64
+provider.
+
+Independent inspection of the upstream `armeabi-v7a` library
+(`lib/armeabi-v7a/liblibre_receiver_skb.so`, `jg_clarity_abi` at `0x2e40000`,
+Thumb `unwrap` at `0x2602c8d`) confirmed that its 31 application keys
+(3,224 bytes at ABI offset `4416`) are byte-for-byte identical to `arm64-v8a`.
+Its white-box `context[288]` and `decode[16][256]` tables are a distinct
+white-box compilation, yet executing the ARM32 native `unwrap` and applying its
+`decode` rows matched **20,482 of 20,482** reference two-block outputs and
+reduced to the exact same 32-byte `SessionWrapKey`.
+
+### Role of the 32 keys in the wire protocol
+
+| Key family | Count & size | Wire protocol usage |
+|---|---|---|
+| `WBCloakedSigKey` | 1 × 64 B (`HMAC-SHA256`) | Derives `DeviceId = base64url(trunc16(HMAC(WBCloakedSigKey, SoftwareId + HardwareId)))` sent in `Certificate/UserCert` and `updateSessionKeys` |
+| `QEK_0..9` | 10 × 32 B (`AES-256-CBC`) | Encrypts outgoing `SignedMessage` bootstrap requests (`listOfUrls`, `Certificate/UserCert`, `updateSessionKeys`); client chooses one ID per request |
+| `REK_0..9` | 10 × 32 B (`AES-256-CBC`) | Decrypts incoming `SignedMessage` bootstrap responses; server selects from the 10-key pool for `SoftwareId` |
+| `HSK_0..9` | 10 × 64 B (`HMAC-SHA256`) | Signs outgoing bootstrap requests and verifies incoming bootstrap responses (16-byte truncated tag); server selects from the 10-key pool on responses |
+| `SessionWrapKey` | 1 × 32 B (`AES-256-CBC`) | Decrypts the per-batch 32-byte `EncKey` and 32-byte `SigKey` returned by `updateSessionKeys` under `EncKey.IV`; `postBulkData` then uses only those ephemeral session keys (`PRIVATE`/`Private`) |
+
+Because the server selects from the 10-key `REK_` and `HSK_` rotation pools when
+answering bootstrap requests for `SoftwareId = "0300wAECCzACDwAA0000"`, all
+`REK_0..9`, `HSK_0..9`, `WBCloakedSigKey`, `SessionWrapKey`, and at least one
+`QEK_` key (all 10 are retained for rotation parity) are active in the G7
+protocol. Because these 32 keys are vendor key material, they are never
+committed to source control.
 
 ### Authorized Clarity upload registration
 

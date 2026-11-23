@@ -21,6 +21,7 @@ struct Status {
 #include "auth.hpp"
 #include "client.hpp"
 #include "certificate.hpp"
+#include "material.hpp"
 #include "net/libreview/numcategories.hpp"
 #include "nums/numdata.hpp"
 #include "outbox.hpp"
@@ -662,6 +663,20 @@ class Worker {
         start();
         std::lock_guard network(networkMutex);
         try {
+            if (body.size() >= 8 && std::memcmp(body.data(), "JGCLMAT\0", 8) == 0) {
+                auto material = parseMaterial(
+                    {reinterpret_cast<const uint8_t *>(body.data()), body.size()});
+                std::lock_guard lock(mutex);
+                if (root.empty() || !thread.joinable())
+                    throw Error("Clarity storage is unavailable");
+                saveKeyMaterial(root + "/clarity.mat", material);
+                Provider check;
+                (void)check.identity();
+                diagnostic("crypto material imported");
+                if (config.is_null())
+                    status = "Crypto material ready; sign in to Dexcom";
+                return "";
+            }
             auto c = Json::parse(body);
             validateConfig(c);
             std::lock_guard lock(mutex);
@@ -897,7 +912,7 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(clarityImport)(JNIEnv *env, jclass
     return clarityString(
         env, "import account", "Cannot import Clarity account", [&]() -> std::string {
 #ifdef JUGGLUCO_CLARITY
-            if (!data || env->GetArrayLength(data) > 128 * 1024)
+            if (!data || env->GetArrayLength(data) > 256 * 1024)
                 throw clarity::Error("Invalid setup file size");
             clarity::Bytes b(env->GetArrayLength(data));
             env->GetByteArrayRegion(data, 0, b.size(), reinterpret_cast<jbyte *>(b.data()));

@@ -166,15 +166,10 @@ bool checkProtocolRoundTrip(const char *materialPath,
     return false;
   }
 
-  // Client unwraps with the full white-box table material; server unwraps with
-  // the key-only BGE-recovered AES-256 session-wrap key (zero white-box tables).
-  const auto wrapKey = recoverSessionWrapKey(material.block);
-  if (!wrapKey)
-    return false;
-  auto serverKeyOnly = std::make_shared<ProviderMaterial>();
-  serverKeyOnly->keys = material.keys;
-  serverKeyOnly->keys.push_back(
-      {std::string(sessionWrapKeyName), Bytes(wrapKey->begin(), wrapKey->end())});
+  // Client unwraps with argv[1]; server unwraps with compact key-only material
+  // (zero white-box tables).
+  const auto serverKeyOnly =
+      std::make_shared<ProviderMaterial>(toKeyMaterial(material));
   Provider keyOnlyServer(serverKeyOnly);
 
   const std::string account = "11111111-2222-4333-8444-555555555555";
@@ -224,11 +219,8 @@ int main(int argc, char **argv) {
   }
   try {
     const auto material = loadMaterial(argv[1]);
-    const auto wrapKey = recoverSessionWrapKey(material.block);
-    if (!wrapKey) {
-      std::fprintf(stderr, "BGE AES-256 session-wrap key recovery failed\n");
-      return 1;
-    }
+    const auto keyOnly =
+        std::make_shared<ProviderMaterial>(toKeyMaterial(material));
     auto shared = std::make_shared<ProviderMaterial>(material);
     Engine engine(shared);
     if (!checkKeys(*shared, engine) || !checkChoices(*shared, engine))
@@ -236,13 +228,11 @@ int main(int argc, char **argv) {
     std::optional<TestCase> sample;
     if (argc == 3 && !checkReference(engine, argv[2], &sample))
       return 1;
-    auto keyOnly = std::make_shared<ProviderMaterial>();
-    keyOnly->keys = material.keys;
-    keyOnly->keys.push_back(
-        {std::string(sessionWrapKeyName), Bytes(wrapKey->begin(), wrapKey->end())});
-    Engine keyOnlyEngine(keyOnly);
-    if (argc == 3 && !checkReference(keyOnlyEngine, argv[2]))
-      return 1;
+    if (!material.keyOnly) {
+      Engine keyOnlyEngine(keyOnly);
+      if (argc == 3 && !checkReference(keyOnlyEngine, argv[2]))
+        return 1;
+    }
     if (sample && !checkProtocolRoundTrip(argv[1], material, *sample))
       return 1;
     std::printf("portable Engine key table, AES/HMAC and key selection passed\n");

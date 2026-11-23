@@ -156,17 +156,42 @@ struct Reference {
 } // namespace
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
-    std::fprintf(stderr, "usage: %s <provider.so> <material.mat>\n", argv[0]);
+  bool full = false;
+  bool strip = false;
+  int argi = 1;
+  if (argi < argc && std::string_view(argv[argi]) == "--full") {
+    full = true;
+    ++argi;
+  } else if (argi < argc && std::string_view(argv[argi]) == "--strip") {
+    strip = true;
+    ++argi;
+  }
+  if (argc - argi != 2) {
+    std::fprintf(
+        stderr,
+        "usage: %s [--full] <provider.so> <material.mat>\n"
+        "       %s --strip <input.mat> <key-only.mat>\n",
+        argv[0], argv[0]);
     return 2;
   }
   try {
-    Reference reference(argv[1]);
+    if (strip) {
+      const auto loaded = loadMaterial(argv[argi]);
+      const auto compact = toKeyMaterial(loaded);
+      saveMaterial(argv[argi + 1], compact);
+      std::printf("wrote %zu keys and %zu bytes (key-only) to %s\n",
+                  compact.keys.size(), encodeMaterial(compact).size(),
+                  argv[argi + 1]);
+      return 0;
+    }
+    Reference reference(argv[argi]);
     ProviderMaterial material;
     reference.fill(material);
-    saveMaterial(argv[2], material);
-    std::printf("wrote %zu keys and %zu bytes to %s\n", material.keys.size(),
-                encodeMaterial(material).size(), argv[2]);
+    const auto out = full ? material : toKeyMaterial(material);
+    saveMaterial(argv[argi + 1], out);
+    std::printf("wrote %zu keys and %zu bytes (%s) to %s\n", out.keys.size(),
+                encodeMaterial(out).size(), full ? "full" : "key-only",
+                argv[argi + 1]);
     return 0;
   } catch (const std::exception &error) {
     std::fprintf(stderr, "%s\n", error.what());
