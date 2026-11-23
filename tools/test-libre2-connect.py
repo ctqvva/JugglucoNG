@@ -36,7 +36,7 @@ base_methods = '\n'.join(method(base, signature) for signature in [
     'private synchronized void markConnectRunnableStarted(', 'private synchronized void clearPendingConnect(',
     'public final synchronized void closeGattTransport(', 'public synchronized void disconnect(',
     'public synchronized void setPause(', 'public void onConnectionStateChange(',
-    'public void close()', 'protected boolean useAutoConnect(',
+    'public void close()', 'protected void onClosingGattTransport(', 'protected boolean useAutoConnect(',
     'protected void onConnectionAttemptTimeout(',
     'public final boolean hasLocallyConnectedGatt(',
     'void setConStatus(int status)', 'void setConStatus(int status, boolean',
@@ -56,7 +56,7 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
     'private Runnable forCurrentGatt(', 'private void runPendingBleStep(', 'private void endBLEHandler(',
     'private void streamPacketReceived(', 'private synchronized void streamSilent(',
-    'private void logLinkEnd(', 'private void holdRelink(',
+    'private void logLinkEnd(', 'private void holdRelink(', 'protected void onClosingGattTransport(',
 ])
 
 # Fields and all lifecycle/entry-point methods above come from production sources.
@@ -393,6 +393,16 @@ java += r'''
         Applic.scheduler.advance(RELINK_DELAY_MILLIS-501);
         check(cb.mActiveBluetoothDevice.calls==1,"manual reconnect skipped the relink delay");
         Applic.scheduler.advance(1);check(cb.mActiveBluetoothDevice.calls==2,"manual reconnect never connected");
+        // A failed sensor removal pauses, closes only the transport, resumes and connects at once.
+        cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);
+        cb.setPause(true);cb.closeGattTransport();check(current.closed==1,"transport not closed");
+        cb.setPause(false);cb.connectDevice(0);
+        Applic.scheduler.advance(RELINK_DELAY_MILLIS-1);
+        check(cb.mActiveBluetoothDevice.calls==1,"direct transport close skipped the relink delay");
+        Applic.scheduler.advance(1);check(cb.mActiveBluetoothDevice.calls==2,"direct transport close never reconnected");
+        // A connect attempt that never came up has no link to wait for.
+        cb=fresh();cb.setPause(true);cb.closeGattTransport();cb.setPause(false);cb.connectDevice(0);
+        Applic.scheduler.advance(0);check(cb.mActiveBluetoothDevice.calls==2,"unconnected transport close waited");
 
         // A handshake that stalls after CONNECTED is bounded by the same deadline.
         cb=fresh();current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);

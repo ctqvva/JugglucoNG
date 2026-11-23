@@ -86,14 +86,20 @@ public class Libre2GattCallback extends SuperGattCallback {
 	// sensor, which never saw a disconnect, ignores the new login: in a tester trace 69 of 69
 	// such reconnects got no answer to the challenge request, until the link finally timed out.
 	// Waiting lets the link drop so the sensor starts a fresh session. The earliest reconnect
-	// time outlives the closed GATT, so every path that closes a link that was up (our own
-	// disconnect, a pause, close()) holds the next connectGatt back, whatever delay it asks for.
+	// time outlives the closed GATT, so every path that closes a link that was up holds the
+	// next connectGatt back, whatever delay it asks for.
 	private static final long RELINK_DELAY_MILLIS = 5_000L;
 	private boolean linkWasUp;
 	private long relinkNotBefore = -1L;
 
 	private void holdRelink() {
 		if (linkWasUp) relinkNotBefore = SystemClock.elapsedRealtime() + RELINK_DELAY_MILLIS;
+	}
+
+	// close() and the callers that close the transport directly both get here.
+	@Override
+	protected void onClosingGattTransport() {
+		holdRelink();
 	}
 
 	private void streamPacketReceived() {
@@ -940,7 +946,6 @@ private void endBLEHandler() {
          disablenotification(gatt,BLELogincharacteristic);
          disablenotification(gatt, CompositeRawDatacharacteristic) ;
          }
-		holdRelink();
 		super.close();
 		resetConnectionState();
 		}

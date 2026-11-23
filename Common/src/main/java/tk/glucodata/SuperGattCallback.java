@@ -1513,6 +1513,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         closeGattTransport();
     }
 
+    /** A GATT is about to be closed, whichever entry point closes it. */
+    protected void onClosingGattTransport() { }
+
     /** Close only the current Android GATT transport, without invoking a
      * managed driver's terminal close override. */
     public final synchronized void closeGattTransport() {
@@ -1528,6 +1531,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         var tmpgatt = mBluetoothGatt;
         mBluetoothGatt = null;
         if (tmpgatt != null) {
+            onClosingGattTransport();
             if (locallyConnectedGatt == tmpgatt) {
                 locallyConnectedGatt = null;
                 WearSensorClaim.onLocalGattDisconnected(SerialNumber);
