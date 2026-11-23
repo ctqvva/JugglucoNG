@@ -26,11 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,6 +82,7 @@ import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.SettingsSwitchItem
+import tk.glucodata.ui.symbols.Symbols
 import tk.glucodata.ui.util.findActivity
 
 private const val LOG_ID = "Clarity"
@@ -167,7 +163,7 @@ fun ClaritySettingsScreen(navController: NavController) {
                 subtitle = stringResource(R.string.clarity_active_desc),
                 checked = s.enabled,
                 onCheckedChange = { configure(it, s.libre3History, s.since) },
-                icon = Icons.Default.CloudUpload,
+                icon = Symbols.CloudUploadFilled,
                 enabled = signedIn || s.enabled,
             )
 
@@ -182,7 +178,7 @@ fun ClaritySettingsScreen(navController: NavController) {
                 SettingsItem(
                     title = stringResource(R.string.clarity_change_start),
                     subtitle = stringResource(R.string.clarity_start_date, dateFormat.format(Date(s.since * 1000L))),
-                    icon = Icons.Default.CalendarMonth,
+                    icon = Symbols.DateRangeFilled,
                     position = CardPosition.TOP,
                     onClick = { pickingDate = true },
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.clarity_change_start),
@@ -192,13 +188,13 @@ fun ClaritySettingsScreen(navController: NavController) {
                     subtitle = stringResource(R.string.clarity_use_history_desc),
                     checked = s.libre3History,
                     onCheckedChange = { configure(s.enabled, it, s.since) },
-                    icon = Icons.Default.History,
+                    icon = Symbols.HistoryFilled,
                     position = CardPosition.MIDDLE,
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.clarity_use_history),
                 )
                 SettingsItem(
                     title = stringResource(R.string.sendnow),
-                    icon = Icons.AutoMirrored.Filled.Send,
+                    icon = Symbols.SendFilled,
                     position = CardPosition.BOTTOM,
                     onClick = {
                         scope.launch(Dispatchers.IO) { Clarity.wake() }
@@ -430,16 +426,18 @@ fun ClarityLoginScreen(navController: NavController, country: String, resume: Bo
         busy = true
         url = null
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                try {
+            try {
+                val result = withContext(Dispatchers.IO) {
                     Clarity.finishLogin(callback) ?: context.getString(R.string.clarity_login_complete_error)
-                } finally {
-                    clarityLoginFinishing.set(false)
                 }
+                busy = false
+                if (result.isEmpty()) navController.popBackStack()
+                else error = context.getString(R.string.clarity_login_retry_error, result)
+            } finally {
+                clarityLoginFinishing.set(false)
             }
-            busy = false
-            if (result.isEmpty()) navController.popBackStack()
-            else error = context.getString(R.string.clarity_login_retry_error, result)
+        }.invokeOnCompletion {
+            clarityLoginFinishing.set(false)
         }
     }
 

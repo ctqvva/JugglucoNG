@@ -681,7 +681,7 @@ fun ExpressiveSettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.clarity_title),
                         subtitle = stringResource(R.string.clarity_desc),
-                        icon = Icons.Default.CloudUpload,
+                        icon = Symbols.CloudUploadFilled,
                         iconTint = sharingColor,
                         position = CardPosition.MIDDLE,
                         onClick = { navController.navigate("settings/clarity") }

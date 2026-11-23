@@ -630,7 +630,7 @@ internal object SettingsSearchIndex {
         SettingsSearchEntry(R.string.clarity_title, SHARING, Symbols.CloudUploadFilled, T, route("settings/clarity"),
             keywords = listOf(R.string.clarity_desc, R.string.clarity_send_enabled), terms = listOf("Clarity", "Dexcom", "clinic"),
             condition = SettingsSearchCondition.CLARITY),
-        SettingsSearchEntry(R.string.clarity_change_start, CLARITY, Symbols.CalendarMonthFilled, T, route("settings/clarity"),
+        SettingsSearchEntry(R.string.clarity_change_start, CLARITY, Symbols.DateRangeFilled, T, route("settings/clarity"),
             keywords = listOf(R.string.clarity_change_start_title), condition = SettingsSearchCondition.CLARITY,
             anchor = row(R.string.clarity_change_start)),
         SettingsSearchEntry(R.string.clarity_use_history, CLARITY, Symbols.HistoryFilled, T, route("settings/clarity"),

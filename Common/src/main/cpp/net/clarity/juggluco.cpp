@@ -58,15 +58,27 @@ class Worker {
     Json config, loginAttempt;
     GlucoseProgress glucoseProgress;
     using Options = Tings::ClaritySettingsData;
+    struct SensorUsage {
+        SensorGlucoseData *sensor;
+        explicit SensorUsage(SensorGlucoseData *s) : sensor(s) {
+            if (sensor)
+                sensor->incUsage();
+        }
+        ~SensorUsage() {
+            if (sensor)
+                sensor->decUsage();
+        }
+    };
     // The value every other export sends for a reading `snapshot` collected.
     // Sensor storage only grows, so the position still names that record; the
     // time check catches anything else, which then keeps the stored value.
     static int exportedValue(const Reading &v) {
         if (!sensors || v.source < 0 || v.position < 0)
             return 0;
-        const auto *s = sensors->getSensorData(v.source);
+        auto *s = sensors->getSensorData(v.source);
         if (!s)
             return 0;
+        SensorUsage usage{s};
         if (v.history) {
             // History records have no raw counterpart (rawCurrent 0) and no resolved
             // primary, as in LibreView's history (mkrealhistory).
@@ -91,6 +103,7 @@ class Worker {
                 auto *s = sensors->getSensorData(i);
                 if (!s)
                     continue;
+                SensorUsage usage{s};
                 std::string name(s->sensorname()->data(), s->sensorname()->size());
                 const auto start = s->getstarttime();
                 const auto wear = s->getweardurationSEC();
