@@ -220,8 +220,10 @@ char * writev3entry(char *outin,const ScanData *val, const sensorname_t *sensorn
 	const std::string_view &uploadid) {
 	char *outptr=outin;
 	addar(outptr,R"({"app":"Juggluco","device":")");
-	memcpy(outptr,sensorname->data(),sensorname->size());
-	outptr+=sensorname->size();
+	// A name shorter than the field is NUL-padded; the padding is not part of the JSON.
+	const size_t namelen=strnlen(sensorname->data(),sensorname->size());
+	memcpy(outptr,sensorname->data(),namelen);
+	outptr+=namelen;
 	addar(outptr,R"(","date":)");
 	const time_t tim=val->gettime();
 	if(auto [ptr,ec]=std::to_chars(outptr,outptr+12,tim);ec == std::errc()) {

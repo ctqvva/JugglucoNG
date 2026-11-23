@@ -171,9 +171,12 @@ int main(int argc, char **argv) {
     assert(!setSensorViewMode(javaEnv, nullptr, otherId, 0) && mirror.info.viewMode == 3);
     javaEnv->DeleteLocalRef(otherId);
     javaEnv->DeleteLocalRef(mirrorId);
-    sensorname_t alias; memcpy(alias.data(), "0683013AQT9", 11);
-    for (int unit : {0, 1}) for (const char *id : {"SIBI:0683013AQT9", "LEGACY:0683013AQT9"}) {
+    sensorname_t alias;
+    for (int unit : {0, 1}) for (const char *id : {"SIBI:0683013AQT9", "LEGACY:0683013AQT9", "0D1234ABC"}) {
         SensorGlucoseData sensor{id};
+        // A managed Libre 3 shell's short name is its NUL-padded nine-character serial.
+        alias.fill(0); const char *shortname = strchr(id, ':') ? "0683013AQT9" : id;
+        memcpy(alias.data(), shortname, strlen(shortname));
         sensor.polls[0] = {1760000000, 0, 110, 0, 0};
         auto series = span<const ScanData>(sensor.polls, 1);
         javaEnv->SetStaticIntField(app, unitField, unit);
@@ -223,13 +226,15 @@ int main(int argc, char **argv) {
             sys.stderr.write(result.stderr)
             result.check_returncode()
         count = 0
+        devices = {"0683013AQT9": 0, "0D1234ABC": 0}
         for line in result.stdout.splitlines():
             expected, payload = line.split("\t", 1)
             document = json.loads(payload)
             assert document["sgv"] == int(expected), document
-            assert document["device"] == "0683013AQT9", document
+            assert document["device"] in devices, document
+            devices[document["device"]] += 1
             count += 1
-        assert count == 640, count
+        assert devices == {"0683013AQT9": 640, "0D1234ABC": 320}, devices
         print(f"Validated {count} serialized v1/v3 payloads through real JNI and the Java calibration bridge")
 
 

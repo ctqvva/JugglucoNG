@@ -56,6 +56,7 @@ def main():
             "  static std::array<char, 12> padshortname(",
             "  [[nodiscard]] const sensorname_t *shortsensorname() const",
             "  [[nodiscard]] std::string_view showsensorname() const",
+            "  const std::string_view othershortsensorname() const",
         ))).replace("@FIXEDVIEW@", function(
             (cpp / "net/watchserver/common.hpp").read_text(), "inline std::string_view fixedsensorview("))
     with tempfile.TemporaryDirectory(prefix="juggluco-libreview-libre3-") as temporary:
@@ -88,16 +89,18 @@ NAMES_TEST = r"""
 #include <cstdio>
 #include <string>
 #include <string_view>
-struct Info { int family = 0; };
+struct Info { int family = 0; int siToken = 0; };
 struct SensorGlucoseData {
   std::string sensordir;
   Info info;
   typedef std::array<char, 11> sensorname_t;
   std::array<char, 12> paddedshortname;
   SensorGlucoseData(std::string dir, int family)
-      : sensordir(std::move(dir)), info{family}, paddedshortname(padshortname(sensordir)) {}
+      : sensordir(std::move(dir)), info{family, 0}, paddedshortname(padshortname(sensordir)) {}
   const Info *getinfo() const { return &info; }
   bool isSibionics() const { return false; }
+  bool isDexcom() const { return false; }
+  int siSubtype() const { return 0; }
   bool isLibre3() const { return info.family == 3; }
   bool isAiDex() const { return false; }
   bool isAir() const { return false; }
@@ -111,9 +114,11 @@ int main() {
   assert(fixedsensorview(managed.shortsensorname()) == "0D1234ABC");
   assert(std::string(managed.shortsensorname()->data()) == "0D1234ABC");
   assert(managed.showsensorname() == "0D1234ABC");
+  assert(std::string(managed.othershortsensorname().data()) == "0D1234ABC");
   // Anything else keeps its old name, so already-sent ids do not change.
   const SensorGlucoseData other("/data/files/sensors/0D1234ABC", 0);
   assert(std::string(other.shortsensorname()->data(), 11) == "s/0D1234ABC");
+  assert(other.othershortsensorname() == "s/0D1234ABC");
   const SensorGlucoseData legacy("/data/files/sensors/E07A-XX0D1234ABC", 3);
   assert(std::string(legacy.shortsensorname()->data(), 11) == "XX0D1234ABC");
   assert(legacy.showsensorname() == "0D1234ABC");

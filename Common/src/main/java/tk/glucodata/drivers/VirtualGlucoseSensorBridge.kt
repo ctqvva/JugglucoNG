@@ -68,20 +68,20 @@ object VirtualGlucoseSensorBridge {
         logLabel: String,
         nativeFamily: ManagedSensorUiFamily,
         primaryIsResolved: Boolean = true,
-    ): Int = synchronized(mirrorLock) {
-        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved,
+    ): VirtualSensorNativeMirror.Result = synchronized(mirrorLock) {
+        val result = runCatching { nativeMirror.mirrorCounted(sensorSerial, readings, logLabel, primaryIsResolved,
             windowMinutes = if (nativeFamily == ManagedSensorUiFamily.LIBRE3) 32 * 24 * 60 else VirtualSensorNativeMirror.WINDOW_MINUTES,
             allowRebase = nativeFamily != ManagedSensorUiFamily.LIBRE3) }
             .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
-            .getOrDefault(0)
+            .getOrDefault(VirtualSensorNativeMirror.Result(0, readings.size))
         // Stamp only once a shell exists: the stamp call would otherwise create one.
         // Without it the mirror is Libre 2 by elimination to anything reading the
         // native record, including the xDrip source name and a Clone recipient.
-        if (stored > 0 && nativeFamily != ManagedSensorUiFamily.GENERIC) {
+        if (result.stored > 0 && nativeFamily != ManagedSensorUiFamily.GENERIC) {
             runCatching { Natives.setSensorManagedFamily(sensorSerial, nativeFamily.nativeCode) }
                 .onFailure { Log.stack(TAG, "mirrorIntoNative(setSensorManagedFamily)", it) }
         }
-        stored
+        result
     }
 
     /**
@@ -95,11 +95,21 @@ object VirtualGlucoseSensorBridge {
         readings: List<Reading>,
         logLabel: String,
         nativeFamily: ManagedSensorUiFamily,
-    ): Int {
-        if (sensorSerial.isBlank()) return 0
+    ): Int = mirrorToNativeCounted(sensorSerial, readings, logLabel, nativeFamily).stored
+
+    /**
+     * [mirrorToNative] for a caller whose only copy is the native record (a watch has no Room):
+     * also says whether every reading the record can hold was accepted.
+     */
+    internal fun mirrorToNativeCounted(
+        sensorSerial: String,
+        readings: List<Reading>,
+        logLabel: String,
+        nativeFamily: ManagedSensorUiFamily,
+    ): VirtualSensorNativeMirror.Result {
         val nowMs = System.currentTimeMillis()
         val valid = readings.filter { isUsableHistoryReading(it, nowMs) }
-        if (valid.isEmpty()) return 0
+        if (sensorSerial.isBlank() || valid.isEmpty()) return VirtualSensorNativeMirror.Result(0, 0)
         return mirrorIntoNative(sensorSerial, valid, logLabel, nativeFamily, primaryIsResolved = false)
     }
 

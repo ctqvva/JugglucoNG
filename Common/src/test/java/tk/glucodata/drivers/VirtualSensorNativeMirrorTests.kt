@@ -20,7 +20,7 @@ class VirtualSensorNativeMirrorTests {
     )
 
     /** A stand-in for the native shell: one start second, and whatever was written. */
-    private class FakeNative(var startSeconds: Long = 0L) {
+    private class FakeNative(var startSeconds: Long = 0L, val refuse: Int = 0, val opens: Boolean = true) {
         val batches = mutableListOf<Batch>()
         val opened = mutableListOf<Pair<Long, Int>>()
         val rebased = mutableListOf<Long>()
@@ -32,7 +32,7 @@ class VirtualSensorNativeMirrorTests {
         openShell = { _, startSeconds, minimumRecords ->
             native.opened += startSeconds to minimumRecords
             // Native only ever lowers an existing start.
-            if (native.startSeconds == 0L || startSeconds < native.startSeconds) {
+            if (native.opens && (native.startSeconds == 0L || startSeconds < native.startSeconds)) {
                 native.startSeconds = startSeconds
             }
         },
@@ -42,7 +42,7 @@ class VirtualSensorNativeMirrorTests {
         },
         writeBatch = { timestampsSec, glucose, raws, sensorSerial, primaryIsResolved ->
             native.batches += Batch(timestampsSec, glucose, raws, sensorSerial, primaryIsResolved)
-            timestampsSec.size
+            timestampsSec.size - native.refuse
         },
     )
 
@@ -278,6 +278,18 @@ class VirtualSensorNativeMirrorTests {
         assertEquals(32 * 24 * 60, native.opened.single().second)
         assertEquals(2, native.batches.size)
         assertFalse(native.batches.last().primaryIsResolved)
+    }
+
+    @Test fun onlyARefusedOrUnopenedWriteIsIncomplete() {
+        val inside = listOf(reading(now, 120f), reading(now + 60L, 121f))
+        val before = reading(now - 3600L, 90f)
+        val start = now - 60L
+        val mixed = mirrorOver(FakeNative(start)).mirrorCounted(serial, inside + before, "Libre3")
+        assertEquals(VirtualSensorNativeMirror.Result(2, 2), mixed)
+        assertTrue(mixed.complete)
+        assertTrue(mirrorOver(FakeNative(start)).mirrorCounted(serial, listOf(before), "Libre3").complete)
+        assertFalse(mirrorOver(FakeNative(start, refuse = 1)).mirrorCounted(serial, inside, "Libre3").complete)
+        assertFalse(mirrorOver(FakeNative(opens = false)).mirrorCounted(serial, inside, "Libre3").complete)
     }
 
     @Test fun smallerLibre3PreviewMappingIsNotTreatedAsThirtyTwoDaysOrErased() {

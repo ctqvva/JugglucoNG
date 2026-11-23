@@ -1232,6 +1232,8 @@ public:
     //    return  hasbluetooth();
   }
   const std::string_view othershortsensorname() const {
+    if (isManagedLibre3())
+      return sensid();
     if (isSibionics()) {
       if (siSubtype() != 3) {
         const char *name = (char *)&getinfo()->siToken;

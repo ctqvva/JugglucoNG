@@ -203,7 +203,7 @@ class Libre3ReviewRegressionTest {
 
     @Test fun watchWithoutRoomStoresBackfillInTheNativeRecordAndSettles() {
         // Wear registers no Room bridge; the native record is the watch's history.
-        HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }.set(HistoryRepositoryAccess, null)
+        withoutRoom()
         val base = (System.currentTimeMillis() / 60_000L - 30L) * 60_000L
         val minute = reading(base)
         minutes().add(minute)
@@ -224,6 +224,81 @@ class Libre3ReviewRegressionTest {
         invoke("flushBackfill")
         assertTrue(history().isEmpty())
         assertEquals(before, Libre3ReviewNatives.stockWrites)
+    }
+
+    private fun withoutRoom() =
+        HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }.set(HistoryRepositoryAccess, null)
+
+    @Test fun watchKeepsReadingsAndProgressUntilEveryNativeWriteIsAccepted() {
+        withoutRoom()
+        val base = (System.currentTimeMillis() / 60_000L - 60L) * 60_000L + 345L
+        val hole = base + 20 * 60_000L
+        minutes().add(reading(base))
+        minutes().add(reading(base + 60_000L))
+        history().add(VirtualGlucoseSensorBridge.Reading(hole, 130f))
+        set("lastLifeCount", 101)
+        set("lastHistoricLifeCount", 100)
+        // Only the five-minute point is refused, then one of the two minutes.
+        for (refused in listOf(hole / 1000L, base / 1000L + 60L)) {
+            Libre3ReviewNatives.refusedSeconds = setOf(refused)
+            invoke("flushBackfill")
+            assertEquals(0, Libre3Persistence.getLastLifeCount(context, sensor))
+            assertEquals(0, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+            assertEquals(2, minutes().size)
+            assertEquals(1, history().size)
+        }
+        Libre3ReviewNatives.refusedSeconds = emptySet()
+        invoke("flushBackfill")
+        assertTrue(minutes().isEmpty() && history().isEmpty())
+        assertEquals(setOf(base / 1000L, base / 1000L + 60L, hole / 1000L), Libre3ReviewNatives.nativeSeconds)
+        assertEquals(101, Libre3Persistence.getLastLifeCount(context, sensor))
+        assertEquals(100, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+    }
+
+    @Test fun watchSettlesAReadingItsNativeWindowCanNeverHold() {
+        withoutRoom()
+        // The fixture's window opens one day ago; a retry could not store this either.
+        minutes().add(reading(System.currentTimeMillis() - 2 * 86_400_000L))
+        set("lastLifeCount", 101)
+        invoke("flushBackfill")
+        assertTrue(minutes().isEmpty())
+        assertEquals(101, Libre3Persistence.getLastLifeCount(context, sensor))
+    }
+
+    @Test fun watchReplacesAFillInOnlyOnceItsMinuteIsStored() {
+        withoutRoom()
+        val at = (System.currentTimeMillis() / 60_000L - 60L) * 60_000L + 345L
+        history().add(VirtualGlucoseSensorBridge.Reading(at, 130f))
+        invoke("flushBackfill")
+        @Suppress("UNCHECKED_CAST") val fillers = get("historyFillers") as Set<Long>
+        assertEquals(setOf(at), fillers)
+        minutes().add(reading(at))
+        Libre3ReviewNatives.refusedSeconds = setOf(at / 1000L)
+        invoke("flushBackfill")
+        assertEquals(setOf(at), fillers)
+        Libre3ReviewNatives.refusedSeconds = emptySet()
+        invoke("flushBackfill")
+        assertTrue(fillers.isEmpty() && minutes().isEmpty())
+        assertEquals(setOf(at / 1000L), Libre3ReviewNatives.nativeSeconds)
+    }
+
+    @Test fun failingStorageRetriesWithAGrowingDelay() {
+        withoutRoom()
+        val at = System.currentTimeMillis() - 60_000L
+        Libre3ReviewNatives.refusedSeconds = setOf(at / 1000L)
+        minutes().add(reading(at))
+        val runnable = get("flushRunnable") as Runnable
+        val handler = get("liveHandler") as Handler
+        val delays = List(10) {
+            invoke("flushBackfill")
+            assertTrue(handler.hasCallbacks(runnable))
+            org.robolectric.Shadows.shadowOf(handler.looper).nextScheduledTaskTime.toMillis() -
+                android.os.SystemClock.uptimeMillis()
+        }
+        assertEquals(2_000L, delays.first())
+        assertEquals(4_000L, delays[1])
+        assertEquals(300_000L, delays.last())
+        assertEquals(1, minutes().size)
     }
 
     @Test fun failedTimestampLookupDoesNotOverwriteNativeMinuteSlots() {
@@ -621,11 +696,12 @@ class Libre3ReviewNatives {
         var stockWrites = 0
         var resolvedWrites = 0
         val nativeSeconds = sortedSetOf<Long>()
+        var refusedSeconds = emptySet<Long>()
         var activeNames = emptyArray<String>()
         var selectedName: String? = null
         val finishedNames = mutableSetOf<String>()
         fun reset() {
-            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
+            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); refusedSeconds = emptySet(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
             legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
         }
@@ -669,7 +745,8 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun sensorFinishedById(name: String): Boolean = name.removePrefix("E07A-") in finishedNames
         @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(ptr: Long): Long = System.currentTimeMillis() - 86_400_000L
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
-            stockWrites += t.size; nativeSeconds.addAll(t.toList()); return t.size
+            val accepted = t.filterNot { it in refusedSeconds }
+            stockWrites += accepted.size; nativeSeconds.addAll(accepted); return accepted.size
         }
         @JvmStatic @Implementation fun getGlucoseHistoryForSensor(serial: String, startSec: Long): LongArray? =
             nativeSeconds.filter { it > startSec }.flatMap { listOf(it, 1230L, 0L) }.takeIf { it.isNotEmpty() }?.toLongArray()

@@ -65,6 +65,7 @@ class Libre3BleManager(sensorId: String) :
         /** The sensor answers each patchControl request on the same characteristic when it is done. */
         private const val CONTROL_RESPONSE_TIMEOUT_MS = 30_000L
         private const val BACKFILL_FLUSH_DELAY_MS = 2_000L
+        private const val BACKFILL_RETRY_MAX_MS = 5 * 60_000L
         /** First clinical request on a sensor with no minute history here: the sensor buffers far less. */
         private const val INITIAL_CLINICAL_WINDOW_MINUTES = 6 * 60
         /** Room points already within this distance of a backfilled minute are the same reading. */
@@ -998,6 +999,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private val flushRunnable = Runnable { flushBackfill() }
+    private var flushFailures = 0
 
     private fun scheduleBackfillFlush() {
         handler.removeCallbacks(flushRunnable)
@@ -1022,11 +1024,18 @@ class Libre3BleManager(sensorId: String) :
             .onFailure { Log.stack(TAG, "$sensorId flushBackfill", it) }
             .getOrDefault(false)
         if (stored) {
+            flushFailures = 0
             persistMarks()
         } else {
             minuteBackfill.addAll(0, minutes)
             historicBackfill.addAll(0, history)
-            if (!stop) scheduleBackfillFlush()
+            if (!stop) {
+                // Storage that keeps failing (a full disk) must not wake the device every two
+                // seconds. A new frame still tries at once.
+                val delay = minOf(BACKFILL_FLUSH_DELAY_MS shl minOf(flushFailures, 8), BACKFILL_RETRY_MAX_MS)
+                flushFailures++
+                handler.postDelayed(flushRunnable, delay)
+            }
         }
         UiRefreshBus.requestDataRefresh()
     }
@@ -1045,9 +1054,11 @@ class Libre3BleManager(sensorId: String) :
             .onFailure { Log.stack(TAG, "$sensorId native history", it) }
             .getOrElse { return null }
             ?: return LongArray(0)
-        // [time_sec, auto, raw] triples.
+        // [time_sec, auto, raw] triples. A fill-in keeps the millisecond time it is remembered by.
+        val fillers = historyFillers.associateBy { it / 1000L }
         return (0 until samples.size / 3).asSequence()
-            .map { samples[it * 3] * 1000L }
+            .map { samples[it * 3] }
+            .map { fillers[it] ?: (it * 1000L) }
             .filter { it in start..toMs }
             .toList().toLongArray()
     }
@@ -1061,6 +1072,7 @@ class Libre3BleManager(sensorId: String) :
             ensureNativeWindow()
             // A watch keeps the native record only; the mirror writes below are its storage.
             val hasRoom = HistoryRepositoryAccess.isRegistered()
+            var nativeComplete = true
             // Five-minute points that land in a hole (no stored or incoming reading within the
             // duplicate window) are mirrored natively too; the rest would overwrite minute slots.
             val gapFillers = if (history.isEmpty()) emptyList() else {
@@ -1072,6 +1084,7 @@ class Libre3BleManager(sensorId: String) :
             }
             var minuteRows = minutes
             var regularMinutes = minutes
+            var consumedFillers = emptySet<Long>()
             var nightscoutWakeAt = 0L
             if (minutes.isNotEmpty()) {
                 val plan = Libre3BackfillMerge.plan(
@@ -1093,8 +1106,8 @@ class Libre3BleManager(sensorId: String) :
                         tk.glucodata.GlucoseReadingSource.SENSOR,
                     )
                     if (!ok) return false
-                    historyFillers.removeAll(plan.consumedFillers)
-                    Applic.app?.let { Libre3Persistence.setHistoryFillers(it, sensorId, historyFillers) }
+                    // Without Room nothing is replaced until the native write below.
+                    if (hasRoom) forgetFillers(plan.consumedFillers) else consumedFillers = plan.consumedFillers
                 }
                 minuteRows = plan.replacing + plan.regular
                 regularMinutes = plan.regular
@@ -1111,10 +1124,12 @@ class Libre3BleManager(sensorId: String) :
             }
             if (minuteRows.isNotEmpty()) {
                 // The same timestamps Room got, so a replaced fill-in's slot carries the minute value.
-                val stored = VirtualGlucoseSensorBridge.mirrorToNative(
+                val mirrored = VirtualGlucoseSensorBridge.mirrorToNativeCounted(
                     sensorId, minuteRows, "$LOG_LABEL clinical", ManagedSensorUiFamily.LIBRE3,
                 )
-                if (stored > 0) {
+                nativeComplete = mirrored.complete
+                if (mirrored.complete && consumedFillers.isNotEmpty()) forgetFillers(consumedFillers)
+                if (mirrored.stored > 0) {
                     // A live-only flush has already woken the uploader when it published.
                     nightscoutWakeAt = minuteRows.filter { it.timestampMs != lastReadingMs }
                         .maxOfOrNull { it.timestampMs } ?: 0L
@@ -1131,10 +1146,11 @@ class Libre3BleManager(sensorId: String) :
                     nativeFamily = ManagedSensorUiFamily.LIBRE3,
                 )
                 if (gapFillers.isNotEmpty()) {
-                    val stored = VirtualGlucoseSensorBridge.mirrorToNative(
+                    val mirrored = VirtualGlucoseSensorBridge.mirrorToNativeCounted(
                         sensorId, gapFillers, "$LOG_LABEL history", ManagedSensorUiFamily.LIBRE3,
                     )
-                    if (stored > 0) nightscoutWakeAt = maxOf(nightscoutWakeAt, gapFillers.maxOf { it.timestampMs })
+                    nativeComplete = nativeComplete && mirrored.complete
+                    if (mirrored.stored > 0) nightscoutWakeAt = maxOf(nightscoutWakeAt, gapFillers.maxOf { it.timestampMs })
                     historyFillers.addAll(gapFillers.map { it.timestampMs })
                     Applic.app?.let { Libre3Persistence.setHistoryFillers(it, sensorId, historyFillers) }
                 }
@@ -1142,8 +1158,15 @@ class Libre3BleManager(sensorId: String) :
             // Backfill can arrive after the live export cursor has passed these slots.
             if (minutes.isNotEmpty() || history.isNotEmpty()) exportHistoryToHealthConnect()
             if (nightscoutWakeAt > 0L) tk.glucodata.NightscoutUploadWake.afterHistoryNativeWrite(LOG_LABEL, nightscoutWakeAt)
+            // With Room the batch is stored; without it the native write is the only copy, so a
+            // refused reading keeps the batch and its progress back. Writing it again is harmless.
+            return hasRoom || nativeComplete
         }
-        return true
+    }
+
+    private fun forgetFillers(times: Set<Long>) {
+        historyFillers.removeAll(times)
+        Applic.app?.let { Libre3Persistence.setHistoryFillers(it, sensorId, historyFillers) }
     }
 
     // ---- deadlines / reconnect ----
