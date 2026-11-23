@@ -31,6 +31,7 @@ object WearPrefsSync {
     const val KEY_SENSOR_SELECTION = tk.glucodata.settings.KEY_SENSOR_SELECTION
 
     private val KEY_SENSOR_COLORS = tk.glucodata.settings.KEY_SENSOR_COLORS
+    private val KEY_SENSOR_DISPLAY_NAMES = tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -94,6 +95,7 @@ object WearPrefsSync {
         var written = 0
         var sensorSelectionChanged = false
         var sensorColorsChanged = false
+        var sensorDisplayNamesChanged = false
         lines.forEach { line ->
             val typeSplit = line.indexOf(':')
             val valueSplit = line.indexOf('=')
@@ -124,6 +126,9 @@ object WearPrefsSync {
                     if (key == KEY_SENSOR_COLORS && value != prefs(context).getString(key, "")) {
                         sensorColorsChanged = true
                     }
+                    if (key == KEY_SENSOR_DISPLAY_NAMES && value != prefs(context).getString(key, "")) {
+                        sensorDisplayNamesChanged = true
+                    }
                     editor.putString(key, value)
                     written++
                 }
@@ -132,6 +137,7 @@ object WearPrefsSync {
         if (written == 0) return 0
         editor.apply()
         if (sensorColorsChanged) SensorVisuals.invalidateOverrides()
+        if (sensorDisplayNamesChanged) SensorDisplayName.invalidateCache()
         if (sensorSelectionChanged) {
             MultiSensorSelection.notifyStoredChanged()
             // The native "current sensor" slot is what the complications and

@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -129,13 +130,20 @@ fun MainScreen(
     onAddJournalAt: ((GlucosePoint) -> Unit)? = null,
 ) {
     var snapshot by remember { mutableStateOf(currentSnapshot()) }
+    var revision by remember { mutableLongStateOf(0L) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var chartRangeIndex by remember { mutableIntStateOf(0) }
     var chartOwnsDrag by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         WearGlucoseStore.start()
-        launch { UiRefreshBus.revision.collect { snapshot = currentSnapshot(); now = System.currentTimeMillis() } }
+        launch {
+            UiRefreshBus.revision.collect {
+                revision = it
+                snapshot = currentSnapshot()
+                now = System.currentTimeMillis()
+            }
+        }
         while (true) { delay(TICK_MS); snapshot = currentSnapshot(); now = System.currentTimeMillis() }
     }
 
@@ -290,6 +298,7 @@ fun MainScreen(
             item {
                 SensorCard(
                     snapshot?.sensorId,
+                    revision,
                     now,
                     onOpenSensor,
                     modifier = Modifier.padding(horizontal = 18.dp),
@@ -321,6 +330,7 @@ fun MainScreen(
 @Composable
 private fun SensorCard(
     sensorId: String?,
+    revision: Long,
     now: Long,
     onOpenSensor: () -> Unit,
     modifier: Modifier = Modifier,
@@ -328,7 +338,7 @@ private fun SensorCard(
     val id = sensorId
         ?: runCatching { Natives.lastsensorname() }.getOrNull().takeUnless { it.isNullOrEmpty() }
         ?: return
-    val sensor = remember(id, now / 60_000L) { loadWearSensorPresentation(id, now) }
+    val sensor = remember(id, revision, now / 60_000L) { loadWearSensorPresentation(id, now) }
     val progressColor = when {
         (sensor.lifecycleProgress ?: 0f) >= 0.95f -> MaterialTheme.colorScheme.error
         (sensor.lifecycleProgress ?: 0f) >= 0.80f -> MaterialTheme.colorScheme.tertiary
@@ -359,7 +369,12 @@ private fun SensorCard(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(sensor.serial, style = MaterialTheme.typography.labelLarge)
+            Text(
+                sensor.displayName,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             sensor.dayValueText.takeIf { it.isNotEmpty() }?.let { dayValue ->
                 Text(
                     stringResource(R.string.wear_sensor_day_format, dayValue),

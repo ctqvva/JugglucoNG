@@ -84,7 +84,10 @@ abstract class MultiSensorComplicationBase : SuspendingComplicationDataSourceSer
         val values = if (preview && live.size < 2) previewValues(now) else live
         val text = multiSensorText(values, showArrows).ifBlank { Applic.app.getString(R.string.novalue) }
         val description = PlainComplicationText.Builder(
-            values.joinToString("; ") { "${it.sensorId}: ${it.text}" }.ifBlank { text },
+            values.joinToString("; ") {
+                val label = if (preview) it.sensorId else tk.glucodata.SensorDisplayName.resolve(it.sensorId)
+                "$label: ${it.text}"
+            }.ifBlank { text },
         ).build()
         val tap = GlucoseComplicationData.tapAction()
         val expires = values.mapNotNull { it.reading?.timeMillis }.minOrNull()?.plus(Notify.glucosetimeout)

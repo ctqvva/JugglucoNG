@@ -102,6 +102,24 @@ private int authSlot;
         return true;
     }
 
+    @Override
+    public String mygetDeviceName() {
+        if (mDeviceName != null)
+            return mDeviceName;
+        final var device = mActiveBluetoothDevice;
+        if (device != null) {
+            var name = device.getName();
+            if (name != null)
+                return name;
+        }
+        if (dataptr != 0L) {
+            var saved = Natives.dexGetDeviceName(dataptr);
+            if (saved != null && !saved.isEmpty())
+                return saved;
+        }
+        return super.mygetDeviceName();
+    }
+
     static private byte[] lencode(int which, int code) {
         byte[] output = new byte[6];
         output[0] = 0x0b;
@@ -594,6 +612,7 @@ private void saveDeviceName() {
          if(aname!=null) {
              Natives.dexSaveDeviceName(dataptr,aname);
              this.known=true;
+             SensorDisplayName.pushIfChanged();
              }
          }
 static boolean    createBond(BluetoothDevice device) {

@@ -56,7 +56,7 @@ internal fun ReadingValues(
         SensorValue(point, viewMode, isMmol, velocity, primaryColorArgb, false)
         peers.forEach { peer ->
             SensorValue(peer.point, peer.series.viewMode, isMmol, peer.velocity, peer.series.colorArgb, true,
-                Modifier.semantics { contentDescription = peer.series.sensorId })
+                Modifier.semantics { contentDescription = tk.glucodata.SensorDisplayName.resolve(peer.series.sensorId) })
         }
     }
 }
