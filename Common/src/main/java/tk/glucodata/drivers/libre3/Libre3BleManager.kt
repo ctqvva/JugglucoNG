@@ -1024,8 +1024,8 @@ class Libre3BleManager(sensorId: String) :
             .onFailure { Log.stack(TAG, "$sensorId flushBackfill", it) }
             .getOrDefault(false)
         if (stored) {
-            flushFailures = 0
             persistMarks()
+            flushFailures = 0
         } else {
             minuteBackfill.addAll(0, minutes)
             historicBackfill.addAll(0, history)
