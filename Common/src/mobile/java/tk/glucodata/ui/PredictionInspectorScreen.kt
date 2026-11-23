@@ -19,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,7 +53,9 @@ import tk.glucodata.data.prediction.analysis.ForecastMoment
 import tk.glucodata.data.prediction.analysis.Outcome
 import tk.glucodata.data.prediction.analysis.PredictionAccuracy
 import tk.glucodata.data.prediction.analysis.RecordedForecastEntity
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.viewmodel.DashboardViewModel
@@ -84,7 +85,7 @@ fun PredictionInspectorScreen(navController: NavController, dashboardViewModel: 
 
     LaunchedEffect(Unit) { viewModel.loadOrigins() }
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -125,7 +126,7 @@ internal fun PredictionInspectorContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

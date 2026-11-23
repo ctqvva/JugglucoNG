@@ -149,7 +149,8 @@ Reach for these before building a surface by hand.
 
 | Need | Use | File |
 |---|---|---|
-| Top bar of a pushed screen | `AppTopBar(title, onNavigateBack, subtitle?, actions)` | `components/AppTopBar.kt` |
+| Frame of a pushed screen | `AppScaffold` + `scrollsUnderTopBar()` on its scroller; see Pushed screens | `components/AppScaffold.kt` |
+| Top bar of a pushed screen | `AppTopBar(title, onNavigateBack, subtitle?, actions, below?)` | `components/AppTopBar.kt` |
 | Title of a top-level tab | `TabScreenHeader` + `TabScreenDefaults.contentPadding()` | `components/TabScreenHeader.kt` |
 | A setting or a destination | `SettingsItem`, `SettingsSwitchItem`, `SettingsNavSwitchItem` | `components/SettingsComponents.kt` |
 | A setting that reveals more | `ExpandableSettingsCard`, `DisclosingSwitchCard` | same |
@@ -179,6 +180,18 @@ Waiting: `LoadingIndicator` for a few seconds with nothing to count (a network c
 loading). Work that can run longer or knows its progress keeps a progress indicator. A spinner
 inside a button stays a small `CircularProgressIndicator`; the loading indicator's shapes don't
 read at 18dp.
+
+### Pushed screens
+
+- A pushed screen, wizards included, is an `AppScaffold` with an `AppTopBar`, never a bare
+  `Scaffold`. The bar is transparent at rest and takes `surfaceContainer` while content is under
+  it. It stays put: no bar collapses or scrolls away.
+- The scroller whose top edge meets the bar says so: `rememberLazyListState().scrollsUnderTopBar()`
+  or `rememberScrollState().scrollsUnderTopBar()`, inside the step that owns it. A list pinned
+  below something else doesn't.
+- Padding goes inside the scroller (`contentPadding`, or `padding` after `verticalScroll`). Between
+  the scroller and the bar or the navigation bar it is an empty strip that content is cut off at.
+- Progress right under the bar belongs to it: pass it as `below`.
 
 ### Sensor art and wizard heroes
 

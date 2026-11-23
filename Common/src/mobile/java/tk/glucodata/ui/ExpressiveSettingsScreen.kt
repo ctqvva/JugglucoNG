@@ -1089,7 +1089,7 @@ fun PredictiveSimulationSettingsScreen(
     }
     LaunchedEffect(Unit) { analysisViewModel.refresh() }
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -1098,7 +1098,7 @@ fun PredictiveSimulationSettingsScreen(
             )
         }
     ) { padding ->
-        val listState = rememberLazyListState()
+        val listState = rememberLazyListState().scrollsUnderTopBar()
         RevealSettingsSearchAnchor(
             listState,
             setOf(

@@ -65,7 +65,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -122,7 +121,9 @@ import tk.glucodata.data.journal.builtInJournalCurve
 import tk.glucodata.data.journal.normalizeJournalCurvePoints
 import tk.glucodata.data.journal.serializeJournalCurve
 import tk.glucodata.ui.alerts.AddCustomAlertButton
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.ColorSwatchButton
 import tk.glucodata.ui.components.CompactSheetDragHandle
@@ -193,7 +194,7 @@ fun JournalSettingsScreen(
         )
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.journal_manage_title),
@@ -201,7 +202,7 @@ fun JournalSettingsScreen(
             )
         }
     ) { padding ->
-        val listState = rememberLazyListState()
+        val listState = rememberLazyListState().scrollsUnderTopBar()
         RevealSettingsSearchAnchor(
             listState,
             setOf(
@@ -435,7 +436,7 @@ fun JournalEntryTypesSettingsScreen(
     val journalDashboardHiddenTypes by viewModel.journalDashboardHiddenTypes.collectAsStateWithLifecycle()
     val actionOrder by JournalActionOrderStore.order.collectAsStateWithLifecycle()
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.journal_entry_types_title),
@@ -470,6 +471,7 @@ internal fun JournalEntryTypesContent(
     val currentOrder by rememberUpdatedState(actionOrder)
     val currentOnOrderChange by rememberUpdatedState(onOrderChange)
     LazyColumn(
+        state = rememberLazyListState().scrollsUnderTopBar(),
         modifier = modifier,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -687,7 +689,7 @@ fun JournalInsulinLibraryScreen(
     var editingPreset by remember { mutableStateOf<JournalInsulinPreset?>(null) }
     var creatingPreset by remember { mutableStateOf(false) }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.journal_insulin_library),
@@ -696,6 +698,7 @@ fun JournalInsulinLibraryScreen(
         }
     ) { padding ->
         LazyColumn(
+            state = rememberLazyListState().scrollsUnderTopBar(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),

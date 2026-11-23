@@ -1,23 +1,26 @@
 package tk.glucodata.ui.components
 
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import tk.glucodata.R
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.util.ExpressiveMotion
 
 /**
  * The top bar of every pushed screen: a title and, when there is somewhere to go back to,
@@ -29,8 +32,11 @@ import tk.glucodata.ui.symbols.Symbols
  * transparent on some screens and surface-coloured on others. One component, one answer.
  *
  * The container is transparent so the bar reads as part of the page rather than as a band
- * across it; with a [scrollBehavior] it takes `surfaceContainer` once content scrolls under
- * it, which is the Material treatment for a bar that has something behind it.
+ * across it. Once content has scrolled under it (see [scrollsUnderTopBar]) it takes
+ * `surfaceContainer`, the navigation bar's colour, so what disappears does so behind an edge.
+ * The bar itself never moves.
+ *
+ * [below] is for what belongs to the bar rather than to the page, such as a wizard's progress.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +47,7 @@ fun AppTopBar(
     subtitle: String? = null,
     navigationContentDescription: String = stringResource(R.string.navigate_back),
     actions: @Composable RowScope.() -> Unit = {},
-    scrollBehavior: TopAppBarScrollBehavior? = null,
+    below: @Composable () -> Unit = {},
 ) {
     val titleContent: @Composable () -> Unit = {
         Text(
@@ -62,37 +68,45 @@ fun AppTopBar(
             }
         }
     }
+    val raised = LocalTopBarScroll.current?.contentUnderBar == true
+    val raisedColor = MaterialTheme.colorScheme.surfaceContainer
+    val containerColor by animateColorAsState(
+        // Its own colour with no alpha, not Color.Transparent: fading through transparent black
+        // dims the bar half way on a light theme.
+        targetValue = if (raised) raisedColor else raisedColor.copy(alpha = 0f),
+        animationSpec = ExpressiveMotion.defaultEffects(),
+        label = "topBarContainer",
+    )
     val colors = TopAppBarDefaults.topAppBarColors(
         containerColor = Color.Transparent,
-        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        scrolledContainerColor = Color.Transparent,
     )
-    if (subtitle == null) {
-        TopAppBar(
-            title = titleContent,
-            modifier = modifier,
-            navigationIcon = navigationIcon,
-            actions = actions,
-            scrollBehavior = scrollBehavior,
-            colors = colors,
-        )
-    } else {
-        // The bar's own subtitle slot: it lays the two lines out and sizes the bar for them.
-        TopAppBar(
-            title = titleContent,
-            subtitle = {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            modifier = modifier,
-            navigationIcon = navigationIcon,
-            actions = actions,
-            scrollBehavior = scrollBehavior,
-            colors = colors,
-        )
+    Column(modifier.drawBehind { drawRect(containerColor) }) {
+        if (subtitle == null) {
+            TopAppBar(
+                title = titleContent,
+                navigationIcon = navigationIcon,
+                actions = actions,
+                colors = colors,
+            )
+        } else {
+            // The bar's own subtitle slot: it lays the two lines out and sizes the bar for them.
+            TopAppBar(
+                title = titleContent,
+                subtitle = {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                navigationIcon = navigationIcon,
+                actions = actions,
+                colors = colors,
+            )
+        }
+        below()
     }
 }

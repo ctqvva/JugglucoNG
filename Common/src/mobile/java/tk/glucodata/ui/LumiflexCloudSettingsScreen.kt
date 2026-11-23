@@ -77,7 +77,7 @@ internal fun LumiflexCloudSettingsContent(
                 }
             })
     }
-    Scaffold(contentWindowInsets = WindowInsets(0.dp), topBar = {
+    AppScaffold(contentWindowInsets = WindowInsets(0.dp), topBar = {
         AppTopBar(stringResource(R.string.lumiflex_cloud_title), onBack, actions = {
             IconButtonTooltip(stringResource(R.string.lumiflex_help)) {
                 IconButton(onClick = { showHelp = true }, shapes = IconButtonDefaults.shapes()) {
@@ -86,7 +86,7 @@ internal fun LumiflexCloudSettingsContent(
             }
         })
     }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 32.dp),
+        Column(Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState().scrollsUnderTopBar()).padding(horizontal = 16.dp).padding(top = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)) {
             MasterSwitchCard(
                 title = stringResource(R.string.lumiflex_cloud_title),

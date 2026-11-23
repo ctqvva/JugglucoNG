@@ -28,7 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,7 +50,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.ui.components.SensorType
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.drivers.medtrum.MedtrumPersistence
 import tk.glucodata.drivers.medtrum.MedtrumRegistry
 
@@ -181,7 +182,7 @@ fun MedtrumSetupWizard(
         }
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.medtrum_sensor),
@@ -199,7 +200,7 @@ fun MedtrumSetupWizard(
                 MedtrumSetupStep.ENTRY -> Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(rememberScrollState().scrollsUnderTopBar())
                         .padding(horizontal = ui.horizontalPadding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top,

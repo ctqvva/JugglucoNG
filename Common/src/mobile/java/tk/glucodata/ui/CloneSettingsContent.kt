@@ -99,7 +99,7 @@ internal fun CloneSettingsContent(
     onAddManually: () -> Unit,
     connections: LazyListScope.() -> Unit,
 ) {
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -115,7 +115,7 @@ internal fun CloneSettingsContent(
             )
         },
     ) { padding ->
-        val listState = rememberLazyListState()
+        val listState = rememberLazyListState().scrollsUnderTopBar()
         RevealSettingsSearchAnchor(
             listState,
             setOf(

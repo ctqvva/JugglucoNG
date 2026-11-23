@@ -32,6 +32,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -56,7 +57,9 @@ import kotlinx.coroutines.withContext
 import tk.glucodata.ui.components.ConnectedButtonShapes
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.ui.components.IconTileDefaults
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.R
 import tk.glucodata.ui.UndoSnackbar
 import tk.glucodata.SensorIdentity
@@ -246,7 +249,7 @@ fun CalibrationListScreen(
         CalibrationManager.refreshDiagnosticsPreview(isRawMode = isRawMode, force = true)
     }
 
-    Scaffold(
+    AppScaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
                 AppTopBar(
@@ -281,6 +284,7 @@ fun CalibrationListScreen(
         ) {
             // Main List Content
             LazyColumn(
+                state = rememberLazyListState().scrollsUnderTopBar(),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 16.dp, 

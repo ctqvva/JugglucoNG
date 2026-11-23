@@ -143,7 +143,7 @@ internal fun HybridSettingsContent(
 ) {
     var showHelp by rememberSaveable { mutableStateOf(false) }
     val accent = MaterialTheme.colorScheme.tertiary
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -158,7 +158,7 @@ internal fun HybridSettingsContent(
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState().scrollsUnderTopBar())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             SectionLabel(stringResource(R.string.clone_servers), topPadding = 8.dp)

@@ -42,7 +42,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -77,7 +76,9 @@ import tk.glucodata.data.food.FoodItem
 import tk.glucodata.data.food.FoodLibraryTransfer
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.ui.components.AdaptiveButtonRow
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -267,7 +268,7 @@ internal fun FoodLibraryLayout(
     }
     val focusManager = LocalFocusManager.current
     BackHandler(enabled = management.selecting, onBack = management::cancel)
-    Scaffold(
+    AppScaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             if (!management.selecting && libraryEnabled) {
@@ -406,7 +407,7 @@ internal fun FoodLibraryContent(
     val myFoodsLabel = stringResource(R.string.food_my_foods)
     val recentLabel = stringResource(R.string.food_recent)
     val disabledLabel = stringResource(R.string.journal_food_disabled_library)
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState().scrollsUnderTopBar()
     val reorder = rememberFoodLibraryReorder(listState, mine, actions.onMove)
     val orderedMine = reorder.ordered(mine)
     val selectionOrder = if (picker.query.isBlank()) orderedMine + remembered + disabled else ownMatches

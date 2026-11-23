@@ -3,6 +3,7 @@ package tk.glucodata.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -70,7 +71,7 @@ internal fun LumiflexCloudFollowersContent(
         }
     }
     BackHandler(enabled = state.busy || state.editorDirty, onBack = back)
-    Scaffold(contentWindowInsets = WindowInsets(0.dp), snackbarHost = { SnackbarHost(snackbar) }, topBar = {
+    AppScaffold(contentWindowInsets = WindowInsets(0.dp), snackbarHost = { SnackbarHost(snackbar) }, topBar = {
         AppTopBar(stringResource(R.string.lumiflex_followers_title), back, actions = {
             IconButtonTooltip(stringResource(R.string.refresh)) {
                 IconButton(onClick = actions.refresh, enabled = !state.blocked, shapes = IconButtonDefaults.shapes()) {
@@ -79,7 +80,7 @@ internal fun LumiflexCloudFollowersContent(
             }
         })
     }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).imePadding().testTag("followers-list"),
+        LazyColumn(state = rememberLazyListState().scrollsUnderTopBar(), modifier = Modifier.fillMaxSize().padding(padding).imePadding().testTag("followers-list"),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp)) {
             item(key = "invite") {
                 SectionLabel(stringResource(R.string.lumiflex_invite_title), topPadding = 0.dp)

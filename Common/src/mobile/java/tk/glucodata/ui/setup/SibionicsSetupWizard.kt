@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
@@ -17,7 +18,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.StyledSwitch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -422,7 +424,6 @@ fun SibionicsSetupWizard(
     var currentStep by remember { mutableStateOf(SibionicsSetupStep.SELECT_TYPE) }
     var selectedType by remember { mutableStateOf(SibionicsType.EU) }
     var sensorName by remember { mutableStateOf("") }
-    var scannerTouchActive by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val handleDismiss: () -> Unit = onDismiss
     val handleBack: () -> Unit = {
@@ -435,17 +436,12 @@ fun SibionicsSetupWizard(
 
     BackHandler(onBack = handleBack)
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val scaffoldModifier = if (scannerTouchActive) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-
-    Scaffold(
-        modifier = scaffoldModifier,
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.sibionics_setup_title),
                 onNavigateBack = handleBack,
                 navigationContentDescription = stringResource(R.string.cancel),
-                scrollBehavior = scrollBehavior,
             )
         }
     ) { padding ->
@@ -517,9 +513,6 @@ fun SibionicsSetupWizard(
                             kotlinx.coroutines.delay(1500)
                             onComplete()
                         }
-                    },
-                    onScannerTouchInteractionChanged = { active ->
-                        scannerTouchActive = active
                     }
                 )
 
@@ -537,8 +530,7 @@ fun ScanSensorStep(
     compact: Boolean,
     selectedType: SibionicsType,
     onManagedEntry: (String, BleDeviceScanner.SibionicsBleDevice?) -> Unit,
-    onBleDeviceEntry: (BleDeviceScanner.SibionicsBleDevice) -> Unit,
-    onScannerTouchInteractionChanged: (Boolean) -> Unit
+    onBleDeviceEntry: (BleDeviceScanner.SibionicsBleDevice) -> Unit
 ) {
     val contentPadding = if (compact) 12.dp else 16.dp
     val sectionGap = if (compact) 8.dp else 12.dp
@@ -588,10 +580,6 @@ fun ScanSensorStep(
             }
         }
     )
-
-    DisposableEffect(Unit) {
-        onDispose { onScannerTouchInteractionChanged(false) }
-    }
 
     LaunchedEffect(bleProbeScanning, selectedType) {
         if (bleProbeScanning) {
@@ -651,6 +639,7 @@ fun ScanSensorStep(
     }
     
     LazyColumn(
+        state = rememberLazyListState().scrollsUnderTopBar(),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(contentPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -671,7 +660,6 @@ fun ScanSensorStep(
                 manualFallbackLabel = stringResource(R.string.scan_qr_button),
                 onTouchInteractionChanged = { active ->
                     scannerTouchActive = active
-                    onScannerTouchInteractionChanged(active)
                 }
             )
             Text(
@@ -1013,6 +1001,7 @@ fun ScanTransmitterStep(
     }
     
     LazyColumn(
+        state = rememberLazyListState().scrollsUnderTopBar(),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(contentPadding),
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -26,7 +26,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 
 
 
@@ -59,7 +58,9 @@ import tk.glucodata.R
 import tk.glucodata.share.DexcomShareRegion
 import tk.glucodata.share.DexcomShareSettings
 import tk.glucodata.share.DexcomShareUploader
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
@@ -133,7 +134,7 @@ fun DexcomShareSettingsScreen(navController: NavController) {
     val credentialsRequiredText = stringResource(R.string.dexcom_share_credentials_required)
     val testOkText = stringResource(R.string.dexcom_share_test_ok)
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -146,7 +147,7 @@ fun DexcomShareSettingsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState().scrollsUnderTopBar())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {

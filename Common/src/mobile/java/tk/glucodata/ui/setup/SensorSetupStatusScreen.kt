@@ -46,6 +46,7 @@ import tk.glucodata.ui.components.SensorType
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.R
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.components.scrollsUnderTopBar
 
 internal const val SENSOR_SETUP_SUCCESS_AUTO_ADVANCE_MS = 1400L
 
@@ -178,7 +179,7 @@ private fun SensorSetupStatusScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
             .padding(horizontal = ui.horizontalPadding),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
