@@ -938,6 +938,14 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="sensor_error_code">Мэдрэгчийн алдааны код</string>
     <string name="status_disconnected">Салсан</string>
     <string name="status_waiting_for_data">Холбогдсон, өгөгдөл хүлээж байна…</string>
+    <string name="status_sensor_not_found">Ойролцоо мэдрэгч олдсонгүй</string>
+    <string name="status_auth_failed">Баталгаажуулалт амжилтгүй</string>
+    <string name="status_sensor_not_responding">Мэдрэгч хариу өгөхгүй байна</string>
+    <string name="sensor_out_of_reach_title">Мэдрэгчээс дохио алга</string>
+    <string name="sensor_out_of_reach_title_short">Дохио алга</string>
+    <string name="sensor_out_of_reach_body">Холбогдохыг оролдсоор байна</string>
+    <string name="sensor_out_of_reach_battery">Мэдрэгчийн батарей сул (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Уншилт хүлээж байна</string>
     <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авлаа</string>
     <string name="select_sensor_type">Мэдрэгчийн төрлийг сонгох</string>
     <string name="choose_theme">Загвар сонгох</string>
@@ -2464,6 +2472,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="stats_duration_minutes">%1$d мин</string>
     <string name="stats_duration_hours">%1$d ц</string>
     <string name="stats_duration_hours_minutes">%1$d ц %2$d мин</string>
+    <string name="stats_duration_days">%1$d ө</string>
+    <string name="stats_duration_days_hours">%1$d ө %2$d ц</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d долоо хоног</item>
+        <item quantity="other">%1$d долоо хоног</item>
+    </plurals>
     <string name="stats_tab_days">Өдөр</string>
     <string name="stats_tab_hours">Цаг</string>
     <string name="stats_tab_weekdays">Гараг</string>
@@ -2532,6 +2546,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Хугацаа</string>
     <string name="stats_arrange_width">Хагас эсвэл бүтэн өргөн</string>
+    <string name="stats_arrange_ring">Цагираг хэлбэрээр харуулах</string>
     <string name="stats_window_3d">3Ө</string>
     <string name="stats_window_today">Өнөөдөр</string>
     <string name="stats_window_24h">24Ц</string>
@@ -3487,4 +3502,12 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="food_move_up">Дээш зөөх</string>
     <string name="food_move_down">Доош зөөх</string>
     <string name="spanish">Испани</string>
+    <string name="floating_layout_reading">Үзүүлэлт</string>
+    <string name="floating_layout_secondary">Хоёрдогч утга</string>
+    <string name="floating_layout_delta">Дельта</string>
+    <string name="floating_layout_arrow">Чиг хандлагын сум</string>
+    <string name="floating_layout_camera">Камерын нүх</string>
+    <string name="floating_layout_camera_desc">Дээрх зүйлс камерын өмнө, бусад нь ард байрлана</string>
+    <string name="floating_layout_hidden">Нуугдсан</string>
+    <string name="floating_layout_order_desc">Зүйлийг зөөхийн тулд бариулаас чирнэ үү</string>
 </resources>

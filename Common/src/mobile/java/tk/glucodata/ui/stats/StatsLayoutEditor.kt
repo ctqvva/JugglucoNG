@@ -103,7 +103,9 @@ internal fun StatsLayoutEditor(
                 handle = handle,
                 onToggleHidden = {
                     StatsLayoutStore.setCardHidden(card, card !in layout.hiddenCards)
-                }
+                },
+                ring = if (card == StatsCard.OVERVIEW) layout.overviewRing else null,
+                onToggleRing = { StatsLayoutStore.setOverviewRing(!layout.overviewRing) }
             )
         }
 
@@ -279,7 +281,9 @@ private fun EditorRow(
     pinEnabled: Boolean = true,
     onTogglePinned: () -> Unit = {},
     wide: Boolean? = null,
-    onToggleWide: () -> Unit = {}
+    onToggleWide: () -> Unit = {},
+    ring: Boolean? = null,
+    onToggleRing: () -> Unit = {}
 ) {
     val container by animateColorAsState(
         targetValue = when {
@@ -346,6 +350,22 @@ private fun EditorRow(
                         imageVector = if (wide) Symbols.WidthFullFilled else Symbols.WidthNormalFilled,
                         contentDescription = stringResource(R.string.stats_arrange_width),
                         tint = if (wide) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+        if (ring != null) {
+            IconButtonTooltip(stringResource(R.string.stats_arrange_ring)) {
+                IconButton(onClick = onToggleRing, modifier = Modifier.size(38.dp), shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        imageVector = Symbols.DonutLargeFilled,
+                        contentDescription = stringResource(R.string.stats_arrange_ring),
+                        tint = if (ring) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)

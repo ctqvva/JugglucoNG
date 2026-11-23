@@ -1068,6 +1068,14 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="sensor_error_code">Código de error del sensor</string>
      <string name="status_disconnected">Desconectado</string>
      <string name="status_waiting_for_data">Conectado, esperando datos…</string>
+     <string name="status_sensor_not_found">No se encontró el sensor cerca</string>
+     <string name="status_auth_failed">Error de autenticación</string>
+     <string name="status_sensor_not_responding">El sensor no responde</string>
+     <string name="sensor_out_of_reach_title">Sin señal del sensor</string>
+     <string name="sensor_out_of_reach_title_short">Sin señal</string>
+     <string name="sensor_out_of_reach_body">Seguimos intentando conectar</string>
+     <string name="sensor_out_of_reach_battery">Batería del sensor baja (%1$d%%)</string>
+     <string name="sensor_waiting_for_reading">Esperando una lectura</string>
      <string name="status_raw_values_received">Conectado, valores brutos recibidos</string>
      <string name="status_invalid_glucose_from_sensor">Glucosa inválida del sensor</string>
      
@@ -1929,6 +1937,12 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="stats_duration_minutes">%1$d min</string>
      <string name="stats_duration_hours">%1$d h</string>
      <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+     <string name="stats_duration_days">%1$d d</string>
+     <string name="stats_duration_days_hours">%1$d d %2$d h</string>
+     <plurals name="stats_duration_weeks">
+         <item quantity="one">%1$d semana</item>
+         <item quantity="other">%1$d semanas</item>
+     </plurals>
      <!-- Statistics: patterns and day-by-day -->
      <string name="stats_tab_days">Días</string>
      <string name="stats_tab_hours">Horas</string>
@@ -1978,6 +1992,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="stats_arrange_drag">Reordenar</string>
      <string name="stats_arrange_pin">Fijar en el panel</string>
      <string name="stats_arrange_width">Ancho medio o completo</string>
+     <string name="stats_arrange_ring">Mostrar como anillo</string>
      <string name="stats_arrange_visibility">Mostrar u ocultar</string>
      <string name="stats_custom_range_title">Rango personalizado</string>
      <string name="stats_custom_range_hint">Toca un día, o un segundo día para un intervalo.</string>
@@ -3654,4 +3669,12 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="food_move_up">Mover arriba</string>
      <string name="food_move_down">Mover abajo</string>
     <string name="spanish">Español</string>
+    <string name="floating_layout_reading">Lectura</string>
+    <string name="floating_layout_secondary">Valor secundario</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Flecha de tendencia</string>
+    <string name="floating_layout_camera">Recorte de la cámara</string>
+    <string name="floating_layout_camera_desc">Los elementos de arriba van antes de la cámara; el resto, después</string>
+    <string name="floating_layout_hidden">Oculto</string>
+    <string name="floating_layout_order_desc">Arrastra un asa para mover un elemento</string>
 </resources>

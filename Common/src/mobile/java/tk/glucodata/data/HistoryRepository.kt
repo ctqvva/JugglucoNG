@@ -615,7 +615,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         )
                     }
                     val repository = HistoryRepository()
-                    val stored = repository.storeReadingsReplacingSensorBuckets(
+                    val outcome = repository.replaceSensorBuckets(
                         sensorSerial = roomSerial,
                         readings = readings,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
@@ -627,11 +627,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                             tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(sensorSerial, true)
                         }.getOrDefault(false),
                     )
-                    stored
-                }.also { stored ->
-                    if (stored) {
-                        UiRefreshBus.requestDataRefresh()
-                    }
+                    if (outcome == BucketReplaceOutcome.STORED) UiRefreshBus.requestDataRefresh()
+                    // Rows the user deleted stay deleted: a batch made only of them
+                    // has nothing to store, and its caller has nothing to retry.
+                    outcome != BucketReplaceOutcome.FAILED
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed storing blocking history batch for $roomSerial", e)

@@ -921,7 +921,13 @@ public:
     auto *info = getinfo();
     if (!info)
       return 60;
-    const int warmup = (isLibre2() || isAccuChek() || isDexcom() || isAir())
+    if (isDexcom()) {
+      // A record saved before the 15-day window was known still stores 30;
+      // derive the model's warm-up from the stored wear duration.
+      const int stored = info->warmup ? info->warmup : 60;
+      return dexcom::upgradedWarmupMinutes(stored, getDexWearMinutes());
+    }
+    const int warmup = (isLibre2() || isAccuChek() || isAir())
                            ? info->warmup
                            : info->warmup2;
     if (warmup)
@@ -1650,7 +1656,7 @@ bool libreviewable() const {
              .dupl = 3,
              .dexcom = true,
              .days = static_cast<uint8_t>(wearDays + 2),
-             .warmup = 30,
+             .warmup = static_cast<uint16_t>(dexcom::warmupMinutes(wearDays)),
              .wearduration = static_cast<uint16_t>(dexcom::wearMinutes(wearDays)),
              .lastLifeCountReceived = 1,
              .pollcount = 0};
@@ -3336,6 +3342,7 @@ public:
   uint32_t lastPacketTime = 0;
   bool persistentSensorError = false;
   bool replacesensor = false;
+  bool dexcomWarmingUp = false;
 
   /**
    * Start or refresh an error episode. Libre 2 errors are kept until a valid reading
@@ -3370,6 +3377,7 @@ public:
     sensorErrorCode = 0;
     persistentSensorError = false;
     replacesensor = false;
+    dexcomWarmingUp = false;
   }
 
   // A lone frame without a value is a gap, not a sensor error: the error shows once three frames
@@ -3388,6 +3396,16 @@ public:
     }
     return (nu - sensorErrorTime) < (60 * (isDexcom() ? 15 : 10));
   }
+
+  bool isDexcomWarmingUp(uint32_t now) const {
+    if (!dexcomWarmingUp) return false;
+    // The driver may intentionally wait until the warm-up ends to reconnect.
+    const uint32_t start = getstarttime();
+    return (start && now >= start &&
+            now - start < static_cast<uint32_t>(getWarmupSEC())) ||
+           hasSensorError(now);
+  }
+
   std::vector<int> viewed;
   int getSiIndex() const { return getinfo()->lockcount; }
   void setSiIndex(int index) { getinfo()->lockcount = index; }

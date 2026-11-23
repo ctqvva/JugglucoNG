@@ -259,6 +259,7 @@ object ICanHealthRegistry {
             .remove("${ICanHealthConstants.PREF_AUTH_BYPASS_UNTIL_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_HISTORY_EDGE_SEQUENCE_PREFIX}$canonicalId")
             .remove("${ICanHealthConstants.PREF_HISTORY_EDGE_TIMESTAMP_PREFIX}$canonicalId")
+            .remove("${ICanHealthConstants.PREF_CAL_FACTOR_PREFIX}$canonicalId")
         // The vendor code cache is keyed by the short box serial, not the sensor id.
         val storedDeviceSn = prefs.getString("${ICanHealthConstants.PREF_DEVICE_SN_PREFIX}$canonicalId", null)
         val normalizedStoredSn = ICanHealthConstants.normalizeOnboardingDeviceSn(storedDeviceSn)

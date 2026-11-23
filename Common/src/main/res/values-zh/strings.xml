@@ -2141,6 +2141,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">允许的聊天 ID</string>
     <string name="api_source_telegram_note">Telegram 最多保留机器人更新 24 小时。输入一个或多个允许导入机器人消息的聊天 ID/用户名。</string>
     <string name="status_waiting_for_data">已连接，正在等待数据…</string>
+    <string name="status_sensor_not_found">附近未找到传感器</string>
+    <string name="status_auth_failed">认证失败</string>
+    <string name="status_sensor_not_responding">传感器无响应</string>
+    <string name="sensor_out_of_reach_title">未收到传感器信号</string>
+    <string name="sensor_out_of_reach_title_short">无信号</string>
+    <string name="sensor_out_of_reach_body">正在继续尝试连接</string>
+    <string name="sensor_out_of_reach_battery">传感器电量低（%1$d%%）</string>
+    <string name="sensor_waiting_for_reading">正在等待读数</string>
     <string name="status_raw_values_received">已连接，已收到原始值</string>
     <string name="status_invalid_glucose_from_sensor">传感器葡萄糖值无效</string>
     <string name="sensor_display_select">选择要显示的传感器</string>
@@ -2373,6 +2381,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d 分钟</string>
     <string name="stats_duration_hours">%1$d 小时</string>
     <string name="stats_duration_hours_minutes">%1$d 小时 %2$d 分钟</string>
+    <string name="stats_duration_days">%1$d天</string>
+    <string name="stats_duration_days_hours">%1$d天 %2$d小时</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d 周</item>
+        <item quantity="other">%1$d 周</item>
+    </plurals>
     <string name="stats_tab_days">按天</string>
     <string name="stats_tab_hours">按小时</string>
     <string name="stats_tab_weekdays">按星期</string>
@@ -2441,6 +2455,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">时间段</string>
     <string name="stats_arrange_width">半宽或整宽</string>
+    <string name="stats_arrange_ring">以圆环显示</string>
     <string name="stats_window_3d">3D</string>
     <string name="stats_window_today">今天</string>
     <string name="stats_window_24h">24H</string>
@@ -3393,4 +3408,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">下移</string>
     <string name="scan_sensor_qr">扫描传感器二维码</string>
     <string name="spanish">西班牙语</string>
+    <string name="floating_layout_reading">读数</string>
+    <string name="floating_layout_secondary">次要数值</string>
+    <string name="floating_layout_delta">增量</string>
+    <string name="floating_layout_arrow">趋势箭头</string>
+    <string name="floating_layout_camera">摄像头开孔</string>
+    <string name="floating_layout_camera_desc">上方的项目位于摄像头之前，其余位于之后</string>
+    <string name="floating_layout_hidden">已隐藏</string>
+    <string name="floating_layout_order_desc">拖动手柄以移动项目</string>
 </resources>

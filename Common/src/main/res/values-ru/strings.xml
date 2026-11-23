@@ -2192,6 +2192,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">Разрешённые chat ID</string>
     <string name="api_source_telegram_note">Telegram хранит обновления бота до 24 часов. Укажите один или несколько chat ID/имён пользователей, сообщения которых можно импортировать.</string>
     <string name="status_waiting_for_data">Подключено, ожидание данных…</string>
+    <string name="status_sensor_not_found">Датчик не найден поблизости</string>
+    <string name="status_auth_failed">Ошибка аутентификации</string>
+    <string name="status_sensor_not_responding">Датчик не отвечает</string>
+    <string name="sensor_out_of_reach_title">Нет сигнала от сенсора</string>
+    <string name="sensor_out_of_reach_title_short">Нет сигнала</string>
+    <string name="sensor_out_of_reach_body">Пытаемся подключиться</string>
+    <string name="sensor_out_of_reach_battery">Низкий заряд сенсора (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">Ожидание показаний</string>
     <string name="status_raw_values_received">Подключено, получены сырые значения</string>
     <string name="status_invalid_glucose_from_sensor">Некорректная глюкоза от сенсора</string>
     <string name="sensor_display_select">Выбрать датчик для отображения</string>
@@ -2486,6 +2494,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d мин</string>
     <string name="stats_duration_hours">%1$d ч</string>
     <string name="stats_duration_hours_minutes">%1$d ч %2$d мин</string>
+    <string name="stats_duration_days">%1$d д</string>
+    <string name="stats_duration_days_hours">%1$d д %2$d ч</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d неделя</item>
+        <item quantity="few">%1$d недели</item>
+        <item quantity="many">%1$d недель</item>
+        <item quantity="other">%1$d недели</item>
+    </plurals>
     <string name="stats_tab_days">Дни</string>
     <string name="stats_tab_hours">Часы</string>
     <string name="stats_tab_weekdays">Дни недели</string>
@@ -2554,6 +2570,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Период</string>
     <string name="stats_arrange_width">Половина или вся ширина</string>
+    <string name="stats_arrange_ring">Показывать кольцом</string>
     <string name="stats_window_3d">3Д</string>
     <string name="stats_window_today">Сегодня</string>
     <string name="stats_window_24h">24Ч</string>
@@ -3514,4 +3531,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">Переместить ниже</string>
     <string name="scan_sensor_qr">Отсканируйте QR-код датчика</string>
     <string name="spanish">Испанский</string>
+    <string name="floating_layout_reading">Показание</string>
+    <string name="floating_layout_secondary">Дополнительное значение</string>
+    <string name="floating_layout_delta">Дельта</string>
+    <string name="floating_layout_arrow">Стрелка тренда</string>
+    <string name="floating_layout_camera">Вырез камеры</string>
+    <string name="floating_layout_camera_desc">Элементы выше стоят перед камерой, остальные — после</string>
+    <string name="floating_layout_hidden">Скрыто</string>
+    <string name="floating_layout_order_desc">Перетащите маркер, чтобы переместить элемент</string>
 </resources>

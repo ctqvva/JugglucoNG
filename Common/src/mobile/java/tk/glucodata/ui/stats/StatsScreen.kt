@@ -714,7 +714,8 @@ private fun StatsCardContent(
             unit = uiState.unit,
             selectedRange = uiState.selectedRange,
             selectedBand = selectedTirBand,
-            onBandSelected = onBandSelected
+            onBandSelected = onBandSelected,
+            ring = layout.overviewRing
         )
 
         StatsCard.METRICS -> MetricsSection(

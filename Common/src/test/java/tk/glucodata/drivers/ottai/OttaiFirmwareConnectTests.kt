@@ -260,6 +260,10 @@ class OttaiFirmwareConnectTests {
         val callback = shadowOf(gatt).gattCallback
         callback.onConnectionStateChange(gatt, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
         session.onHandler {}
+        // Drain the MTU callback posted during connection before advancing the clock. Run late,
+        // it re-arms the discovery delay past the advance, the finish write then finds the
+        // connect still pending, and the session retires.
+        session.onHandler {}
         shadowOf(session.handler().looper).idleFor(Duration.ofMillis(2_500))
         session.onHandler {}
         val outcomes = mutableListOf<OttaiOtaFinish>()

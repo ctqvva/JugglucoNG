@@ -2519,8 +2519,7 @@ internal fun SignalQualityAndReadingAgeRow(
                     iconTint = contentColor.copy(alpha = 0.6f),
                     textColor = contentColor.copy(alpha = 0.75f),
                     iconSize = SIGNAL_AGE_CLOCK_SIZE,
-                    iconGap = SIGNAL_AGE_CLOCK_GAP,
-                    icon = tk.glucodata.ui.symbols.Symbols.Schedule
+                    iconGap = SIGNAL_AGE_CLOCK_GAP
                 )
             }
         }

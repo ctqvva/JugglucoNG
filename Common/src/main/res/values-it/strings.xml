@@ -2115,6 +2115,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_chat_ids">ID chat consentiti</string>
     <string name="api_source_telegram_note">Telegram conserva gli aggiornamenti del bot fino a 24 ore. Inserisci uno o più ID chat o nomi utente i cui messaggi bot possono essere importati.</string>
     <string name="status_waiting_for_data">Connesso, in attesa dei dati…</string>
+    <string name="status_sensor_not_found">Sensore non trovato nelle vicinanze</string>
+    <string name="status_auth_failed">Autenticazione non riuscita</string>
+    <string name="status_sensor_not_responding">Il sensore non risponde</string>
+    <string name="sensor_out_of_reach_title">Nessun segnale dal sensore</string>
+    <string name="sensor_out_of_reach_title_short">Nessun segnale</string>
+    <string name="sensor_out_of_reach_body">Riprovo a connettermi</string>
+    <string name="sensor_out_of_reach_battery">Batteria del sensore scarica (%1$d%%)</string>
+    <string name="sensor_waiting_for_reading">In attesa di una lettura</string>
     <string name="status_raw_values_received">Connesso, valori grezzi ricevuti</string>
     <string name="status_invalid_glucose_from_sensor">Glucosio non valido dal sensore</string>
     <string name="sensor_display_select">Seleziona sensore da visualizzare</string>
@@ -2347,6 +2355,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="stats_duration_minutes">%1$d min</string>
     <string name="stats_duration_hours">%1$d h</string>
     <string name="stats_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="stats_duration_days">%1$d g</string>
+    <string name="stats_duration_days_hours">%1$d g %2$d h</string>
+    <plurals name="stats_duration_weeks">
+        <item quantity="one">%1$d settimana</item>
+        <item quantity="other">%1$d settimane</item>
+    </plurals>
     <string name="stats_tab_days">Giorni</string>
     <string name="stats_tab_hours">Ore</string>
     <string name="stats_tab_weekdays">Giorni della settimana</string>
@@ -2415,6 +2429,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="gri_short">GRI</string>
     <string name="stats_window_label">Periodo</string>
     <string name="stats_arrange_width">Mezza o piena larghezza</string>
+    <string name="stats_arrange_ring">Mostra come anello</string>
     <string name="stats_window_3d">3G</string>
     <string name="stats_window_today">Oggi</string>
     <string name="stats_window_24h">24H</string>
@@ -3378,4 +3393,12 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_move_down">Sposta in basso</string>
     <string name="scan_sensor_qr">Scansiona il codice QR del sensore</string>
     <string name="spanish">Spagnolo</string>
+    <string name="floating_layout_reading">Lettura</string>
+    <string name="floating_layout_secondary">Valore secondario</string>
+    <string name="floating_layout_delta">Delta</string>
+    <string name="floating_layout_arrow">Freccia di tendenza</string>
+    <string name="floating_layout_camera">Foro della fotocamera</string>
+    <string name="floating_layout_camera_desc">Gli elementi sopra stanno prima della fotocamera, gli altri dopo</string>
+    <string name="floating_layout_hidden">Nascosto</string>
+    <string name="floating_layout_order_desc">Trascina una maniglia per spostare un elemento</string>
 </resources>
