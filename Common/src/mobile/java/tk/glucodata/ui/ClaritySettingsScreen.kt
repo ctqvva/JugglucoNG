@@ -68,7 +68,9 @@ import java.time.ZoneOffset
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -89,6 +91,7 @@ import tk.glucodata.ui.util.findActivity
 
 private const val LOG_ID = "Clarity"
 private const val EARLIEST_START_SECONDS = Clarity.EARLIEST_START_SECONDS
+private val claritySaveMutex = Mutex()
 
 /**
  * Dexcom Clarity upload. Everything except the sign-in page lives in native code (net/clarity):
@@ -103,7 +106,6 @@ private const val EARLIEST_START_SECONDS = Clarity.EARLIEST_START_SECONDS
 fun ClaritySettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val saveMutex = remember { Mutex() }
     var status by remember { mutableStateOf(Clarity.status()) }
     var savingCount by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -142,16 +144,16 @@ fun ClaritySettingsScreen(navController: NavController) {
             this.status = current.status
         }
         savingCount += 1
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                saveMutex.withLock {
-                    val result = withContext(Dispatchers.IO) {
+                val result = withContext(NonCancellable + Dispatchers.IO) {
+                    claritySaveMutex.withLock {
                         // Amounts stay as stored: see the class comment.
                         Clarity.configure(enabled, history, numbers, since)
                     }
-                    error = if (result == null) context.getString(R.string.clarity_save_settings_error) else result.takeIf { it.isNotEmpty() }
-                    status = withContext(Dispatchers.IO) { Clarity.status() }
                 }
+                error = if (result == null) context.getString(R.string.clarity_save_settings_error) else result.takeIf { it.isNotEmpty() }
+                status = withContext(Dispatchers.IO) { Clarity.status() }
             } finally {
                 savingCount -= 1
             }
