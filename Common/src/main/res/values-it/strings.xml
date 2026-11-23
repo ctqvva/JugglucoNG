@@ -3008,6 +3008,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_algorithm_failed">Impossibile ricalcolare la cronologia del sensore</string>
     <string name="voice_chime_title">Segnale prima della glicemia</string>
     <string name="voice_chime_desc">Prima un breve suono, per essere in ascolto quando viene letto il valore</string>
+    <string name="voice_speak_twice_title">Leggi due volte</string>
+    <string name="voice_speak_twice_desc">Ripeti ogni lettura del glucosio per sentirla più facilmente</string>
     <string name="choose_color">Scegli colore</string>
     <string name="data_smoothing_window_desc">Una finestra più lunga attenua maggiormente le oscillazioni</string>
     <string name="data_smoothing_scope_all">Tutti i valori</string>

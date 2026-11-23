@@ -3046,6 +3046,8 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="aidex_algorithm_failed">Sensör geçmişi yeniden hesaplanamadı</string>
     <string name="voice_chime_title">Glikozdan önce sinyal</string>
     <string name="voice_chime_desc">Önce kısa bir ses, böylece değer okunurken dinliyor olursunuz</string>
+    <string name="voice_speak_twice_title">İki kez oku</string>
+    <string name="voice_speak_twice_desc">Daha kolay duyulması için her glukoz ölçümünü tekrarlar</string>
     <string name="choose_color">Renk seç</string>
     <string name="data_smoothing_window_desc">Daha uzun pencereler dalgalanmaları daha fazla yumuşatır</string>
     <string name="data_smoothing_scope_all">Tüm değerler</string>

@@ -3255,6 +3255,8 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="aidex_algorithm_failed">No se pudo reconstruir el historial del sensor</string>
      <string name="voice_chime_title">Carillón antes de la glucosa</string>
      <string name="voice_chime_desc">Un tono corto primero, para que estés escuchando cuando se diga el valor</string>
+    <string name="voice_speak_twice_title">Leer dos veces</string>
+    <string name="voice_speak_twice_desc">Repetir cada lectura de glucosa para que sea más fácil oírla</string>
      <string name="choose_color">Elegir color</string>
      <string name="data_smoothing_window_desc">Ventanas más largas suavizan más fluctuaciones</string>
      <string name="data_smoothing_scope_all">En todas partes</string>

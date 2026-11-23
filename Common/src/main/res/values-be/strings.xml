@@ -3094,6 +3094,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_algorithm_failed">Не ўдалося пералічыць гісторыю датчыка</string>
     <string name="voice_chime_title">Сігнал перад глюкозай</string>
     <string name="voice_chime_desc">Кароткі гук перад значэннем, каб паспець прыслухацца</string>
+    <string name="voice_speak_twice_title">Прамаўляць двойчы</string>
+    <string name="voice_speak_twice_desc">Паўтараць кожнае паказанне глюкозы, каб яго было лягчэй пачуць</string>
     <string name="choose_color">Выбраць колер</string>
     <string name="data_smoothing_window_desc">Чым большае акно, тым мацнейшае згладжванне</string>
     <string name="data_smoothing_scope_all">Усюды</string>

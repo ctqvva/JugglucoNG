@@ -3064,6 +3064,8 @@
     <string name="aidex_algorithm_failed">Nie udało się przeliczyć historii czujnika</string>
     <string name="voice_chime_title">Sygnał przed glukozą</string>
     <string name="voice_chime_desc">Najpierw krótki dźwięk, aby zdążyć się wsłuchać w wartość</string>
+    <string name="voice_speak_twice_title">Czytaj dwukrotnie</string>
+    <string name="voice_speak_twice_desc">Powtarzaj każdy odczyt glukozy, aby łatwiej go usłyszeć</string>
     <string name="choose_color">Wybierz kolor</string>
     <string name="data_smoothing_window_desc">Dłuższe okno mocniej wygładza wahania</string>
     <string name="data_smoothing_scope_all">Wszystkie wartości</string>

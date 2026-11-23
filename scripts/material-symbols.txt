@@ -159,6 +159,7 @@ radio_button_unchecked fill
 record_voice_over fill
 refresh fill
 remove fill
+repeat fill
 restart_alt fill
 restaurant fill
 restore fill

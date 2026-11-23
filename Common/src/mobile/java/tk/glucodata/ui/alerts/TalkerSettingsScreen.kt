@@ -147,6 +147,7 @@ fun TalkerSettingsScreen(navController: NavController) {
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
     var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
+    var speakTwice by remember { mutableStateOf(Talker.getSpeakTwice(activity)) }
     var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
     var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
     val btAudioState by VoiceAudioTrigger.state.collectAsStateWithLifecycle()
@@ -286,6 +287,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP
                 )
+                val readingSpeechConfigured = uiState.speakGlucose || btAudioState.config.enabled
                 SettingsSwitchItem(
                     title = stringResource(R.string.voice_chime_title),
                     subtitle = stringResource(R.string.voice_chime_desc),
@@ -297,8 +299,22 @@ fun TalkerSettingsScreen(navController: NavController) {
                     icon = Symbols.DoorbellFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
-                    enabled = uiState.speakGlucose,
+                    enabled = readingSpeechConfigured,
                     searchAnchor = SettingsSearchAnchors.VOICE_CHIME
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_speak_twice_title),
+                    subtitle = stringResource(R.string.voice_speak_twice_desc),
+                    checked = speakTwice,
+                    onCheckedChange = {
+                        speakTwice = it
+                        Talker.setSpeakTwice(activity, it)
+                    },
+                    icon = Symbols.RepeatFilled,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.MIDDLE,
+                    enabled = readingSpeechConfigured,
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_speak_twice_title)
                 )
 //                SettingsSwitchItem(
 //                    title = stringResource(R.string.talk_touch),

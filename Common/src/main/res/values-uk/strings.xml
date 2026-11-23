@@ -3099,6 +3099,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_algorithm_failed">Не вдалося перерахувати історію датчика</string>
     <string name="voice_chime_title">Сигнал перед глюкозою</string>
     <string name="voice_chime_desc">Короткий звук перед значенням, щоб встигнути прислухатися</string>
+    <string name="voice_speak_twice_title">Озвучувати двічі</string>
+    <string name="voice_speak_twice_desc">Повторювати кожне показання глюкози, щоб його було легше почути</string>
     <string name="choose_color">Вибрати колір</string>
     <string name="data_smoothing_window_desc">Що більше вікно, то сильніше згладжування</string>
     <string name="data_smoothing_scope_all">Скрізь</string>

@@ -471,4 +471,54 @@ class VoiceAudioPolicyTests {
         assertFalse("Pausing a car session must silence readings even when manual speech is on", paused.shouldSpeakReading)
         assertTrue("Manual alarm speech stays untouched when readings are paused", paused.shouldSpeakAlarm)
     }
+
+    @Test
+    fun dualModeEarbuds_collapseIntoSingleDeviceAndMatchAcrossTransports() {
+        val classicBud = VoiceAudioPolicy.ConnectedDevice(
+            address = "AA:BB:CC:11:22:01",
+            name = "Galaxy Buds2 Pro",
+            isBluetoothAudio = true,
+            isCarAudio = false,
+            transport = VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL,
+        )
+        val leBud = VoiceAudioPolicy.ConnectedDevice(
+            address = "44:55:66:77:88:02",
+            name = "Galaxy Buds2 Pro",
+            isBluetoothAudio = true,
+            isCarAudio = false,
+            transport = VoiceAudioPolicy.Transport.LE_ONLY,
+        )
+
+        val deduped = VoiceAudioPolicy.deduplicateConnectedDevices(listOf(leBud, classicBud))
+        assertEquals("Classic + LE Audio twins for the same Buds must collapse to 1 row", 1, deduped.size)
+        assertEquals("AA:BB:CC:11:22:01", deduped[0].address)
+        assertEquals(listOf("44:55:66:77:88:02"), deduped[0].alternateAddresses)
+
+        // Saving the collapsed entry matches whether the Buds later connect over Classic OR LE Audio.
+        val saved = VoiceAudioPolicy.SavedDevice(
+            id = "mac:AA:BB:CC:11:22:01",
+            address = "AA:BB:CC:11:22:01",
+            name = "Galaxy Buds2 Pro",
+            alternateAddresses = listOf("44:55:66:77:88:02"),
+        )
+        assertTrue(VoiceAudioPolicy.devicesMatch(saved, classicBud))
+        assertTrue(VoiceAudioPolicy.devicesMatch(saved, leBud))
+
+        // Meanwhile two distinct Classic cars sharing "Car Multimedia" MUST stay separate!
+        val carA = VoiceAudioPolicy.ConnectedDevice(
+            address = "AA:BB:CC:DD:EE:01",
+            name = "Car Multimedia",
+            isBluetoothAudio = true,
+            isCarAudio = true,
+            transport = VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL,
+        )
+        val carB = VoiceAudioPolicy.ConnectedDevice(
+            address = "11:22:33:44:55:02",
+            name = "Car Multimedia",
+            isBluetoothAudio = true,
+            isCarAudio = true,
+            transport = VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL,
+        )
+        assertEquals("Two distinct Classic cars must NOT collapse", 2, VoiceAudioPolicy.deduplicateConnectedDevices(listOf(carA, carB)).size)
+    }
 }

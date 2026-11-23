@@ -206,6 +206,7 @@ internal fun VoiceAudioDeviceSheet(
                                         name = dev.name,
                                         address = dev.address,
                                         isCar = dev.isCar,
+                                        alternateAddresses = dev.alternateAddresses,
                                     ),
                                 )
                             },
@@ -229,6 +230,7 @@ internal fun VoiceAudioDeviceSheet(
                                         name = dev.name,
                                         address = dev.address,
                                         isCar = dev.isCar,
+                                        alternateAddresses = dev.alternateAddresses,
                                     ),
                                 )
                             },
@@ -287,6 +289,9 @@ private fun AudioDeviceGroup(
     devices: List<VoiceAudioTrigger.SelectableDevice>,
     onToggle: (VoiceAudioTrigger.SelectableDevice) -> Unit,
 ) {
+    val nameCounts = remember(devices) {
+        devices.groupingBy { VoiceAudioPolicy.normalizeName(it.name) }.eachCount()
+    }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         devices.forEachIndexed { index, device ->
             val position = when {
@@ -295,9 +300,11 @@ private fun AudioDeviceGroup(
                 index == devices.lastIndex -> CardPosition.BOTTOM
                 else -> CardPosition.MIDDLE
             }
+            val needsMacSuffix = (nameCounts[VoiceAudioPolicy.normalizeName(device.name)] ?: 0) > 1
             SelectableAudioDeviceRow(
                 device = device,
                 position = position,
+                showMacSuffix = needsMacSuffix,
                 onToggle = { onToggle(device) },
             )
         }
@@ -308,6 +315,7 @@ private fun AudioDeviceGroup(
 private fun SelectableAudioDeviceRow(
     device: VoiceAudioTrigger.SelectableDevice,
     position: CardPosition,
+    showMacSuffix: Boolean,
     onToggle: () -> Unit,
 ) {
     val shape = cardShape(position)
@@ -322,11 +330,13 @@ private fun SelectableAudioDeviceRow(
         device.isConnected -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val statusText = when {
+    val baseStatus = when {
         device.isConnected -> stringResource(R.string.voice_bt_device_connected)
         device.isPaired -> stringResource(R.string.voice_bt_device_paired)
         else -> stringResource(R.string.voice_bt_device_not_paired)
     }
+    val macSuffix = device.address?.takeLast(5)?.takeIf { showMacSuffix && it.isNotBlank() }
+    val statusText = if (macSuffix != null) "$baseStatus · $macSuffix" else baseStatus
 
     Surface(
         modifier = Modifier

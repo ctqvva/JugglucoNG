@@ -3087,6 +3087,8 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="aidex_algorithm_failed">Az érzékelő előzményeit nem sikerült újraszámítani</string>
     <string name="voice_chime_title">Jelzőhang a glükóz előtt</string>
     <string name="voice_chime_desc">Előbb egy rövid hang, hogy figyelj, amikor elhangzik az érték</string>
+    <string name="voice_speak_twice_title">Felolvasás kétszer</string>
+    <string name="voice_speak_twice_desc">Minden glükózmérés megismétlése, hogy könnyebb legyen hallani</string>
     <string name="choose_color">Szín kiválasztása</string>
     <string name="data_smoothing_window_desc">A hosszabb időablak jobban kisimítja az ingadozásokat</string>
     <string name="data_smoothing_scope_all">Minden értékre</string>

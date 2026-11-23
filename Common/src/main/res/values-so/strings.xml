@@ -3203,6 +3203,8 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="aidex_algorithm_failed">Taariikhda dareemaha dib looma xisaabin karin</string>
     <string name="voice_chime_title">Dhawaaq ka hor sonkorta</string>
     <string name="voice_chime_desc">Marka hore cod gaaban, si aad u dhegaysato marka qiimaha la sheegayo</string>
+    <string name="voice_speak_twice_title">Laba jeer akhri</string>
+    <string name="voice_speak_twice_desc">Ku celi akhris kasta oo gulukoos ah si ay u fududaato in la maqlo</string>
     <string name="choose_color">Dooro midab</string>
     <string name="data_smoothing_window_desc">Waqti dheer wuxuu si ka badan u simaa isbeddellada</string>
     <string name="data_smoothing_scope_all">Dhammaan qiimayaasha</string>

@@ -3061,6 +3061,8 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="aidex_algorithm_failed">Sensorgeschiedenis kon niet opnieuw worden berekend</string>
     <string name="voice_chime_title">Signaal vóór glucose</string>
     <string name="voice_chime_desc">Eerst een korte toon, zodat je luistert als de waarde wordt uitgesproken</string>
+    <string name="voice_speak_twice_title">Twee keer voorlezen</string>
+    <string name="voice_speak_twice_desc">Herhaal elke glucosemeting zodat deze makkelijker te verstaan is</string>
     <string name="choose_color">Kleur kiezen</string>
     <string name="data_smoothing_window_desc">Een langer venster vlakt schommelingen sterker af</string>
     <string name="data_smoothing_scope_all">Alle waarden</string>

@@ -544,6 +544,39 @@ class VoiceAudioTriggerTests {
         VoiceAudioTrigger.refreshState(app)
         assertTrue("Car audio should bypass Speak schedule while driving", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
     }
+
+    @Test
+    fun speakTwice_queuesTwoReadingPassesOverCarAudio() {
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        Talker.setSpeakTwice(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("AA:BB:CC:DD:EE:66", "My Car")))
+        VoiceAudioTrigger.refreshState(app)
+
+        val talker = SuperGattCallback.talker!!
+        talker.engineReady = true
+        Talker.nexttime = 0L
+        VoiceTriggerTestEngine.speakCount = 0
+
+        talker.selspeak("6.4, stable", 5_000L)
+        assertEquals("Speak twice must queue two spoken passes for one reading", 2, VoiceTriggerTestEngine.speakCount)
+    }
+
+    @Test
+    fun dualModeBudsConnectedViaA2dpAndBleHeadset_listOnlyOnce() {
+        shadowOf(audio).setOutputDevices(
+            listOf(
+                fakeBtDevice("AA:BB:CC:11:22:01", "Steven's Buds", AudioDeviceInfo.TYPE_BLUETOOTH_A2DP),
+                fakeBtDevice("44:55:66:77:88:02", "Steven's Buds", AudioDeviceInfo.TYPE_BLE_HEADSET),
+            )
+        )
+        val result = VoiceAudioTrigger.listSelectableDevices(app, includeAllPaired = false)
+        assertEquals("Dual-mode Classic + LE Audio Buds must appear once in Connected now", 1, result.connected.size)
+        assertEquals("Steven's Buds", result.connected[0].name)
+        assertEquals(listOf("44:55:66:77:88:02"), result.connected[0].alternateAddresses)
+    }
 }
 
 class FakeCarConnectionProvider : ContentProvider() {

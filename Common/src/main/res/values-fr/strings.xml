@@ -3024,6 +3024,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_algorithm_failed">Impossible de recalculer l’historique du capteur</string>
     <string name="voice_chime_title">Carillon avant la glycémie</string>
     <string name="voice_chime_desc">Un bref son d\'abord, pour être attentif quand la valeur est annoncée</string>
+    <string name="voice_speak_twice_title">Lire deux fois</string>
+    <string name="voice_speak_twice_desc">Répéter chaque mesure de glycémie pour mieux l’entendre</string>
     <string name="choose_color">Choisir une couleur</string>
     <string name="data_smoothing_window_desc">Une fenêtre plus longue atténue davantage les fluctuations</string>
     <string name="data_smoothing_scope_all">Toutes les valeurs</string>

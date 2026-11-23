@@ -89,8 +89,9 @@ static  private float curspeed=1.0f;
 static private volatile long cursep=50*1000L;
 static private int voicepos=-1;
 static private String playstring=null;
-// The chime setting for playstring: it is spoken from onInit, after the Test press has returned.
+// The chime/repeat settings for playstring: it is spoken from onInit, after the Test press has returned.
 static private boolean playchime=false;
+static private boolean playtwice=false;
 static private Spinner spinner=null;
 //static final private int minandroid=24; //21
 static final private int minandroid=21; //21
@@ -356,14 +357,16 @@ public static void testCurrentValue(Context context) {
         talk.setvoice();
         // Use media stream so test is audible regardless of notification mute
         final boolean chime=getChimeBeforeGlucose(context);
+        final boolean twice=getSpeakTwice(context);
         if(android.os.Build.VERSION.SDK_INT >= minandroid)
-            talk.speak(say, mediaAudio, chime);
+            talk.speak(say, mediaAudio, chime, twice);
         else
-            talk.speak(say, chime);
+            talk.speak(say, chime, twice);
         return;
         }
     // Engine not ready yet — queue for after init
     playchime=getChimeBeforeGlucose(context);
+    playtwice=getSpeakTwice(context);
     playstring=say;
     if(talk==null)
         SuperGattCallback.newtalker(context);
@@ -472,7 +475,7 @@ if(!DontTalk) {
                 notifyVoiceListeners();
             }
              if(playstring!=null) {
-                 speak(playstring,playchime);
+                 speak(playstring,playchime,playtwice);
                  playstring=null;
                  }
            }
@@ -559,10 +562,14 @@ public boolean speak(String message) {
  * The words then follow a short lead-in, see {@link LeadIn}.
  */
 boolean speak(String message,boolean chime) {
-    return speak(message,notification_audio,chime);
+    return speak(message,notification_audio,chime,false);
     }
 
-private boolean queueSpeech(String message,boolean chime) {
+boolean speak(String message,boolean chime,boolean repeatTwice) {
+    return speak(message,notification_audio,chime,repeatTwice);
+    }
+
+private boolean queueSpeech(String message,boolean chime,boolean repeatTwice) {
     if(!DontTalk) {
         // Unique, so a callback for an earlier utterance of the same value cannot release this
         // one's focus.
@@ -590,7 +597,7 @@ private boolean queueSpeech(String message,boolean chime) {
                 public int speak(String text,int queueMode,String utteranceId) {
                     return gine.speak(text,queueMode,null,utteranceId);
                     }
-                },message,wordsId,chime);
+                },message,wordsId,chime,repeatTwice);
                 }
             if(speakResult==TextToSpeech.SUCCESS) {
                 queued=true;
@@ -640,6 +647,7 @@ static SpeechFocus.Hold finishAlarmFocus(boolean closingAnnouncement) {
 
 private static final String PREFS="tk.glucodata_preferences";
 private static final String KEY_CHIME="voice_chime_before_glucose";
+private static final String KEY_SPEAK_TWICE="voice_speak_twice";
 
 /** Whether glucose announcements start with a short chime. Off unless the user turns it on. */
 public static boolean getChimeBeforeGlucose(Context context) {
@@ -648,6 +656,15 @@ public static boolean getChimeBeforeGlucose(Context context) {
 
 public static void setChimeBeforeGlucose(Context context,boolean chime) {
     context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().putBoolean(KEY_CHIME,chime).apply();
+    }
+
+/** Whether glucose reading announcements are spoken twice with a brief pause between passes. */
+public static boolean getSpeakTwice(Context context) {
+    return context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).getBoolean(KEY_SPEAK_TWICE,false);
+    }
+
+public static void setSpeakTwice(Context context,boolean twice) {
+    context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().putBoolean(KEY_SPEAK_TWICE,twice).apply();
     }
 
 // Tracks real engine health, as opposed to istalking() which only checks that
@@ -685,10 +702,14 @@ static volatile boolean notifyfocus=false;
  * @return true only when the engine accepted the utterance. See {@link #speak(String)}.
  */
 public boolean speak(String message, AudioAttributes attr) {
-    return speak(message,attr,false);
+    return speak(message,attr,false,false);
     }
 
 boolean speak(String message, AudioAttributes attr, boolean chime) {
+    return speak(message,attr,chime,false);
+    }
+
+boolean speak(String message, AudioAttributes attr, boolean chime, boolean repeatTwice) {
     if(DontTalk)
         return false;
     final TextToSpeech gine=engine;
@@ -705,7 +726,7 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
         // Refresh even the default attributes: the Media setting can change while this
         // engine stays alive. Otherwise it keeps speaking on its old stream until restart.
         gine.setAudioAttributes(attr);
-        spoken=queueSpeech(message,chime);
+        spoken=queueSpeech(message,chime,repeatTwice);
         }
     catch(Throwable th) {
         Log.stack(LOG_ID,"speak(message,attr)",th);
@@ -754,7 +775,7 @@ void selspeak(String message, long readingTimeMs) {
             // instead makes detection ~2 minutes regardless of how the user set the interval.
             nexttime=sepMs>0L ? (now+sepMs) : now;
             final AudioAttributes attrs=decision.getUseMediaStream()?mediaAudio:notification_audio;
-            if(speak(message,attrs,getChimeBeforeGlucose(app))) {
+            if(speak(message,attrs,getChimeBeforeGlucose(app),getSpeakTwice(app))) {
                 if(readingTimeMs>0L) {
                     lastSpokenReadingTimeMs=readingTimeMs;
                     }
@@ -791,7 +812,7 @@ boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean
     final long sepMs=decision.getEffectiveIntervalSeconds()*1000L;
     nexttime=sepMs>0L ? (now+sepMs) : now;
     final AudioAttributes attrs=useMediaStream?mediaAudio:notification_audio;
-    if(speak(message,attrs,chime)) {
+    if(speak(message,attrs,chime,getSpeakTwice(app))) {
         if(readingTimeMs>0L) {
             lastSpokenReadingTimeMs=readingTimeMs;
             }
@@ -1145,11 +1166,12 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
             if(talk!=null) {
                 talk.setvalues();
                 talk.setvoice();
-                talk.speak(say,getChimeBeforeGlucose(context));
+                talk.speak(say,getChimeBeforeGlucose(context),getSpeakTwice(context));
                 return;
                 }
             }
         playchime=getChimeBeforeGlucose(context);
+        playtwice=getSpeakTwice(context);
         playstring=say;
         SuperGattCallback.newtalker(context);
         });

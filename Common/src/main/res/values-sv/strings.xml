@@ -3018,6 +3018,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_algorithm_failed">Kunde inte räkna om sensorhistoriken</string>
     <string name="voice_chime_title">Signal före glukos</string>
     <string name="voice_chime_desc">Först en kort ton, så att du lyssnar när värdet läses upp</string>
+    <string name="voice_speak_twice_title">Läs upp två gånger</string>
+    <string name="voice_speak_twice_desc">Upprepa varje glukosvärde så att det blir lättare att höra</string>
     <string name="choose_color">Välj färg</string>
     <string name="data_smoothing_window_desc">Ett längre tidsfönster jämnar ut fler svängningar</string>
     <string name="data_smoothing_scope_all">Alla värden</string>

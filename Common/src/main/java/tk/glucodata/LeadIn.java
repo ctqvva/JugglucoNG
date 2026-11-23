@@ -37,6 +37,14 @@ final class LeadIn {
      *         are refused the words still go out, flushing in their place.
      */
     static int queue(Engine engine, String message, String wordsId, boolean chime) {
+        return queue(engine, message, wordsId, chime, false);
+    }
+
+    /**
+     * Queue the lead-in, the chime if wanted, then the words — optionally repeated once with a
+     * brief silent beat between passes while holding audio focus across both.
+     */
+    static int queue(Engine engine, String message, String wordsId, boolean chime, boolean repeatTwice) {
         int queueMode = TextToSpeech.QUEUE_FLUSH;
         if (engine.playEarcon(SILENCE_EARCON, queueMode, ID) == TextToSpeech.SUCCESS) {
             queueMode = TextToSpeech.QUEUE_ADD;
@@ -44,7 +52,15 @@ final class LeadIn {
         if (chime && engine.playEarcon(CHIME_EARCON, queueMode, ID) == TextToSpeech.SUCCESS) {
             queueMode = TextToSpeech.QUEUE_ADD;
         }
-        return engine.speak(message, queueMode, wordsId);
+        if (!repeatTwice) {
+            return engine.speak(message, queueMode, wordsId);
+        }
+        int firstResult = engine.speak(message, queueMode, ID);
+        if (firstResult != TextToSpeech.SUCCESS) {
+            return firstResult;
+        }
+        engine.playEarcon(SILENCE_EARCON, TextToSpeech.QUEUE_ADD, ID);
+        return engine.speak(message, TextToSpeech.QUEUE_ADD, wordsId);
     }
 
     static boolean isLeadIn(String utteranceId) {

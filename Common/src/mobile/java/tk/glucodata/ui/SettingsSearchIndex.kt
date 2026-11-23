@@ -350,6 +350,8 @@ internal object SettingsSearchIndex {
             anchor = row(R.string.speakalarms)),
         SettingsSearchEntry(R.string.voice_chime_title, TALKER, Symbols.DoorbellFilled, E, route("settings/alerts/talker"),
             anchor = SettingsSearchAnchors.VOICE_CHIME),
+        SettingsSearchEntry(R.string.voice_speak_twice_title, TALKER, Symbols.RepeatFilled, E, route("settings/alerts/talker"),
+            terms = listOf("repeat", "twice"), anchor = row(R.string.voice_speak_twice_title)),
         SettingsSearchEntry(R.string.override_silent_mode, TALKER, Symbols.NotificationsActiveFilled, E,
             route("settings/alerts/talker"), anchor = SettingsSearchAnchors.VOICE_OVERRIDE_SILENT),
         SettingsSearchEntry(R.string.talker_media_sound, TALKER, Symbols.MusicNoteFilled, E, route("settings/alerts/talker"),

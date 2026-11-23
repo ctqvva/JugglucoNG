@@ -96,4 +96,20 @@ class LeadInTests {
         assertFalse(LeadIn.isLeadIn("voice_preview"))
         assertFalse(LeadIn.isLeadIn(null))
     }
+
+    @Test
+    fun speakTwiceRepeatsWithPauseAndHoldsFocusUntilSecondPass() {
+        val engine = FakeEngine()
+        assertEquals(TextToSpeech.SUCCESS, LeadIn.queue(engine, "6.2, stable", "6.2#1", true, true))
+        assertEquals(
+            listOf(
+                Queued(LeadIn.SILENCE_EARCON, TextToSpeech.QUEUE_FLUSH, LeadIn.ID),
+                Queued(LeadIn.CHIME_EARCON, TextToSpeech.QUEUE_ADD, LeadIn.ID),
+                Queued("6.2, stable", TextToSpeech.QUEUE_ADD, LeadIn.ID),
+                Queued(LeadIn.SILENCE_EARCON, TextToSpeech.QUEUE_ADD, LeadIn.ID),
+                Queued("6.2, stable", TextToSpeech.QUEUE_ADD, "6.2#1"),
+            ),
+            engine.queued,
+        )
+    }
 }

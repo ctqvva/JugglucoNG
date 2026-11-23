@@ -3119,6 +3119,8 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="aidex_algorithm_failed">Мэдрэгчийн түүхийг дахин тооцоолж чадсангүй</string>
     <string name="voice_chime_title">Глюкозын өмнө дохио</string>
     <string name="voice_chime_desc">Эхлээд богино дуу, ингэснээр утгыг хэлэхэд та сонсож байна</string>
+    <string name="voice_speak_twice_title">Хоёр удаа унших</string>
+    <string name="voice_speak_twice_desc">Сонсоход хялбар болгохын тулд глюкозын уншилт бүрийг давтан унших</string>
     <string name="choose_color">Өнгө сонгох</string>
     <string name="data_smoothing_window_desc">Урт хугацааны цонх хэлбэлзлийг илүү жигдрүүлнэ</string>
     <string name="data_smoothing_scope_all">Бүх утга</string>

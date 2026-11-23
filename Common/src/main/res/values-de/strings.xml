@@ -3131,6 +3131,8 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="aidex_algorithm_failed">Sensorverlauf konnte nicht neu berechnet werden</string>
     <string name="voice_chime_title">Signalton vor Glukose</string>
     <string name="voice_chime_desc">Erst ein kurzer Ton, damit du zuhörst, wenn der Wert vorgelesen wird</string>
+    <string name="voice_speak_twice_title">Zweimal vorlesen</string>
+    <string name="voice_speak_twice_desc">Jeden Glukosewert wiederholen, damit er leichter zu verstehen ist</string>
     <string name="choose_color">Farbe wählen</string>
     <string name="data_smoothing_window_desc">Längere Zeitfenster glätten Schwankungen stärker</string>
     <string name="data_smoothing_scope_all">Alle Werte</string>
