@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -78,6 +79,7 @@ import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.components.scrollsUnderTopBar
 
 private data class JournalLedgerItem(
     val timestamp: Long,
@@ -185,6 +187,7 @@ fun JournalScreen(
             .then(if (useStatusBarsPadding) Modifier.statusBarsPadding() else Modifier)
     ) {
         LazyColumn(
+            state = rememberLazyListState().scrollsUnderTopBar(),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = 16.dp,

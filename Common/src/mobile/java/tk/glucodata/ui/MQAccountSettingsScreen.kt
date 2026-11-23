@@ -32,7 +32,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -60,7 +59,9 @@ import tk.glucodata.drivers.mq.MQAuthCredentials
 import tk.glucodata.drivers.mq.MQCloudClient
 import tk.glucodata.drivers.mq.MQRegistry
 import tk.glucodata.drivers.mq.MQVerifyCodeAction
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
@@ -142,7 +143,7 @@ fun MQAccountSettingsContent(
         onDispose { persistAccountState() }
     }
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -155,7 +156,7 @@ fun MQAccountSettingsContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState().scrollsUnderTopBar())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

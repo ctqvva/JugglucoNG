@@ -43,7 +43,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,7 +72,9 @@ import tk.glucodata.Libre3NfcSettings
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.ui.components.SensorType
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SettingsItem
@@ -223,7 +224,7 @@ fun LibreSetupWizard(
         if (currentStep > 0) currentStep-- else onDismiss()
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.libre_setup_title),
@@ -243,6 +244,16 @@ fun LibreSetupWizard(
                         }
                     }
                 },
+                below = {
+                    LinearWavyProgressIndicator(
+                        progress = { (currentStep + 1f) / 2f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                },
             )
         }
     ) { padding ->
@@ -251,22 +262,13 @@ fun LibreSetupWizard(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            LinearWavyProgressIndicator(
-                progress = { (currentStep + 1f) / 2f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-
             when (currentStep) {
                 0 -> {
                     val accountReady = accountIdValue > 0L
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
                             .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
                         verticalArrangement = Arrangement.spacedBy(ui.spacerMedium)
                     ) {
@@ -341,7 +343,7 @@ fun LibreSetupWizard(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
                             .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerSmall),
                         verticalArrangement = Arrangement.spacedBy(ui.spacerMedium)
                     ) {

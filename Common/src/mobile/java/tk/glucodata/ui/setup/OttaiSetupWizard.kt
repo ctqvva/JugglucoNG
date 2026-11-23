@@ -55,7 +55,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -93,6 +92,7 @@ import tk.glucodata.drivers.ottai.OttaiFirmwareStage
 import tk.glucodata.drivers.ottai.OttaiFirmwareState
 import tk.glucodata.drivers.ottai.OttaiNfc
 import tk.glucodata.drivers.ottai.OttaiRegistry
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
@@ -1313,7 +1313,7 @@ fun OttaiSetupWizard(
         )
     }) else null
 
-    Scaffold(
+    AppScaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             AppTopBar(

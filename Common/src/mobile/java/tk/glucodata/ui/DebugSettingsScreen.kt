@@ -47,6 +47,7 @@ import tk.glucodata.BuildConfig
 import tk.glucodata.BleErrorHistory
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.util.ConnectedButtonGroup
@@ -318,7 +319,7 @@ fun DebugSettingsScreen(navController: NavController) {
         }
     }
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {

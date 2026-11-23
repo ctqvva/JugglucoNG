@@ -44,7 +44,9 @@ import tk.glucodata.drivers.aidex.AiDexSetupKeyGate
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.AiDexSerialIdentity
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.BleDeviceScanner
@@ -149,7 +151,7 @@ fun AiDexSetupWizard(
         }
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(if (currentStep == AiDexSetupStep.SAVED_SENSORS)
@@ -549,7 +551,7 @@ internal fun PinnedOrScrollingList(
                 measuredFooter()
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), state = listState.scrollsUnderTopBar()) {
                 item { measuredHeader() }
                 listContent()
                 item { measuredFooter() }

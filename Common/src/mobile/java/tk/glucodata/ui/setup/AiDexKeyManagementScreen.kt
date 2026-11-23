@@ -62,6 +62,7 @@ import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.components.AdaptiveButtonRow
 import androidx.compose.ui.platform.testTag
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.components.scrollsUnderTopBar
 
 internal enum class AiDexAccountLoginMethod(val labelRes: Int) {
     SMS(R.string.ottai_login_sms),
@@ -199,7 +200,7 @@ internal fun AiDexKeyManagementScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState().scrollsUnderTopBar())
                 .padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

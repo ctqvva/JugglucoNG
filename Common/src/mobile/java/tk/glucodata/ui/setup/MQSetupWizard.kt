@@ -17,6 +17,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -42,7 +44,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -65,7 +66,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.ui.components.SensorType
@@ -155,12 +158,17 @@ fun MQSetupWizard(
         else -> Unit
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.mq_setup_title),
                 onNavigateBack = onDismiss,
                 navigationContentDescription = stringResource(R.string.cancel),
+                below = {
+                    AnimatedVisibility(visible = currentStep == MQSetupStep.SCAN) {
+                        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                },
             )
         }
     ) { padding ->
@@ -380,173 +388,171 @@ private fun MQScanStep(
         onDispose { scanner.stopScan() }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = ui.horizontalPadding,
-                end = ui.horizontalPadding,
-                top = ui.spacerMedium,
-                bottom = ui.spacerLarge,
-            ),
-            verticalArrangement = Arrangement.spacedBy(ui.spacerMedium),
-        ) {
-            item {
-                tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+    LazyColumn(
+        state = rememberLazyListState().scrollsUnderTopBar(),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = ui.horizontalPadding,
+            end = ui.horizontalPadding,
+            top = ui.spacerMedium,
+            bottom = ui.spacerLarge,
+        ),
+        verticalArrangement = Arrangement.spacedBy(ui.spacerMedium),
+    ) {
+        item {
+            tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+        }
+        item {
+            SensorWizardHero(
+                SensorType.MQ,
+                modifier = Modifier.padding(horizontal = ui.horizontalPadding),
+                compact = rememberSensorHeroCompact(sharesScreen = true),
+            )
+            Spacer(Modifier.height(ui.spacerSmall))
+            ScanFilterHeader(
+                title = stringResource(R.string.mq_searching_sensors),
+                showAllDevices = showAllDevices,
+                onToggleFilter = { showAllDevices = !showAllDevices },
+            )
+        }
+        items(devices.filter { showAllDevices || it.isLikelyMq }) { device ->
+            val title = device.displayName.ifBlank { stringResource(R.string.unknown) }
+            val supporting = when {
+                device.advertisesNus -> stringResource(R.string.mq_detected_label, device.address)
+                device.isLikelyMq -> device.address
+                else -> stringResource(R.string.mq_selectable_unrecognized, device.address)
             }
-            item {
-                SensorWizardHero(
-                    SensorType.MQ,
-                    modifier = Modifier.padding(horizontal = ui.horizontalPadding),
-                    compact = rememberSensorHeroCompact(sharesScreen = true),
+            ListItem(
+                headlineContent = { Text(title) },
+                supportingContent = { Text(supporting) },
+                leadingContent = { Icon(Symbols.BluetoothFilled, null) },
+                modifier = Modifier.clickable { onDeviceSelected(device) }
+            )
+            HorizontalDivider()
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
-                Spacer(Modifier.height(ui.spacerSmall))
-                ScanFilterHeader(
-                    title = stringResource(R.string.mq_searching_sensors),
-                    showAllDevices = showAllDevices,
-                    onToggleFilter = { showAllDevices = !showAllDevices },
-                )
-            }
-            items(devices.filter { showAllDevices || it.isLikelyMq }) { device ->
-                val title = device.displayName.ifBlank { stringResource(R.string.unknown) }
-                val supporting = when {
-                    device.advertisesNus -> stringResource(R.string.mq_detected_label, device.address)
-                    device.isLikelyMq -> device.address
-                    else -> stringResource(R.string.mq_selectable_unrecognized, device.address)
-                }
-                ListItem(
-                    headlineContent = { Text(title) },
-                    supportingContent = { Text(supporting) },
-                    leadingContent = { Icon(Symbols.BluetoothFilled, null) },
-                    modifier = Modifier.clickable { onDeviceSelected(device) }
-                )
-                HorizontalDivider()
-            }
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
 //                        Text(
 //                            text = stringResource(R.string.scan_transmitter_desc),
 //                            style = MaterialTheme.typography.bodyMedium,
 //                            color = MaterialTheme.colorScheme.onSurfaceVariant,
 //                        )
-                        Spacer(Modifier.height(12.dp))
-                        InlineQrScannerCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(220.dp),
-                            onScanResult = { raw ->
-                                onQrCodeChanged(raw)
-                                true
-                            },
+                    Spacer(Modifier.height(12.dp))
+                    InlineQrScannerCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        onScanResult = { raw ->
+                            onQrCodeChanged(raw)
+                            true
+                        },
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    if (qrCodeContent.isNotBlank()) {
+                        Text(
+                            text = "${stringResource(R.string.scan_sensor_qr)}: $qrCodeContent",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(Modifier.height(8.dp))
-                        if (qrCodeContent.isNotBlank()) {
-                            Text(
-                                text = "${stringResource(R.string.scan_sensor_qr)}: $qrCodeContent",
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Spacer(Modifier.height(8.dp))
-                        }
-                        OutlinedButton(
-                            onClick = onShowManualQrEntry,
-                            modifier = Modifier.fillMaxWidth(),
-                            shapes = ButtonDefaults.shapes(),
-                            contentPadding = ButtonDefaults.ContentPadding
-                        ) {
-                            Text(stringResource(R.string.enter_code_manually))
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        val accountState = MQRegistry.loadAccountState(context)
-                        val accountSubtitle = when {
-                            accountState.hasToken -> stringResource(R.string.mq_account_status_signed_in)
-                            accountState.hasCredentials -> stringResource(R.string.mq_account_status_saved)
-                            else -> stringResource(R.string.mq_account_linked_desc)
-                        }
-                        SettingsItem(
-                            title = stringResource(R.string.mq_account_title),
-                            subtitle = accountSubtitle,
-                            icon = Symbols.CloudFilled,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            position = CardPosition.SINGLE,
-                            onClick = onManageAccount,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
                     }
-                }
-            }
-
-            if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
-                item {
-                    Card(
+                    OutlinedButton(
+                        onClick = onShowManualQrEntry,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                        )
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            val messageRes = when {
-                                !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
-                                !scanPermissionGranted -> R.string.turn_on_location_permission
-                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
-                                else -> R.string.nobluetooth
-                            }
-                            Text(
-                                text = stringResource(messageRes),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Spacer(Modifier.height(ui.spacerMedium))
-                            val buttonRes = when {
-                                !scanPermissionGranted -> R.string.permission
-                                !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
-                                else -> R.string.search_bluetooth
-                            }
-                            Button(
-                                onClick = {
-                                    when {
-                                        !scanPermissionGranted -> requestScanPermission()
-                                        !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
-                                            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-                                        }
-                                        else -> {
-                                            scanError = null
-                                            scanPermissionGranted = hasBleScanPermissions(context)
-                                            bluetoothEnabled = scanner.isBluetoothEnabled()
-                                            scanRetryKey += 1
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.heightIn(min = ui.buttonHeight),
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = ButtonDefaults.ContentPadding
-                            ) {
-                                Text(stringResource(buttonRes))
-                            }
-                        }
+                        Text(stringResource(R.string.enter_code_manually))
                     }
-                }
-            }
-
-            if (devices.isEmpty() && scanPermissionGranted && bluetoothEnabled) {
-                item {
-                    Text(
-                        stringResource(R.string.mq_no_sensors_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Spacer(Modifier.height(16.dp))
+                    val accountState = MQRegistry.loadAccountState(context)
+                    val accountSubtitle = when {
+                        accountState.hasToken -> stringResource(R.string.mq_account_status_signed_in)
+                        accountState.hasCredentials -> stringResource(R.string.mq_account_status_saved)
+                        else -> stringResource(R.string.mq_account_linked_desc)
+                    }
+                    SettingsItem(
+                        title = stringResource(R.string.mq_account_title),
+                        subtitle = accountSubtitle,
+                        icon = Symbols.CloudFilled,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        position = CardPosition.SINGLE,
+                        onClick = onManageAccount,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
-
-
         }
+
+        if (!scanPermissionGranted || !bluetoothEnabled || scanError != null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        val messageRes = when {
+                            !scanPermissionGranted && Build.VERSION.SDK_INT >= 31 -> R.string.turn_on_nearby_devices_permission
+                            !scanPermissionGranted -> R.string.turn_on_location_permission
+                            !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.bluetooth_is_turned_off
+                            else -> R.string.nobluetooth
+                        }
+                        Text(
+                            text = stringResource(messageRes),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.height(ui.spacerMedium))
+                        val buttonRes = when {
+                            !scanPermissionGranted -> R.string.permission
+                            !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> R.string.enable_bluetooth
+                            else -> R.string.search_bluetooth
+                        }
+                        Button(
+                            onClick = {
+                                when {
+                                    !scanPermissionGranted -> requestScanPermission()
+                                    !bluetoothEnabled || scanError is BleDeviceScanner.ScanStartError.BluetoothDisabled -> {
+                                        enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                                    }
+                                    else -> {
+                                        scanError = null
+                                        scanPermissionGranted = hasBleScanPermissions(context)
+                                        bluetoothEnabled = scanner.isBluetoothEnabled()
+                                        scanRetryKey += 1
+                                    }
+                                }
+                            },
+                            modifier = Modifier.heightIn(min = ui.buttonHeight),
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = ButtonDefaults.ContentPadding
+                        ) {
+                            Text(stringResource(buttonRes))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (devices.isEmpty() && scanPermissionGranted && bluetoothEnabled) {
+            item {
+                Text(
+                    stringResource(R.string.mq_no_sensors_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+
     }
 }
 

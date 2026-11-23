@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,7 +29,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,7 +66,9 @@ import tk.glucodata.data.prediction.analysis.HorizonAccuracy
 import tk.glucodata.data.prediction.analysis.ModelAccuracy
 import tk.glucodata.data.prediction.analysis.PredictionAccuracy
 import tk.glucodata.data.prediction.analysis.PredictionAnalysisSnapshot
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.DangerItem
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.ConnectedButtonGroup
@@ -97,7 +99,7 @@ fun PredictionAnalysisScreen(navController: NavController, dashboardViewModel: D
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -165,6 +167,7 @@ internal fun PredictionAnalysisContent(
 ) {
     val current = snapshot
     LazyColumn(
+        state = rememberLazyListState().scrollsUnderTopBar(),
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)

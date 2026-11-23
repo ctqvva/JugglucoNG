@@ -30,7 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,7 +48,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.ui.components.SensorType
@@ -179,7 +180,7 @@ fun ICanHealthSetupWizard(
         )
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.icanhealth_sensor),
@@ -241,7 +242,7 @@ private fun ICanHealthOnboardingStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState(), enabled = !scannerTouched)
+            .verticalScroll(rememberScrollState().scrollsUnderTopBar(), enabled = !scannerTouched)
             .padding(horizontal = ui.horizontalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,

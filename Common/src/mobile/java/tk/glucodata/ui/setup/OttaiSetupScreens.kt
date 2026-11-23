@@ -115,6 +115,7 @@ import tk.glucodata.ui.components.SectionLabel
 import tk.glucodata.ui.components.SettingsItem
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.components.scrollsUnderTopBar
 
 /** Status cards sit beside settings rows, so they take the 20dp radius the guide gives them. */
 private val OttaiCardShape = RoundedCornerShape(20.dp)
@@ -886,7 +887,7 @@ internal fun OttaiRegisterStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
             .padding(horizontal = ui.horizontalPadding)
             .padding(top = 8.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1016,7 +1017,7 @@ internal fun OttaiQrStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
             .padding(horizontal = ui.horizontalPadding)
             .padding(top = 8.dp, bottom = 32.dp),
     ) {
@@ -1062,7 +1063,7 @@ internal fun OttaiSearchList(
     devices: LazyListScope.() -> Unit,
     footer: @Composable () -> Unit,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState().scrollsUnderTopBar()
     LaunchedEffect(scrollRequest) {
         if (scrollRequest > 0) {
             listState.animateScrollToItem(
@@ -1305,7 +1306,7 @@ internal fun OttaiSavedSensorsStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState().scrollsUnderTopBar())
             .padding(horizontal = ui.horizontalPadding)
             .padding(bottom = 32.dp),
     ) {

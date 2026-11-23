@@ -32,7 +32,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,7 +48,9 @@ import androidx.navigation.NavController
 import tk.glucodata.R
 import tk.glucodata.RestrictedMode
 import tk.glucodata.ui.SensorConnectionSettings
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.DisclosingSwitchCard
 import tk.glucodata.ui.components.MasterSwitchCard
@@ -73,7 +74,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
     val biometricsAvailable = remember(context) { RestrictedBiometrics.isAvailable(context) }
     val journalEnabled = remember(context) { tk.glucodata.JournalEnabled.isOn(context) }
 
-    Scaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             AppTopBar(
@@ -82,7 +83,7 @@ fun RestrictedModeSettingsScreen(navController: NavController) {
             )
         }
     ) { padding ->
-        val listState = rememberLazyListState()
+        val listState = rememberLazyListState().scrollsUnderTopBar()
         RevealSettingsSearchAnchor(
             listState,
             setOf(

@@ -21,6 +21,7 @@ import tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter
 import tk.glucodata.drivers.aidex.AiDexPairingMaterialFile
 import tk.glucodata.drivers.aidex.AiDexProvisioningStore
 import tk.glucodata.drivers.aidex.bloodcontrol.BloodControlAidex
+import tk.glucodata.ui.components.scrollsUnderTopBar
 
 internal fun loadAiDexSavedKeySensors(
     context: Context,
@@ -115,7 +116,7 @@ internal fun AiDexSavedSensorsScreen(
         )
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState().scrollsUnderTopBar())
         .padding(horizontal = ui.horizontalPadding).padding(top = 8.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         AiDexSavedSensorsSection(saved, !busy,

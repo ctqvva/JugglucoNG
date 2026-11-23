@@ -18,7 +18,9 @@ import androidx.compose.ui.unit.dp
 import tk.glucodata.DexcomManualPairing
 import tk.glucodata.R
 import tk.glucodata.ui.components.SensorType
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 
 /** Dexcom setup through either the applicator data matrix or its printed pairing code. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +66,7 @@ fun DexcomSetupWizard(
         )
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.dexcom_setup_title),
@@ -79,8 +81,9 @@ fun DexcomSetupWizard(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(ui.horizontalPadding)
-                .verticalScroll(rememberScrollState(), enabled = !scannerTouched)
+                .verticalScroll(rememberScrollState().scrollsUnderTopBar(), enabled = !scannerTouched)
+                .padding(horizontal = ui.horizontalPadding)
+                .padding(top = ui.spacerMedium, bottom = ui.horizontalPadding)
                 .imePadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top

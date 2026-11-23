@@ -53,7 +53,9 @@ import tk.glucodata.Notify
 import tk.glucodata.R
 import tk.glucodata.alerts.*
 import tk.glucodata.ui.SettingsSearchAnchors
+import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
+import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.RevealSettingsSearchAnchor
 import tk.glucodata.ui.components.settingsSearchAnchor
 import tk.glucodata.ui.components.SettingsItem
@@ -191,7 +193,7 @@ fun AlertSettingsScreen(
     val advancedOpen = rememberSaveable { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalAlertsAdvancedOpen provides advancedOpen) {
-    Scaffold(
+    AppScaffold(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.glucose_alerts_title),
@@ -199,7 +201,7 @@ fun AlertSettingsScreen(
             )
         }
     ) { padding ->
-        val listState = rememberLazyListState()
+        val listState = rememberLazyListState().scrollsUnderTopBar()
         // The section headers sit far down a long list; a search result for one pages to it.
         RevealSettingsSearchAnchor(
             listState,
