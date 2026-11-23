@@ -29,13 +29,17 @@ struct ProviderMaterial {
 inline constexpr std::size_t maxApplicationKeys = 32;
 inline constexpr std::string_view sessionWrapKeyName = "SessionWrapKey";
 
+// Built-in compact key-only material (31 application keys + SessionWrapKey)
+// used when no external clarity.mat override file is installed.
+const ProviderMaterial &defaultKeyMaterial();
+
 // Converts full or key-only material to a compact key-only representation
 // (31 application keys + SessionWrapKey, with blockSize=0 and decodeSize=0),
 // recovering SessionWrapKey via BGE if needed.
 ProviderMaterial toKeyMaterial(const ProviderMaterial &material);
 
-// A versioned, little-endian file. It contains vendor key material, so it must
-// stay out of source control and distribution.
+// A versioned, little-endian file for optional key-material overrides or
+// full white-box table snapshots.
 Bytes encodeMaterial(const ProviderMaterial &material);
 ProviderMaterial parseMaterial(std::span<const std::uint8_t> file);
 ProviderMaterial loadMaterial(const std::string &path);

@@ -157,7 +157,10 @@ bool checkReference(Engine &engine, const char *path,
 bool checkProtocolRoundTrip(const char *materialPath,
                             const ProviderMaterial &material,
                             const TestCase &sample) {
-  setenv("CLARITY_MATERIAL_FILE", materialPath, 1);
+  if (std::string_view(materialPath) == "--builtin")
+    unsetenv("CLARITY_MATERIAL_FILE");
+  else
+    setenv("CLARITY_MATERIAL_FILE", materialPath, 1);
   // Default-constructed Provider, exactly as used by discoverEndpoints and uploadBytes.
   Provider client;
   const std::string hardwareId = base64(Bytes(16, 0x42), true);
@@ -213,12 +216,14 @@ bool checkProtocolRoundTrip(const char *materialPath,
 
 int main(int argc, char **argv) {
   if (argc < 2 || argc > 3) {
-    std::fprintf(stderr, "usage: %s <material.mat> [reference-stream]\n",
+    std::fprintf(stderr, "usage: %s <material.mat|--builtin> [reference-stream]\n",
                  argv[0]);
     return 2;
   }
   try {
-    const auto material = loadMaterial(argv[1]);
+    const auto material = std::string_view(argv[1]) == "--builtin"
+                              ? defaultKeyMaterial()
+                              : loadMaterial(argv[1]);
     const auto keyOnly =
         std::make_shared<ProviderMaterial>(toKeyMaterial(material));
     auto shared = std::make_shared<ProviderMaterial>(material);

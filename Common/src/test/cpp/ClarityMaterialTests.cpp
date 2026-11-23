@@ -89,6 +89,24 @@ void defaults() {
   expect(encodeMaterial(material).size() ==
              40 + sizeof(portable::BlockMaterial) + sizeof(material.decode),
          "empty material size");
+
+  const auto &builtIn = defaultKeyMaterial();
+  expect(builtIn.keyOnly, "built-in defaultKeyMaterial is key-only");
+  expect(builtIn.keys.size() == 32, "built-in defaultKeyMaterial has 32 keys");
+  const auto validated = toKeyMaterial(builtIn);
+  expect(validated.keyOnly && validated.keys.size() == 32,
+         "built-in defaultKeyMaterial passes toKeyMaterial family checks");
+  const auto encodedBuiltIn = encodeMaterial(builtIn);
+  expect(encodedBuiltIn.size() == 40 + 32 * 104,
+         "built-in defaultKeyMaterial encodes to 3,368 bytes");
+  const auto parsedBuiltIn = parseMaterial(encodedBuiltIn);
+  expect(parsedBuiltIn.keyOnly && parsedBuiltIn.keys.size() == 32,
+         "built-in defaultKeyMaterial round-trips through JGCLMAT v1");
+  for (std::size_t i = 0; i < builtIn.keys.size(); ++i) {
+    expect(parsedBuiltIn.keys[i].name == builtIn.keys[i].name &&
+               parsedBuiltIn.keys[i].value == builtIn.keys[i].value,
+           "built-in key entry round-trip");
+  }
 }
 
 std::uint8_t gfMul(std::uint8_t a, std::uint8_t b) {

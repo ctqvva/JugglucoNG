@@ -41,15 +41,20 @@ void arity(const std::vector<Engine::Arg> &args, size_t count) {
   if (args.size() != count)
     throw Error("Invalid Clarity crypto argument count");
 }
+#ifndef CLARITY_JUGGLUCO_LOG
 bool materialPath(const std::string &path) {
   return path.ends_with(".mat") || path.ends_with(".clarity-material");
 }
+#endif
 std::string configuredMaterialPath(const std::string &path) {
 #ifdef CLARITY_JUGGLUCO_LOG
   (void)path;
   if (globalbasedir.empty())
     return {};
-  return std::string(globalbasedir) + "/clarity-indexed/clarity.mat";
+  const auto candidate = std::string(globalbasedir) + "/clarity-indexed/clarity.mat";
+  if (::access(candidate.c_str(), F_OK) == 0 || errno != ENOENT)
+    return candidate;
+  return {};
 #else
   if (const char *environment = std::getenv("CLARITY_MATERIAL_FILE");
       environment && *environment)
@@ -132,35 +137,44 @@ struct Engine::Impl {
       }
       return;
     }
-#ifdef CLARITY_JUGGLUCO_LOG
-    diagnostic("error: Clarity material is unavailable");
-    throw Error("Clarity crypto material is not installed");
-#else
-    library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
-    if (!library) {
-      const char *reason = dlerror();
-      diagnostic("error: Clarity provider load failed: %s",
-                 reason ? reason : "unknown");
-      throw Error("Cannot load Clarity provider: " + path);
+#ifndef CLARITY_JUGGLUCO_LOG
+    if (!path.empty() && path != CLARITY_PROVIDER_LIBRARY &&
+        path != "builtin") {
+      library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+      if (!library) {
+        const char *reason = dlerror();
+        diagnostic("error: Clarity provider load failed: %s",
+                   reason ? reason : "unknown");
+        throw Error("Cannot load Clarity provider: " + path);
+      }
+      try {
+        abi = reinterpret_cast<const NativeABI *>(
+            dlsym(library, "jg_clarity_abi"));
+        if (!abi || abi->magic != 0x3249544e414c434a || abi->version != 2 ||
+            !abi->unwrap || abi->keyCount != 31)
+          throw Error("Clarity provider ABI mismatch: " + path);
+        for (const auto &k : abi->keys)
+          if (!std::memchr(k.name, 0, sizeof(k.name)) ||
+              (k.size != 32 && k.size != 64))
+            throw Error("Invalid Clarity provider key table");
+      } catch (...) {
+        diagnostic("error: compact Clarity provider initialization failed");
+        close();
+        throw;
+      }
+      diagnostic(
+          "compact crypto provider ready (AES/HMAC and session-key decoder)");
+      return;
     }
+#endif
     try {
-      abi =
-          reinterpret_cast<const NativeABI *>(dlsym(library, "jg_clarity_abi"));
-      if (!abi || abi->magic != 0x3249544e414c434a || abi->version != 2 ||
-          !abi->unwrap || abi->keyCount != 31)
-        throw Error("Clarity provider ABI mismatch: " + path);
-      for (const auto &k : abi->keys)
-        if (!std::memchr(k.name, 0, sizeof(k.name)) ||
-            (k.size != 32 && k.size != 64))
-          throw Error("Invalid Clarity provider key table");
+      material = std::shared_ptr<const ProviderMaterial>(
+          std::shared_ptr<const ProviderMaterial>{}, &defaultKeyMaterial());
+      initPortable();
     } catch (...) {
-      diagnostic("error: compact Clarity provider initialization failed");
-      close();
+      diagnostic("error: built-in Clarity provider initialization failed");
       throw;
     }
-    diagnostic(
-        "compact crypto provider ready (AES/HMAC and session-key decoder)");
-#endif
   }
   void close() {
     if (library && dlclose(library) != 0)

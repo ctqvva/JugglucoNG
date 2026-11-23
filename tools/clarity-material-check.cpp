@@ -23,11 +23,13 @@ static_assert(sizeof(TestCase) == 80);
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    std::fprintf(stderr, "usage: %s <material.mat> < reference-stream\n",
+    std::fprintf(stderr, "usage: %s <material.mat|--builtin> < reference-stream\n",
                  argv[0]);
     return 2;
   }
-  const auto material = loadMaterial(argv[1]);
+  const auto material = std::string_view(argv[1]) == "--builtin"
+                            ? defaultKeyMaterial()
+                            : loadMaterial(argv[1]);
   const auto compact = toKeyMaterial(material);
   Bytes wrapKey;
   for (const auto &k : compact.keys)
