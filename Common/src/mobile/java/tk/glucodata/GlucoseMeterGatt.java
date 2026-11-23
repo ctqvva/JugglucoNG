@@ -150,6 +150,10 @@ private final MeterLinkPacer pacer=new MeterLinkPacer();
 private boolean pacedWaiting=false;
 // Bumped by every cancel, so an alarm already being delivered sees it is stale.
 private long pacedTicket=0L;
+// GATT whose link we explicitly disconnected before a paced wait. On API <= 26 (useConnect=false),
+// disconnect() also cancels Android's background autoConnect request, so if STATE_DISCONNECTED
+// ends up waiting 0 ms (e.g. pacing changed to Right away mid-disconnect) we must re-arm connect().
+private BluetoothGatt pacedDisconnectGatt=null;
 private synchronized void markLinkAnswered() { linkAnswered=true; }
 private synchronized void markLinkFailed() { linkAnswered=linkFailed=true; }
 private synchronized void markLinkBroughtNew() { linkBroughtNew=true; }
@@ -184,14 +188,19 @@ private synchronized boolean shouldDisconnectBeforePacedWait() {
 // radio active and holding an extra ACL link alongside sensors. Never disconnect early when
 // the recheck interval is 0 (or on new readings), or it would spin every couple of seconds.
 private void disconnectIfPaced(BluetoothGatt gatt) {
-    final boolean shouldDisconnect;
     synchronized(this) {
-        shouldDisconnect = gatt!=null && gatt==mBluetoothGatt && shouldDisconnectBeforePacedWait();
-    }
-    if(shouldDisconnect) {
+        if(gatt==null || gatt!=mBluetoothGatt || gatt==pacedDisconnectGatt || !shouldDisconnectBeforePacedWait())
+            return;
+        pacedDisconnectGatt=gatt;
         if(doLog) Log.i(LOG_ID,meterIndex+" sync complete, disconnecting before paced wait");
         gatt.disconnect();
     }
+}
+private synchronized boolean consumePacedDisconnect(BluetoothGatt gatt) {
+    final boolean matched = !stop && gatt!=null && gatt==pacedDisconnectGatt && gatt==mBluetoothGatt;
+    if(gatt==pacedDisconnectGatt)
+        pacedDisconnectGatt=null;
+    return matched;
 }
 private synchronized void schedulePacedReconnect(long wait) {
     cancelPacedReconnect();
@@ -616,6 +625,7 @@ boolean connected=false;
          // this link drops later.
          autoConnect=true;
          resetLink();
+         consumePacedDisconnect(bluetoothGatt);
          // Connected some other way while a paced reconnect waited.
          cancelPacedReconnect();
         if(stop) {
@@ -659,9 +669,11 @@ boolean connected=false;
                   else {
                      if(autoConnect)  {
                         final boolean paced;
+                        final boolean rearmDisconnect;
                         // One hold of the lock pacingChanged takes, so an interval change
                         // cannot slip between reading the interval and arming the alarm.
                         synchronized(this) {
+                            rearmDisconnect=consumePacedDisconnect(bluetoothGatt);
                             final MeterLinkOutcome outcome=currentLinkOutcome();
                             final int intervalMinutes=MeterSyncPacing.minutes();
                             final long wait=pacedReconnectDelay(intervalMinutes);
@@ -675,10 +687,11 @@ boolean connected=false;
                                 Log.i(LOG_ID,meterIndex+" stays on, reconnecting at once (outcome="+outcome+", interval="+intervalMinutes+"m)");
                                 }
                             }
-                        if(!paced && useConnect)
+                        if(!paced && (useConnect || rearmDisconnect))
                             bluetoothGatt.connect();
                         }
                     else {
+                        consumePacedDisconnect(bluetoothGatt);
                         // The one direct attempt a fresh sighting earns did not land.
                         // Fall back to the whitelist connect: retrying directly would
                         // keep the radio dialing for as long as the meter stays silent,
@@ -960,6 +973,7 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
             }
         finally {    
             mBluetoothGatt = null;
+            pacedDisconnectGatt = null;
             }
         }
     else {
