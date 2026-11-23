@@ -71,6 +71,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import tk.glucodata.ClarityStatus
 import tk.glucodata.Log
@@ -101,7 +103,9 @@ private const val EARLIEST_START_SECONDS = Clarity.EARLIEST_START_SECONDS
 fun ClaritySettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val saveMutex = remember { Mutex() }
     var status by remember { mutableStateOf(Clarity.status()) }
+    var savingCount by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var country by remember { mutableStateOf(Locale.getDefault().country) }
     var pickingDate by remember { mutableStateOf(false) }
@@ -110,20 +114,47 @@ fun ClaritySettingsScreen(navController: NavController) {
     // The worker reports from its own thread; poll while the screen is open.
     LaunchedEffect(Unit) {
         while (true) {
-            status = withContext(Dispatchers.IO) { Clarity.status() }
+            if (savingCount == 0) {
+                val polled = withContext(Dispatchers.IO) { Clarity.status() }
+                if (savingCount == 0) status = polled
+            }
             delay(1_000)
         }
     }
 
     fun configure(enabled: Boolean, history: Boolean, since: Long) {
         val current = status ?: return
+        val numbers = current.numbers
+        status = ClarityStatus().apply {
+            available = current.available
+            this.enabled = enabled
+            libre3History = history
+            this.numbers = numbers
+            loginPending = current.loginPending
+            this.since = since
+            lastSuccess = current.lastSuccess
+            acknowledgedCount = current.acknowledgedCount
+            acknowledgedLast = current.acknowledgedLast
+            pendingCount = current.pendingCount
+            pendingFirst = current.pendingFirst
+            pendingLast = current.pendingLast
+            account = current.account
+            this.status = current.status
+        }
+        savingCount += 1
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                // Amounts stay as stored: see the class comment.
-                Clarity.configure(enabled, history, current.numbers, since)
+            try {
+                saveMutex.withLock {
+                    val result = withContext(Dispatchers.IO) {
+                        // Amounts stay as stored: see the class comment.
+                        Clarity.configure(enabled, history, numbers, since)
+                    }
+                    error = if (result == null) context.getString(R.string.clarity_save_settings_error) else result.takeIf { it.isNotEmpty() }
+                    status = withContext(Dispatchers.IO) { Clarity.status() }
+                }
+            } finally {
+                savingCount -= 1
             }
-            error = if (result == null) context.getString(R.string.clarity_save_settings_error) else result.takeIf { it.isNotEmpty() }
-            status = withContext(Dispatchers.IO) { Clarity.status() }
         }
     }
 

@@ -131,27 +131,11 @@ class Worker {
                         if (r->valid())
                             add(r->gettime(), r->getmgdL(), std::numeric_limits<double>::quiet_NaN(), p);
                     }
-                    // A newly active source still supersedes an older one
-                    // while its first upload is waiting for backfill.
-                    if (!first)
-                        for (int p = std::max(s->getstarthistory(), end),
-                                 storedEnd = s->getScanendhistory(); p < storedEnd && !first; ++p) {
-                            auto *r = s->getglucose(p);
-                            if (r->valid())
-                                noteFirst(r->gettime(), r->getmgdL());
-                        }
                 } else {
                     const auto rows = receivedStream(*s);
                     for (const auto &r : rows)
                         if (r.valid(0))
                             add(r.gettime(), r.getmgdL(), r.getchange(), int(&r - s->beginpolls()));
-                    if (!first)
-                        for (const auto &r : s->getPolldata()) {
-                            if (r.valid(0))
-                                noteFirst(r.gettime(), r.getmgdL());
-                            if (first)
-                                break;
-                        }
                 }
                 if (first)
                     result.sensors.push_back({name, start, int64_t(start) + wear, first});
@@ -317,7 +301,8 @@ class Worker {
                     };
                     auto save = [&](const Json &updated) {
                         std::lock_guard guard(mutex);
-                        if (generation != revision)
+                        if (config.is_null() ||
+                            config.value("account", "") != updated.value("account", ""))
                             throw Error("Clarity configuration changed");
                         AccountStore(root + "/account.map").save(updated);
                         config = updated;
