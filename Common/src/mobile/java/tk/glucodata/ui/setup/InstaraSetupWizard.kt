@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +41,7 @@ import tk.glucodata.Log
 import tk.glucodata.R
 import tk.glucodata.drivers.instara.InstaraPersistence
 import tk.glucodata.drivers.instara.InstaraRegistry
+import tk.glucodata.ui.components.AppTopBar
 
 private const val TAG = "InstaraSetup"
 private const val CONNECT_TIMEOUT_MS = 90_000L
@@ -140,7 +141,13 @@ fun InstaraSetupWizard(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.instara_sensor)) }) },
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.instara_sensor),
+                onNavigateBack = onDismiss,
+                navigationContentDescription = stringResource(R.string.cancel),
+            )
+        },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
@@ -173,16 +180,21 @@ fun InstaraSetupWizard(
                 modifier = Modifier.fillMaxWidth(),
             )
             when (step) {
-                Step.ENTRY -> Button(
+                Step.ENTRY -> OutlinedButton(
                     onClick = { if (valid) requestPermissionsAndAttach(sn) },
                     enabled = valid,
+                    shapes = ButtonDefaults.shapes(),
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(android.R.string.ok)) }
 
                 Step.CONNECTING -> Text(stringResource(R.string.instara_connecting))
                 Step.SAVED -> {
                     Text(stringResource(R.string.instara_saved))
-                    Button(onClick = onComplete, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = onComplete,
+                        shapes = ButtonDefaults.shapes(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                         Text(stringResource(android.R.string.ok))
                     }
                 }
