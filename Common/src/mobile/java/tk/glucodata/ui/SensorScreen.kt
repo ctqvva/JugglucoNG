@@ -293,6 +293,7 @@ fun SensorScreen(
     var showAnytimeWizard by remember { mutableStateOf(false) }
     var showOttaiWizard by remember { mutableStateOf(false) }
     var showMedtrumWizard by remember { mutableStateOf(false) }
+    var showInstaraWizard by remember { mutableStateOf(false) }
 
     val openWizard: (tk.glucodata.ui.components.SensorType) -> Unit = { type ->
         when (type) {
@@ -307,6 +308,7 @@ fun SensorScreen(
             tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
             tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
             tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
+            tk.glucodata.ui.components.SensorType.INSTARA -> showInstaraWizard = true
         }
     }
 
@@ -328,6 +330,7 @@ fun SensorScreen(
         if (tk.glucodata.ui.components.SensorType.ANYTIME !in allowed) showAnytimeWizard = false
         if (tk.glucodata.ui.components.SensorType.OTTAI !in allowed) showOttaiWizard = false
         if (tk.glucodata.ui.components.SensorType.MEDTRUM !in allowed) showMedtrumWizard = false
+        if (tk.glucodata.ui.components.SensorType.INSTARA !in allowed) showInstaraWizard = false
         if (allowed.isEmpty()) showSensorPicker = false
     }
     val canAddSensor = allowedSensorTypes == null || allowedSensorTypes.isNotEmpty()
@@ -440,6 +443,18 @@ fun SensorScreen(
             onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showMedtrumWizard = false
+                viewModel.refreshSensors()
+            }
+        )
+        return
+    }
+
+    if (showInstaraWizard) {
+        tk.glucodata.ui.setup.InstaraSetupWizard(
+            onDismiss = { showInstaraWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showInstaraWizard = false
                 viewModel.refreshSensors()
             }
         )

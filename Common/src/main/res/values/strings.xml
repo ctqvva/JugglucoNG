@@ -3696,4 +3696,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="food_reorder">Reorder food</string>
     <string name="food_move_up">Move up</string>
     <string name="food_move_down">Move down</string>
+    <string name="sensor_vendor_instara" translatable="false">Instara</string>
+    <string name="instara_sensor" translatable="false">Instara G1</string>
+    <string name="instara_sensor_models" translatable="false">G1</string>
+    <string name="instara_sensor_desc">Enter the 8-character code printed on the sensor</string>
+    <string name="instara_sn_hint">Sensor code</string>
+    <string name="instara_sn_invalid">Enter the 8-character code printed on the sensor</string>
+    <string name="instara_activation_time">Sensor activation time (optional)</string>
+    <string name="instara_connecting">Waiting for the sensor</string>
+    <string name="instara_saved">Sensor saved — Juggluco will keep trying to connect</string>
 </resources>

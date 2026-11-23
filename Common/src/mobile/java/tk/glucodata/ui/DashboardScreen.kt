@@ -447,6 +447,7 @@ fun DashboardScreen(
     var showAnytimeWizard by remember { mutableStateOf(false) }
     var showOttaiWizard by remember { mutableStateOf(false) }
     var showMedtrumWizard by remember { mutableStateOf(false) }
+    var showInstaraWizard by remember { mutableStateOf(false) }
     // Restricted mode: the empty dashboard offers only the families that may be added, and
     // a setup left open when the session locks again (or its family is dropped) closes.
     val addableSensorTypes = restrictedMode.addableSensorTypes()
@@ -463,6 +464,7 @@ fun DashboardScreen(
         if (tk.glucodata.ui.components.SensorType.ANYTIME !in allowed) showAnytimeWizard = false
         if (tk.glucodata.ui.components.SensorType.OTTAI !in allowed) showOttaiWizard = false
         if (tk.glucodata.ui.components.SensorType.MEDTRUM !in allowed) showMedtrumWizard = false
+        if (tk.glucodata.ui.components.SensorType.INSTARA !in allowed) showInstaraWizard = false
     }
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var journalActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -931,6 +933,18 @@ fun DashboardScreen(
             onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showMedtrumWizard = false
+                viewModel.refreshData()
+            }
+        )
+        return
+    }
+
+    if (showInstaraWizard) {
+        tk.glucodata.ui.setup.InstaraSetupWizard(
+            onDismiss = { showInstaraWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showInstaraWizard = false
                 viewModel.refreshData()
             }
         )
@@ -1559,6 +1573,7 @@ fun DashboardScreen(
                         tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
                         tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
                         tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
+                        tk.glucodata.ui.components.SensorType.INSTARA -> showInstaraWizard = true
                 }
             },
                 // Importing writes history, which needs full mode like the settings import.

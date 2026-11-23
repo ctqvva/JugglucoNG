@@ -25,6 +25,7 @@ public final class SensorSourceResolver {
     public static final int SENSOR_KIND_OTTAI = MANAGED_KIND_BASE | 5;
     public static final int SENSOR_KIND_NIGHTSCOUT = MANAGED_KIND_BASE | 7;
     public static final int SENSOR_KIND_MEDTRUM = MANAGED_KIND_BASE | 8;
+    public static final int SENSOR_KIND_INSTARA = MANAGED_KIND_BASE | 9;
     // A driver with no family of its own (the API source): readings another app
     // pushed in, whose sensor this app cannot vouch for.
     public static final int SENSOR_KIND_EXTERNAL = MANAGED_KIND_BASE;
@@ -61,6 +62,7 @@ public final class SensorSourceResolver {
             case SENSOR_KIND_MQ -> "MQ";
             case SENSOR_KIND_NIGHTSCOUT -> "Nightscout";
             case SENSOR_KIND_MEDTRUM -> "Medtrum";
+            case SENSOR_KIND_INSTARA -> "Instara";
             case SENSOR_KIND_CARESENS_AIR -> "CareSenseAir";
             case SENSOR_KIND_EXTERNAL -> "Unknown";
             // Libre 2, and what is left once every flagged or stamped sensor has
@@ -150,6 +152,7 @@ public final class SensorSourceResolver {
             case OTTAI -> SENSOR_KIND_OTTAI;
             case NIGHTSCOUT -> SENSOR_KIND_NIGHTSCOUT;
             case MEDTRUM -> SENSOR_KIND_MEDTRUM;
+            case INSTARA -> SENSOR_KIND_INSTARA;
             case GENERIC -> SENSOR_KIND_UNKNOWN;
         };
     }
@@ -182,6 +185,7 @@ public final class SensorSourceResolver {
             case SENSOR_KIND_MQ -> "MQ";
             case SENSOR_KIND_NIGHTSCOUT -> "Nightscout";
             case SENSOR_KIND_MEDTRUM -> "Medtrum";
+            case SENSOR_KIND_INSTARA -> "Instara";
             default -> "Unknown";
         };
     }
