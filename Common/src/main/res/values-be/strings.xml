@@ -3513,6 +3513,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_status_no_devices">Выберыце прыладу для пачатку</string>
     <string name="voice_bt_resume_session">Аднавіць голас для гэтага падключэння</string>
     <string name="voice_bt_devices_title">Аўдыёпрылады</string>
+    <string name="voice_bt_choose_devices">Выбраць прылады</string>
     <string name="voice_bt_devices_sheet_desc">Выберыце, калі аўтаматычна пачынаць агучванне</string>
     <string name="voice_bt_devices_none_summary">Націсніце, каб выбраць аўто або прылады Bluetooth</string>
     <string name="voice_bt_devices_connected_hint">Падключана: %1$s · Націсніце для выбару</string>

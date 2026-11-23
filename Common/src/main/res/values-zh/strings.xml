@@ -3428,6 +3428,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_status_no_devices">选择设备以开始</string>
     <string name="voice_bt_resume_session">恢复本次连接的语音播报</string>
     <string name="voice_bt_devices_title">音频设备</string>
+    <string name="voice_bt_choose_devices">选择设备</string>
     <string name="voice_bt_devices_sheet_desc">选择何时自动启动语音播报</string>
     <string name="voice_bt_devices_none_summary">点按选择车载或蓝牙设备</string>
     <string name="voice_bt_devices_connected_hint">已连接：%1$s · 点按选择</string>

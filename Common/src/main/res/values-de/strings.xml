@@ -3534,6 +3534,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="voice_bt_status_no_devices">Gerät zum Starten wählen</string>
     <string name="voice_bt_resume_session">Sprachausgabe für diese Verbindung fortsetzen</string>
     <string name="voice_bt_devices_title">Audiogeräte</string>
+    <string name="voice_bt_choose_devices">Geräte auswählen</string>
     <string name="voice_bt_devices_sheet_desc">Wählen Sie, wann Werte automatisch vorgelesen werden</string>
     <string name="voice_bt_devices_none_summary">Tippen, um Auto- oder Bluetooth-Geräte zu wählen</string>
     <string name="voice_bt_devices_connected_hint">Verbunden: %1$s · Zum Auswählen tippen</string>

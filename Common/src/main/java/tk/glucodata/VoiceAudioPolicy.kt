@@ -118,6 +118,75 @@ object VoiceAudioPolicy {
         "FF:FF:FF:FF:FF:FF",
     )
     private val WHITESPACE_REGEX = Regex("\\s+")
+    private val TOKEN_SPLIT_REGEX = Regex("[^a-z0-9]+")
+
+    private val CAR_NAME_TOKENS = setOf(
+        "car",
+        "carplay",
+        "uconnect",
+        "myford",
+        "mazda",
+        "toyota",
+        "honda",
+        "bmw",
+        "audi",
+        "mercedes",
+        "mbux",
+        "tesla",
+        "volvo",
+        "subaru",
+        "hyundai",
+        "kia",
+        "nissan",
+        "vw",
+        "volkswagen",
+        "skoda",
+        "ford",
+        "chevy",
+        "chevrolet",
+        "lexus",
+        "porsche",
+        "jeep",
+        "chrysler",
+        "dodge",
+        "cadillac",
+        "buick",
+        "gmc",
+        "acura",
+        "infiniti",
+        "mitsubishi",
+        "suzuki",
+        "peugeot",
+        "renault",
+        "citroen",
+        "fiat",
+        "opel",
+        "cupra",
+        "dacia",
+        "rivian",
+        "polestar",
+        "entune",
+    )
+
+    /**
+     * Heuristic car-name detector using whole-word token boundaries only so ordinary audio names
+     * like "Audio-Technica", "Bluetooth Audio", or "Oscar's AirPods" never match "audi" or "car".
+     */
+    fun looksLikeCarName(name: String): Boolean {
+        val normalized = name.trim().lowercase(Locale.ROOT)
+        if (normalized.isEmpty()) return false
+        val tokens = TOKEN_SPLIT_REGEX.split(normalized).filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return false
+        if (tokens.any { it in CAR_NAME_TOKENS }) return true
+        // Multi-word phrases checked on token sequence.
+        for (i in 0 until tokens.lastIndex) {
+            val pair = "${tokens[i]} ${tokens[i + 1]}"
+            if (pair == "android auto" || pair == "hands free" || pair == "car kit") {
+                return true
+            }
+        }
+        return false
+    }
 
     /**
      * Normalizes a Bluetooth MAC address to uppercase `AA:BB:CC:DD:EE:FF`, or returns null for
@@ -212,13 +281,28 @@ object VoiceAudioPolicy {
         config: Config,
         connectedDevices: List<ConnectedDevice>,
         inCarMode: Boolean,
+        previousMatch: ActiveMatch = ActiveMatch.NONE,
     ): ActiveMatch {
         if (!config.enabled) return ActiveMatch.NONE
 
         val btDevices = deduplicateConnectedDevices(connectedDevices)
         when (config.scope) {
             Scope.ANY_BLUETOOTH_AUDIO -> {
-                val chosen = btDevices.firstOrNull { it.isCarAudio } ?: btDevices.firstOrNull()
+                val carCandidate = btDevices.firstOrNull { it.isCarAudio }
+                val sticky = if (previousMatch.matched &&
+                    previousMatch.triggerKey?.startsWith("any_bt:") == true &&
+                    (previousMatch.viaCarMode || carCandidate == null)
+                ) {
+                    val prevId = previousMatch.triggerKey.removePrefix("any_bt:")
+                    val prevName = normalizeName(previousMatch.displayLabel)
+                    btDevices.firstOrNull { dev ->
+                        deviceId(dev.address, dev.name) == prevId ||
+                            (prevName.isNotEmpty() && normalizeName(dev.name) == prevName)
+                    }
+                } else {
+                    null
+                }
+                val chosen = sticky ?: carCandidate ?: btDevices.firstOrNull()
                 if (chosen != null) {
                     val key = "any_bt:" + deviceId(chosen.address, chosen.name)
                     return ActiveMatch(
@@ -230,22 +314,26 @@ object VoiceAudioPolicy {
                 }
             }
             Scope.SELECTED_DEVICES -> {
-                var firstMatch: Pair<SavedDevice, ConnectedDevice>? = null
+                val matchedPairs = ArrayList<Pair<SavedDevice, ConnectedDevice>>()
                 for (connected in btDevices) {
                     val saved = config.savedDevices.firstOrNull { devicesMatch(it, connected) }
                     if (saved != null) {
-                        val candidate = saved to connected
-                        if (saved.isCar || connected.isCarAudio) {
-                            firstMatch = candidate
-                            break
-                        }
-                        if (firstMatch == null) {
-                            firstMatch = candidate
-                        }
+                        matchedPairs.add(saved to connected)
                     }
                 }
-                if (firstMatch != null) {
-                    val (saved, connected) = firstMatch
+                val carCandidate = matchedPairs.firstOrNull { (saved, conn) -> saved.isCar || conn.isCarAudio }
+                val sticky = if (previousMatch.matched &&
+                    previousMatch.triggerKey?.startsWith("dev:") == true &&
+                    (previousMatch.viaCarMode || carCandidate == null)
+                ) {
+                    val prevSavedId = previousMatch.triggerKey.removePrefix("dev:")
+                    matchedPairs.firstOrNull { (saved, _) -> saved.id == prevSavedId }
+                } else {
+                    null
+                }
+                val chosen = sticky ?: carCandidate ?: matchedPairs.firstOrNull()
+                if (chosen != null) {
+                    val (saved, connected) = chosen
                     val label = connected.name.ifBlank { saved.name.trim() }.ifBlank { null }
                     return ActiveMatch(
                         matched = true,
@@ -281,6 +369,10 @@ object VoiceAudioPolicy {
     ): EffectiveDecision {
         val sessionPaused = config.enabled && activeMatch.matched && sessionMuted
         val autoActive = config.enabled && activeMatch.matched && !sessionMuted
+        // Only driving sessions (car audio or Android Auto / car mode) override Speak schedule;
+        // headphones, hearing aids, and sleep earbuds continue respecting the user's quiet hours.
+        val bypassSchedule = autoActive && activeMatch.viaCarMode
+        val autoReadingAllowed = autoActive && (withinSchedule || bypassSchedule)
         val safeDefaultInterval = defaultIntervalSeconds.coerceAtLeast(1)
         val effectiveInterval = when {
             !autoActive || config.intervalSeconds == INTERVAL_DEFAULT -> safeDefaultInterval
@@ -290,11 +382,11 @@ object VoiceAudioPolicy {
         }
         return EffectiveDecision(
             autoActive = autoActive,
-            shouldSpeakReading = !sessionPaused && ((manualSpeakGlucose && withinSchedule) || autoActive),
+            shouldSpeakReading = !sessionPaused && ((manualSpeakGlucose && withinSchedule) || autoReadingAllowed),
             shouldSpeakAlarm = manualSpeakAlarms || (autoActive && config.speakAlarms),
             effectiveIntervalSeconds = effectiveInterval,
             useMediaStream = autoActive && config.useMediaStream,
-            bypassSchedule = autoActive,
+            bypassSchedule = bypassSchedule,
         )
     }
 
@@ -393,6 +485,26 @@ object VoiceAudioPolicy {
             }
         }
         return true
+    }
+
+    /**
+     * Preserves the user's session pause across brief Bluetooth dropouts (within the cooldown
+     * window) when the same session reconnects, while starting fresh on a real disconnect or a
+     * different device.
+     */
+    fun shouldPreservePauseOnReconnect(
+        previousPausedMatch: ActiveMatch?,
+        reconnectedMatch: ActiveMatch,
+        nowMs: Long,
+        pausedDisconnectedAtMs: Long,
+    ): Boolean {
+        if (previousPausedMatch == null || !previousPausedMatch.matched || !reconnectedMatch.matched) {
+            return false
+        }
+        if (pausedDisconnectedAtMs <= 0L || nowMs - pausedDisconnectedAtMs >= CONNECT_ANNOUNCE_COOLDOWN_MS) {
+            return false
+        }
+        return !isDistinctSessionSwitch(previousPausedMatch, reconnectedMatch)
     }
 
     /**

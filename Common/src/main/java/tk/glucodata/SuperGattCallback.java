@@ -1024,9 +1024,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     // notifications, and alarm speech) rather than the raw native value.
                     final CurrentDisplaySource.Snapshot speakcurrent =
                             CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
+                    final long speakTimeMs = speakcurrent != null ? speakcurrent.getTimeMillis() : timmsec;
                     currentTalker.selspeak(speakcurrent != null
                             ? GlucoseSpeech.format(Applic.app,speakcurrent)
-                            : GlucoseSpeech.format(Applic.app,sglucose.value,sglucose.rate));
+                            : GlucoseSpeech.format(Applic.app,sglucose.value,sglucose.rate), speakTimeMs);
                 }
             }
         }

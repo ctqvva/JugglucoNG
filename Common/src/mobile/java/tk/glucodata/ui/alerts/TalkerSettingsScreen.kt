@@ -38,6 +38,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -871,33 +873,117 @@ private fun VoiceBluetoothAudioCard(
             searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_bt_audio_title),
         )
 
-        // Audio devices stays at full primary prominence (surfaceContainerHigh + IconTile) right
-        // under the master toggle; secondary tuning options sit underneath on recessed
-        // surfaceContainer with no icon tiles so the hierarchy stays clear without cramping.
+        // Audio devices (active device pills + primary/tonal Choose devices action) and Speak
+        // interval live together inside one SettingsControlsCard, while the 3 behavior toggles
+        // stay as standard SettingsSwitchItem rows underneath on recessed surfaceContainer.
         AnimatedVisibility(
             visible = config.enabled,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut(),
         ) {
+            val activeTriggerBadges = buildList<Pair<ImageVector, String>> {
+                if (config.scope == VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO) {
+                    add(Symbols.BluetoothAudioFilled to stringResource(R.string.voice_bt_scope_any))
+                } else {
+                    config.savedDevices.forEach { dev ->
+                        val glyph = if (dev.isCar) Symbols.DirectionsCarFilled else Symbols.HeadphonesFilled
+                        add(glyph to dev.name)
+                    }
+                }
+                if (config.includeCarMode) {
+                    add(Symbols.DirectionsCarFilled to stringResource(R.string.voice_bt_car_mode_label))
+                }
+            }
+            val needsDeviceChoice = activeTriggerBadges.isEmpty()
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                SettingsItem(
-                    title = stringResource(R.string.voice_bt_devices_title),
-                    subtitle = formatBtDevicesSummary(context, state),
-                    onClick = onOpenDevices,
-                    icon = Symbols.BluetoothAudioFilled,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    position = CardPosition.MIDDLE,
-                )
-
                 SettingsControlsCard(
                     position = CardPosition.MIDDLE,
                     containerColor = subordinateSurface,
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (activeTriggerBadges.isNotEmpty()) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                activeTriggerBadges.forEach { (badgeIcon, badgeLabel) ->
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .heightIn(min = 32.dp)
+                                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = badgeIcon,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Text(
+                                                text = badgeLabel,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (needsDeviceChoice) {
+                            Button(
+                                onClick = onOpenDevices,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
+                            ) {
+                                Icon(
+                                    imageVector = Symbols.BluetoothAudioFilled,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.voice_bt_choose_devices))
+                            }
+                        } else {
+                            FilledTonalButton(
+                                onClick = onOpenDevices,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
+                            ) {
+                                Icon(
+                                    imageVector = Symbols.BluetoothAudioFilled,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.voice_bt_choose_devices))
+                            }
+                        }
+                    }
+
                     SettingsSlider(
                         title = stringResource(R.string.voice_bt_interval_title),
                         valueText = selectedIntervalLabel,

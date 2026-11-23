@@ -3551,6 +3551,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_status_no_devices">Выберите устройство для запуска</string>
     <string name="voice_bt_resume_session">Возобновить голос для этого подключения</string>
     <string name="voice_bt_devices_title">Аудиоустройства</string>
+    <string name="voice_bt_choose_devices">Выбрать устройства</string>
     <string name="voice_bt_devices_sheet_desc">Выберите, когда автоматически включать озвучивание</string>
     <string name="voice_bt_devices_none_summary">Нажмите, чтобы выбрать авто или Bluetooth-устройства</string>
     <string name="voice_bt_devices_connected_hint">Подключено: %1$s · Нажмите для выбора</string>

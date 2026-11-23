@@ -376,6 +376,84 @@ class VoiceAudioPolicyTests {
     }
 
     @Test
+    fun looksLikeCarName_usesWholeWordsAndNeverMatchesAudioOrOscar() {
+        assertFalse("Audio-Technica must not match 'audi'", VoiceAudioPolicy.looksLikeCarName("Audio-Technica ATH-M50xBT"))
+        assertFalse("Bluetooth Audio must not match 'audi'", VoiceAudioPolicy.looksLikeCarName("Bluetooth Audio"))
+        assertFalse("Oscar's AirPods must not match 'car'", VoiceAudioPolicy.looksLikeCarName("Oscar's AirPods"))
+        assertFalse("Galaxy Watch6 must not match car", VoiceAudioPolicy.looksLikeCarName("Galaxy Watch6"))
+        assertTrue("Audi MMI is a car", VoiceAudioPolicy.looksLikeCarName("Audi MMI 3G"))
+        assertTrue("My Car is a car", VoiceAudioPolicy.looksLikeCarName("My Car"))
+        assertTrue("Car Multimedia is a car", VoiceAudioPolicy.looksLikeCarName("Car Multimedia"))
+        assertTrue("Mazda Connect is a car", VoiceAudioPolicy.looksLikeCarName("Mazda Connect"))
+        assertTrue("Android Auto is a car", VoiceAudioPolicy.looksLikeCarName("Android Auto"))
+    }
+
+    @Test
+    fun resolveEffective_onlyBypassesScheduleWhileDriving() {
+        val config = VoiceAudioPolicy.Config(enabled = true)
+        val headphones = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:11:22:33:44:55:66", "AirPods", viaCarMode = false)
+        val car = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:FF", "My Car", viaCarMode = true)
+
+        val nightHeadphones = VoiceAudioPolicy.resolveEffective(
+            manualSpeakGlucose = false,
+            withinSchedule = false,
+            manualSpeakAlarms = false,
+            defaultIntervalSeconds = 60,
+            config = config,
+            activeMatch = headphones,
+            sessionMuted = false,
+        )
+        assertFalse("Headphones must respect Speak schedule", nightHeadphones.bypassSchedule)
+        assertFalse("Headphones must not speak readings outside Speak schedule", nightHeadphones.shouldSpeakReading)
+
+        val nightCar = VoiceAudioPolicy.resolveEffective(
+            manualSpeakGlucose = false,
+            withinSchedule = false,
+            manualSpeakAlarms = false,
+            defaultIntervalSeconds = 60,
+            config = config,
+            activeMatch = car,
+            sessionMuted = false,
+        )
+        assertTrue("Driving session should bypass Speak schedule", nightCar.bypassSchedule)
+        assertTrue("Driving session should speak readings outside Speak schedule", nightCar.shouldSpeakReading)
+    }
+
+    @Test
+    fun evaluateMatch_anyModeKeepsCurrentDeviceStickyRegardlessOfOrder() {
+        val config = VoiceAudioPolicy.Config(enabled = true, scope = VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        val devA = VoiceAudioPolicy.ConnectedDevice("11:22:33:44:55:01", "Pixel Buds", isBluetoothAudio = true)
+        val devB = VoiceAudioPolicy.ConnectedDevice("11:22:33:44:55:02", "Speaker", isBluetoothAudio = true)
+
+        val initial = VoiceAudioPolicy.evaluateMatch(config, listOf(devA, devB), inCarMode = false)
+        assertEquals("any_bt:mac:11:22:33:44:55:01", initial.triggerKey)
+
+        // AudioManager reverses device order: sticky match must stay on devA without switching session.
+        val reversed = VoiceAudioPolicy.evaluateMatch(config, listOf(devB, devA), inCarMode = false, previousMatch = initial)
+        assertEquals("any_bt:mac:11:22:33:44:55:01", reversed.triggerKey)
+        assertFalse(VoiceAudioPolicy.isDistinctSessionSwitch(initial, reversed))
+    }
+
+    @Test
+    fun shouldPreservePauseOnReconnect_keepsPauseAcrossShortDropoutOfSameDevice() {
+        val car = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:FF", "My Car", viaCarMode = true)
+        val buds = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:11:22:33:44:55:66", "Pixel Buds", viaCarMode = false)
+
+        assertTrue(
+            "50ms dropout of the same car must preserve pause",
+            VoiceAudioPolicy.shouldPreservePauseOnReconnect(car, car, nowMs = 10_050L, pausedDisconnectedAtMs = 10_000L),
+        )
+        assertFalse(
+            "Reconnect after cooldown must start unmuted",
+            VoiceAudioPolicy.shouldPreservePauseOnReconnect(car, car, nowMs = 30_000L, pausedDisconnectedAtMs = 10_000L),
+        )
+        assertFalse(
+            "Short reconnect of a different device must start unmuted",
+            VoiceAudioPolicy.shouldPreservePauseOnReconnect(car, buds, nowMs = 10_050L, pausedDisconnectedAtMs = 10_000L),
+        )
+    }
+
+    @Test
     fun resolveEffective_sessionPauseSuppressesManualReadingSpeechWithoutChangingManualFlag() {
         val config = VoiceAudioPolicy.Config(enabled = true, speakAlarms = true)
         val active = VoiceAudioPolicy.ActiveMatch(true, "dev:mac:AA:BB:CC:DD:EE:FF", "My Car", viaCarMode = true)

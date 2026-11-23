@@ -3606,6 +3606,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="voice_bt_status_no_devices">Dooro qalab si aad u bilowdo</string>
     <string name="voice_bt_resume_session">Sii wad codka xiriirkan</string>
     <string name="voice_bt_devices_title">Qalabka codka</string>
+    <string name="voice_bt_choose_devices">Dooro qalabka</string>
     <string name="voice_bt_devices_sheet_desc">Dooro goorta akhriska codku si toos ah u bilaabmo</string>
     <string name="voice_bt_devices_none_summary">Taabo si aad u doorato baabuur ama qalab Bluetooth</string>
     <string name="voice_bt_devices_connected_hint">Ku xiran: %1$s · Taabo si aad u doorato</string>

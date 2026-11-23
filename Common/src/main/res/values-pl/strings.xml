@@ -3484,6 +3484,7 @@
     <string name="voice_bt_status_no_devices">Wybierz urządzenie, aby rozpocząć</string>
     <string name="voice_bt_resume_session">Wznów głos dla tego połączenia</string>
     <string name="voice_bt_devices_title">Urządzenia audio</string>
+    <string name="voice_bt_choose_devices">Wybierz urządzenia</string>
     <string name="voice_bt_devices_sheet_desc">Wybierz, kiedy automatycznie uruchamiać odczyt głosowy</string>
     <string name="voice_bt_devices_none_summary">Dotknij, aby wybrać auto lub urządzenia Bluetooth</string>
     <string name="voice_bt_devices_connected_hint">Połączono: %1$s · Dotknij, aby wybrać</string>

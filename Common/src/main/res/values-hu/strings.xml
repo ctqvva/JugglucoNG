@@ -3490,6 +3490,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="voice_bt_status_no_devices">Válasszon eszközt a kezdéshez</string>
     <string name="voice_bt_resume_session">Felolvasás folytatása ehhez a kapcsolathoz</string>
     <string name="voice_bt_devices_title">Hangeszközök</string>
+    <string name="voice_bt_choose_devices">Eszközök kiválasztása</string>
     <string name="voice_bt_devices_sheet_desc">Válassza ki, mikor induljon automatikusan a felolvasás</string>
     <string name="voice_bt_devices_none_summary">Koppintson autó- vagy Bluetooth-eszközök választásához</string>
     <string name="voice_bt_devices_connected_hint">Csatlakoztatva: %1$s · Koppintson a kiválasztáshoz</string>

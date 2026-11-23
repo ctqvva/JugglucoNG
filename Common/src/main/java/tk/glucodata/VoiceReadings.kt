@@ -44,8 +44,14 @@ object VoiceReadings {
     @JvmStatic
     fun isActive(context: Context): Boolean {
         if (Applic.DontTalk) return false
-        if (VoiceAudioTrigger.isSessionPaused(context)) return false
-        return isOn() || VoiceAudioTrigger.isAutoReadingSpeechActive(context)
+        val manualOn = isOn()
+        val decision = VoiceAudioTrigger.resolveEffectiveDecision(
+            context = context,
+            manualSpeakGlucose = manualOn,
+            defaultIntervalSeconds = Talker.getSeparationSeconds(),
+        )
+        return decision.shouldSpeakReading ||
+            (manualOn && !VoiceAudioTrigger.isSessionPaused(context) && !SpeakSchedule.isWithinSchedule(context))
     }
 
     /**
@@ -96,30 +102,36 @@ object VoiceReadings {
     }
 
     fun status(context: Context): Status {
-        val sessionPaused = VoiceAudioTrigger.isSessionPaused(context)
         val manualOn = isOn()
-        val autoActive = VoiceAudioTrigger.isAutoReadingSpeechActive(context)
-        val effectiveOn = !sessionPaused && (manualOn || autoActive)
-        val defaultInterval = Talker.getSeparationSeconds()
-        val intervalSeconds = if (autoActive) {
-            VoiceAudioTrigger.effectiveIntervalSeconds(context, defaultInterval)
-        } else {
-            defaultInterval
-        }
-        val resumes = if (effectiveOn && manualOn && !autoActive && !SpeakSchedule.isWithinSchedule(context)) {
+        val decision = VoiceAudioTrigger.resolveEffectiveDecision(
+            context = context,
+            manualSpeakGlucose = manualOn,
+            defaultIntervalSeconds = Talker.getSeparationSeconds(),
+        )
+        val sessionPaused = VoiceAudioTrigger.isSessionPaused(context)
+        val effectiveOn = !sessionPaused && (manualOn || decision.autoActive)
+        val withinSchedule = SpeakSchedule.isWithinSchedule(context)
+        val resumes = if (effectiveOn && !withinSchedule && !decision.bypassSchedule) {
             SpeakSchedule.getStartMinutes(context)
         } else {
             null
         }
-        val match = if (autoActive) VoiceAudioTrigger.currentMatch(context) else null
+        val match = if (decision.autoActive) VoiceAudioTrigger.currentMatch(context) else null
         return Status(
             on = effectiveOn,
-            intervalSeconds = intervalSeconds,
+            intervalSeconds = decision.effectiveIntervalSeconds,
             resumesAtMinutes = resumes,
-            autoAudioActive = autoActive,
+            autoAudioActive = decision.autoActive,
             autoAudioDeviceName = match?.displayLabel,
             autoAudioViaCar = match?.viaCarMode == true,
         )
+    }
+
+    /** Formats a separation interval consistently across the dashboard pill and Voice settings. */
+    fun formatInterval(context: Context, intervalSeconds: Int): String {
+        if (intervalSeconds <= 60) return context.getString(R.string.voice_every_reading)
+        val minutes = ceil(intervalSeconds / 60.0).toInt()
+        return context.getString(R.string.voice_every_minutes, minutes)
     }
 
     /** "Every reading", "Every 5 min", or "From 07:00" while the schedule holds it back. */
@@ -127,9 +139,7 @@ object VoiceReadings {
         status.resumesAtMinutes?.let {
             return context.getString(R.string.voice_resumes_at, SpeakSchedule.formatMinutes(it))
         }
-        if (status.intervalSeconds <= 60) return context.getString(R.string.voice_every_reading)
-        val minutes = ceil(status.intervalSeconds / 60.0).toInt()
-        return context.getString(R.string.voice_every_minutes, minutes)
+        return formatInterval(context, status.intervalSeconds)
     }
 
     @JvmStatic

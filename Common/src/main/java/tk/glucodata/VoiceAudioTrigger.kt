@@ -96,8 +96,11 @@ object VoiceAudioTrigger {
     )
 
     private val lock = Any()
+    private val refreshLock = Any()
     private val stateFlow = MutableStateFlow(Snapshot())
     val state: StateFlow<Snapshot> = stateFlow.asStateFlow()
+
+    private const val CAR_PROJECTION_RECHECK_MS = 30_000L
 
     private var appContext: Context? = null
     private var monitoringRegistered = false
@@ -109,6 +112,8 @@ object VoiceAudioTrigger {
     private var pendingConnectTask: ScheduledFuture<*>? = null
 
     private var lastMatch: VoiceAudioPolicy.ActiveMatch = VoiceAudioPolicy.ActiveMatch.NONE
+    private var lastPausedMatch: VoiceAudioPolicy.ActiveMatch? = null
+    internal var lastPausedDisconnectedAtMs: Long = 0L
     private var connectGeneration: Long = 0L
     @Volatile
     private var sessionMuted: Boolean = false
@@ -118,6 +123,14 @@ object VoiceAudioTrigger {
     private var lastSpokenAtMs: Long = 0L
     @Volatile
     private var carProjectionState: Int = CONNECTION_TYPE_NOT_CONNECTED
+    @Volatile
+    internal var lastCarProjectionCheckMs: Long = 0L
+
+    /** Cached paired Bluetooth metadata so reading/alarm paths never perform blocking BT IPC. */
+    @Volatile
+    private var cachedBondedMetas: List<BondedMeta> = emptyList()
+    @Volatile
+    private var cachedBluetoothEnabled: Boolean = false
 
     /** Devices reported connected by BT A2DP/HFP broadcasts (helps MAC matching on API 26–27). */
     private val profileConnectedDevices = LinkedHashMap<String, VoiceAudioPolicy.ConnectedDevice>()
@@ -135,7 +148,13 @@ object VoiceAudioTrigger {
             appContext = app
         }
         val config = loadConfig(app)
-        updateMonitoringRegistration(app, shouldMonitor = config.enabled || hasUiMonitors())
+        if (!config.enabled && !hasUiMonitors()) {
+            synchronized(lock) {
+                stateFlow.value = Snapshot(config = config)
+            }
+            return
+        }
+        updateMonitoringRegistration(app, shouldMonitor = true)
         refreshState(app)
     }
 
@@ -338,11 +357,46 @@ object VoiceAudioTrigger {
         VoiceReadings.changed()
     }
 
+    /** Single source of truth for effective voice behavior, routed through [VoiceAudioPolicy.resolveEffective]. */
+    @JvmStatic
+    @JvmOverloads
+    fun resolveEffectiveDecision(
+        context: Context?,
+        manualSpeakGlucose: Boolean = SuperGattCallback.dotalk,
+        defaultIntervalSeconds: Int = Talker.getSeparationSeconds().coerceAtLeast(1),
+    ): VoiceAudioPolicy.EffectiveDecision {
+        val withinSchedule = context == null || SpeakSchedule.isWithinSchedule(context)
+        val manualSpeakAlarms = Natives.speakalarms()
+        if (!isSupported() || context == null) {
+            return VoiceAudioPolicy.resolveEffective(
+                manualSpeakGlucose = manualSpeakGlucose,
+                withinSchedule = withinSchedule,
+                manualSpeakAlarms = manualSpeakAlarms,
+                defaultIntervalSeconds = defaultIntervalSeconds,
+                config = VoiceAudioPolicy.Config(enabled = false),
+                activeMatch = VoiceAudioPolicy.ActiveMatch.NONE,
+                sessionMuted = false,
+            )
+        }
+        val config = loadConfig(context)
+        val (match, muted) = synchronized(lock) { lastMatch to sessionMuted }
+        return VoiceAudioPolicy.resolveEffective(
+            manualSpeakGlucose = manualSpeakGlucose,
+            withinSchedule = withinSchedule,
+            manualSpeakAlarms = manualSpeakAlarms,
+            defaultIntervalSeconds = defaultIntervalSeconds,
+            config = config,
+            activeMatch = match,
+            sessionMuted = muted,
+        )
+    }
+
     /** True when Bluetooth/car audio is actively triggering periodic glucose speech right now. */
     @JvmStatic
     fun isAutoReadingSpeechActive(context: Context?): Boolean {
-        if (!isSupported() || context == null || !isEnabled(context)) return false
-        return synchronized(lock) { lastMatch.matched && !sessionMuted }
+        if (!isSupported() || context == null) return false
+        val decision = resolveEffectiveDecision(context, manualSpeakGlucose = false)
+        return decision.autoActive && decision.shouldSpeakReading
     }
 
     /**
@@ -352,6 +406,7 @@ object VoiceAudioTrigger {
     @JvmStatic
     fun refreshAndCheckReadingSpeech(context: Context?): Boolean {
         if (!isSupported() || context == null || !isEnabled(context)) return false
+        maybeScheduleStaleCarProjectionRefresh(context.applicationContext)
         refreshState(context)
         return isAutoReadingSpeechActive(context)
     }
@@ -360,9 +415,8 @@ object VoiceAudioTrigger {
     @JvmStatic
     fun isAutoAlarmSpeechActive(context: Context?): Boolean {
         if (!isSupported() || context == null) return false
-        val config = loadConfig(context)
-        if (!config.enabled || !config.speakAlarms) return false
-        return synchronized(lock) { lastMatch.matched && !sessionMuted }
+        val decision = resolveEffectiveDecision(context, manualSpeakGlucose = false)
+        return decision.autoActive && loadConfig(context).speakAlarms
     }
 
     /** True when glucose alarms should be spoken (either manually or via active car/BT audio). */
@@ -370,10 +424,10 @@ object VoiceAudioTrigger {
     fun isAlarmSpeechEnabled(context: Context?): Boolean {
         if (Applic.DontTalk) return false
         if (isSupported() && context != null && isEnabled(context)) {
+            maybeScheduleStaleCarProjectionRefresh(context.applicationContext)
             refreshState(context)
         }
-        if (Natives.speakalarms()) return true
-        return isAutoAlarmSpeechActive(context)
+        return resolveEffectiveDecision(context).shouldSpeakAlarm
     }
 
     /** True when the TTS engine must stay alive for Bluetooth/car audio speech. */
@@ -385,23 +439,12 @@ object VoiceAudioTrigger {
     @JvmStatic
     fun useMediaStreamNow(context: Context?): Boolean {
         if (!isSupported() || context == null) return false
-        val config = loadConfig(context)
-        if (!config.enabled || !config.useMediaStream) return false
-        return synchronized(lock) { lastMatch.matched && !sessionMuted }
+        return resolveEffectiveDecision(context).useMediaStream
     }
 
     @JvmStatic
     fun effectiveIntervalSeconds(context: Context?, defaultSeconds: Int): Int {
-        val safeDefault = defaultSeconds.coerceAtLeast(1)
-        if (!isSupported() || context == null) return safeDefault
-        val config = loadConfig(context)
-        val autoActive = config.enabled && synchronized(lock) { lastMatch.matched && !sessionMuted }
-        return when {
-            !autoActive || config.intervalSeconds == VoiceAudioPolicy.INTERVAL_DEFAULT -> safeDefault
-            config.intervalSeconds == VoiceAudioPolicy.INTERVAL_EVERY_READING -> 0
-            config.intervalSeconds > VoiceAudioPolicy.INTERVAL_EVERY_READING -> config.intervalSeconds
-            else -> safeDefault
-        }
+        return resolveEffectiveDecision(context, defaultIntervalSeconds = defaultSeconds).effectiveIntervalSeconds
     }
 
     @JvmStatic
@@ -435,64 +478,93 @@ object VoiceAudioTrigger {
     fun refreshState(context: Context) {
         if (!isSupported()) return
         val app = context.applicationContext
-        val config = loadConfig(app)
-        val connected = queryConnectedAudioDevices(app)
-        val inCarMode = queryInCarMode(app)
-        val newMatch = VoiceAudioPolicy.evaluateMatch(config, connected, inCarMode)
-
-        val now = System.currentTimeMillis()
+        val now: Long
         val wasMatched: Boolean
         val distinctSessionSwitch: Boolean
         val matchChanged: Boolean
         val scheduleAnnounce: Boolean
         val currentMuted: Boolean
         val generation: Long
+        val newMatch: VoiceAudioPolicy.ActiveMatch
 
-        synchronized(lock) {
-            val previousMatch = lastMatch
-            wasMatched = previousMatch.matched
-            distinctSessionSwitch = VoiceAudioPolicy.isDistinctSessionSwitch(previousMatch, newMatch)
-            matchChanged = previousMatch != newMatch
-            lastMatch = newMatch
+        // Serialize query + commit so a slower background reading thread can never restore
+        // "connected" after a newer disconnect has already been processed on the main thread.
+        synchronized(refreshLock) {
+            val config = loadConfig(app)
+            val connected = queryConnectedAudioDevices(app)
+            val inCarMode = queryInCarMode(app)
+            val previousSnapshotMatch = synchronized(lock) { lastMatch }
+            newMatch = VoiceAudioPolicy.evaluateMatch(config, connected, inCarMode, previousMatch = previousSnapshotMatch)
 
-            if ((!wasMatched && newMatch.matched) || distinctSessionSwitch) {
-                // A brand-new connection or switching to a different matched device starts unmuted.
-                sessionMuted = false
-                connectGeneration++
-            } else if (wasMatched && !newMatch.matched) {
-                sessionMuted = false
-                lastDisconnectedAtMs = now
-                connectGeneration++
+            now = System.currentTimeMillis()
+            synchronized(lock) {
+                val previousMatch = lastMatch
+                wasMatched = previousMatch.matched
+                distinctSessionSwitch = VoiceAudioPolicy.isDistinctSessionSwitch(previousMatch, newMatch)
+                matchChanged = previousMatch != newMatch
+                lastMatch = newMatch
+
+                if (!wasMatched && newMatch.matched) {
+                    val keepPaused = VoiceAudioPolicy.shouldPreservePauseOnReconnect(
+                        previousPausedMatch = lastPausedMatch,
+                        reconnectedMatch = newMatch,
+                        nowMs = now,
+                        pausedDisconnectedAtMs = lastPausedDisconnectedAtMs,
+                    )
+                    sessionMuted = keepPaused
+                    lastPausedMatch = null
+                    lastPausedDisconnectedAtMs = 0L
+                    connectGeneration++
+                } else if (distinctSessionSwitch) {
+                    // Switching to a genuinely different matched device starts unmuted.
+                    sessionMuted = false
+                    lastPausedMatch = null
+                    lastPausedDisconnectedAtMs = 0L
+                    connectGeneration++
+                } else if (wasMatched && !newMatch.matched) {
+                    if (sessionMuted) {
+                        lastPausedMatch = previousMatch
+                        lastPausedDisconnectedAtMs = now
+                    } else {
+                        lastPausedMatch = null
+                        lastPausedDisconnectedAtMs = 0L
+                    }
+                    sessionMuted = false
+                    lastDisconnectedAtMs = now
+                    connectGeneration++
+                }
+                generation = connectGeneration
+                currentMuted = sessionMuted
+                scheduleAnnounce = VoiceAudioPolicy.shouldScheduleConnectAnnouncement(
+                    wasMatched = wasMatched && !distinctSessionSwitch,
+                    nowMatched = newMatch.matched,
+                    config = config,
+                    sessionMuted = currentMuted,
+                    nowMs = now,
+                    lastDisconnectedAtMs = if (distinctSessionSwitch) 0L else lastDisconnectedAtMs,
+                    lastSpokenAtMs = lastSpokenAtMs,
+                )
+                stateFlow.value = Snapshot(
+                    config = config,
+                    connectedDevices = connected,
+                    inCarMode = inCarMode,
+                    activeMatch = newMatch,
+                    sessionMuted = currentMuted,
+                )
             }
-            generation = connectGeneration
-            currentMuted = sessionMuted
-            scheduleAnnounce = VoiceAudioPolicy.shouldScheduleConnectAnnouncement(
-                wasMatched = wasMatched && !distinctSessionSwitch,
-                nowMatched = newMatch.matched,
-                config = config,
-                sessionMuted = currentMuted,
-                nowMs = now,
-                lastDisconnectedAtMs = if (distinctSessionSwitch) 0L else lastDisconnectedAtMs,
-                lastSpokenAtMs = lastSpokenAtMs,
-            )
-            stateFlow.value = Snapshot(
-                config = config,
-                connectedDevices = connected,
-                inCarMode = inCarMode,
-                activeMatch = newMatch,
-                sessionMuted = currentMuted,
-            )
         }
 
         if ((!wasMatched && newMatch.matched) || distinctSessionSwitch) {
-            Log.i(LOG_ID, "activated: key=${newMatch.triggerKey} label=${newMatch.displayLabel} car=${newMatch.viaCarMode} switch=$distinctSessionSwitch")
+            Log.i(LOG_ID, "activated: key=${newMatch.triggerKey} label=${newMatch.displayLabel} car=${newMatch.viaCarMode} switch=$distinctSessionSwitch muted=$currentMuted")
             cancelPendingConnectAnnouncement()
-            Talker.nexttime = 0L
-            if (SuperGattCallback.talker == null) {
-                SuperGattCallback.newtalker(app)
-            }
-            if (scheduleAnnounce) {
-                scheduleConnectAnnouncement(app, generation, isRetry = false)
+            if (!currentMuted) {
+                Talker.nexttime = 0L
+                if (SuperGattCallback.talker == null) {
+                    SuperGattCallback.newtalker(app)
+                }
+                if (scheduleAnnounce) {
+                    scheduleConnectAnnouncement(app, generation, isRetry = false)
+                }
             }
             VoiceReadings.changed()
         } else if (wasMatched && !newMatch.matched) {
@@ -597,7 +669,7 @@ object VoiceAudioTrigger {
         val useMedia = useMediaStreamNow(app)
         val chime = Talker.getChimeBeforeGlucose(app)
         if (!isConnectGenerationActive(app, expectedGeneration)) return
-        talker.speakConnectAnnouncement(text, useMedia, chime)
+        talker.speakConnectAnnouncement(text, useMedia, chime, current.timeMillis)
     }
 
     private fun cancelPendingConnectAnnouncement() {
@@ -695,6 +767,7 @@ object VoiceAudioTrigger {
                     addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
                     addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
                     addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+                    addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
                 }
                 ContextCompat.registerReceiver(app, btRec, btFilter, ContextCompat.RECEIVER_EXPORTED)
             } catch (t: Throwable) {
@@ -724,6 +797,7 @@ object VoiceAudioTrigger {
                 carProjectionReceiver = carProjRec
             }
             refreshCarProjectionAsync(app)
+            refreshBondedCacheAsync(app)
         } else if (unregisterNow) {
             if (oldCallback != null) {
                 try {
@@ -753,10 +827,16 @@ object VoiceAudioTrigger {
                     synchronized(lock) {
                         profileConnectedDevices.clear()
                     }
+                    cachedBluetoothEnabled = false
+                    cachedBondedMetas = emptyList()
                     refreshState(app)
                 } else if (state == BluetoothAdapter.STATE_ON) {
+                    refreshBondedCacheAsync(app)
                     refreshState(app)
                 }
+            }
+            BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                refreshBondedCacheAsync(app)
             }
             BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED,
             BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED,
@@ -833,6 +913,21 @@ object VoiceAudioTrigger {
      * off the main thread. On Android 12+, Android Auto no longer switches `UI_MODE_TYPE_CAR`, so
      * this provider is the authoritative signal for wired and wireless Android Auto projection.
      */
+    /**
+     * While Android Auto projection is cached as connected, periodically re-verify it off-thread
+     * so a missed disconnect broadcast (e.g. Android Auto crash or force-stop) can never leave
+     * speech stuck on the phone speaker.
+     */
+    private fun maybeScheduleStaleCarProjectionRefresh(app: Context) {
+        val cached = carProjectionState
+        if (cached != CONNECTION_TYPE_PROJECTION && cached != CONNECTION_TYPE_NATIVE) return
+        val now = System.currentTimeMillis()
+        if (now - lastCarProjectionCheckMs >= CAR_PROJECTION_RECHECK_MS) {
+            lastCarProjectionCheckMs = now
+            refreshCarProjectionAsync(app)
+        }
+    }
+
     private fun refreshCarProjectionAsync(app: Context) {
         try {
             Applic.scheduler.execute {
@@ -844,6 +939,7 @@ object VoiceAudioTrigger {
     }
 
     internal fun refreshCarProjectionNow(app: Context) {
+        lastCarProjectionCheckMs = System.currentTimeMillis()
         val updated = queryCarProjectionProvider(app)
         val previous = carProjectionState
         carProjectionState = updated
@@ -879,7 +975,8 @@ object VoiceAudioTrigger {
     private fun queryInCarMode(context: Context): Boolean {
         // Always read the cached Android Auto / AAOS projection state so glucose processing
         // never performs synchronous cross-process IPC against an external content provider.
-        // The cache is kept up to date asynchronously on startup and CAR_CONNECTION_UPDATED.
+        // The cache is kept up to date asynchronously on startup, CAR_CONNECTION_UPDATED, and
+        // throttled rechecks while connected.
         val cachedProjection = carProjectionState
         if (cachedProjection == CONNECTION_TYPE_PROJECTION || cachedProjection == CONNECTION_TYPE_NATIVE) {
             return true
@@ -894,8 +991,13 @@ object VoiceAudioTrigger {
         }
     }
 
-    private fun isBluetoothAudioOutputType(type: Int): Boolean {
-        if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+    /**
+     * Only outputs that actually carry media/notification audio qualify as standalone triggers.
+     * Call-only SCO outputs (e.g. smartwatches or headsets with Media Audio turned off) never
+     * receive media/notification TTS and would otherwise speak out of the phone speaker.
+     */
+    private fun isMediaBluetoothAudioOutputType(type: Int): Boolean {
+        if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
             return true
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && type == AudioDeviceInfo.TYPE_HEARING_AID) {
@@ -914,31 +1016,58 @@ object VoiceAudioTrigger {
         return false
     }
 
+    private fun isScoBluetoothOutputType(type: Int): Boolean =
+        type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+
     private data class BondedMeta(
         val address: String,
         val name: String,
         val isCar: Boolean,
         val isAudio: Boolean,
+        val isWearable: Boolean,
     )
+
+    private fun refreshBondedCacheAsync(app: Context) {
+        try {
+            Applic.scheduler.execute {
+                refreshBondedCacheNow(app)
+            }
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "refreshBondedCacheAsync", t)
+        }
+    }
+
+    internal fun refreshBondedCacheNow(app: Context) {
+        readBondedMetadata(app)
+    }
 
     @SuppressLint("MissingPermission")
     private fun readBondedMetadata(context: Context): Pair<Boolean, List<BondedMeta>> {
-        val adapter = getBluetoothAdapter(context) ?: return false to emptyList()
+        val adapter = getBluetoothAdapter(context) ?: run {
+            cachedBluetoothEnabled = false
+            cachedBondedMetas = emptyList()
+            return false to emptyList()
+        }
         val enabled = try {
             adapter.isEnabled
         } catch (_: Throwable) {
             false
         }
         if (!hasBluetoothConnectPermission(context)) {
+            cachedBluetoothEnabled = enabled
+            cachedBondedMetas = emptyList()
             return enabled to emptyList()
         }
         val bonded = try {
             adapter.bondedDevices.orEmpty()
         } catch (_: SecurityException) {
+            cachedBluetoothEnabled = enabled
+            cachedBondedMetas = emptyList()
             return enabled to emptyList()
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "bondedDevices", t)
-            return enabled to emptyList()
+            cachedBluetoothEnabled = enabled
+            return enabled to cachedBondedMetas
         }
 
         val metas = bonded.mapNotNull { device ->
@@ -951,42 +1080,71 @@ object VoiceAudioTrigger {
                     name = name,
                     isCar = isCarBluetoothClass(btClass),
                     isAudio = isAudioBluetoothClass(btClass),
+                    isWearable = btClass?.majorDeviceClass == BluetoothClass.Device.Major.WEARABLE,
                 )
             } catch (_: Throwable) {
                 null
             }
         }
+        cachedBluetoothEnabled = enabled
+        cachedBondedMetas = metas
         return enabled to metas
     }
 
     private fun queryConnectedAudioDevices(context: Context): List<VoiceAudioPolicy.ConnectedDevice> {
-        val (_, bondedMetas) = readBondedMetadata(context)
+        val bondedMetas = cachedBondedMetas
         val bondedHints = bondedMetas.map {
             VoiceAudioPolicy.BondedHint(address = it.address, name = it.name, isCar = it.isCar)
         }
+        val wearableMacs = bondedMetas.filter { it.isWearable }.map { it.address }.toSet()
         val cachedProfiles = synchronized(lock) { profileConnectedDevices.values.toList() }
 
-        val raw = ArrayList<VoiceAudioPolicy.ConnectedDevice>()
+        val mediaOutputs = ArrayList<AudioDeviceInfo>()
+        val scoProfiles = ArrayList<VoiceAudioPolicy.ConnectedDevice>()
         try {
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             val outputs = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS).orEmpty()
             for (info in outputs) {
-                if (!isBluetoothAudioOutputType(info.type)) continue
-                val rawAddr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.address else null
-                val rawName = info.productName?.toString()
-                val enriched = VoiceAudioPolicy.enrichConnectedAudioOutput(
-                    rawAddress = rawAddr,
-                    rawName = rawName,
-                    profileConnected = cachedProfiles,
-                    bondedHints = bondedHints,
-                    looksLikeCarName = ::looksLikeCarName,
-                )
-                if (enriched != null) {
-                    raw.add(enriched)
+                when {
+                    isMediaBluetoothAudioOutputType(info.type) -> mediaOutputs.add(info)
+                    isScoBluetoothOutputType(info.type) -> {
+                        val rawAddr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.address else null
+                        val rawName = info.productName?.toString()
+                        val mac = VoiceAudioPolicy.normalizeAddress(rawAddr)
+                        val name = rawName?.trim().orEmpty()
+                        if (mac != null && name.isNotEmpty()) {
+                            scoProfiles.add(
+                                VoiceAudioPolicy.ConnectedDevice(
+                                    address = mac,
+                                    name = name,
+                                    isBluetoothAudio = true,
+                                    isCarAudio = VoiceAudioPolicy.looksLikeCarName(name),
+                                )
+                            )
+                        }
+                    }
                 }
             }
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "queryConnectedAudioDevices", t)
+        }
+
+        // SCO outputs may supply MAC/name identity for an active media output, but never trigger alone.
+        val enrichmentProfiles = cachedProfiles + scoProfiles
+        val raw = ArrayList<VoiceAudioPolicy.ConnectedDevice>(mediaOutputs.size)
+        for (info in mediaOutputs) {
+            val rawAddr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.address else null
+            val rawName = info.productName?.toString()
+            val enriched = VoiceAudioPolicy.enrichConnectedAudioOutput(
+                rawAddress = rawAddr,
+                rawName = rawName,
+                profileConnected = enrichmentProfiles,
+                bondedHints = bondedHints,
+                looksLikeCarName = VoiceAudioPolicy::looksLikeCarName,
+            )
+            if (enriched != null && (enriched.address == null || enriched.address !in wearableMacs)) {
+                raw.add(enriched)
+            }
         }
 
         return VoiceAudioPolicy.deduplicateConnectedDevices(raw)
@@ -1041,7 +1199,7 @@ object VoiceAudioTrigger {
                 id = id,
                 address = meta.address,
                 name = meta.name,
-                isCar = meta.isCar || saved?.isCar == true || looksLikeCarName(meta.name),
+                isCar = meta.isCar || saved?.isCar == true || VoiceAudioPolicy.looksLikeCarName(meta.name),
                 isConnected = false,
                 isPaired = true,
                 isSelected = saved != null,
@@ -1091,9 +1249,7 @@ object VoiceAudioTrigger {
 
     private fun isCarBluetoothClass(btClass: BluetoothClass?): Boolean {
         if (btClass == null) return false
-        val deviceClass = btClass.deviceClass
-        return deviceClass == BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO ||
-            deviceClass == BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE
+        return btClass.deviceClass == BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO
     }
 
     private fun isAudioBluetoothClass(btClass: BluetoothClass?): Boolean {
@@ -1102,6 +1258,7 @@ object VoiceAudioTrigger {
         if (major == BluetoothClass.Device.Major.AUDIO_VIDEO) return true
         // Exclude common non-audio classes (CGMs/meters, watches, keyboards, phones, computers).
         if (major == BluetoothClass.Device.Major.HEALTH ||
+            major == BluetoothClass.Device.Major.WEARABLE ||
             major == BluetoothClass.Device.Major.PERIPHERAL ||
             major == BluetoothClass.Device.Major.IMAGING ||
             major == BluetoothClass.Device.Major.COMPUTER ||
@@ -1112,34 +1269,6 @@ object VoiceAudioTrigger {
         }
         return btClass.hasService(BluetoothClass.Service.AUDIO) ||
             btClass.hasService(BluetoothClass.Service.RENDER)
-    }
-
-    private fun looksLikeCarName(name: String): Boolean {
-        val lower = name.lowercase(Locale.ROOT)
-        return lower.contains("car") ||
-            lower.contains("auto") ||
-            lower.contains("handsfree") ||
-            lower.contains("hands-free") ||
-            lower.contains("uconnect") ||
-            lower.contains("sync") ||
-            lower.contains("myford") ||
-            lower.contains("mazda") ||
-            lower.contains("toyota") ||
-            lower.contains("honda") ||
-            lower.contains("bmw") ||
-            lower.contains("audi") ||
-            lower.contains("mercedes") ||
-            lower.contains("tesla") ||
-            lower.contains("volvo") ||
-            lower.contains("subaru") ||
-            lower.contains("hyundai") ||
-            lower.contains("kia") ||
-            lower.contains("nissan") ||
-            lower.contains("vw") ||
-            lower.contains("skoda") ||
-            lower.contains("ford") ||
-            lower.contains("chevy") ||
-            lower.contains("chevrolet")
     }
 
     // -------------------------------------------------------------------------
@@ -1207,11 +1336,16 @@ object VoiceAudioTrigger {
             carProjectionReceiver = null
             appContext = null
             lastMatch = VoiceAudioPolicy.ActiveMatch.NONE
+            lastPausedMatch = null
+            lastPausedDisconnectedAtMs = 0L
             connectGeneration = 0L
             sessionMuted = false
             lastDisconnectedAtMs = 0L
             lastSpokenAtMs = 0L
             carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
+            lastCarProjectionCheckMs = 0L
+            cachedBondedMetas = emptyList()
+            cachedBluetoothEnabled = false
             profileConnectedDevices.clear()
             stateFlow.value = Snapshot()
         }

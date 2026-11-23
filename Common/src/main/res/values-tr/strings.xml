@@ -3450,6 +3450,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="voice_bt_status_no_devices">Başlamak için bir cihaz seçin</string>
     <string name="voice_bt_resume_session">Bu bağlantı için sesi sürdür</string>
     <string name="voice_bt_devices_title">Ses cihazları</string>
+    <string name="voice_bt_choose_devices">Cihazları seç</string>
     <string name="voice_bt_devices_sheet_desc">Sesli okumanın ne zaman otomatik başlayacağını seçin</string>
     <string name="voice_bt_devices_none_summary">Araç veya Bluetooth cihazları seçmek için dokunun</string>
     <string name="voice_bt_devices_connected_hint">Bağlı: %1$s · Seçmek için dokunun</string>

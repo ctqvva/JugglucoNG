@@ -3689,6 +3689,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="voice_bt_status_no_devices">Elige un dispositivo para empezar</string>
     <string name="voice_bt_resume_session">Reanudar voz para esta conexión</string>
     <string name="voice_bt_devices_title">Dispositivos de audio</string>
+    <string name="voice_bt_choose_devices">Elegir dispositivos</string>
     <string name="voice_bt_devices_sheet_desc">Elige cuándo se inician las lecturas por voz automáticamente</string>
     <string name="voice_bt_devices_none_summary">Toca para elegir coche o dispositivos Bluetooth</string>
     <string name="voice_bt_devices_connected_hint">Conectado: %1$s · Toca para seleccionar</string>

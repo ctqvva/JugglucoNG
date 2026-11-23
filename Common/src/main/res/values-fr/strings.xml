@@ -3429,6 +3429,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_status_no_devices">Choisissez un appareil pour démarrer</string>
     <string name="voice_bt_resume_session">Reprendre la voix pour cette connexion</string>
     <string name="voice_bt_devices_title">Appareils audio</string>
+    <string name="voice_bt_choose_devices">Choisir les appareils</string>
     <string name="voice_bt_devices_sheet_desc">Choisissez quand la lecture vocale démarre automatiquement</string>
     <string name="voice_bt_devices_none_summary">Touchez pour choisir une voiture ou un appareil Bluetooth</string>
     <string name="voice_bt_devices_connected_hint">Connecté : %1$s · Toucher pour choisir</string>

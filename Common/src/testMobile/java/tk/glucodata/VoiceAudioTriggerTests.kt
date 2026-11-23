@@ -67,6 +67,7 @@ class VoiceAudioTriggerTests {
         SuperGattCallback.talker?.destruct()
         SuperGattCallback.talker = null
         Talker.nexttime = 0L
+        Talker.lastSpokenReadingTimeMs = 0L
 
         Notify.doTurnFocusoff()
         Notify::class.java.getDeclaredField("audioManager").apply { isAccessible = true }.set(null, audio)
@@ -88,9 +89,13 @@ class VoiceAudioTriggerTests {
         shadowOf(Looper.getMainLooper()).idle()
     }
 
-    private fun fakeBtDevice(address: String, name: String): AudioDeviceInfo {
+    private fun fakeBtDevice(
+        address: String,
+        name: String,
+        type: Int = AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+    ): AudioDeviceInfo {
         val info = AudioDeviceInfoBuilder.newBuilder()
-            .setType(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+            .setType(type)
             .build()
         val portField = AudioDeviceInfo::class.java.getDeclaredField("mPort").apply { isAccessible = true }
         val port = portField.get(info)!!
@@ -199,16 +204,17 @@ class VoiceAudioTriggerTests {
         assertTrue(VoiceReadings.isActive(app))
         assertFalse(VoiceReadings.isOn())
 
-        // Mute again, then disconnect and reconnect -> next drive starts unmuted automatically.
+        // Mute again, then disconnect and reconnect after the dropout cooldown -> next drive starts unmuted.
         VoiceReadings.setOn(app, false)
         assertTrue(VoiceAudioTrigger.isSessionMuted())
         shadowOf(audio).setOutputDevices(emptyList())
         VoiceAudioTrigger.refreshState(app)
         assertFalse(VoiceAudioTrigger.isSessionMuted())
+        VoiceAudioTrigger.lastPausedDisconnectedAtMs = System.currentTimeMillis() - VoiceAudioPolicy.CONNECT_ANNOUNCE_COOLDOWN_MS - 1_000L
 
         shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "BMW 530i")))
         VoiceAudioTrigger.refreshState(app)
-        assertTrue("New connection should automatically resume unmuted", VoiceReadings.isActive(app))
+        assertTrue("New connection after cooldown should automatically resume unmuted", VoiceReadings.isActive(app))
     }
 
     @Test
@@ -421,17 +427,122 @@ class VoiceAudioTriggerTests {
         Talker.nexttime = 0L
         VoiceTriggerTestEngine.speakCount = 0
 
-        talker.selspeak("6.1, stable")
+        talker.selspeak("6.1, stable", 1_000L)
         val afterFirst = System.currentTimeMillis()
         assertEquals(1, VoiceTriggerTestEngine.speakCount)
         assertTrue(
             "Every reading preset must not advance nexttime ahead into the future",
             Talker.nexttime <= afterFirst,
         )
-        // Wait 5ms so System.currentTimeMillis() advances past `afterFirst` naturally — no 60s throttle.
+        // Duplicate delivery of the exact same reading timestamp must NOT speak twice.
         Thread.sleep(5L)
-        talker.selspeak("6.2, stable")
+        talker.selspeak("6.1, stable", 1_000L)
+        assertEquals("Same reading timestamp must be deduplicated in Every reading mode", 1, VoiceTriggerTestEngine.speakCount)
+
+        // Newer reading arriving right after must speak immediately (no 60s throttle).
+        Thread.sleep(5L)
+        talker.selspeak("6.2, stable", 2_000L)
         assertEquals("Every reading preset must speak consecutive readings without 60s skipping", 2, VoiceTriggerTestEngine.speakCount)
+    }
+
+    @Test
+    fun scoOnlyWatchOrHandsfreeDevice_neverTriggersSpeech() {
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        // Galaxy Watch connected over SCO (call audio only, no A2DP media route).
+        shadowOf(audio).setOutputDevices(
+            listOf(fakeBtDevice("AA:BB:CC:DD:EE:55", "Galaxy Watch6", AudioDeviceInfo.TYPE_BLUETOOTH_SCO))
+        )
+        VoiceAudioTrigger.refreshState(app)
+        assertFalse("SCO-only smartwatch must NOT activate voice readings", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+        assertFalse("SCO-only smartwatch must NOT trigger media routing", VoiceAudioTrigger.useMediaStreamNow(app))
+    }
+
+    @Test
+    fun briefBluetoothDropout_preservesUserSessionPause() {
+        val carMac = "AA:BB:CC:DD:EE:77"
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "My Car")))
+        VoiceAudioTrigger.refreshState(app)
+        assertTrue(VoiceReadings.isActive(app))
+
+        // User pauses voice for this drive.
+        VoiceReadings.setOn(app, false)
+        assertTrue(VoiceAudioTrigger.isSessionPaused(app))
+
+        // Brief 50ms dropout and reconnect of the exact same device.
+        shadowOf(audio).setOutputDevices(emptyList())
+        VoiceAudioTrigger.refreshState(app)
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "My Car")))
+        VoiceAudioTrigger.refreshState(app)
+
+        assertTrue("Short dropout of the same device must keep user's pause intact", VoiceAudioTrigger.isSessionPaused(app))
+        assertFalse(VoiceReadings.isActive(app))
+    }
+
+    @Test
+    fun staleAndroidAutoProjection_recoversViaThrottledAsyncRefreshOnReadingPath() {
+        FakeCarConnectionProvider.queryCount.set(0)
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        val latch1 = java.util.concurrent.CountDownLatch(1)
+        Applic.scheduler.execute { latch1.countDown() }
+        assertTrue(latch1.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        VoiceAudioTrigger.refreshCarProjectionNow(app)
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Android Auto crashes without sending CAR_CONNECTION_UPDATED; provider now reports disconnected.
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+        // Pretend >30s elapsed since last projection check so the reading path queues an async recheck.
+        VoiceAudioTrigger.lastCarProjectionCheckMs = System.currentTimeMillis() - 60_000L
+        VoiceAudioTrigger.refreshAndCheckReadingSpeech(app)
+
+        val latch2 = java.util.concurrent.CountDownLatch(1)
+        Applic.scheduler.execute { latch2.countDown() }
+        assertTrue(latch2.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertFalse(
+            "Throttled async projection refresh must recover when Android Auto disconnect broadcast was missed",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+    }
+
+    @Test
+    fun nonCarHeadphones_respectSpeakScheduleWhileCarBypassesIt() {
+        // Set a schedule that is definitely closed right now (1-minute window 12 hours away).
+        val nowCal = java.util.Calendar.getInstance()
+        val nowMins = nowCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCal.get(java.util.Calendar.MINUTE)
+        val farStart = (nowMins + 720) % 1440
+        val farEnd = (farStart + 1) % 1440
+        SpeakSchedule.setStartMinutes(app, farStart)
+        SpeakSchedule.setEndMinutes(app, farEnd)
+        SpeakSchedule.setEnabled(app, true)
+        assertFalse(SpeakSchedule.isWithinSchedule(app))
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        // Ordinary headphones (Audio-Technica — must NOT be misclassified as a car!) respect schedule.
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("11:22:33:44:55:99", "Audio-Technica")))
+        VoiceAudioTrigger.refreshState(app)
+        assertFalse("Headphones must not bypass Speak schedule", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Actual car ("Audi MMI") bypasses Speak schedule while driving.
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("AA:BB:CC:DD:EE:88", "Audi MMI")))
+        VoiceAudioTrigger.refreshState(app)
+        assertTrue("Car audio should bypass Speak schedule while driving", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
     }
 }
 

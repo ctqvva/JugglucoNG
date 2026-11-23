@@ -3465,6 +3465,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="voice_bt_status_no_devices">Kies een apparaat om te starten</string>
     <string name="voice_bt_resume_session">Spraak hervatten voor deze verbinding</string>
     <string name="voice_bt_devices_title">Audioapparaten</string>
+    <string name="voice_bt_choose_devices">Apparaten kiezen</string>
     <string name="voice_bt_devices_sheet_desc">Kies wanneer spraakmetingen automatisch starten</string>
     <string name="voice_bt_devices_none_summary">Tik om auto- of Bluetooth-apparaten te kiezen</string>
     <string name="voice_bt_devices_connected_hint">Verbonden: %1$s · Tik om te kiezen</string>

@@ -727,16 +727,20 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
     }
 // volatile: written and read from the announce path and the settings/UI thread alike.
 volatile static long nexttime=0L;
+volatile static long lastSpokenReadingTimeMs=0L;
 void selspeak(String message) {
+    selspeak(message, 0L);
+    }
+void selspeak(String message, long readingTimeMs) {
     if(!DontTalk) {
         final Context app=Applic.app;
-        if(VoiceAudioTrigger.isSessionPaused(app))
+        final int defaultSepSec=(int)Math.max(1L, cursep/1000L);
+        final VoiceAudioPolicy.EffectiveDecision decision=VoiceAudioTrigger.resolveEffectiveDecision(app, SuperGattCallback.dotalk, defaultSepSec);
+        if(!decision.getShouldSpeakReading())
             return;
-        final boolean autoActive=VoiceAudioTrigger.isAutoReadingSpeechActive(app);
-        final boolean manualAllowed=SuperGattCallback.dotalk && SpeakSchedule.INSTANCE.isWithinSchedule(app);
-        if(!autoActive && !manualAllowed)
+        if(readingTimeMs>0L && readingTimeMs==lastSpokenReadingTimeMs)
             return;
-        final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(app,cursep);
+        final long sepMs=decision.getEffectiveIntervalSeconds()*1000L;
         final long now=System.currentTimeMillis();
         if(now>nexttime) {
             // Claim the slot before speaking, so two readings arriving back to back cannot both
@@ -749,8 +753,13 @@ void selspeak(String message) {
             // further failure costing another interval of silence. Retrying on the next reading
             // instead makes detection ~2 minutes regardless of how the user set the interval.
             nexttime=sepMs>0L ? (now+sepMs) : now;
-            final AudioAttributes attrs=VoiceAudioTrigger.useMediaStreamNow(app)?mediaAudio:notification_audio;
-            if(!speak(message,attrs,getChimeBeforeGlucose(app))) {
+            final AudioAttributes attrs=decision.getUseMediaStream()?mediaAudio:notification_audio;
+            if(speak(message,attrs,getChimeBeforeGlucose(app))) {
+                if(readingTimeMs>0L) {
+                    lastSpokenReadingTimeMs=readingTimeMs;
+                    }
+                }
+            else {
                 nexttime=now+(sepMs>0L ? Math.min(sepMs,FAILED_SPEAK_RETRY_MS) : FAILED_SPEAK_RETRY_MS);
                 }
             }
@@ -766,20 +775,29 @@ static void clampNextTimeToDefault(long nowMs) {
 
 /** One-shot current-value announcement shortly after a car/Bluetooth audio device connects. */
 boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean chime) {
+    return speakConnectAnnouncement(message, useMediaStream, chime, 0L);
+    }
+boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean chime, long readingTimeMs) {
     if(DontTalk)
         return false;
     final Context app=Applic.app;
-    if(!VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+    final int defaultSepSec=(int)Math.max(1L, cursep/1000L);
+    final VoiceAudioPolicy.EffectiveDecision decision=VoiceAudioTrigger.resolveEffectiveDecision(app, SuperGattCallback.dotalk, defaultSepSec);
+    if(!decision.getAutoActive() || !decision.getShouldSpeakReading())
         return false;
     final long now=System.currentTimeMillis();
     if(VoiceAudioTrigger.wasSpokenRecently(now))
         return false;
-    final long sepMs=VoiceAudioTrigger.effectiveIntervalMs(app,cursep);
+    final long sepMs=decision.getEffectiveIntervalSeconds()*1000L;
     nexttime=sepMs>0L ? (now+sepMs) : now;
     final AudioAttributes attrs=useMediaStream?mediaAudio:notification_audio;
-    if(speak(message,attrs,chime))
+    if(speak(message,attrs,chime)) {
+        if(readingTimeMs>0L) {
+            lastSpokenReadingTimeMs=readingTimeMs;
+            }
         return true;
-    nexttime=now+Math.min(sepMs,FAILED_SPEAK_RETRY_MS);
+        }
+    nexttime=now+(sepMs>0L ? Math.min(sepMs,FAILED_SPEAK_RETRY_MS) : FAILED_SPEAK_RETRY_MS);
     return false;
     }
 static final private double base2=Math.log(2);

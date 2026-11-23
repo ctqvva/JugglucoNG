@@ -3522,6 +3522,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="voice_bt_status_no_devices">Эхлүүлэхийн тулд төхөөрөмж сонгоно уу</string>
     <string name="voice_bt_resume_session">Энэ холболтод дууг үргэлжлүүлэх</string>
     <string name="voice_bt_devices_title">Аудио төхөөрөмжүүд</string>
+    <string name="voice_bt_choose_devices">Төхөөрөмж сонгох</string>
     <string name="voice_bt_devices_sheet_desc">Дуугаар уншилт хэзээ автоматаар эхлэхийг сонгоно уу</string>
     <string name="voice_bt_devices_none_summary">Машин эсвэл Bluetooth төхөөрөмж сонгохын тулд товшино уу</string>
     <string name="voice_bt_devices_connected_hint">Холбогдсон: %1$s · Сонгохын тулд товшино уу</string>

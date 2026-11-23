@@ -46,10 +46,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlin.math.ceil
 import tk.glucodata.R
 import tk.glucodata.VoiceAudioPolicy
 import tk.glucodata.VoiceAudioTrigger
+import tk.glucodata.VoiceReadings
 import tk.glucodata.ui.StatusPalette
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.CompactSheetDragHandle
@@ -151,10 +151,14 @@ internal fun VoiceAudioDeviceSheet(
                 )
                 if (deviceList.connected.isNotEmpty()) {
                     val names = deviceList.connected.joinToString(" · ") { it.name }
+                    val isPaused = snapshot.activeMatch.matched && snapshot.sessionMuted
                     Text(
-                        text = stringResource(R.string.voice_bt_status_active, names),
+                        text = stringResource(
+                            if (isPaused) R.string.voice_bt_status_paused else R.string.voice_bt_status_active,
+                            names,
+                        ),
                         style = MaterialTheme.typography.labelLarge,
-                        color = StatusPalette.success(),
+                        color = if (isPaused) MaterialTheme.colorScheme.onSurfaceVariant else StatusPalette.success(),
                     )
                 }
             } else {
@@ -201,6 +205,7 @@ internal fun VoiceAudioDeviceSheet(
                                         id = dev.id,
                                         name = dev.name,
                                         address = dev.address,
+                                        isCar = dev.isCar,
                                     ),
                                 )
                             },
@@ -223,6 +228,7 @@ internal fun VoiceAudioDeviceSheet(
                                         id = dev.id,
                                         name = dev.name,
                                         address = dev.address,
+                                        isCar = dev.isCar,
                                     ),
                                 )
                             },
@@ -374,11 +380,8 @@ private fun SelectableAudioDeviceRow(
     }
 }
 
-internal fun formatVoiceIntervalLabel(context: Context, seconds: Int): String {
-    if (seconds <= VoiceAudioPolicy.INTERVAL_EVERY_READING) return context.getString(R.string.voice_every_reading)
-    val minutes = ceil(seconds / 60.0).toInt().coerceAtLeast(1)
-    return context.getString(R.string.voice_every_minutes, minutes)
-}
+internal fun formatVoiceIntervalLabel(context: Context, seconds: Int): String =
+    VoiceReadings.formatInterval(context, seconds)
 
 internal fun formatBtIntervalValue(context: Context, seconds: Int, defaultLabel: String): String {
     if (seconds <= 0) return context.getString(R.string.voice_bt_interval_same, defaultLabel)
