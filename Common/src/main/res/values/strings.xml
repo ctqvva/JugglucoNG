@@ -3734,4 +3734,13 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Items above it sit before the camera, the rest after it</string>
     <string name="floating_layout_hidden">Hidden</string>
     <string name="floating_layout_order_desc">Drag a handle to move an item</string>
+    <string name="sensor_vendor_instara" translatable="false">Instara</string>
+    <string name="instara_sensor" translatable="false">Instara G1</string>
+    <string name="instara_sensor_models" translatable="false">G1</string>
+    <string name="instara_sensor_desc">Enter the 8-character code printed on the sensor</string>
+    <string name="instara_sn_hint">Sensor code</string>
+    <string name="instara_sn_invalid">Enter the 8-character code printed on the sensor</string>
+    <string name="instara_activation_time">Sensor activation time (optional)</string>
+    <string name="instara_connecting">Waiting for the sensor</string>
+    <string name="instara_saved">Sensor saved — Juggluco will keep trying to connect</string>
 </resources>
