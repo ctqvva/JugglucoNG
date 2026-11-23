@@ -2,7 +2,9 @@
 """Build and run the Dexcom Clarity outbox/storage host tests (no provider library)."""
 import os
 from pathlib import Path
+import shlex
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,10 +17,13 @@ SOURCES = ['bytes', 'cipher', 'logging', 'provider', 'protocol', 'records', 'map
 
 
 def main():
+    crypto = shlex.split(subprocess.check_output(['pkg-config', '--cflags', 'libcrypto'], text=True))
+    # macOS has no fdatasync; fsync is a stronger substitute for this host test.
+    compat = ['-Dfdatasync=fsync'] if sys.platform == 'darwin' else []
     with tempfile.TemporaryDirectory(prefix='clarity-native-') as temporary:
         binary = Path(temporary) / 'test'
         subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-pthread', '-g', '-O1',
-                        '-I' + str(CPP), '-I' + str(CPP / 'share'),
+                        '-I' + str(CPP), '-I' + str(CPP / 'share'), *crypto, *compat,
                         *[str(CLARITY / f'{name}.cpp') for name in SOURCES],
                         str(ROOT / 'Common/src/test/cpp/ClarityOutboxTests.cpp'),
                         '-Wno-deprecated-declarations', '-lz', '-ldl', '-o', str(binary)], check=True)

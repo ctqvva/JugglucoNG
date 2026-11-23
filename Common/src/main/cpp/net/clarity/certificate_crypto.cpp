@@ -147,7 +147,7 @@ Json createCertificateKey() {
     for (const auto &[field, value] :
          {std::pair{"CN", "dexcom.com"}, {"O", "Dexcom"}, {"OU", "R&D"},
           {"L", "San Diego"}, {"ST", "California"}, {"C", "US"}})
-        if (a.addName(name, field, value) != 1)
+        if (a.addName(const_cast<X509_NAME *>(name), field, value) != 1)
             cryptoError(std::string("Cannot set client certificate CSR subject field ") + field);
     // DER Extensions: critical BasicConstraints(cA=TRUE), as in G7's request.
     // The authenticated issuing service determines the actual client cert's

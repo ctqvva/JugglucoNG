@@ -191,12 +191,117 @@ It exercised exhaustive single-byte values, pairwise perturbations and random
 full blocks. Both out-of-range indices and inconsistent redundant data were
 rejected.
 
-An implied AES key schedule and an independently authorized source for compatible
-material remain unverified. Neither 4,096-entry table has a nonzero input XOR
-direction that gives a constant output difference, so dropping four affine
-index bits cannot simplify either table in isolation. The standalone decoder
-keeps the table layout as caller-supplied data. The uploader's build still uses
-its current provider.
+[`unwrapSessionKey`](../Common/src/main/cpp/net/clarity/block_decoder.hpp) adds
+the two-block CBC step and the same failure behavior as the ABI. A static
+ARM64 build of the complete path matched **20,482** two-block results from the
+real provider, including invalid lengths and first- or second-block failures.
+Only the reference process loaded the provider library.
+
+### Portable provider material
+
+The portable decoder still needs the provider's lookup tables, affine maps and
+application keys. `ProviderMaterial` serializes all of them, plus the ABI
+output rows, into a versioned little-endian file (`JGCLMAT`, version 1). The
+file is about 193 KiB. It is **not** part of the repository or the APK: it
+contains vendor key material and must not be redistributed.
+
+`tools/clarity-material.cpp` extracts the material from the pinned Juggluco
+11.5.6 ARM64 provider. It is tied to that library's load-relative addresses and
+verifies the ABI and `unwrap` address before reading anything. Build it for
+ARM64 Android with the NDK, run it on a device or emulator with the provider,
+and pull the result:
+
+```sh
+aarch64-linux-android26-clang++ -std=c++20 -O2 -static-libstdc++ \
+  -I Common/src/main/cpp -I Common/src/main/cpp/share \
+  tools/clarity-material.cpp \
+  Common/src/main/cpp/net/clarity/{material,block_decoder,bytes,logging}.cpp \
+  -lz -ldl -o clarity-material
+adb push clarity-material liblibre_receiver_skb.so /data/local/tmp/
+adb shell chmod 700 /data/local/tmp/clarity-material
+adb shell /data/local/tmp/clarity-material \
+  /data/local/tmp/liblibre_receiver_skb.so /data/local/tmp/clarity.mat
+adb pull /data/local/tmp/clarity.mat
+```
+
+`Engine` uses the material when `CLARITY_MATERIAL_FILE` names it, when an
+Android system property `debug.juggluco.clarity_material` names it, when the
+constructor path ends in `.mat`/`.clarity-material`, or when
+`<app data>/clarity-indexed/clarity.mat` is present in the app. Otherwise it
+keeps the existing `dlopen` behavior. The portable path never loads an
+executable and builds on the host as well as on Android:
+
+```sh
+# Compare the material file with the real provider's two-block results.
+adb shell /data/local/tmp/native-unwrap-reference \
+  /data/local/tmp/liblibre_receiver_skb.so | \
+  ./material-check clarity.mat
+
+# Exercise Engine itself: all keys, AES/HMAC, key selection and verify.
+./material-engine-check clarity.mat reference-stream.bin
+```
+
+The committed checks are `python3 tools/test-clarity-material.py` (file format,
+rejection cases and BGE white-box AES-256 key recovery) and
+`python3 tools/test-clarity-native.py` (outbox and storage). The
+reference-stream checks are local because they need the vendor library.
+
+The portable path removes the executable dependency, not the proprietary
+material. An APK can run it by placing `clarity.mat` in
+`<app data>/clarity-indexed/clarity.mat` (or setting the debug property); the
+build still packages the provider for the default path until the material
+question below is resolved.
+
+### AES-256 reduction and BGE key recovery
+
+The six inverse table groups and the late rows all match the AES S-box
+differential distribution for every nonzero input difference. The relative
+linear maps between the four output bytes of each table match the AES inverse
+MixColumns matrix up to reversible byte bases. Counting the non-affine layers
+(11 inverse rounds, the late row layer and the two packed lookups) gives 14,
+the AES-256 round count. The two leading rounds and the final round are affine;
+they carry the initial and final key additions and the linear mixing.
+
+In [`block_decoder.cpp`](../Common/src/main/cpp/net/clarity/block_decoder.cpp),
+`recoverSessionWrapKey` applies a Billet-Gilbert-Etienne (BGE) algebraic
+analysis to `BlockMaterial::inverseRounds` and `context[3..12]`:
+
+1. For each of the six inverse table groups and four columns, it strips the
+   per-byte output linear encodings $P^{(g)}_{4c+i}$ up to a single column
+   scalar $\alpha^{(g)}_c \in GF(2^8)^*$ using the `InvMixColumns` row ratios.
+2. For each input byte position and candidate $\alpha^{(g)}_c$, it recovers the
+   unique input affine map $A^{(g)}_{\text{pos}}(x) \oplus q^{(g)}_{\text{pos}}$
+   that linearizes $S(\alpha^{-1} \odot f_{\text{pos}}(x) \oplus d_0)$.
+3. Matching $A^{(g_{t+1})}_{4c+i} \circ P^{(g_t)}_{4c+i} = \text{Identity}$
+   across consecutive rounds of `inverseSchedule` uniquely determines every
+   $\alpha^{(g)}_c$ and verifies the exact decomposition of all 384 byte
+   lookup tables.
+4. From the inter-round constant sums and `context[3..12]`, it recovers the 10
+   unencoded Equivalent Inverse Cipher round keys $dw_{13} \dots dw_4$, applies
+   forward `MixColumns` to obtain standard AES round keys $RK_{13} \dots RK_4$,
+   verifies the AES-256 key schedule recurrence across all 40 32-bit words, and
+   rewinds the key schedule to the 32-byte AES-256 key $K = RK_0 \parallel RK_1$.
+
+Evaluating the leading layers (`input`, `inputRounds[0..1]` and
+$A^{(0)} \oplus q^{(0)}$) on 1,000 random blocks (sufficient to span all
+128-bit affine functions) confirmed the exact identity $C \oplus RK_{14}$. In
+`lateRounds`, each of the four 12-bit projections in `firstProjections` and
+`secondProjections` has $\mathbb{F}_2$-rank 8 (combined rank 32 per column) and
+routes bytes in `InvShiftRows` order through `firstPackedLookup` and
+`secondPackedLookup`, implementing rounds 12 through 14 with $RK_3 \dots RK_0$.
+End-to-end, all internal and external white-box encodings cancel: the entire
+two-block `unwrap` operation with ABI output decoding reduces to standard,
+unpadded `AES-256-CBC` decryption (`aes256cbc(K, iv, cipher, false)`).
+
+When `Engine` loads a `ProviderMaterial` whose keys include `SessionWrapKey`
+(without white-box tables), it unwraps session keys directly via `aes256cbc`.
+When loaded from a full `BlockMaterial`, `Engine` recovers the AES-256 key via
+`recoverSessionWrapKey` and verifies that `aes256cbc` agrees with the 14-round
+decoder on every import. Both the table-backed `Engine` and the key-only
+`Engine` matched **20,482 of 20,482** two-block reference outputs from the
+upstream ARM64 provider. Because the recovered 32-byte session-wrap key and the
+31 application keys are vendor key material, they are never committed to source
+control.
 
 ### Authorized Clarity upload registration
 

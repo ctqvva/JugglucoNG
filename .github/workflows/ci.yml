@@ -48,6 +48,8 @@ jobs:
         run: python3 tools/test-context-https.py
       - name: Test Dexcom Clarity outbox selection and mapped storage recovery
         run: python3 tools/test-clarity-native.py
+      - name: Test Clarity portable material serialization and BGE key recovery
+        run: python3 tools/test-clarity-material.py
       - name: Test Clarity provider with synthetic keys and decoder
         run: python3 tools/test-clarity-provider.py
       - name: Test Clone rendezvous failover between servers

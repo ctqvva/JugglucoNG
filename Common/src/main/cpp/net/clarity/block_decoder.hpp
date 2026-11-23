@@ -4,9 +4,12 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <span>
+#include <variant>
 
 namespace clarity::portable {
 using Block = std::array<std::uint8_t, 16>;
+using SessionKey = std::array<std::uint8_t, 32>;
 using Word = std::uint32_t;
 using WordLookup = std::array<Word, 16 * 256>;
 
@@ -46,4 +49,18 @@ struct BlockMaterial {
 // an index is out of range or a redundant computation disagrees.
 std::optional<Block> decodeBlock(const Block &ciphertext,
                                  const BlockMaterial &material);
+
+enum class UnwrapError { invalidLength, decoderFailure };
+using UnwrapResult = std::variant<SessionKey, UnwrapError>;
+
+// Like Engine's session-key import, accepts exactly two ciphertext blocks
+// and a one-block IV. Errors carry no partial key and leave the IV intact.
+UnwrapResult unwrapSessionKey(std::span<const std::uint8_t> ciphertext,
+                              std::span<const std::uint8_t> iv,
+                              const BlockMaterial &material);
+
+// Strips the BGE per-round affine encodings from inverseRounds and
+// context[3..12], verifies the 10-round AES-256 key schedule recurrence, and
+// rewinds the schedule to the 32-byte AES-256 session-wrap key.
+std::optional<SessionKey> recoverSessionWrapKey(const BlockMaterial &material);
 } // namespace clarity::portable

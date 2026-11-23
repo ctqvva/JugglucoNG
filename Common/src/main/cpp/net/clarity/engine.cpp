@@ -1,12 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Standard AES/HMAC plus the small, APK-packaged session-key decoder.
+// Standard AES/HMAC plus either the small ARM session-key decoder or portable
+// material extracted from a trusted provider.
 #include "engine.hpp"
+#include "block_decoder.hpp"
 #include "cipher.hpp"
+#include "material.hpp"
 #include "native_abi.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
+#include <memory>
 #include <mutex>
+#include <optional>
+#include <unistd.h>
+#ifdef __ANDROID__
+#include <sys/system_properties.h>
+#endif
+#ifdef CLARITY_JUGGLUCO_LOG
+extern std::string_view globalbasedir;
+#endif
 namespace clarity {
 namespace {
 constexpr size_t maxInput = 16 * 1024 * 1024;
@@ -28,11 +41,88 @@ void arity(const std::vector<Engine::Arg> &args, size_t count) {
   if (args.size() != count)
     throw Error("Invalid Clarity crypto argument count");
 }
+bool materialPath(const std::string &path) {
+  return path.ends_with(".mat") || path.ends_with(".clarity-material");
+}
+std::string configuredMaterialPath(const std::string &path) {
+  if (const char *environment = std::getenv("CLARITY_MATERIAL_FILE");
+      environment && *environment)
+    return environment;
+#ifdef __ANDROID__
+  char property[PROP_VALUE_MAX]{};
+  if (__system_property_get("debug.juggluco.clarity_material", property) > 0 &&
+      *property)
+    return property;
+#endif
+  if (materialPath(path))
+    return path;
+#ifdef CLARITY_JUGGLUCO_LOG
+  if (!globalbasedir.empty()) {
+    const auto candidate =
+        std::string(globalbasedir) + "/clarity-indexed/clarity.mat";
+    if (access(candidate.c_str(), R_OK) == 0)
+      return candidate;
+  }
+#endif
+  return {};
+}
+std::optional<Bytes> resolveSessionWrapKey(const ProviderMaterial &material) {
+  for (const auto &key : material.keys)
+    if (key.name == sessionWrapKeyName && key.value.size() == 32)
+      return key.value;
+  if (const auto recovered = portable::recoverSessionWrapKey(material.block))
+    return Bytes(recovered->begin(), recovered->end());
+  return std::nullopt;
+}
+void validate(const ProviderMaterial &material) {
+  if (material.keys.empty() || material.keys.size() > maxApplicationKeys)
+    throw Error("Invalid Clarity provider key table");
+  for (const auto &key : material.keys)
+    if (key.name.empty() || key.name.size() >= sizeof(NativeKey::name) ||
+        (key.value.size() != 32 && key.value.size() != 64) ||
+        (key.name == sessionWrapKeyName && key.value.size() != 32))
+      throw Error("Invalid Clarity provider key table");
+}
 } // namespace
 struct Engine::Impl {
   void *library = nullptr;
   const NativeABI *abi = nullptr;
+  std::shared_ptr<const ProviderMaterial> material;
+  std::optional<Bytes> sessionWrapKey;
+  bool explicitSessionWrapKey = false;
+  void initPortable() {
+    validate(*material);
+    for (const auto &k : material->keys)
+      if (k.name == sessionWrapKeyName)
+        explicitSessionWrapKey = true;
+    sessionWrapKey = resolveSessionWrapKey(*material);
+    diagnostic(
+        "portable crypto provider ready (AES/HMAC and session-key decoder)");
+  }
+  explicit Impl(std::shared_ptr<const ProviderMaterial> value)
+      : material(std::move(value)) {
+    if (!material)
+      throw Error("Missing Clarity provider material");
+    try {
+      initPortable();
+    } catch (...) {
+      diagnostic("error: portable Clarity provider initialization failed");
+      throw;
+    }
+  }
   explicit Impl(const std::string &path) {
+    const auto source = configuredMaterialPath(path);
+    if (!source.empty()) {
+      try {
+        material =
+            std::make_shared<const ProviderMaterial>(loadMaterial(source));
+        initPortable();
+      } catch (...) {
+        diagnostic("error: portable Clarity provider initialization failed");
+        throw;
+      }
+      return;
+    }
     library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (!library) {
       const char *reason = dlerror();
@@ -64,7 +154,11 @@ struct Engine::Impl {
     library = nullptr;
     abi = nullptr;
   }
-  ~Impl() { close(); }
+  ~Impl() {
+    if (sessionWrapKey)
+      wipe(*sessionWrapKey);
+    close();
+  }
   std::span<const uint8_t> key(const Arg &arg, bool session,
                                std::string_view prefix) {
     if (session) {
@@ -77,6 +171,12 @@ struct Engine::Impl {
     if (!name || !(name->starts_with(prefix) ||
                    (prefix == "HSK_" && *name == "WBCloakedSigKey")))
       throw Error("Invalid Clarity application key ID");
+    if (material) {
+      for (const auto &k : material->keys)
+        if (*name == k.name)
+          return k.value;
+      throw Error("Unknown Clarity application key ID");
+    }
     for (const auto &k : abi->keys)
       if (*name == k.name)
         return {k.value, static_cast<size_t>(k.size)};
@@ -88,6 +188,12 @@ struct Engine::Impl {
       choice = randomBytes(1)[0];
     } while (choice >= 250);
     size_t index = choice % 10;
+    if (material) {
+      for (const auto &k : material->keys)
+        if (std::string_view(k.name).starts_with(prefix) && index-- == 0)
+          return k.name;
+      throw Error("Incomplete Clarity application key table");
+    }
     for (const auto &k : abi->keys)
       if (std::string_view(k.name).starts_with(prefix) && index-- == 0)
         return k.name;
@@ -96,6 +202,24 @@ struct Engine::Impl {
   Bytes unwrap(const Bytes &cipher, const Bytes &iv) {
     if (cipher.size() != 32 || iv.size() != 16)
       throw Error("Invalid encrypted Clarity session key");
+    if (material) {
+      if (explicitSessionWrapKey && sessionWrapKey)
+        return aes256cbc(*sessionWrapKey, iv, cipher, false);
+      const auto decoded =
+          portable::unwrapSessionKey(cipher, iv, material->block);
+      if (const auto *key = std::get_if<portable::SessionKey>(&decoded)) {
+        Bytes result(key->begin(), key->end());
+        if (sessionWrapKey &&
+            aes256cbc(*sessionWrapKey, iv, cipher, false) != result) {
+          wipe(result);
+          diagnostic("error: Clarity session-key AES schedule mismatch");
+          throw Error("Clarity session-key import failed");
+        }
+        return result;
+      }
+      diagnostic("error: portable Clarity session-key decoder failed");
+      throw Error("Clarity session-key import failed");
+    }
     Bytes localIV(iv), result(32);
     int status;
     {
@@ -115,6 +239,8 @@ struct Engine::Impl {
 };
 Engine::Engine(const std::string &library)
     : p(std::make_unique<Impl>(library)) {}
+Engine::Engine(std::shared_ptr<const ProviderMaterial> material)
+    : p(std::make_unique<Impl>(std::move(material))) {}
 Engine::~Engine() = default;
 Bytes Engine::invoke(const std::string &method, const std::vector<Arg> &args) {
   if (method == "decryptToEncryptionKey" ||

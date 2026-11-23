@@ -2,13 +2,16 @@
 #pragma once
 #include "bytes.hpp"
 #include <memory>
+#include <utility>
 #include <variant>
 #ifndef CLARITY_PROVIDER_LIBRARY
 #define CLARITY_PROVIDER_LIBRARY "libg7clarity.so"
 #endif
 namespace clarity {
-// AES-256-CBC/HMAC-SHA256 with the compact APK-packaged ARM key decoder.
-// No JNI, emulation, initialization challenge, or per-instance native arena.
+struct ProviderMaterial;
+// AES-256-CBC/HMAC-SHA256 with either the compact ARM key decoder or portable
+// material extracted from a trusted provider. No JNI or initialization
+// challenge; the portable path has no executable dependency.
 class Engine {
   struct Impl;
   std::unique_ptr<Impl> p;
@@ -16,6 +19,7 @@ class Engine {
 public:
   using Arg = std::variant<Bytes, std::string>;
   explicit Engine(const std::string &library = CLARITY_PROVIDER_LIBRARY);
+  explicit Engine(std::shared_ptr<const ProviderMaterial> material);
   ~Engine();
   Engine(const Engine &) = delete;
   Bytes invoke(const std::string &method, const std::vector<Arg> &args = {});
@@ -31,6 +35,8 @@ class Provider {
 public:
   explicit Provider(const std::string &library = CLARITY_PROVIDER_LIBRARY)
       : engine(library) {}
+  explicit Provider(std::shared_ptr<const ProviderMaterial> material)
+      : engine(std::move(material)) {}
   ~Provider();
   Json identity();
   std::string deviceId(const std::string &hardwareId);

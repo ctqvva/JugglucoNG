@@ -9,6 +9,7 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 using namespace clarity;

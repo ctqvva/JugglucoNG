@@ -13,7 +13,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CPP = ROOT / 'Common/src/main/cpp'
 TESTS = ROOT / 'Common/src/test/cpp'
-SOURCES = ('bytes', 'cipher', 'engine', 'logging', 'provider')
+SOURCES = ('bytes', 'cipher', 'engine', 'logging', 'provider', 'material', 'block_decoder')
 
 
 def compile_runner(compiler, output, crypto_flags, link_flags):

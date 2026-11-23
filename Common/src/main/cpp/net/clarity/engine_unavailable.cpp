@@ -4,6 +4,9 @@
 namespace clarity {
 struct Engine::Impl {};
 Engine::Engine(const std::string &) { throw Error("The native Clarity provider requires ARM64"); }
+Engine::Engine(std::shared_ptr<const ProviderMaterial>) {
+    throw Error("The native Clarity provider requires ARM64");
+}
 Engine::~Engine() = default;
 Bytes Engine::invoke(const std::string &, const std::vector<Arg> &) {
     throw Error("The native Clarity provider requires ARM64");
