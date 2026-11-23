@@ -218,17 +218,13 @@ object VoiceAudioPolicy {
         return if (normalized.isNotEmpty()) "name:$normalized" else ""
     }
 
-    fun macOuiPrefix(address: String?): String? {
-        val norm = normalizeAddress(address) ?: return null
-        return norm.substring(0, 8)
-    }
-
     /**
-     * True when two Bluetooth device records represent the same physical headset/earbuds (e.g.
-     * Classic A2DP + BLE/LE Audio companion MAC, Left/Right LE Audio CSIP buds, or same-vendor
-     * non-car earbuds), while keeping two separate Classic car head units distinct.
+     * True when two **simultaneously active** audio outputs reported by [AudioManager] represent
+     * the same physical headset (e.g. Classic A2DP + LE Audio / BLE Headset, or Left + Right LE
+     * Audio CSIP earbuds). Never used across disconnected bonded devices so two separate headsets
+     * with the same name can never share each other's MAC addresses.
      */
-    fun areSamePhysicalDevice(
+    fun areSimultaneousSameHeadset(
         addressA: String?,
         nameA: String,
         transportA: Transport,
@@ -247,15 +243,10 @@ object VoiceAudioPolicy {
         if (normA.isEmpty() || normA != normB) return false
         if (macA == null || macB == null) return true
 
-        // Dual-mode Classic+LE companion or Left+Right LE Audio CSIP earbuds sharing one name.
-        if (transportA == Transport.LE_ONLY || transportB == Transport.LE_ONLY) return true
-
-        // Two non-car audio records with the exact same name and the same 3-byte vendor OUI
-        // (e.g. earbuds exposing two MACs under the same manufacturer OUI).
-        if (!isCarA && !isCarB) {
-            val ouiA = macOuiPrefix(macA)
-            val ouiB = macOuiPrefix(macB)
-            if (ouiA != null && ouiA == ouiB) return true
+        // Only collapse different known MACs when Android reports them simultaneously connected
+        // over complementary transports (Classic + LE) or both LE Audio CSIP earbuds.
+        if (!isCarA && !isCarB && (transportA == Transport.LE_ONLY || transportB == Transport.LE_ONLY)) {
+            return true
         }
         return false
     }
@@ -314,7 +305,7 @@ object VoiceAudioPolicy {
                 if (existingMacs.any { it in deviceMacs }) {
                     true
                 } else {
-                    areSamePhysicalDevice(
+                    areSimultaneousSameHeadset(
                         addressA = existing.address,
                         nameA = existing.name,
                         transportA = existing.transport,
@@ -529,24 +520,6 @@ object VoiceAudioPolicy {
                 isCar = isCar || exactBonded.isCar
                 if (resolvedTransport == Transport.UNKNOWN) resolvedTransport = exactBonded.transport
             }
-            // Attach any dual-mode/LE sibling MACs from bonded metadata so matching works across transports.
-            val currentName = name
-            for (hint in bondedHints) {
-                val hintMac = normalizeAddress(hint.address) ?: continue
-                if (hintMac != mac && areSamePhysicalDevice(
-                        addressA = mac,
-                        nameA = currentName,
-                        transportA = resolvedTransport,
-                        isCarA = isCar,
-                        addressB = hintMac,
-                        nameB = hint.name,
-                        transportB = hint.transport,
-                        isCarB = hint.isCar,
-                    )
-                ) {
-                    altAddresses.add(hintMac)
-                }
-            }
         } else if (normName.isNotEmpty()) {
             val nameMatches = bondedHints.filter { normalizeName(it.name) == normName }
             if (nameMatches.size == 1) {
@@ -556,33 +529,10 @@ object VoiceAudioPolicy {
                 isCar = isCar || unique.isCar
                 if (resolvedTransport == Transport.UNKNOWN) resolvedTransport = unique.transport
             } else if (nameMatches.size > 1) {
-                // Only treat as ambiguous if there are genuinely distinct physical devices (e.g.
-                // two separate Classic cars), not dual-mode Classic + LE twins of the same headset.
-                val first = nameMatches.first()
-                val allSamePhysical = nameMatches.drop(1).all { other ->
-                    areSamePhysicalDevice(
-                        addressA = first.address,
-                        nameA = first.name,
-                        transportA = first.transport,
-                        isCarA = first.isCar,
-                        addressB = other.address,
-                        nameB = other.name,
-                        transportB = other.transport,
-                        isCarB = other.isCar,
-                    )
-                }
+                // Ambiguous paired name with distinct MACs: never guess or merge across bonded
+                // entries so an unselected headset/car can never match a selected sibling.
                 isCar = isCar || nameMatches.any { it.isCar }
-                if (allSamePhysical) {
-                    val primary = nameMatches.firstOrNull { it.transport == Transport.CLASSIC_OR_DUAL } ?: first
-                    mac = normalizeAddress(primary.address)
-                    if (primary.name.isNotBlank()) name = primary.name.trim()
-                    if (resolvedTransport == Transport.UNKNOWN) resolvedTransport = primary.transport
-                    nameMatches.mapNotNull { normalizeAddress(it.address) }
-                        .filter { it != mac }
-                        .forEach(altAddresses::add)
-                } else {
-                    ambiguousName = true
-                }
+                ambiguousName = true
             }
         }
 

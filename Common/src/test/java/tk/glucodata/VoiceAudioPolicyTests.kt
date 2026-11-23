@@ -521,4 +521,29 @@ class VoiceAudioPolicyTests {
         )
         assertEquals("Two distinct Classic cars must NOT collapse", 2, VoiceAudioPolicy.deduplicateConnectedDevices(listOf(carA, carB)).size)
     }
+
+    @Test
+    fun unselectedHeadsetWithSameNameAndVendorPrefix_neverMatchesSelectedHeadset() {
+        val selected = VoiceAudioPolicy.SavedDevice(
+            id = "mac:AA:BB:CC:11:22:01",
+            address = "AA:BB:CC:11:22:01",
+            name = "Pixel Buds",
+        )
+        val bonded = listOf(
+            VoiceAudioPolicy.BondedHint("AA:BB:CC:11:22:01", "Pixel Buds", isCar = false, transport = VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL),
+            VoiceAudioPolicy.BondedHint("AA:BB:CC:11:22:02", "Pixel Buds", isCar = false, transport = VoiceAudioPolicy.Transport.LE_ONLY),
+        )
+        // Connecting the unselected second headset must NOT pull the selected headset's MAC from bondedHints.
+        val connectedUnselected = VoiceAudioPolicy.enrichConnectedAudioOutput(
+            rawAddress = "AA:BB:CC:11:22:02",
+            rawName = "Pixel Buds",
+            profileConnected = emptyList(),
+            bondedHints = bonded,
+            looksLikeCarName = VoiceAudioPolicy::looksLikeCarName,
+            transport = VoiceAudioPolicy.Transport.LE_ONLY,
+        )!!
+        assertEquals("AA:BB:CC:11:22:02", connectedUnselected.address)
+        assertTrue("Connected device must not inherit MACs from unrelated bonded entries", connectedUnselected.alternateAddresses.isEmpty())
+        assertFalse("Unselected headset must NEVER match selected headset", VoiceAudioPolicy.devicesMatch(selected, connectedUnselected))
+    }
 }

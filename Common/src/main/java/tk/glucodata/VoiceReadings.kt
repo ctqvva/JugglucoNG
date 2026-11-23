@@ -40,18 +40,18 @@ object VoiceReadings {
     @JvmStatic
     fun isOn(): Boolean = !Applic.DontTalk && Natives.getVoiceActive()
 
-    /** True when readings are currently speaking either manually or via car/Bluetooth audio. */
+    /** True when readings are currently enabled (speaking or scheduled) and not paused for this connection. */
     @JvmStatic
     fun isActive(context: Context): Boolean {
         if (Applic.DontTalk) return false
+        if (VoiceAudioTrigger.isSessionPaused(context)) return false
         val manualOn = isOn()
         val decision = VoiceAudioTrigger.resolveEffectiveDecision(
             context = context,
             manualSpeakGlucose = manualOn,
             defaultIntervalSeconds = Talker.getSeparationSeconds(),
         )
-        return decision.shouldSpeakReading ||
-            (manualOn && !VoiceAudioTrigger.isSessionPaused(context) && !SpeakSchedule.isWithinSchedule(context))
+        return manualOn || decision.autoActive
     }
 
     /**

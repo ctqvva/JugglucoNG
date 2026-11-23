@@ -915,13 +915,12 @@ object VoiceAudioTrigger {
      * this provider is the authoritative signal for wired and wireless Android Auto projection.
      */
     /**
-     * While Android Auto projection is cached as connected, periodically re-verify it off-thread
-     * so a missed disconnect broadcast (e.g. Android Auto crash or force-stop) can never leave
-     * speech stuck on the phone speaker.
+     * Periodically re-verifies Android Auto projection off-thread whenever car-mode detection is
+     * enabled, both while connected (so a missed disconnect broadcast can never leave speech stuck
+     * on) and while disconnected (so a transient startup/update provider error recovers cleanly).
      */
     private fun maybeScheduleStaleCarProjectionRefresh(app: Context) {
-        val cached = carProjectionState
-        if (cached != CONNECTION_TYPE_PROJECTION && cached != CONNECTION_TYPE_NATIVE) return
+        if (!loadConfig(app).includeCarMode) return
         val now = System.currentTimeMillis()
         if (now - lastCarProjectionCheckMs >= CAR_PROJECTION_RECHECK_MS) {
             lastCarProjectionCheckMs = now
@@ -1192,67 +1191,6 @@ object VoiceAudioTrigger {
         return VoiceAudioPolicy.deduplicateConnectedDevices(raw)
     }
 
-    /** Collapses dual-mode Classic + BLE/LE Audio twins in bonded device metadata into single entries. */
-    private fun collapseBondedTwins(
-        metas: List<BondedMeta>,
-        savedDevices: List<VoiceAudioPolicy.SavedDevice>,
-    ): List<BondedMeta> {
-        val merged = ArrayList<BondedMeta>(metas.size)
-        for (meta in metas) {
-            val isCarMeta = meta.isCar || VoiceAudioPolicy.looksLikeCarName(meta.name)
-            val existingIndex = merged.indexOfFirst { existing ->
-                val existingIsCar = existing.isCar || VoiceAudioPolicy.looksLikeCarName(existing.name)
-                VoiceAudioPolicy.areSamePhysicalDevice(
-                    addressA = existing.address,
-                    nameA = existing.name,
-                    transportA = existing.transport,
-                    isCarA = existingIsCar,
-                    addressB = meta.address,
-                    nameB = meta.name,
-                    transportB = meta.transport,
-                    isCarB = isCarMeta,
-                )
-            }
-            if (existingIndex < 0) {
-                merged.add(meta)
-            } else {
-                val existing = merged[existingIndex]
-                val incomingSaved = savedDevices.any {
-                    VoiceAudioPolicy.normalizeAddress(it.address) == meta.address
-                }
-                val existingSaved = savedDevices.any {
-                    VoiceAudioPolicy.normalizeAddress(it.address) == existing.address
-                }
-                val preferIncomingAsPrimary = (!existingSaved && incomingSaved) ||
-                    (existingSaved == incomingSaved &&
-                        existing.transport == VoiceAudioPolicy.Transport.LE_ONLY &&
-                        meta.transport == VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL)
-                val primary = if (preferIncomingAsPrimary) meta else existing
-                val secondary = if (preferIncomingAsPrimary) existing else meta
-                val alts = (existing.alternateAddresses + meta.alternateAddresses + secondary.address)
-                    .filter { it != primary.address }
-                    .distinct()
-                val mergedTransport = when {
-                    existing.transport == VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL ||
-                        meta.transport == VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL ->
-                        VoiceAudioPolicy.Transport.CLASSIC_OR_DUAL
-                    existing.transport == VoiceAudioPolicy.Transport.LE_ONLY ||
-                        meta.transport == VoiceAudioPolicy.Transport.LE_ONLY ->
-                        VoiceAudioPolicy.Transport.LE_ONLY
-                    else -> VoiceAudioPolicy.Transport.UNKNOWN
-                }
-                merged[existingIndex] = primary.copy(
-                    isCar = existing.isCar || meta.isCar,
-                    isAudio = existing.isAudio || meta.isAudio,
-                    isWearable = existing.isWearable && meta.isWearable,
-                    transport = mergedTransport,
-                    alternateAddresses = alts,
-                )
-            }
-        }
-        return merged
-    }
-
     /** Builds the structured list of connected, paired, and saved devices for the picker sheet. */
     fun listSelectableDevices(context: Context, includeAllPaired: Boolean): DeviceListResult {
         val app = context.applicationContext
@@ -1266,84 +1204,61 @@ object VoiceAudioTrigger {
             val id = saved?.id ?: VoiceAudioPolicy.deviceId(conn.address, conn.name)
             val allMacs = (listOfNotNull(conn.address) + conn.alternateAddresses).toSet()
             val primaryAddr = conn.address ?: saved?.address
-            val mergedAlts = buildSet {
-                conn.alternateAddresses.forEach(::add)
-                saved?.alternateAddresses?.forEach(::add)
-                // Include any bonded twin MACs for this connected device so saving covers both transports.
-                for (meta in bondedMetas) {
-                    if (meta.address in allMacs || VoiceAudioPolicy.areSamePhysicalDevice(
-                            addressA = conn.address,
-                            nameA = conn.name,
-                            transportA = conn.transport,
-                            isCarA = conn.isCarAudio,
-                            addressB = meta.address,
-                            nameB = meta.name,
-                            transportB = meta.transport,
-                            isCarB = meta.isCar || VoiceAudioPolicy.looksLikeCarName(meta.name),
-                        )
-                    ) {
-                        add(meta.address)
-                    }
-                }
-                if (primaryAddr != null) remove(primaryAddr)
-            }.toList()
+            // Only keep MACs that Android itself reported simultaneously connected (plus any
+            // previously saved alternates) — never pull unrelated paired MACs by name/OUI.
+            val mergedAlts = (conn.alternateAddresses + saved?.alternateAddresses.orEmpty())
+                .filter { it != primaryAddr }
+                .distinct()
             SelectableDevice(
                 id = id,
                 address = primaryAddr,
                 name = conn.name.ifBlank { saved?.name ?: conn.address.orEmpty() },
                 isCar = conn.isCarAudio || saved?.isCar == true,
                 isConnected = true,
-                isPaired = bondedMetas.any { it.address in allMacs || it.address in mergedAlts },
+                isPaired = bondedMetas.any { it.address in allMacs },
                 isSelected = saved != null,
                 alternateAddresses = mergedAlts,
             )
         }.sortedWith(compareByDescending<SelectableDevice> { it.isCar }.thenBy { it.name.lowercase(Locale.ROOT) })
 
         val nonConnectedBonded = bondedMetas.filter { meta ->
-            val metaIsCar = meta.isCar || VoiceAudioPolicy.looksLikeCarName(meta.name)
             connectedDevices.none { conn ->
                 val connMacs = buildSet {
                     VoiceAudioPolicy.normalizeAddress(conn.address)?.let(::add)
                     conn.alternateAddresses.mapNotNull(VoiceAudioPolicy::normalizeAddress).forEach(::add)
                 }
-                meta.address in connMacs || VoiceAudioPolicy.areSamePhysicalDevice(
-                    addressA = conn.address,
-                    nameA = conn.name,
-                    transportA = conn.transport,
-                    isCarA = conn.isCarAudio,
-                    addressB = meta.address,
-                    nameB = meta.name,
-                    transportB = meta.transport,
-                    isCarB = metaIsCar,
-                )
+                if (connMacs.isNotEmpty()) {
+                    meta.address in connMacs
+                } else {
+                    VoiceAudioPolicy.normalizeName(conn.name) == VoiceAudioPolicy.normalizeName(meta.name)
+                }
             }
         }
 
-        val collapsedNonConnected = collapseBondedTwins(nonConnectedBonded, config.savedDevices)
-        val audioBonded = collapsedNonConnected.filter { meta ->
-            val metaMacs = (listOf(meta.address) + meta.alternateAddresses).toSet()
-            meta.isAudio || meta.isCar || config.savedDevices.any { saved ->
+        // Hide non-audio BLE companion GATT entries (DEVICE_TYPE_LE without AUDIO_VIDEO class)
+        // from the default "Paired Bluetooth audio" list so dual-mode earbuds don't appear twice,
+        // while keeping every distinct audio MAC separate and accessible under "Show all paired".
+        val audioBonded = nonConnectedBonded.filter { meta ->
+            val isExplicitlySaved = config.savedDevices.any { saved ->
                 val savedMacs = (listOfNotNull(VoiceAudioPolicy.normalizeAddress(saved.address)) +
                     saved.alternateAddresses.mapNotNull(VoiceAudioPolicy::normalizeAddress)).toSet()
-                savedMacs.any { it in metaMacs }
+                meta.address in savedMacs
             }
+            val isBleCompanionDuplicate = meta.transport == VoiceAudioPolicy.Transport.LE_ONLY && !meta.isAudio
+            isExplicitlySaved || (!isBleCompanionDuplicate && (meta.isAudio || meta.isCar))
         }
-        val hiddenCount = (collapsedNonConnected.size - audioBonded.size).coerceAtLeast(0)
-        val visibleBonded = if (includeAllPaired) collapsedNonConnected else audioBonded
+        val hiddenCount = (nonConnectedBonded.size - audioBonded.size).coerceAtLeast(0)
+        val visibleBonded = if (includeAllPaired) nonConnectedBonded else audioBonded
 
         val pairedList = visibleBonded.map { meta ->
-            val metaMacs = (listOf(meta.address) + meta.alternateAddresses).toSet()
             val saved = config.savedDevices.firstOrNull { s ->
                 val savedMacs = (listOfNotNull(VoiceAudioPolicy.normalizeAddress(s.address)) +
                     s.alternateAddresses.mapNotNull(VoiceAudioPolicy::normalizeAddress)).toSet()
-                savedMacs.any { it in metaMacs } ||
+                meta.address in savedMacs ||
                     (savedMacs.isEmpty() &&
                         VoiceAudioPolicy.normalizeName(s.name) == VoiceAudioPolicy.normalizeName(meta.name))
             }
             val id = saved?.id ?: VoiceAudioPolicy.deviceId(meta.address, meta.name)
-            val mergedAlts = (meta.alternateAddresses + saved?.alternateAddresses.orEmpty())
-                .filter { it != meta.address }
-                .distinct()
             SelectableDevice(
                 id = id,
                 address = meta.address,
@@ -1352,7 +1267,7 @@ object VoiceAudioTrigger {
                 isConnected = false,
                 isPaired = true,
                 isSelected = saved != null,
-                alternateAddresses = mergedAlts,
+                alternateAddresses = saved?.alternateAddresses?.filter { it != meta.address }.orEmpty(),
             )
         }.sortedWith(compareByDescending<SelectableDevice> { it.isCar }.thenBy { it.name.lowercase(Locale.ROOT) })
 

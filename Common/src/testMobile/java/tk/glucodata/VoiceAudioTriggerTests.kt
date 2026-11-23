@@ -577,6 +577,65 @@ class VoiceAudioTriggerTests {
         assertEquals("Steven's Buds", result.connected[0].name)
         assertEquals(listOf("44:55:66:77:88:02"), result.connected[0].alternateAddresses)
     }
+
+    @Test
+    fun disconnectedProjectionCache_recoversViaThrottledAsyncRefreshOnReadingPath() {
+        FakeCarConnectionProvider.queryCount.set(0)
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        val latch1 = java.util.concurrent.CountDownLatch(1)
+        Applic.scheduler.execute { latch1.countDown() }
+        assertTrue(latch1.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Provider now reports active Android Auto (e.g. startup query had transiently failed).
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        VoiceAudioTrigger.lastCarProjectionCheckMs = System.currentTimeMillis() - 60_000L
+        VoiceAudioTrigger.refreshAndCheckReadingSpeech(app)
+
+        val latch2 = java.util.concurrent.CountDownLatch(1)
+        Applic.scheduler.execute { latch2.countDown() }
+        assertTrue(latch2.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(
+            "Throttled async refresh while disconnected must recover an active Android Auto connection",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+    }
+
+    @Test
+    fun scheduledHeadphonesOutsideSchedule_isActiveMatchesDashboardSoNotificationCanPause() {
+        val nowCal = java.util.Calendar.getInstance()
+        val nowMins = nowCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCal.get(java.util.Calendar.MINUTE)
+        val farStart = (nowMins + 720) % 1440
+        val farEnd = (farStart + 1) % 1440
+        SpeakSchedule.setStartMinutes(app, farStart)
+        SpeakSchedule.setEndMinutes(app, farEnd)
+        SpeakSchedule.setEnabled(app, true)
+        assertFalse(SpeakSchedule.isWithinSchedule(app))
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("11:22:33:44:55:99", "Audio-Technica")))
+        VoiceAudioTrigger.refreshState(app)
+
+        // Dashboard status is ON (waiting for schedule), so notification isActive() must also be true
+        // allowing the user to pause the upcoming scheduled speech from the notification.
+        assertTrue(VoiceReadings.status(app).on)
+        assertTrue(VoiceReadings.isActive(app))
+        VoiceReadings.setOn(app, false)
+        assertTrue(VoiceAudioTrigger.isSessionPaused(app))
+        assertFalse(VoiceReadings.isActive(app))
+        assertFalse(VoiceReadings.status(app).on)
+    }
 }
 
 class FakeCarConnectionProvider : ContentProvider() {
