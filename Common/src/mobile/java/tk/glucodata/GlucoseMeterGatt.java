@@ -162,13 +162,36 @@ synchronized void cancelPacedReconnect() {
     pacedWaiting=false;
     MeterRecheckAlarm.cancel(meterIndex);
 }
-private synchronized long pacedReconnectDelay() {
-    final MeterLinkOutcome outcome=linkBroughtNew?MeterLinkOutcome.NEW_READINGS
+private synchronized MeterLinkOutcome currentLinkOutcome() {
+    return linkBroughtNew?MeterLinkOutcome.NEW_READINGS
         :linkFailed?MeterLinkOutcome.FAILED
         :linkAnswered?MeterLinkOutcome.NOTHING_NEW
         :MeterLinkOutcome.UNANSWERED;
+}
+private synchronized long pacedReconnectDelay() {
+    return pacedReconnectDelay(MeterSyncPacing.minutes());
+}
+private synchronized long pacedReconnectDelay(int intervalMinutes) {
+    final MeterLinkOutcome outcome=currentLinkOutcome();
     resetLink();
-    return pacer.linkEnded(outcome,staysOn(),MeterSyncPacing.minutes());
+    return pacer.linkEnded(outcome,staysOn(),intervalMinutes);
+}
+private synchronized boolean shouldDisconnectBeforePacedWait() {
+    return !stop && connected && pacer.wouldWait(currentLinkOutcome(),staysOn(),MeterSyncPacing.minutes());
+}
+// Satellite holds an idle BLE link open for ~30s before dropping it. Once a sync finishes
+// and will enter a paced wait, disconnect cleanly right away instead of keeping the meter's
+// radio active and holding an extra ACL link alongside sensors. Never disconnect early when
+// the recheck interval is 0 (or on new readings), or it would spin every couple of seconds.
+private void disconnectIfPaced(BluetoothGatt gatt) {
+    final boolean shouldDisconnect;
+    synchronized(this) {
+        shouldDisconnect = gatt!=null && gatt==mBluetoothGatt && shouldDisconnectBeforePacedWait();
+    }
+    if(shouldDisconnect) {
+        if(doLog) Log.i(LOG_ID,meterIndex+" sync complete, disconnecting before paced wait");
+        gatt.disconnect();
+    }
 }
 private synchronized void schedulePacedReconnect(long wait) {
     cancelPacedReconnect();
@@ -331,6 +354,7 @@ private void beginSatelliteSession(BluetoothGatt gatt) {
         Applic.argToaster(app, R.string.satellite_meter_code_missing, android.widget.Toast.LENGTH_LONG);
         // A failed link: never redialled and toasted twice a minute; saving a code retries at once.
         markLinkFailed();
+        disconnectIfPaced(gatt);
         return;
     }
     satelliteSession=new SatelliteMeterSession(pin,System.currentTimeMillis());
@@ -399,6 +423,7 @@ private synchronized void processSatelliteResponse(BluetoothGatt gatt, byte[] va
         satelliteSession=null;
         if(update.getError()!=null) markLinkFailed();
         else markLinkAnswered();
+        disconnectIfPaced(gatt);
         return;
     }
     final byte[] command=update.getCommand();
@@ -637,12 +662,17 @@ boolean connected=false;
                         // One hold of the lock pacingChanged takes, so an interval change
                         // cannot slip between reading the interval and arming the alarm.
                         synchronized(this) {
-                            final long wait=pacedReconnectDelay();
+                            final MeterLinkOutcome outcome=currentLinkOutcome();
+                            final int intervalMinutes=MeterSyncPacing.minutes();
+                            final long wait=pacedReconnectDelay(intervalMinutes);
                             paced=wait>0L;
                             if(paced) {
-                                if(doLog) Log.i(LOG_ID,meterIndex+" stays on, nothing new, reconnect in "+wait/1000+"s");
+                                if(doLog) Log.i(LOG_ID,meterIndex+" stays on, "+outcome+", reconnect in "+wait/1000+"s");
                                 close();
                                 schedulePacedReconnect(wait);
+                                }
+                            else if(staysOn() && doLog) {
+                                Log.i(LOG_ID,meterIndex+" stays on, reconnecting at once (outcome="+outcome+", interval="+intervalMinutes+"m)");
                                 }
                             }
                         if(!paced && useConnect)

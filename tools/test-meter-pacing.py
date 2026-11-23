@@ -28,12 +28,18 @@ methods = '\n'.join(method(gatt, signature) for signature in [
     'private synchronized void markLinkAnswered(', 'private synchronized void markLinkFailed(',
     'private synchronized void markLinkBroughtNew(', 'private synchronized void resetLink(',
     'boolean staysOn(',
-    'synchronized void cancelPacedReconnect(', 'private synchronized long pacedReconnectDelay(',
+    'synchronized void cancelPacedReconnect(',
+    'private synchronized MeterLinkOutcome currentLinkOutcome(',
+    'private synchronized long pacedReconnectDelay()',
+    'private synchronized long pacedReconnectDelay(int intervalMinutes)',
+    'private synchronized boolean shouldDisconnectBeforePacedWait(',
+    'private void disconnectIfPaced(',
     'private synchronized void schedulePacedReconnect(', 'synchronized void runPacedReconnect(',
     'synchronized void pacingChanged(',
 ])
 # The pacing rule itself is covered by MeterSyncPacingTests; here the pacer is a recording fake.
 assert 'class MeterLinkPacer' in pacing and 'fun linkEnded(outcome: MeterLinkOutcome, staysOn: Boolean, minutes: Int)' in pacing
+assert 'fun wouldWait(outcome: MeterLinkOutcome, staysOn: Boolean, minutes: Int)' in pacing
 
 java = r'''
 package tk.glucodata;
@@ -42,6 +48,9 @@ import java.util.concurrent.*;
 
 public class GlucoseMeterGatt {
     static final boolean doLog=false;
+    static final String LOG_ID="GlucoseMeterGatt";
+    static class Log { static void i(String tag,String msg){} }
+    static class BluetoothGatt { int disconnects; void disconnect(){disconnects++;} }
     enum MeterLinkOutcome { UNANSWERED, NEW_READINGS, NOTHING_NEW, FAILED }
     static class MeterSyncPacing {
         static int minutes=5;
@@ -49,7 +58,9 @@ public class GlucoseMeterGatt {
     }
     static class MeterLinkPacer {
         MeterLinkOutcome outcome; boolean staysOn; int minutes; long nextWait;
+        MeterLinkOutcome previewOutcome; boolean previewStaysOn; int previewMinutes; boolean nextWouldWait;
         long linkEnded(MeterLinkOutcome o,boolean s,int m){outcome=o;staysOn=s;minutes=m;return nextWait;}
+        boolean wouldWait(MeterLinkOutcome o,boolean s,int m){previewOutcome=o;previewStaysOn=s;previewMinutes=m;return nextWouldWait;}
     }
     // One alarm per meter, as AlarmManager keeps one per PendingIntent; delivery hands the
     // ticket back the way MeterRecheckAlarm.onReceive does.
@@ -63,8 +74,8 @@ public class GlucoseMeterGatt {
             if(a!=null&&a[1]<=target){alarms.remove(meter.meterIndex);now=a[1];meter.runPacedReconnect(a[0]);}now=target;}
     }
     final int meterIndex=3;
-    boolean stop; Object mBluetoothGatt; int opened;
-    void openGatt(){opened++;mBluetoothGatt=new Object();}
+    boolean stop, connected; BluetoothGatt mBluetoothGatt; int opened;
+    void openGatt(){opened++;mBluetoothGatt=new BluetoothGatt();}
     private boolean linkAnswered=false;
     private boolean linkFailed=false;
     private boolean linkBroughtNew=false;
@@ -86,6 +97,21 @@ public class GlucoseMeterGatt {
         check(m.pacer.outcome==MeterLinkOutcome.NEW_READINGS,"stored readings hidden by a later error");
         check(m.pacer.minutes==5,"interval not passed through");
 
+        // Early disconnect on finished Satellite sync only when connected, active, matching GATT, and pacer would wait.
+        m=fresh();m.satelliteMode=true;m.connected=true;m.markLinkAnswered();m.pacer.nextWouldWait=true;
+        BluetoothGatt live=new BluetoothGatt(), stale=new BluetoothGatt(); m.mBluetoothGatt=live;
+        check(m.shouldDisconnectBeforePacedWait(),"finished paced sync did not request disconnect");
+        check(m.pacer.previewOutcome==MeterLinkOutcome.NOTHING_NEW&&m.pacer.previewStaysOn&&m.pacer.previewMinutes==5,"preview inputs wrong");
+        m.disconnectIfPaced(stale);check(stale.disconnects==0&&live.disconnects==0,"stale GATT disconnected");
+        m.disconnectIfPaced(live);check(live.disconnects==1,"live GATT not disconnected before paced wait");
+        m.pacer.nextWouldWait=false;
+        check(!m.shouldDisconnectBeforePacedWait(),"unpaced sync requested early disconnect");
+        m.disconnectIfPaced(live);check(live.disconnects==1,"unpaced sync disconnected live GATT");
+        m.pacer.nextWouldWait=true;m.connected=false;
+        check(!m.shouldDisconnectBeforePacedWait(),"disconnected link requested early disconnect");
+        m.connected=true;m.stop=true;
+        check(!m.shouldDisconnectBeforePacedWait(),"stopped meter requested early disconnect");
+
         // Whether the meter stays on comes from the link (the Satellite service), not from timing.
         m=fresh();m.markLinkAnswered();m.pacedReconnectDelay();check(!m.pacer.staysOn,"an unknown meter counted as staying on");
         m.satelliteMode=true;m.markLinkAnswered();m.pacedReconnectDelay();check(m.pacer.staysOn,"a Satellite link not counted as staying on");
@@ -104,7 +130,7 @@ public class GlucoseMeterGatt {
         // Connecting with nothing waiting does not touch AlarmManager.
         m=fresh();m.cancelPacedReconnect();check(MeterRecheckAlarm.cancels==0,"cancelled an alarm that was never set");
         // A newer link (retry, Bluetooth back on) is never replaced by the paced task.
-        m=fresh();m.schedulePacedReconnect(300_000L);m.mBluetoothGatt=new Object();
+        m=fresh();m.schedulePacedReconnect(300_000L);m.mBluetoothGatt=new BluetoothGatt();
         MeterRecheckAlarm.advance(300_000);check(m.opened==0,"paced task replaced a live link");
         // Rescheduling supersedes the earlier ticket.
         m=fresh();m.schedulePacedReconnect(300_000L);long[] first=MeterRecheckAlarm.pending();m.schedulePacedReconnect(600_000L);
@@ -120,7 +146,7 @@ public class GlucoseMeterGatt {
         check(MeterRecheckAlarm.pending()==null,"interval change left the old alarm set");
         MeterRecheckAlarm.advance(1_800_000);check(m.opened==1,"old paced task dialled after interval change");
         m=fresh();m.pacingChanged();check(m.opened==0,"interval change dialled a meter that was not waiting");
-        System.out.println("PASS: link outcomes, stays-on from the link, paced alarm, stale and superseded alarms, live links, removal, interval change");
+        System.out.println("PASS: link outcomes, stays-on from the link, early disconnect preview, paced alarm, stale and superseded alarms, live links, removal, interval change");
     }
 }
 '''

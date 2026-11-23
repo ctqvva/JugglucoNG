@@ -76,11 +76,30 @@ class MeterLinkPacer {
      */
     fun linkEnded(outcome: MeterLinkOutcome, staysOn: Boolean, minutes: Int): Long {
         failuresInARow = if (outcome == MeterLinkOutcome.FAILED) failuresInARow + 1 else 0
+        return delayFor(outcome, staysOn, minutes, failuresInARow)
+    }
+
+    /**
+     * Whether ending the link right now with [outcome] would wait instead of reconnecting at once.
+     * Pure preview of [linkEnded] so a finished Satellite sync can close the link early only when
+     * it will actually enter a paced wait (not when the interval is 0, or on new readings).
+     */
+    fun wouldWait(outcome: MeterLinkOutcome, staysOn: Boolean, minutes: Int): Boolean {
+        val nextFailures = if (outcome == MeterLinkOutcome.FAILED) failuresInARow + 1 else 0
+        return delayFor(outcome, staysOn, minutes, nextFailures) > 0L
+    }
+
+    private fun delayFor(
+        outcome: MeterLinkOutcome,
+        staysOn: Boolean,
+        minutes: Int,
+        consecutiveFailures: Int,
+    ): Long {
         if (!staysOn || minutes <= 0) return 0L
         val wait = minutes * 60_000L
         return when (outcome) {
             MeterLinkOutcome.NOTHING_NEW -> wait
-            MeterLinkOutcome.FAILED -> if (failuresInARow >= 2) wait else 0L
+            MeterLinkOutcome.FAILED -> if (consecutiveFailures >= 2) wait else 0L
             MeterLinkOutcome.NEW_READINGS, MeterLinkOutcome.UNANSWERED -> 0L
         }
     }

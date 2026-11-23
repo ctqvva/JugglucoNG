@@ -58,6 +58,24 @@ class MeterSyncPacingTests {
     }
 
     @Test
+    fun wouldWaitPreviewsLinkEndedWithoutMutatingFailureCount() {
+        val pacer = MeterLinkPacer()
+        assertFalse(pacer.wouldWait(MeterLinkOutcome.NOTHING_NEW, false, 5))
+        assertFalse(pacer.wouldWait(MeterLinkOutcome.NOTHING_NEW, true, 0))
+        assertTrue(pacer.wouldWait(MeterLinkOutcome.NOTHING_NEW, true, 5))
+        assertFalse(pacer.wouldWait(MeterLinkOutcome.NEW_READINGS, true, 5))
+        assertFalse(pacer.wouldWait(MeterLinkOutcome.UNANSWERED, true, 5))
+
+        // First failure is retried at once; previewing it repeatedly must not advance the counter.
+        repeat(3) { assertFalse(pacer.wouldWait(MeterLinkOutcome.FAILED, true, 5)) }
+        assertEquals(0L, pacer.linkEnded(MeterLinkOutcome.FAILED, true, 5))
+        // After one failure has landed, the next failure would wait (unless interval is 0).
+        assertFalse(pacer.wouldWait(MeterLinkOutcome.FAILED, true, 0))
+        assertTrue(pacer.wouldWait(MeterLinkOutcome.FAILED, true, 5))
+        assertEquals(300_000L, pacer.linkEnded(MeterLinkOutcome.FAILED, true, 5))
+    }
+
+    @Test
     fun onlyASuccessfulReportStoredRecordsAnswerCountsAsASync() {
         fun racp(vararg bytes: Int) = MeterSyncPacing.racpReportSucceeded(ByteArray(bytes.size) { bytes[it].toByte() })
         assertTrue("records sent", racp(0x06, 0x00, 0x01, 0x01))

@@ -1711,7 +1711,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 }
 
                 watchConnectionAttempt(cb.mBluetoothGatt);
-                setpriority(cb.mBluetoothGatt);
+                // requestConnectionPriority() needs an established connection (and registered
+                // clientIf); drivers apply setpriority() once STATE_CONNECTED arrives.
                 {
                     if (doLog) {
                         Log.i(LOG_ID, SerialNumber + " after connectGatt =" + cb.mBluetoothGatt);
