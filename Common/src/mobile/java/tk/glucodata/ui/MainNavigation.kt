@@ -48,11 +48,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -708,24 +712,60 @@ private fun CalibrationSheetHost(
 /** How far each side of its moment the calibration sheet reads the timeline. */
 private const val CALIBRATION_SHEET_WINDOW_HALF_MS = 6L * 60L * 60L * 1000L
 
+/**
+ * The size the tab labels share when the system's text is enlarged: the largest that shows every
+ * one of them whole, so one long label does not stand out smaller than its neighbours.
+ */
 @Composable
-private fun AdaptiveNavigationLabel(text: String) {
-    val regularStyle = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.sp)
+private fun rememberNavigationLabelSize(labels: List<String>): TextUnit {
+    val style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.sp)
+    val smallest = MaterialTheme.typography.labelSmall.fontSize
+    val density = LocalDensity.current.withFontScaleAtMost(DENSE_FONT_SCALE_CAP)
+    val slotWidth = rememberAdaptiveWindowMetrics().widthDp.dp / labels.size.coerceAtLeast(1) -
+        NavigationLabelGutter * 2
+    val textMeasurer = rememberTextMeasurer()
+    return remember(labels, style, smallest, density, slotWidth) {
+        if (density.fontScale <= 1f) return@remember style.fontSize
+        val slotPx = with(density) { slotWidth.toPx() }
+        val floor = smallest.withoutEnlargement(density).value
+        generateSequence(style.fontSize.value) { it - 0.5f }
+            .takeWhile { it > floor }
+            .firstOrNull { size ->
+                labels.all { label ->
+                    textMeasurer.measure(
+                        text = label,
+                        style = style.copy(fontSize = size.sp),
+                        softWrap = false,
+                        maxLines = 1,
+                        density = density
+                    ).size.width <= slotPx
+                }
+            }?.sp ?: floor.sp
+    }
+}
+
+/** ShortNavigationBar's top-icon items only pad vertically; this keeps labels off each other. */
+private val NavigationLabelGutter = 8.dp
+
+@Composable
+private fun AdaptiveNavigationLabel(text: String, fontSize: TextUnit) {
+    val regularStyle = MaterialTheme.typography.labelMedium.copy(fontSize = fontSize, letterSpacing = 0.sp)
     val compactFontSize = MaterialTheme.typography.labelSmall.fontSize
-    val autoSize = remember(compactFontSize, regularStyle.fontSize) {
+        .withoutEnlargement(LocalDensity.current)
+    val autoSize = remember(compactFontSize, fontSize) {
         TextAutoSize.StepBased(
             minFontSize = compactFontSize,
-            maxFontSize = regularStyle.fontSize,
-            stepSize = 1.sp
+            maxFontSize = fontSize,
+            stepSize = 0.5.sp
         )
     }
 
     // ShortNavigationBar queries intrinsic sizes; a BoxWithConstraints label cannot provide them.
-    // Its top-icon items only add vertical padding. Reserve a horizontal label gutter
-    // before auto-sizing without shrinking the item's full-width touch target.
+    // Reserve the label gutter before auto-sizing, without shrinking the item's full-width
+    // touch target.
     Text(
         text = text,
-        modifier = Modifier.padding(horizontal = 8.dp),
+        modifier = Modifier.padding(horizontal = NavigationLabelGutter),
         style = regularStyle,
         autoSize = autoSize,
         maxLines = 1,
@@ -1000,6 +1040,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
         },
         bottomBar = {
             if (!isLandscape) {
+                val navLabelSize = rememberNavigationLabelSize(navItems.map { it.label })
                 Box {
                     ShortNavigationBar(arrangement = ShortNavigationBarArrangement.EqualWeight) {
                         navItems.forEach { item ->
@@ -1023,7 +1064,7 @@ fun MainApp(themeMode: ThemeMode, onThemeChanged: (ThemeMode) -> Unit) {
                                         }
                                     },
                                     label = {
-                                        FontScaleCap { AdaptiveNavigationLabel(item.label) }
+                                        FontScaleCap { AdaptiveNavigationLabel(item.label, navLabelSize) }
                                     },
                                     selected = isSelected,
                                     onClick = { onNavItemClick(item.route) },

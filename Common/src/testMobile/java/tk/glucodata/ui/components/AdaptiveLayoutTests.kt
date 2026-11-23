@@ -412,6 +412,35 @@ class AdaptiveLayoutTests {
     }
 
     @Test
+    fun buttonRowWhoseLastButtonFillsKeepsTheOthersNaturalUntilItStacks() {
+        var width by mutableIntStateOf(320)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    AdaptiveButtonRow(modifier = Modifier.width(width.dp), lastFills = true) {
+                        OutlinedButton(onClick = {}, shapes = ButtonDefaults.shapes()) { Text("Reset") }
+                        Button(onClick = {}, shapes = ButtonDefaults.shapes()) { Text("Pair again", maxLines = 1) }
+                    }
+                }
+            }
+        }
+        fun bounds(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
+
+        var first = bounds("Reset")
+        var second = bounds("Pair again")
+        assertEquals(first.top, second.top, 0.5f)
+        assertTrue(second.width > first.width)
+        assertEquals(320f, second.right, 1f)
+
+        compose.runOnIdle { width = 160 }
+        first = bounds("Reset")
+        second = bounds("Pair again")
+        assertTrue(second.top >= first.bottom)
+        assertEquals(160f, first.width, 1f)
+        assertEquals(160f, second.width, 1f)
+    }
+
+    @Test
     fun connectedGroupKeepsItsHeightAtNormalTextSize() {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {

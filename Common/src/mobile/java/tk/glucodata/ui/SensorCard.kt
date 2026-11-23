@@ -488,11 +488,12 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
         // its one line instead, and only past the smallest size loses its end.
         val maxSize = MaterialTheme.typography.titleSmall.fontSize
         val minSize = MaterialTheme.typography.labelMedium.fontSize
+            .withoutEnlargement(LocalDensity.current)
         val autoSize = remember(minSize, maxSize) {
             androidx.compose.foundation.text.TextAutoSize.StepBased(
                 minFontSize = minSize,
                 maxFontSize = maxSize,
-                stepSize = 1.sp,
+                stepSize = 0.5.sp,
             )
         }
         Text(
@@ -3156,12 +3157,11 @@ fun SensorCard(
                 // touch target issues. Users access it via the Reset button now.
 
 
-                // Edit 74: Reset (left, smaller, no weight) | Unpair/Pair (right, larger, weight 1f)
+                // Edit 74: Reset (left, smaller) | Unpair/Pair (right, takes the rest)
                 // Unpair/Pair is more important — it's the primary action for AiDex sensor management.
-                Row(
+                tk.glucodata.ui.components.AdaptiveButtonRow(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    lastFills = true
                 ) {
                     // Edit 78: Reset button — opens bottom sheet. Shows tertiary tint when
                     // bias correction is active so the user knows something is going on.
@@ -3216,7 +3216,6 @@ fun SensorCard(
                                 aiDexKeyImportLauncher.launch(arrayOf("text/plain", "application/octet-stream"))
                             }
                         },
-                        modifier = Modifier.weight(1f),
                     )
                 }
             }

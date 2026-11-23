@@ -51,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -69,6 +68,7 @@ import tk.glucodata.update.UpdateEligibility
 import tk.glucodata.update.UpdateError
 import tk.glucodata.update.UpdateStage
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 
 /**
  * True when [DashboardAppUpdateBanner] would draw something.
@@ -369,9 +369,9 @@ internal fun AppUpdateStatusCard(
  */
 @Composable
 private fun downloadActionLabel(): String {
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val widthDp = rememberAdaptiveWindowMetrics().widthDp
     val fontScale = LocalDensity.current.fontScale
-    val roomy = screenWidthDp >= 380 && fontScale <= 1.15f
+    val roomy = widthDp >= 380 && fontScale <= 1.15f
     return stringResource(
         if (roomy) R.string.app_updates_action_download_install
         else R.string.app_updates_action_download

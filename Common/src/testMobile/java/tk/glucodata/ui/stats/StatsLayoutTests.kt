@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 
 /**
@@ -158,7 +157,8 @@ class StatsLayoutTests {
         assertTrue(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Regular
+                hasCompactRoom = false,
+                fontScale = 1f
             )
         )
     }
@@ -168,13 +168,33 @@ class StatsLayoutTests {
         assertFalse(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Compact
+                hasCompactRoom = true,
+                fontScale = 1f
             )
         )
         assertFalse(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Medium,
-                layoutDensity = AdaptiveLayoutDensity.Regular
+                hasCompactRoom = false,
+                fontScale = 1f
+            )
+        )
+    }
+
+    @Test
+    fun largeTextFitsTheStatsStripInsteadOfCuttingItsTitles() {
+        assertTrue(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                hasCompactRoom = false,
+                fontScale = 1.1f
+            )
+        )
+        assertFalse(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                hasCompactRoom = false,
+                fontScale = 1.3f
             )
         )
     }

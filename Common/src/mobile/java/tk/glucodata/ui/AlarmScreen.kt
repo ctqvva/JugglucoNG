@@ -148,7 +148,8 @@ private fun PixelAlarmContent(
         motionActive = false
     }
 
-    val compact = rememberAdaptiveWindowMetrics().isCompact
+    // By the room there is: the smaller arrow leaves the value a larger share of a narrow row.
+    val compact = rememberAdaptiveWindowMetrics().hasCompactRoom
     val settledArrowScale = if (compact) 4.72f else 5.72f
     val arrowScale = if (motionActive) {
         val infiniteTransition = rememberInfiniteTransition(label = "alarm-motion")

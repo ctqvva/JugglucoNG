@@ -61,20 +61,20 @@ fun SensorTypePicker(
     /** Restricted mode's allowed families; null offers every family. */
     allowedTypes: Set<SensorType>? = null,
 ) {
-    val metrics = rememberAdaptiveWindowMetrics()
-    val compact = metrics.isCompact
+    val compact = rememberAdaptiveWindowMetrics().isCompact
     val horizontalPadding = if (compact) 12.dp else 16.dp
     val bottomPadding = if (compact) 16.dp else 28.dp
     val itemSpacing = 8.dp
     val itemVerticalPadding = if (compact) 8.dp else 10.dp
     val tileSize = if (compact) 40.dp else 48.dp
     val itemMinHeight = if (compact) 56.dp else 64.dp
-    val sheetMaxHeight = metrics.heightDp.dp * (if (compact) 0.82f else 0.88f)
     StableModalBottomSheet(
         onDismissRequest = onDismiss,
         dragHandle = { CompactSheetDragHandle() },
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        // Read in here: the sheet is a window of its own, whose dp can differ from the screen's.
+        val sheetMaxHeight = rememberAdaptiveWindowMetrics().heightDp.dp * (if (compact) 0.82f else 0.88f)
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
