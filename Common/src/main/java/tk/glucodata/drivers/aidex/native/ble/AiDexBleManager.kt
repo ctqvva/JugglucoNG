@@ -872,9 +872,21 @@ class AiDexBleManager(
         }
     }
 
+    /**
+     * Keeps the native wrapper alive during a JNI call on it. Bluetooth teardown frees the
+     * wrapper holding the callback monitor, which [resetdataptr] takes after the controller
+     * lock, so neither can guard it. Innermost lock: take no other one while holding it.
+     */
+    private val nativeDataLock = Any()
+    override fun releaseNativeData() = synchronized(nativeDataLock) { super.releaseNativeData() }
+    private inline fun <T : Any> withNativeData(call: (Long) -> T): T? = synchronized(nativeDataLock) {
+        if (dataptr == 0L) null else call(dataptr)
+    }
+
     override fun resetdataptr(): Long = synchronized(algorithmRuntime.controller.lock) {
         if (algorithmRuntime.controller.isClosed()) 0L else {
             algorithmRuntime.controller.invalidateReferences()
+            releaseNativeData()
             super.resetdataptr()
         }
     }
@@ -924,11 +936,13 @@ class AiDexBleManager(
         trend: Int = Natives.AIDEX_TREND_UNKNOWN): AiDexAlgorithmReading {
         markLocalReadingAccepted(row.source.timestampMs)
         val raw = row.source.rawMgDl.takeIf { it.isFinite() } ?: 0f
-        if (dataptr != 0L) runCatching {
-            val result = Natives.aidexProcessData(dataptr, byteArrayOf(0), row.source.timestampMs,
-                row.glucoseMgDl, raw, 1f,
-                if (algorithmRuntime.controller.appliedSelection.adaptive) Natives.AIDEX_TREND_UNKNOWN else trend)
-            if (result != 0L && result != 1L) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite("aidex-managed", row.source.timestampMs)
+        runCatching {
+            val result = withNativeData {
+                Natives.aidexProcessData(it, byteArrayOf(0), row.source.timestampMs,
+                    row.glucoseMgDl, raw, 1f,
+                    if (algorithmRuntime.controller.appliedSelection.adaptive) Natives.AIDEX_TREND_UNKNOWN else trend)
+            }
+            if (result != null && result != 0L && result != 1L) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite("aidex-managed", row.source.timestampMs)
         }.onFailure { Log.stack(TAG, "selected live native write", it) }
         // The sensor's trend byte in Stock; otherwise a difference between
         // neighbouring readings, never across a dropout. Unknown publishes as 0,
@@ -1123,6 +1137,29 @@ class AiDexBleManager(
         rawCursorLostItsCache = false
     }
 
+    /**
+     * The fallback belongs to the row before the cursor. It is kept with the cursor, so a
+     * download that resumes there merges the next rows as an uninterrupted one would.
+     */
+    private fun advanceBriefHistoryCursor(nextIndex: Int) {
+        historyBriefNextIndex = nextIndex
+        prefs.edit()
+            .putInt(prefKey("historyBriefNextIndex"), nextIndex)
+            .putInt(prefKey("historyFallbackIndex"), nextIndex)
+            .putInt(prefKey("historyFallbackGlucose"), lastCalibratedGlucoseFallback ?: 0)
+            .apply()
+    }
+
+    private fun restoreHistoryFallback() {
+        lastCalibratedGlucoseFallback = readIntPref("historyFallbackGlucose", 0)
+            .takeIf { it > 0 && readIntPref("historyFallbackIndex", 0) == historyBriefNextIndex }
+    }
+
+    private fun clearHistoryFallback() {
+        lastCalibratedGlucoseFallback = null
+        writeIntPref("historyFallbackGlucose", 0)
+    }
+
     private fun flushPendingRoomHistoryToRoom(): Boolean {
         if (pendingRoomHistoryTimestamps.isEmpty()) {
             return true
@@ -1173,7 +1210,8 @@ class AiDexBleManager(
     // Our wire format is swapped: 0x23 = calibrated, 0x24 = raw ADC.
     private val calibratedGlucoseCache = HashMap<Int, Int>()
     // Fallback glucose for 0x24 entries without an exact 0x23 offset match.
-    // Carried across pages so edge-of-page entries still get a valid glucose.
+    // Carried across pages so edge-of-page entries still get a valid glucose,
+    // and with the brief cursor across an interrupted download.
     private var lastCalibratedGlucoseFallback: Int? = null
 
     // -- F003 Live Data --
@@ -2969,7 +3007,7 @@ class AiDexBleManager(
 
         if (reportedWearDays != null) {
             try {
-                Natives.aidexSetWearDays(dataptr, reportedWearDays)
+                withNativeData { Natives.aidexSetWearDays(it, reportedWearDays) }
                 Log.i(TAG, "aidexSetWearDays: days=$reportedWearDays (sensor-reported, from $source)")
             } catch (_: Throwable) {}
         }
@@ -2980,7 +3018,7 @@ class AiDexBleManager(
                 if (algorithmRuntime.controller.isClosed()) return
                 algorithmRuntime.controller.invalidateReferences()
                 sensorstartmsec = startMs
-                Natives.aidexSetStartTime(dataptr, startMs)
+                withNativeData { Natives.aidexSetStartTime(it, startMs) }
             }
         }
         if (lastGlucoseTimeMs < startMs) {
@@ -4714,7 +4752,7 @@ class AiDexBleManager(
             rememberSensorWearDays(parsed.wearDays)
             if (dataptr != 0L) {
                 try {
-                    Natives.aidexSetWearDays(dataptr, parsed.wearDays)
+                    withNativeData { Natives.aidexSetWearDays(it, parsed.wearDays) }
                     Log.i(TAG, "aidexSetWearDays: days=${parsed.wearDays} (sensor-reported, from startup-0x10)")
                 } catch (_: Throwable) {}
             }
@@ -5097,6 +5135,7 @@ class AiDexBleManager(
         )
         historyRawNextIndex = downloadPlan.rawNextIndex
         historyBriefNextIndex = downloadPlan.briefNextIndex
+        restoreHistoryFallback()
         historyDownloadStartIndex = downloadPlan.downloadStartIndex
 
         if (downloadPlan.action == AiDexHistoryPolicy.InitialAction.COMPLETE_EMPTY) {
@@ -5146,11 +5185,16 @@ class AiDexBleManager(
         }
     }
 
+    /**
+     * [opcode, status, payload, CRC16]: the CRC was validated on arrival and is no row.
+     * Read as one, a 0x23 page ends in an invented reading and skips the real minute.
+     */
+    private fun historyPagePayload(data: ByteArray): ByteArray = data.copyOfRange(2, data.size - 2)
+
     private fun handleHistoryRawResponse(data: ByteArray) {
         if (data.size < 4) return
         handler.removeCallbacks(historyPageWatchdog)  // Response arrived — cancel page timeout
-        // data[1] = status, data[2..] = payload
-        val payload = data.copyOfRange(2, data.size)
+        val payload = historyPagePayload(data)
         val entries = AiDexParser.parseHistoryResponse(payload)
         if (entries.isEmpty()) {
             Log.i(TAG, "History raw (0x23): empty page at offset=$historyRawNextIndex newest=$historyNewestOffset")
@@ -5200,9 +5244,20 @@ class AiDexBleManager(
     private fun handleHistoryBriefResponse(data: ByteArray) {
         if (data.size < 7 || algorithmRuntime.controller.isClosed()) return
         handler.removeCallbacks(historyPageWatchdog)  // Response arrived — cancel page timeout
-        val payload = data.copyOfRange(2, data.size)
+        val payload = historyPagePayload(data)
         val entries = AiDexParser.parseBriefHistoryResponse(payload)
         if (entries.isEmpty()) {
+            // A page of all-zero rows has nothing to store, but is not the end of the
+            // history. At the announced end it stays pending: the rows may yet be written.
+            val pageEnd = AiDexParser.briefHistoryPageEnd(payload)
+            if (pageEnd != null && pageEnd > historyBriefNextIndex && pageEnd <= historyNewestOffset) {
+                Log.i(TAG, "History brief (0x24): no valid rows in $historyBriefNextIndex..${pageEnd - 1}, continuing")
+                advanceBriefHistoryCursor(pageEnd)
+                handler.postDelayed({
+                    requestHistoryPage(AiDexOpcodes.GET_HISTORIES, historyBriefNextIndex)
+                }, HISTORY_REQUEST_DELAY_MS)
+                return
+            }
             Log.i(TAG, "History brief (0x24): empty page at offset=$historyBriefNextIndex newest=$historyNewestOffset")
             onHistoryDownloadComplete()
             return
@@ -5227,8 +5282,7 @@ class AiDexBleManager(
 
             Log.i(TAG, "0x24: merged=${mergeResult.mergedCount} fallback=${mergeResult.fallbackCount} noGlucose=${mergeResult.noGlucoseCount} (cache remaining=${calibratedGlucoseCache.size})")
 
-            historyBriefNextIndex = AiDexHistoryPolicy.nextPageIndex(entries.last().timeOffsetMinutes, historyNewestOffset)
-            writeIntPref("historyBriefNextIndex", historyBriefNextIndex)
+            advanceBriefHistoryCursor(AiDexHistoryPolicy.nextPageIndex(entries.last().timeOffsetMinutes, historyNewestOffset))
 
             // Fetch next page
             if (historyBriefNextIndex <= historyNewestOffset) {
@@ -5916,11 +5970,11 @@ class AiDexBleManager(
                 if (dataptr != 0L) {
                     reportedWearDaysOrNull()?.let { wearDays ->
                         try {
-                            Natives.aidexSetWearDays(dataptr, wearDays)
+                            withNativeData { Natives.aidexSetWearDays(it, wearDays) }
                         } catch (_: Throwable) {}
                     }
                     try {
-                        Natives.aidexSetStartTime(dataptr, sensorstartmsec)
+                        withNativeData { Natives.aidexSetStartTime(it, sensorstartmsec) }
                     } catch (_: Throwable) {}
                 }
             }
@@ -6033,9 +6087,9 @@ class AiDexBleManager(
         } else {
             // Quiet history path, no per-entry UI wakeups
             runCatching {
-                originals.forEach { row -> Natives.aidexStoreHistoryData(dataptr, row.timestampMs, row.factoryMgDl, row.rawMgDl) }
-                // Native drops rows silently once the shell is released mid-page.
-                check(dataptr != 0L) { "native shell released" }
+                checkNotNull(withNativeData { pointer ->
+                    originals.forEach { row -> Natives.aidexStoreHistoryData(pointer, row.timestampMs, row.factoryMgDl, row.rawMgDl) }
+                }) { "native shell released" }
             }.onFailure {
                 Log.stack(TAG, "storeHistoryEntries: native history write", it)
                 return@synchronized false
@@ -6085,7 +6139,7 @@ class AiDexBleManager(
             Log.i(TAG, "History complete: ${calibratedGlucoseCache.size} cached 0x23 entries had no matching 0x24")
             calibratedGlucoseCache.clear()
         }
-        lastCalibratedGlucoseFallback = null
+        clearHistoryFallback()
 
         Log.i(TAG, "History download complete. Total entries stored: $historyStoredCount")
 
@@ -6512,6 +6566,7 @@ class AiDexBleManager(
         writeIntPref("historyBriefNextIndex", 0)
         liveOffsetCutoff = 0
         clearPendingRoomHistory("reset-sensor")
+        clearHistoryFallback()
         Log.i(TAG, "resetSensor: history indices reset to 0")
 
         enqueueExclusiveClearStorage(cmd)
@@ -6536,7 +6591,7 @@ class AiDexBleManager(
         liveOffsetCutoff = 0
         clearPendingRoomHistory("start-new-sensor")
         calibratedGlucoseCache.clear()
-        lastCalibratedGlucoseFallback = null
+        clearHistoryFallback()
         Log.i(TAG, "startNewSensor: history indices and caches reset")
 
         val cal = Calendar.getInstance(TimeZone.getDefault())
@@ -6751,17 +6806,12 @@ class AiDexBleManager(
         }
 
     private fun restorePersistedViewMode(): Int {
-        val nativeMode = if (dataptr != 0L) {
-            runCatching { Natives.getViewMode(dataptr) }.getOrDefault(0)
-        } else {
-            0
-        }
+        val nativeMode = runCatching { withNativeData { Natives.getViewMode(it) } }.getOrNull() ?: 0
         return ManagedSensorViewModeStore.read(Applic.app, SerialNumber, nativeMode)
     }
 
     private fun applyViewModeToNative(mode: Int) {
-        if (dataptr == 0L) return
-        runCatching { Natives.setViewMode(dataptr, mode) }
+        runCatching { withNativeData { Natives.setViewMode(it, mode) } }
             .onFailure { Log.w(TAG, "applyViewModeToNative failed: ${it.message}") }
     }
 
