@@ -67,7 +67,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     private static final String LOG_ID = "SuperGattCallback";
     static final private int use_priority = CONNECTION_PRIORITY_HIGH;
     static boolean autoconnect = false;
-    String mDeviceName = null;
+    volatile String mDeviceName = null;
 
     protected static final UUID mCharacteristicConfigDescriptor = UUID
             .fromString("00002902-0000-1000-8000-00805f9b34fb");

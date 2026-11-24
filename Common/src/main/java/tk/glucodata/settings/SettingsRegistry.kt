@@ -25,6 +25,7 @@ const val KEY_PREDICTION_ANALYSIS = "dashboard_prediction_analysis_enabled"
 const val KEY_PREDICTION_ADAPTIVE = "dashboard_prediction_adaptive_enabled"
 const val KEY_SENSOR_SELECTION = "dashboard_multi_sensor_selection_order"
 const val KEY_SENSOR_COLORS = "sensor_color_overrides_argb"
+const val KEY_SENSOR_DISPLAY_NAMES = "sensor_display_names"
 
 // The defaults, declared once (plan §2.4). Before this, prediction-horizon 120 lived in four files
 // and carb-absorption 35 in five, all agreeing only by hand.
@@ -223,6 +224,11 @@ object SettingsRegistry {
         KEY_SENSOR_COLORS, SettingType.STRING, "",
         SettingScope.MIRRORED, SettingBackup.INCLUDED,
     )
+    val SENSOR_DISPLAY_NAMES = SettingDefinition(
+        KEY_SENSOR_DISPLAY_NAMES, SettingType.STRING, "",
+        SettingScope.MIRRORED, SettingBackup.EXCLUDED,
+        effectiveString = { tk.glucodata.SensorDisplayName.effectiveWireValue() },
+    )
 
     val DELTA_INTERVAL_MINUTES = SettingDefinition(
         tk.glucodata.DisplayDeltaSource.INTERVAL, SettingType.INT, tk.glucodata.GlucoseDelta.DEFAULT_INTERVAL_MINUTES,
@@ -247,6 +253,7 @@ object SettingsRegistry {
         PREDICTION_ADAPTIVE,
         SENSOR_SELECTION,
         SENSOR_COLORS,
+        SENSOR_DISPLAY_NAMES,
     )
 
     /**

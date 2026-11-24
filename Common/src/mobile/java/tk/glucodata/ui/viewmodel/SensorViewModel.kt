@@ -445,10 +445,7 @@ class SensorViewModel : ViewModel() {
         }.getOrDefault(-1)
         return SensorInfo(
             serial = snapshot.serial,
-            displayName = snapshot.displayName
-                .trim()
-                .takeIf { SensorIdentity.isUsableSensorId(it) }
-                ?: snapshot.serial,
+            displayName = tk.glucodata.SensorDisplayName.fromManagedSnapshot(snapshot),
             deviceAddress = snapshot.deviceAddress,
             connectionStatus = if (handoffUiState == SensorHandoffUiState.NONE) detailsConnectionStatus else "",
             starttime = if (snapshot.startTimeMs > 0) bluediag.datestr(snapshot.startTimeMs) else "",
@@ -733,8 +730,7 @@ class SensorViewModel : ViewModel() {
                             // device behind the callback, which is every Clone record. That
                             // sentinel is not a name, so the serial stands in for it here the
                             // same way it does for a managed snapshot.
-                            displayName = (try { gatt.mygetDeviceName() } catch (_: Throwable) { null })
-                                ?.takeIf { SensorIdentity.isUsableSensorId(it) } ?: sensorSerial,
+                            displayName = tk.glucodata.SensorDisplayName.fromCallback(gatt, sensorSerial),
                             deviceAddress = gatt.mActiveDeviceAddress ?: "Unknown",
                             connectionStatus = displayedError?.status?.let(::mapBleStatus).orEmpty(),
                             connectionStatusAtMs = displayedError?.atMs ?: 0L,
@@ -778,9 +774,7 @@ class SensorViewModel : ViewModel() {
                     android.util.Log.e("SensorViewModel", "Error loading sensor ${gatt.SerialNumber}", e)
                     SensorInfo(
                         serial = gatt.SerialNumber ?: "Error",
-                        displayName = (try { gatt.mygetDeviceName() } catch (_: Throwable) { null })
-                            ?.takeIf { SensorIdentity.isUsableSensorId(it) }
-                            ?: (gatt.SerialNumber ?: "Error"),
+                        displayName = tk.glucodata.SensorDisplayName.fromCallback(gatt, gatt.SerialNumber ?: "Error"),
                         deviceAddress = gatt.mActiveDeviceAddress ?: "Unknown",
                         connectionStatus = "Load Error",
                         starttime = "",
