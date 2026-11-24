@@ -307,7 +307,8 @@ object HistorySync {
      *  - A pass already running has filtered its batch against the tombstones that existed when
      *    it started; it must finish before the clear, not write behind it.
      *
-     * Drivers that write straight to Room do not take [syncGate].
+     * Drivers that write straight to Room do not take [syncGate]; what they have queued is the
+     * business of [HistoryRepository.clearingPendingWrites].
      */
     suspend fun <T> catchUpThen(block: suspend () -> T): T = syncGate.withLock {
         syncAllSensorsLocked(forceFull = false)

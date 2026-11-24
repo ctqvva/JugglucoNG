@@ -35,6 +35,7 @@ import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistorySyncAccess
+import tk.glucodata.HistoryWriteOutcome
 import tk.glucodata.LiveReadingLanes
 import tk.glucodata.Log
 import tk.glucodata.logd
@@ -616,6 +617,20 @@ class OttaiBleManager(
                 deferred = runs[RECORD_DEFERRED.toInt()],
                 missing = runs[RECORD_MISSING.toInt()],
             )
+        }
+
+        /** [dataNos] as the fewest windows that cover exactly them. */
+        internal fun contiguousRanges(dataNos: List<Int>): List<MissingRange> {
+            val ranges = ArrayList<MissingRange>()
+            for (dataNo in dataNos.toSortedSet()) {
+                val last = ranges.lastOrNull()
+                if (last != null && last.endExclusive == dataNo) {
+                    ranges[ranges.lastIndex] = MissingRange(last.start, dataNo + 1)
+                } else {
+                    ranges += MissingRange(dataNo, dataNo + 1)
+                }
+            }
+            return ranges
         }
 
         /**
@@ -3483,7 +3498,10 @@ class OttaiBleManager(
         // Every plausible record that is not settled arrived and is deferred; see RECORD_DEFERRED.
         val historyStates = settledDataNos?.let { HistoryFrameStates(plausible.map { r -> r.record.dataNo }, it) }
         if (emittedReadings.isNotEmpty()) {
-            storeDecodedReadings(emittedReadings, live)
+            if (!storeDecodedReadings(emittedReadings, live)) {
+                // Not taken by the store: the window must not close over these as delivered.
+                settledDataNos?.removeAll(emittedReadings.mapTo(HashSet()) { it.dataNo })
+            }
             emittedReadings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
             if (live) {
                 resumeDeferredHoleRetry()
@@ -3914,14 +3932,16 @@ class OttaiBleManager(
         return null
     }
 
-    private fun storeDecodedReadings(readings: List<EmittedReading>, live: Boolean) {
-        val id = SerialNumber ?: return
+    /** False when the store refused the readings outright; see [onHistoryNotStored] for a later failure. */
+    private fun storeDecodedReadings(readings: List<EmittedReading>, live: Boolean): Boolean {
+        val id = SerialNumber ?: return true
         // Temperature is keyed by sample time and deduped on write, so keep it for every
         // accepted reading — a live sample whose glucose is a re-send of one already in
         // Room still carries a temperature the stats card wants.
         storeTemperatures(id, readings)
         val toPersist = readings.filter { it.persist }
-        if (toPersist.isEmpty()) return
+        if (toPersist.isEmpty()) return true
+        var accepted = true
         // Tell the watch's ownership claim that this process decoded a live
         // reading over its own connection. Without this the claim never leaves
         // "requesting", so after a handoff the watch reads the sensor while the
@@ -3938,12 +3958,28 @@ class OttaiBleManager(
             val values = FloatArray(toPersist.size) { index -> toPersist[index].mgdl }
             // Ottai rawCurrent is an electrode/current diagnostic, not raw glucose mg/dL.
             val rawValues = FloatArray(toPersist.size) { 0f }
-            HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
+            accepted = HistorySyncAccess.submitSensorHistoryBatch(id, timestamps, values, rawValues) { outcome ->
+                if (outcome == HistoryWriteOutcome.FAILED) onHistoryNotStored(toPersist.map { it.dataNo })
+            } != HistoryWriteOutcome.FAILED
             mirrorHistoryIntoNative(id, toPersist)
         }
         if (live) readings.lastOrNull { it.publishCurrent }?.let {
             mirrorLiveReadingIntoNative(id, it)
         }
+        return accepted
+    }
+
+    /**
+     * The store gave up on history records this driver had already taken off the hole ledger.
+     * Back on it, so they are asked for again, charged one attempt like any other failed
+     * delivery. Without this they would wait for the Room diff of the next connection.
+     */
+    private fun onHistoryNotStored(dataNos: List<Int>) {
+        if (stop) return
+        val ranges = contiguousRanges(dataNos)
+        Log.e(TAG, "history not stored: ${ranges.joinToString { "[${it.start},${it.endExclusive})" }} — back on the hole ledger")
+        noteHoleFailures(ranges)
+        scheduleHoleRetry()
     }
 
     /**

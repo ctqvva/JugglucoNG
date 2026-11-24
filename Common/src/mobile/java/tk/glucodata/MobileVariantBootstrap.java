@@ -21,6 +21,7 @@ public class MobileVariantBootstrap implements VariantBootstrap {
         Specific.registerBridges();
         watchdrip.set(Natives.getwatchdrip());
         SuperGattCallback.doGadgetbridge = Natives.getgadgetbridge();
+        tk.glucodata.data.HistoryRepository.resumePendingHistoryWrites();
         // Re-arm the nightly backup chain from process start, not only from the
         // settings screen: a chain that died stays dead until someone re-enqueues it.
         ScheduledBackupWorker.initialize(application);

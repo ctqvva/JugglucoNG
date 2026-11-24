@@ -49,7 +49,9 @@ object DataManagement {
                 val deletedJournal = if (scope == ClearScope.JOURNAL) {
                     database.clearHistoryRows(scope)
                 } else {
-                    HistorySync.catchUpThen { database.clearHistoryRows(scope) }
+                    HistorySync.catchUpThen {
+                        HistoryRepository.clearingPendingWrites { database.clearHistoryRows(scope) }
+                    }
                 }
                 deletedJournal?.let { JournalRepository().announceDeletion(it) }
                 UiRefreshBus.requestDataRefresh()

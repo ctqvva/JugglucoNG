@@ -2,6 +2,8 @@ package tk.glucodata.data
 
 import tk.glucodata.GlucosePoint
 import tk.glucodata.HistoryRepositoryBridge
+import tk.glucodata.HistoryWriteListener
+import tk.glucodata.HistoryWriteOutcome
 import tk.glucodata.chart.MainSensorOwnership
 
 /**
@@ -44,7 +46,9 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-    ) = HistoryRepository.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl)
+        listener: HistoryWriteListener?,
+    ): HistoryWriteOutcome =
+        HistoryRepository.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl, listener)
 
     override fun storeHistoryBatchBlocking(
         sensorSerial: String,

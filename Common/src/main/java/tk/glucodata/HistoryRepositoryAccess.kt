@@ -78,10 +78,14 @@ object HistoryRepositoryAccess {
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-    ) {
-        runCatching { bridge?.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl) }
-            .onFailure { Log.stack(TAG, "storeHistoryBatchAsync failed", it) }
-    }
+        listener: HistoryWriteListener? = null,
+    ): HistoryWriteOutcome =
+        runCatching {
+            bridge?.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl, listener)
+                // The watch registers no bridge: it keeps no Room history to write to.
+                ?: HistoryWriteOutcome.SKIPPED
+        }.onFailure { Log.stack(TAG, "storeHistoryBatchAsync failed", it) }
+            .getOrDefault(HistoryWriteOutcome.FAILED)
 
     @JvmStatic
     fun storeHistoryBatchBlocking(

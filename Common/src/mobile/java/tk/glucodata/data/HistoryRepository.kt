@@ -19,6 +19,8 @@ import tk.glucodata.BatteryTrace
 import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.HistorySourceProvenance
+import tk.glucodata.HistoryWriteListener
+import tk.glucodata.HistoryWriteOutcome
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
 import tk.glucodata.UiRefreshBus
@@ -32,6 +34,7 @@ import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.util.GlucoseFormatter
 import tk.glucodata.ui.util.inDisplayUnit
+import java.io.File
 import java.util.HashMap
 import java.util.LinkedHashSet
 import java.util.concurrent.locks.ReentrantLock
@@ -405,64 +408,46 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             }
         }
 
-        /**
-         * Backfill arrives one BLE notification at a time — roughly sixteen readings each,
-         * ten times a second on a fast sensor. Writing a Room transaction per notification
-         * meant a delete-range plus an insert ten times a second, each one previously on a
-         * freshly created CoroutineScope, for the whole length of the connection.
-         *
-         * Batches are therefore accumulated per sensor and flushed once the burst pauses, or
-         * once enough readings have piled up that waiting no longer pays. Live readings do
-         * not come through here, so nothing user-visible is delayed by the coalescing window.
-         */
-        private const val HISTORY_BATCH_COALESCE_MS = 400L
-        private const val HISTORY_BATCH_MAX_PENDING = 512
-
         private val historyBatchScope = kotlinx.coroutines.CoroutineScope(
             kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
         )
-        private val historyBatchLock = Any()
-        private val pendingHistoryBatches = HashMap<String, ArrayList<HistoryReading>>()
-        private val historyBatchFlushJobs = HashMap<String, kotlinx.coroutines.Job>()
 
-        private fun enqueueHistoryBatch(roomSerial: String, readings: List<HistoryReading>) {
-            val flushNow: List<HistoryReading>?
-            synchronized(historyBatchLock) {
-                val pending = pendingHistoryBatches.getOrPut(roomSerial) { ArrayList() }
-                pending.addAll(readings)
-                if (pending.size >= HISTORY_BATCH_MAX_PENDING) {
-                    historyBatchFlushJobs.remove(roomSerial)?.cancel()
-                    flushNow = pendingHistoryBatches.remove(roomSerial)
-                } else {
-                    flushNow = null
-                    if (!historyBatchFlushJobs.containsKey(roomSerial)) {
-                        historyBatchFlushJobs[roomSerial] = historyBatchScope.launch {
-                            kotlinx.coroutines.delay(HISTORY_BATCH_COALESCE_MS)
-                            val batch = synchronized(historyBatchLock) {
-                                historyBatchFlushJobs.remove(roomSerial)
-                                pendingHistoryBatches.remove(roomSerial)
-                            }
-                            writeHistoryBatch(roomSerial, batch)
-                        }
-                    }
-                }
-            }
-            if (flushNow != null) {
-                historyBatchScope.launch { writeHistoryBatch(roomSerial, flushNow) }
-            }
+        /** Every asynchronous batch write; the direct writes below keep their order with it. */
+        internal val batchWriter: HistoryBatchWriter by lazy {
+            HistoryBatchWriter(
+                scope = historyBatchScope,
+                openJournal = {
+                    // Not backed up: readings a restored phone never took are not pending on it.
+                    Applic.app?.noBackupFilesDir?.let { HistoryBatchJournal(File(it, "pending_history.log")) }
+                },
+                store = { sensorSerial, readings ->
+                    HistoryRepository().writeBuckets(sensorSerial, readings, SENSOR_MINUTE_BUCKET_MS)
+                },
+                onStored = { stored ->
+                    HistoryRepository().afterBucketsStored(stored.rows)
+                    UiRefreshBus.requestDataRefresh()
+                },
+            )
         }
 
-        private suspend fun writeHistoryBatch(roomSerial: String, batch: List<HistoryReading>?) {
-            if (batch.isNullOrEmpty()) return
-            try {
-                HistoryRepository().storeReadingsReplacingSensorBuckets(
-                    sensorSerial = roomSerial,
-                    readings = batch,
-                    bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
-                )
-                UiRefreshBus.requestDataRefresh()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed storing history batch for $roomSerial", e)
+        /** Writes what an earlier process accepted but did not get to store. */
+        @JvmStatic
+        fun resumePendingHistoryWrites() {
+            historyBatchScope.launch { batchWriter.resume() }
+        }
+
+        /**
+         * Runs [clear], which empties the readings, so that batches accepted before it do not
+         * bring readings back: they are written first, to be cleared and tombstoned with the
+         * rest, and what still cannot be written is dropped. Nothing is dropped if [clear] fails.
+         *
+         * Not inside a transaction: [clear] opens its own, after the queued writes are held.
+         */
+        suspend fun <T> clearingPendingWrites(clear: suspend () -> T): T {
+            val ticket = batchWriter.ticket()
+            batchWriter.flushPending()
+            return batchWriter.exclusive {
+                clear().also { batchWriter.discard(sensorSerials = null, ticket = ticket) }
             }
         }
 
@@ -472,8 +457,9 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
          */
         @JvmStatic
         fun storeReadingAsync(timestamp: Long, value: Float, rawValue: Float, rate: Float) {
+            val writeTicket = batchWriter.ticket()
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                HistoryRepository().storeReading(timestamp, value, rawValue, rate)
+                HistoryRepository().storeReading(timestamp, value, rawValue, rate, writeTicket = writeTicket)
             }
         }
 
@@ -482,8 +468,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
          */
         @JvmStatic
         fun storeReadingAsync(timestamp: Long, value: Float, rawValue: Float, rate: Float, sensorSerial: String) {
+            val writeTicket = batchWriter.ticket()
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                HistoryRepository().storeReading(timestamp, value, rawValue, rate, sensorSerial)
+                HistoryRepository().storeReading(
+                    timestamp, value, rawValue, rate, sensorSerial, writeTicket = writeTicket,
+                )
             }
         }
 
@@ -496,23 +485,27 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             sensorSerial: String,
             source: String
         ) {
+            val writeTicket = batchWriter.ticket()
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                HistoryRepository().storeReading(timestamp, value, rawValue, rate, sensorSerial, source)
+                HistoryRepository().storeReading(timestamp, value, rawValue, rate, sensorSerial, source, writeTicket)
             }
         }
 
         @JvmStatic
+        @JvmOverloads
         fun storeHistoryBatchAsync(
             sensorSerial: String,
             timestamps: LongArray,
             values: FloatArray,
-            rawValues: FloatArray
-        ) = storeHistoryBatchWithSourceAsync(
+            rawValues: FloatArray,
+            listener: HistoryWriteListener? = null,
+        ): HistoryWriteOutcome = storeHistoryBatchWithSourceAsync(
             sensorSerial,
             timestamps,
             values,
             rawValues,
             GlucoseReadingSource.SENSOR,
+            listener,
         )
 
         @JvmStatic
@@ -521,18 +514,19 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             timestamps: LongArray,
             values: FloatArray,
             rawValues: FloatArray,
-            source: String
-        ) {
+            source: String,
+            listener: HistoryWriteListener? = null,
+        ): HistoryWriteOutcome {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
-            if (roomSerial.isBlank()) return
-            if (timestamps.isEmpty()) return
+            if (roomSerial.isBlank()) return HistoryWriteOutcome.FAILED
+            if (timestamps.isEmpty()) return HistoryWriteOutcome.SKIPPED
             if (timestamps.size != values.size || timestamps.size != rawValues.size) {
                 Log.w(
                     TAG,
                     "storeHistoryBatchAsync rejected mismatched arrays for $roomSerial " +
                         "(timestamps=${timestamps.size}, values=${values.size}, raw=${rawValues.size})"
                 )
-                return
+                return HistoryWriteOutcome.FAILED
             }
 
             val readings = ArrayList<HistoryReading>(timestamps.size)
@@ -553,8 +547,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     )
                 )
             }
-            if (readings.isEmpty()) return
-            enqueueHistoryBatch(roomSerial, readings)
+            return batchWriter.submit(roomSerial, readings, listener)
         }
 
         /** Resolved by name from [tk.glucodata.HistorySyncAccess] — see [getHistoryTimestampsForSensorBlocking]. */
@@ -651,6 +644,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         rate: Float,
         sensorSerial: String? = null,
         source: String = GlucoseReadingSource.SENSOR,
+        writeTicket: Long = batchWriter.ticket(),
     ) {
         // Don't store invalid readings
         if (value <= 0 && rawValue <= 0) return
@@ -679,32 +673,35 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     Log.d(TAG, "Skipped tombstoned reading for $serial at $timestamp")
                     return@withContext
                 }
-                database.withTransaction {
-                    val bucketStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
-                    val existing = dao.getSensorReadingsInTimeRange(
-                        sensorSerial = serial,
-                        startTimeInclusive = bucketStart,
-                        endTimeExclusive = bucketStart + SENSOR_MINUTE_BUCKET_MS,
-                    ).firstOrNull { it.timestamp == timestamp }
-                    deleteSensorRowsInBucketRanges(
-                        sensorSerial = serial,
-                        bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
-                        bucketRanges = listOf(
-                            HistoryBucketReplacement.BucketRange(
-                                firstBucketId = timestamp / SENSOR_MINUTE_BUCKET_MS,
-                                lastBucketId = timestamp / SENSOR_MINUTE_BUCKET_MS
+                batchWriter.exclusive {
+                    database.withTransaction {
+                        val bucketStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
+                        val existing = dao.getSensorReadingsInTimeRange(
+                            sensorSerial = serial,
+                            startTimeInclusive = bucketStart,
+                            endTimeExclusive = bucketStart + SENSOR_MINUTE_BUCKET_MS,
+                        ).firstOrNull { it.timestamp == timestamp }
+                        deleteSensorRowsInBucketRanges(
+                            sensorSerial = serial,
+                            bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
+                            bucketRanges = listOf(
+                                HistoryBucketReplacement.BucketRange(
+                                    firstBucketId = timestamp / SENSOR_MINUTE_BUCKET_MS,
+                                    lastBucketId = timestamp / SENSOR_MINUTE_BUCKET_MS
+                                )
                             )
                         )
-                    )
-                    dao.insert(
-                        reading.copy(
-                            source = HistorySourceProvenance.stableSource(existing?.source, reading.source),
-                            firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
-                                existing?.firstStoredAt,
-                                reading.firstStoredAt,
-                            ),
+                        dao.insert(
+                            reading.copy(
+                                source = HistorySourceProvenance.stableSource(existing?.source, reading.source),
+                                firstStoredAt = HistorySourceProvenance.stableFirstStoredAt(
+                                    existing?.firstStoredAt,
+                                    reading.firstStoredAt,
+                                ),
+                            )
                         )
-                    )
+                    }
+                    batchWriter.supersede(serial, listOf(timestamp), writeTicket, retainedOnly = true)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error storing reading", e)
@@ -866,19 +863,54 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         invalidateRawDisplayRecords: Boolean = false,
     ): BucketReplaceOutcome {
         if (sensorSerial.isBlank() || readings.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
+        val ticket = batchWriter.ticket()
+        val stored = batchWriter.exclusive {
+            writeBuckets(
+                sensorSerial, readings, bucketDurationMs,
+                historyTimestamps, deletedRowsByMinute,
+                invalidateAutoDisplayRecords, invalidateRawDisplayRecords,
+            ).also { batchWriter.supersede(sensorSerial, it.rows.map(HistoryReading::timestamp), ticket) }
+        }
+        afterBucketsStored(stored.rows)
+        return stored.outcome
+    }
 
+    /** What follows a committed batch. The rows are stored, so a failure here is not a failed write. */
+    private suspend fun afterBucketsStored(rows: List<HistoryReading>) {
+        if (rows.isEmpty()) return
+        withContext(Dispatchers.IO) {
+            try {
+                forwardBackfillToExchanges(rows)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error forwarding stored history", e)
+            }
+        }
+    }
+
+    /** The database half of [replaceSensorBuckets]; the caller holds [HistoryBatchWriter.exclusive]. */
+    internal suspend fun writeBuckets(
+        sensorSerial: String,
+        readings: List<HistoryReading>,
+        bucketDurationMs: Long,
+        historyTimestamps: Set<Long> = emptySet(),
+        deletedRowsByMinute: Map<Long, HistoryReading>? = null,
+        invalidateAutoDisplayRecords: Boolean = false,
+        invalidateRawDisplayRecords: Boolean = false,
+    ): HistoryBatchWriter.Stored {
         return withContext(Dispatchers.IO) {
             try {
                 val filteredReadings = filterDeletedReadings(readings)
                 if (filteredReadings.isEmpty()) {
                     Log.d(TAG, "Skipped bucket replace for $sensorSerial — all readings were tombstoned")
-                    return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
+                    return@withContext HistoryBatchWriter.Stored(BucketReplaceOutcome.NOTHING_TO_STORE)
                 }
                 val collapsedReadings = HistoryBucketReplacement.collapseReadings(
                     readings = filteredReadings,
                     bucketDurationMs = bucketDurationMs,
                 )
-                if (collapsedReadings.isEmpty()) return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
+                if (collapsedReadings.isEmpty()) {
+                    return@withContext HistoryBatchWriter.Stored(BucketReplaceOutcome.NOTHING_TO_STORE)
+                }
                 collapsedReadings.maxByOrNull { it.timestamp }?.let { newest ->
                     reportIfFutureTimestamp(
                         newest.sensorSerial,
@@ -889,7 +921,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                 val plan = HistoryBucketReplacement.planForCollapsedReadings(
                     collapsedReadings = collapsedReadings,
                     bucketDurationMs = bucketDurationMs,
-                ) ?: return@withContext BucketReplaceOutcome.NOTHING_TO_STORE
+                ) ?: return@withContext HistoryBatchWriter.Stored(BucketReplaceOutcome.NOTHING_TO_STORE)
                 val storedReadings = database.withTransaction {
                     val existingProvenance = HashMap<Long, HistoryReading>()
                     for (range in plan.bucketRanges) {
@@ -965,11 +997,12 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     logEvery = 20L,
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
-                forwardBackfillToExchanges(storedReadings)
-                BucketReplaceOutcome.STORED
+                HistoryBatchWriter.Stored(BucketReplaceOutcome.STORED, storedReadings)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
-                BucketReplaceOutcome.FAILED
+                HistoryBatchWriter.Stored(BucketReplaceOutcome.FAILED)
             }
         }
     }
@@ -2181,9 +2214,13 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * skipped. Deleting first forces a clean re-insert.
      */
     suspend fun deleteForSensor(serial: String) {
+        val ticket = batchWriter.ticket()
         withContext(Dispatchers.IO) {
             try {
-                dao.deleteForSensor(serial)
+                batchWriter.exclusive {
+                    dao.deleteForSensor(serial)
+                    batchWriter.discard(listOf(serial), ticket)
+                }
                 Log.d(TAG, "Deleted Room data for sensor $serial")
             } catch (e: Exception) {
                 Log.e(TAG, "Error deleting data for sensor $serial", e)
@@ -2206,12 +2243,16 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             SensorIdentity.resolveNativeHistorySensorNames(serial),
         )
         if (targets.isEmpty()) return emptyList()
+        val ticket = batchWriter.ticket()
         withContext(Dispatchers.IO) {
             try {
-                database.withTransaction {
-                    targets.forEach { dao.deleteForSensor(it) }
-                    uncertaintyDao.deleteForSensors(targets)
-                    displayDao.deleteForSensors(targets)
+                batchWriter.exclusive {
+                    database.withTransaction {
+                        targets.forEach { dao.deleteForSensor(it) }
+                        uncertaintyDao.deleteForSensors(targets)
+                        displayDao.deleteForSensors(targets)
+                    }
+                    batchWriter.discard(targets, ticket)
                 }
                 Log.i(TAG, "Deleted all Room history for sensor $serial as $targets")
             } catch (e: Exception) {
@@ -2329,10 +2370,15 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         if (timestampExclusive <= 0L || sensorSerial.isBlank()) return 0
         val serials = resolveQuerySensorSerials(sensorSerial).ifEmpty { listOf(sensorSerial) }
         if (serials.isEmpty()) return 0
+        val ticket = batchWriter.ticket()
 
         return withContext(Dispatchers.IO) {
             try {
-                val removedCount = dao.deleteReadingsForSensorsAfter(serials, timestampExclusive)
+                val removedCount = batchWriter.exclusive {
+                    dao.deleteReadingsForSensorsAfter(serials, timestampExclusive).also {
+                        batchWriter.discard(serials, ticket) { it.timestamp > timestampExclusive }
+                    }
+                }
                 if (removedCount > 0) {
                     UiRefreshBus.requestDataRefresh()
                     Log.w(TAG, "Deleted $removedCount future readings for serials=$serials after $timestampExclusive")

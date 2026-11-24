@@ -64,6 +64,15 @@ use delete the whole minute before they insert:
   `timestamp / bucketDurationMs`, one row per bucket -- and then deletes the covered buckets
   before inserting.
 
+  The asynchronous ones (`storeSensorHistoryBatchAsync`, `submitSensorHistoryBatch`) are queued in
+  `HistoryBatchWriter` first. A queued reading is kept, in memory and in
+  `no_backup/pending_history.log`, until the write that stored it has returned; a failed write is
+  retried with a back-off, and the next process resumes what one that died left behind. Accepted is
+  therefore not stored: a producer that tracks which readings it still has to fetch listens for the
+  final `HistoryWriteOutcome`. Per sensor and minute the latest submission wins. The direct writes
+  (live, blocking batch, native sync) and the deletions go through `HistoryBatchWriter.exclusive`,
+  so an older queued reading neither overwrites nor brings back what they changed.
+
 So a sensor row at 12:00:10 is replaced by a later sensor write at 12:00:40; the stored row keeps
 the exact millisecond of whichever reading represents the minute, but two sensor rows never share a
 minute.

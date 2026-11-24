@@ -24,6 +24,8 @@ import org.robolectric.shadow.api.Shadow
 import tk.glucodata.Applic
 import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistoryRepositoryBridge
+import tk.glucodata.HistoryWriteListener
+import tk.glucodata.HistoryWriteOutcome
 import tk.glucodata.SuperGattCallback
 
 /** Replays the time-anchor and empty-store state from the Oct 29 field trace through the manager. */
@@ -36,6 +38,9 @@ class OttaiStreamRecoveryTests {
     private var oldBridge: Any? = null
     private var queries = 0
     private var stored = longArrayOf()
+    private val submitted = mutableListOf<List<Long>>()
+    private var writeListener: HistoryWriteListener? = null
+    private var submission = HistoryWriteOutcome.QUEUED
     private val oldStart = 1_793_223_480_000L
 
     @Before
@@ -51,9 +56,14 @@ class OttaiStreamRecoveryTests {
         oldBridge = bridgeField.get(HistoryRepositoryAccess)
         HistoryRepositoryAccess.register(Proxy.newProxyInstance(
             HistoryRepositoryBridge::class.java.classLoader, arrayOf(HistoryRepositoryBridge::class.java),
-        ) { _, method, _ ->
+        ) { _, method, args ->
             when (method.name) {
                 "getHistoryTimestampsForSensorBlocking" -> { queries++; stored }
+                "storeHistoryBatchAsync" -> {
+                    submitted += (args!![1] as LongArray).toList()
+                    writeListener = args[4] as HistoryWriteListener?
+                    submission
+                }
                 "getHistoryForNotificationForSensor" -> emptyList<tk.glucodata.GlucosePoint>()
                 else -> null
             }
@@ -409,6 +419,40 @@ class OttaiStreamRecoveryTests {
         val window = inFlight(100, 130).apply { mark((100 until 130).toList(), OttaiBleManager.RECORD_DEFERRED) }
         invoke("settleHistoryWindow", window)
         assertEquals(listOf(OttaiBleManager.HistoryHole(100, 130, 1)), holes())
+    }
+
+    private fun storeHistory(vararg dataNos: Int): Any? {
+        set("streamStartTimeMs", oldStart)
+        val batch = dataNos.map(::reading)
+        val emitted = batch.mapIndexed { i, r -> invoke("emitReading", r, false, r.monitorTimeMs, batch, i, false)!! }
+        return invoke("storeDecodedReadings", emitted, false)
+    }
+
+    @Test
+    fun historyTheStoreGaveUpOnGoesBackOnTheLedger() {
+        assertEquals(true, storeHistory(100, 101, 102, 110))
+        assertEquals(1, submitted.size)
+        assertTrue("queued is not lost", holes().isEmpty())
+
+        writeListener!!.onHistoryWriteSettled(HistoryWriteOutcome.FAILED)
+        assertEquals(
+            listOf(OttaiBleManager.HistoryHole(100, 103, 1), OttaiBleManager.HistoryHole(110, 111, 1)),
+            holes(),
+        )
+    }
+
+    @Test
+    fun storedOrSkippedHistoryStaysOffTheLedger() {
+        storeHistory(100, 101)
+        writeListener!!.onHistoryWriteSettled(HistoryWriteOutcome.PERSISTED)
+        writeListener!!.onHistoryWriteSettled(HistoryWriteOutcome.SKIPPED)
+        assertTrue(holes().isEmpty())
+    }
+
+    @Test
+    fun aSubmissionTheStoreRefusedIsReportedToTheWindow() {
+        submission = HistoryWriteOutcome.FAILED
+        assertEquals(false, storeHistory(100, 101))
     }
 
     private fun liveEmission(r: OttaiReading, arrival: Long): Triple<Long, Boolean, Boolean> {
