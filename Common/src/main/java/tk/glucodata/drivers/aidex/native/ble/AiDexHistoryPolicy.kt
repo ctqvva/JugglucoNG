@@ -39,10 +39,9 @@ internal object AiDexHistoryPolicy {
         val repair = sourceRepairOffset?.takeIf { it >= maxOf(1, rawStart, briefStart) && it <= newest }
         val rawCursor = repair?.let { minOf(it, persistedRawNextIndex) } ?: persistedRawNextIndex
         val briefCursor = repair?.let { minOf(it, persistedBriefNextIndex) } ?: persistedBriefNextIndex
-        // 0x23 glucose is held in memory until 0x24 stores it. That includes a first
-        // download that ended before any 0x24 page (brief cursor still 0).
         val effectiveRawNextIndex = if (
             rawCursor <= newest &&
+            briefCursor > 0 &&
             rawCursor > briefCursor
         ) {
             briefCursor

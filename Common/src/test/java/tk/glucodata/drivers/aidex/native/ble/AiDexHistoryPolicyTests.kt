@@ -82,21 +82,6 @@ class AiDexHistoryPolicyTests {
     }
 
     @Test
-    fun planInitialDownload_refetchesFactoryGlucoseWhenAFirstDownloadStoredNothing() {
-        val plan = AiDexHistoryPolicy.planInitialDownload(
-            briefStart = 1,
-            rawStart = 1,
-            newest = 501,
-            persistedRawNextIndex = 241,
-            persistedBriefNextIndex = 0,
-        )
-
-        assertEquals(AiDexHistoryPolicy.InitialAction.REQUEST_RAW, plan.action)
-        assertEquals(1, plan.rawNextIndex)
-        assertEquals(1, plan.briefNextIndex)
-    }
-
-    @Test
     fun nextPageIndex_neverPassesTheAnnouncedRange() {
         assertEquals(121, AiDexHistoryPolicy.nextPageIndex(lastOffsetMinutes = 120, newest = 400))
         assertEquals(401, AiDexHistoryPolicy.nextPageIndex(lastOffsetMinutes = 400, newest = 400))

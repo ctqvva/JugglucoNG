@@ -459,10 +459,31 @@ class AiDexAlgorithmRuntimeTests {
         while (executor.pending.isNotEmpty()) executor.runNext()
         assertEquals(setOf(historyTime(2), historyTime(3)), room.keys.toSet())
         // Reconnecting within the same minute: 0x23 is refetched rather than skipped as caught up.
-        assertEquals(4, historyField("historyRawNextIndex").getInt(driver))
         historyResponse("handleHistoryRangeResponse", byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 4, 0))
+        assertEquals(4, historyField("historyRawNextIndex").getInt(driver))
         assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
         driver.dataptr = 0L
+    }
+
+    private fun restartWithCaughtUpRawCursor(brief: Int) {
+        Applic.app.getSharedPreferences("AiDexNativePrefs", Context.MODE_PRIVATE).edit()
+            .putInt("historyRawNextIndex_$serial", 4).putInt("historyBriefNextIndex_$serial", brief).commit()
+        reconnectWithRecreatedDriver()
+        historyResponse("handleHistoryRangeResponse", byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 3, 0))
+        assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
+    }
+
+    @Test fun restartAfterTheLastFactoryPageOfAFirstDownloadFetchesItAgain() {
+        restartWithCaughtUpRawCursor(brief = 0)
+        assertEquals(1, historyField("historyRawNextIndex").getInt(driver))
+        assertEquals(1, historyField("historyBriefNextIndex").getInt(driver))
+        downloadRowsTwoAndThree()
+    }
+
+    @Test fun restartBetweenFactoryAndRawPagesFetchesTheFactoryPageAgain() {
+        restartWithCaughtUpRawCursor(brief = 2)
+        assertEquals(2, historyField("historyRawNextIndex").getInt(driver))
+        downloadRowsTwoAndThree()
     }
 
     @Test fun discardedHistoryRowsAdvanceWithoutAnyStore() {

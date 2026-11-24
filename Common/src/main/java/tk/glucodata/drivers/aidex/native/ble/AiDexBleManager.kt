@@ -998,6 +998,8 @@ class AiDexBleManager(
     @Volatile private var historyDownloading = false
     private var historyRawNextIndex = 0
     private var historyBriefNextIndex = 0
+    /** 0x23 is ahead of 0x24, but the glucose it fetched is no longer in memory. */
+    @Volatile private var rawCursorLostItsCache = false
     private var historyNewestOffset = 0
     private var historyStoredCount = 0  // entries stored via aidexProcessData this download
     private var historyDownloadStartIndex = 0  // snapshot of starting index for progress display
@@ -1030,6 +1032,7 @@ class AiDexBleManager(
         if (historyRawNextIndex > 0 || historyBriefNextIndex > 0) {
             Log.i(TAG, "Restored history offsets: raw=$historyRawNextIndex, brief=$historyBriefNextIndex")
         }
+        rawCursorLostItsCache = historyRawNextIndex > historyBriefNextIndex
         // Restore post-reset activation flag — survives driver instance recreation
         // (e.g., finish/unfinish sensor cycle that creates a new AiDexBleManager)
         needsPostResetActivation = readBoolPref("needsPostResetActivation", false)
@@ -1117,6 +1120,7 @@ class AiDexBleManager(
     private fun rewindRawHistoryCursor() {
         historyRawNextIndex = minOf(historyRawNextIndex, historyBriefNextIndex)
         writeIntPref("historyRawNextIndex", historyRawNextIndex)
+        rawCursorLostItsCache = false
     }
 
     private fun flushPendingRoomHistoryToRoom(): Boolean {
@@ -1728,7 +1732,7 @@ class AiDexBleManager(
         releasePendingRoomHistory(reason)
         clearInvalidSetupTracking(resetRecoveryCounter = resetInvalidSetupCounter, reason = reason)
 
-        if (calibratedGlucoseCache.isNotEmpty()) rewindRawHistoryCursor()
+        if (calibratedGlucoseCache.isNotEmpty()) rawCursorLostItsCache = true
         calibratedGlucoseCache.clear()
         lastCalibratedGlucoseFallback = null
         lastOffsetMinutes = 0
@@ -5073,6 +5077,7 @@ class AiDexBleManager(
             lastOffsetMinutes = newest
             ensureSensorStartTime(now)
         }
+        if (rawCursorLostItsCache) rewindRawHistoryCursor()
         val repairTime = sourceHistoryRepairTime
         val repairOffset = repairTime?.let {
             AiDexHistoryPolicy.sourceRepairOffset(it, sensorstartmsec, briefStart, rawStart, newest)
