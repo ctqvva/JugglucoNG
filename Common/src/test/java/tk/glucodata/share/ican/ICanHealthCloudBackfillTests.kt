@@ -66,6 +66,7 @@ class ICanHealthCloudBackfillTests {
         queue.remove(queue.peek())
         val now = System.currentTimeMillis()
         settings.lastSyncMs = now - 30_000
+        settings.backfillProgressMs = now - 30_000
 
         val source = FakeGlucoseSource()
         source.readings.addAll(
@@ -80,6 +81,19 @@ class ICanHealthCloudBackfillTests {
         assertEquals(1, queue.size())
         val firstCall = source.calls.first()
         assertTrue(firstCall.first >= settings.lastSyncMs)
+    }
+
+    @Test
+    fun historyStartIsIndependentOfTheLiveSyncMarker() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        val now = 2_000_000L
+        settings.lastSyncMs = now - 1_000L
+        settings.backfillProgressMs = 0L
+        val start = ICanHealthCloudBackfill.historyStart(settings, now, days = 7)
+        assertTrue(start < settings.lastSyncMs)
+        settings.backfillProgressMs = now - 120_000L
+        assertEquals(now - 120_000L, ICanHealthCloudBackfill.historyStart(settings, now, days = 7))
     }
 
     @Test

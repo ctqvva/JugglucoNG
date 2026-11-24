@@ -51,6 +51,25 @@ class ICanHealthCloudUploaderTests {
     }
 
     @Test
+    fun flushStopsAfterBatchLimitAndReportsMore() {
+        val context = RuntimeEnvironment.getApplication()
+        val transport = FakeTransport { HttpResult(200, """{"code":0}""") }
+        val settings = ICanHealthCloudSettings(context)
+        settings.token = "tok"
+        settings.enabled = true
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        queue.enqueueAll((1L..61L).map { EgvUpload("SN1", it, 100, 1) })
+        val uploader = ICanHealthCloudUploader(ICanHealthCloudClient(transport), settings, queue)
+        val partial = uploader.flush(maxBatches = 1)
+        assertTrue(partial is ICanHealthCloudUploader.FlushResult.More)
+        assertEquals(60, partial.uploaded)
+        assertEquals(1, queue.size())
+        assertTrue(uploader.flush() is ICanHealthCloudUploader.FlushResult.Success)
+        assertEquals(0, queue.size())
+    }
+
+    @Test
     fun flush401StopsAndClearsToken() {
         val app = RuntimeEnvironment.getApplication() as ICanHealthCloudUploaderTestApplication
         val context = app

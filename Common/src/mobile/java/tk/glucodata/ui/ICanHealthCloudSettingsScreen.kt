@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.data.icanBackfillTrendIndex
+import tk.glucodata.share.ican.ICanHealthCloudBackfill
 import tk.glucodata.share.ican.ICanHealthCloudClient
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
@@ -83,9 +84,7 @@ private fun startIcanBackfill(context: android.content.Context, expectedAccountK
         runCatching {
             val settings = ICanHealthCloudSettings(context)
             if (!settings.enabled || settings.token.isBlank()) return@runCatching
-            val since = settings.backfillProgressMs.takeIf { it > 0L }
-                ?: settings.lastSyncMs.takeIf { it > 0L }
-                ?: System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+            val since = settings.backfillProgressMs.takeIf { it > 0L } ?: return@runCatching
             val serial = tk.glucodata.SensorIdentity.resolveMainSensor() ?: return@runCatching
             val roomSerial = tk.glucodata.SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
             val readings = tk.glucodata.data.HistoryRepository(context)
@@ -97,7 +96,7 @@ private fun startIcanBackfill(context: android.content.Context, expectedAccountK
             }
             val rateByTime = rows.associateBy({ it.timeMs }, { it.rate })
             val displayed = tk.glucodata.XdripBackfill.displayedRows(roomSerial, rows)
-            ICanHealthCloudUploader.onHistoryStored(
+            val queued = ICanHealthCloudUploader.onHistoryStored(
                 roomSerial,
                 displayed.map {
                     ICanHealthCloudUploader.Row(
@@ -106,6 +105,9 @@ private fun startIcanBackfill(context: android.content.Context, expectedAccountK
                 },
                 expectedAccountKey = expectedAccountKey,
             )
+            if (queued && displayed.isNotEmpty()) {
+                settings.backfillProgressMs = maxOf(settings.backfillProgressMs, displayed.maxOf { it.timeMs })
+            }
         }
     }
 }
@@ -163,6 +165,9 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                         hasSession = true
                         storedAccount = loginAccount
                         s.enabled = enabled
+                        if (s.backfillProgressMs <= 0L) {
+                            s.backfillProgressMs = ICanHealthCloudBackfill.historyStart(s, System.currentTimeMillis())
+                        }
                         status = s.lastSyncMs
                         testMessage = context.getString(R.string.ican_health_logged_in)
                         startIcanBackfill(context, s.accountKey)
@@ -216,6 +221,11 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                     if (it) {
                         val settings = ICanHealthCloudSettings(context)
                         if (settings.token.isNotBlank()) {
+                            if (settings.backfillProgressMs <= 0L) {
+                                settings.backfillProgressMs = ICanHealthCloudBackfill.historyStart(
+                                    settings, System.currentTimeMillis(),
+                                )
+                            }
                             startIcanBackfill(context, settings.accountKey)
                         }
                         ICanHealthCloudUploader.resume(context)

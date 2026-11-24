@@ -13,7 +13,7 @@ class ICanHealthCloudUploader(
     data class Row(val serial: String, val timeMs: Long, val mgdl: Int, val trendIndex: Int)
 
     @Synchronized
-    fun flush(): FlushResult {
+    fun flush(maxBatches: Int = Int.MAX_VALUE): FlushResult {
         var session = settings.session()
         if (session.token.isBlank()) return FlushResult.Unauthorized(0)
         if (!settings.enabled) return FlushResult.Disabled(0)
@@ -22,6 +22,7 @@ class ICanHealthCloudUploader(
             queue.peek()
         }
         var uploadedTotal = 0
+        var batchesProcessed = 0
         var reloginCount = 0
         var refreshed = false
         for ((serial, items) in all.groupBy { it.serial }) {
@@ -39,6 +40,10 @@ class ICanHealthCloudUploader(
                             queue.remove(batch)
                             uploadedTotal += batch.size
                             settings.lastSyncMs = maxOf(settings.lastSyncMs, batch.maxOf { it.timeMs })
+                            batchesProcessed++
+                            if (batchesProcessed >= maxBatches && queue.peek().isNotEmpty()) {
+                                return FlushResult.More(uploadedTotal)
+                            }
                         }
                     }
                     if (result is UploadResult.Ok) break
@@ -116,6 +121,7 @@ class ICanHealthCloudUploader(
         open val code: Int = 0,
         open val message: String = "",
     ) {
+        data class More(override val uploaded: Int = 0) : FlushResult(uploaded, false, false, 0, "")
         data class Success(override val uploaded: Int = 0) : FlushResult(uploaded, true, false, 0, "")
         data class Ok(override val uploaded: Int = 0) : FlushResult(uploaded, true, false, 0, "")
         data class Completed(override val uploaded: Int = 0) : FlushResult(uploaded, true, false, 0, "")
@@ -146,6 +152,7 @@ class ICanHealthCloudUploader(
         private const val LOG_ID = "ICanHealthCloud"
         private const val THREAD_NAME = "ICanHealthCloudSend"
         private const val BATCH_SIZE = 60
+        private const val BATCHES_PER_RUN = 1
         private const val MAX_RETRIES = 3
         private const val MAX_RELOGINS = 2
         private const val INITIAL_BACKOFF_MS = 100L
@@ -172,15 +179,15 @@ class ICanHealthCloudUploader(
             sensorSerial: String,
             rows: List<ICanHealthCloudUploader.Row>,
             expectedAccountKey: String? = null,
-        ) {
-            if (sensorSerial.isEmpty() || rows.isEmpty()) return
+        ): Boolean {
+            if (sensorSerial.isEmpty() || rows.isEmpty()) return false
             try {
-                val context = tk.glucodata.Applic.app ?: return
-                if (!ICanHealthCloudSettings.isEnabled(context)) return
+                val context = tk.glucodata.Applic.app ?: return false
+                if (!ICanHealthCloudSettings.isEnabled(context)) return false
                 val current = stateFor(context)
-                synchronized(ICanHealthCloudSettings.sessionLock) {
+                val accepted = synchronized(ICanHealthCloudSettings.sessionLock) {
                     if (!current.settings.enabled || (expectedAccountKey != null &&
-                        current.settings.accountKey != expectedAccountKey)) return
+                        current.settings.accountKey != expectedAccountKey)) return false
                     current.queue.enqueueAll(
                         rows.filter { it.mgdl > 0 }.map {
                             EgvUpload(it.serial, it.timeMs, it.mgdl, it.trendIndex)
@@ -193,8 +200,10 @@ class ICanHealthCloudUploader(
                 if (current.queue.size() > 0) {
                     requestFlush(context)
                 }
+                return accepted > 0 && !current.queue.hasUnpersistedRows()
             } catch (error: Throwable) {
                 tk.glucodata.Log.stack(LOG_ID, "onHistoryStored", error)
+                return false
             }
         }
 
@@ -277,7 +286,11 @@ class ICanHealthCloudUploader(
             }
             try {
                 val current = stateFor(context)
-                val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush()
+                val result = ICanHealthCloudUploader(current.client, current.settings, current.queue).flush(BATCHES_PER_RUN)
+                if (result is FlushResult.More) {
+                    requestFlush(context)
+                    return
+                }
                 val transient = result is FlushResult.Failed && (result.code <= 0 || result.code == 408 || result.code == 429 || result.code in 500..599) ||
                     result is FlushResult.Transient
                 if (transient) {

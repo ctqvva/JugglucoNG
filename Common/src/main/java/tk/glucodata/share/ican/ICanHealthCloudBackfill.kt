@@ -6,6 +6,10 @@ data class BackfillResult(
 
 object ICanHealthCloudBackfill {
 
+    fun historyStart(settings: ICanHealthCloudSettings, nowMs: Long, days: Int = 7): Long =
+        settings.backfillProgressMs.takeIf { it > 0L }
+            ?: (nowMs - days.toLong() * 24L * 60L * 60L * 1000L)
+
     data class Reading(
         val timeMs: Long,
         val mgdl: Int,
@@ -33,11 +37,7 @@ object ICanHealthCloudBackfill {
         days: Int = 7,
     ): BackfillResult {
         val now = System.currentTimeMillis()
-        val fromMs = when {
-            settings.backfillProgressMs > 0L -> settings.backfillProgressMs
-            settings.lastSyncMs > 0L -> settings.lastSyncMs
-            else -> now - days.toLong() * 24L * 60L * 60L * 1000L
-        }
+        val fromMs = historyStart(settings, now, days)
         val toMs = now
         val readings = glucoseSource.getReadings(fromMs, toMs)
         if (queue == null) {
