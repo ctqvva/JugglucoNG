@@ -164,6 +164,17 @@ internal class NightscoutUploadLedger(private val database: HistoryDatabase) {
         }
     }
 
+    /**
+     * The document is gone. An entry restored from a backup while that was being asked holds
+     * it all the same, and has to be sent again.
+     *
+     * @return whether there was such an entry
+     */
+    suspend fun deleted(remoteId: String): Boolean = database.withTransaction {
+        dao.clearPendingNightscoutDelete(remoteId)
+        dao.releaseNightscoutDocument(remoteId) > 0
+    }
+
     /** Keeps the refusal count of a deletion that was queued already. */
     private suspend fun queueDelete(entryId: Long, remoteId: String, now: Long): JournalPendingDeleteEntity {
         val tombstone = JournalPendingDeleteEntity(entryId = entryId, nsRemoteId = remoteId, deletedAt = now)

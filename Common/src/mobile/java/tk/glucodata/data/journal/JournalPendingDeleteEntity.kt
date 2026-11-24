@@ -14,6 +14,9 @@ import androidx.room.PrimaryKey
  * let us delete (a token without `api:treatments:delete`, say) would otherwise be
  * retried on every upload cycle forever, so the tombstone is dropped past
  * [JournalTreatmentUploader.MAX_DELETE_ATTEMPTS].
+ *
+ * [lastAttemptAt] is set while a delete is out whose outcome is not known, and 0 again once
+ * the server has said no: until then the document may be gone already.
  */
 @Entity(tableName = "journal_pending_deletes")
 data class JournalPendingDeleteEntity(

@@ -143,10 +143,10 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         code == HttpURLConnection.HTTP_BAD_REQUEST && message.contains("eventType")
 
     /**
-     * Whether a failed write is known to have stored nothing. A refusal is; no answer, or the
-     * server failing half way, is not, and its document has to be reckoned with.
+     * Whether a failed write or delete is known to have changed nothing. A refusal is; no
+     * answer, or the server failing half way, is not, and has to be reckoned with.
      */
-    internal fun storedNothing(code: Int): Boolean =
+    internal fun changedNothing(code: Int): Boolean =
         code == ERROR_INVALID_URL || (code in 400..499 && code != HttpURLConnection.HTTP_CLIENT_TIMEOUT)
 
     /**
@@ -434,15 +434,22 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         suspend fun deletePending(tomb: JournalPendingDeleteEntity) {
             if (dao.countOwnUploadsOfNightscoutDocument(tomb.nsRemoteId) > 0) {
                 // Restored or sent again since the deletion was queued: it is a live entry's.
-                Log.i(LOG_ID, "tombstone remoteId=${tomb.nsRemoteId} belongs to an entry again; dropping it")
-                dao.clearPendingNightscoutDelete(tomb.nsRemoteId)
-                return
+                if (tomb.lastAttemptAt == 0L) {
+                    Log.i(LOG_ID, "tombstone remoteId=${tomb.nsRemoteId} belongs to an entry again; dropping it")
+                    dao.clearPendingNightscoutDelete(tomb.nsRemoteId)
+                    return
+                }
+                // A delete went out and was never answered, so whether the entry still has its
+                // document is not known. Finish the deletion and send the entry afresh.
+                dao.releaseNightscoutDocument(tomb.nsRemoteId)
+                changedMeanwhile = true
             }
+            dao.recordFailedNightscoutDelete(tomb.nsRemoteId, tomb.attempts, System.currentTimeMillis())
             val code = deleteRemoteDocument(dao, baseUrl, rawSecret, secretHashed, tomb.nsRemoteId, useV3)
             val attempts = tomb.attempts + 1
             when (tombstoneAction(code, tomb.attempts)) {
                 TombstoneAction.CLEAR -> {
-                    dao.clearPendingNightscoutDelete(tomb.nsRemoteId)
+                    if (ledger.deleted(tomb.nsRemoteId)) changedMeanwhile = true
                     // A 404 also clears the tombstone, but it is not proof that the
                     // server took anything from us, so it must not move "last sent".
                     if (isDeleteAccepted(code)) acceptedDocument = true
@@ -453,7 +460,11 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                         "tombstone delete failed for entryId=${tomb.entryId} " +
                             "remoteId=${tomb.nsRemoteId} code=$code attempt=$attempts"
                     )
-                    dao.recordFailedNightscoutDelete(tomb.nsRemoteId, attempts, System.currentTimeMillis())
+                    dao.recordFailedNightscoutDelete(
+                        tomb.nsRemoteId,
+                        attempts,
+                        if (changedNothing(code)) 0L else System.currentTimeMillis()
+                    )
                     deleteFailureCode = code
                 }
                 TombstoneAction.GIVE_UP -> {
@@ -540,7 +551,7 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                 }
                 val now = System.currentTimeMillis()
                 if (!isUploadOk(result.code, useV3)) {
-                    if (storedNothing(result.code)) ledger.refused(attempt)
+                    if (changedNothing(result.code)) ledger.refused(attempt)
                     Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${failureText(result.code, result.message)}")
                     sendBackoff.recordFailure(entry.id, now)
                     uploadFailureCode = result.code
@@ -748,7 +759,7 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                 .orEmpty()
             val responseId = extractCreatedRemoteId(body)
                 ?: if (code in 200..299) {
-                    findWrittenRemoteId(baseUrl, secret, entry, json.optString("updated_at"))
+                    findWrittenRemoteId(baseUrl, secret, entry, json)
                 } else {
                     null
                 }
@@ -846,13 +857,16 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
 
     /**
      * The document a v1 write went to when the server did not say, which is what older servers
-     * do for one they replaced in place. It carries the revision that was sent. A document with
-     * the same identifier but another revision is the copy from before, if it is still there.
+     * do for one they replaced in place. It carries the revision that was sent, and the
+     * eventType: those servers tell documents of one moment apart by it, so the copy from
+     * before a type edit stands beside the new one and may even share its updated_at.
      */
-    internal fun writtenDocumentId(treatments: JSONArray, entry: JournalEntryEntity, updatedAt: String): String? {
+    internal fun writtenDocumentId(treatments: JSONArray, entry: JournalEntryEntity, sent: JSONObject): String? {
+        val updatedAt = sent.optString("updated_at")
         for (index in 0 until treatments.length()) {
             val treatment = treatments.optJSONObject(index) ?: continue
             if (treatment.optString("identifier") != localIdentifier(entry.id)) continue
+            if (treatment.optString("eventType") != sent.optString("eventType")) continue
             if (treatment.optString("updated_at").ifEmpty { updatedAt } != updatedAt) continue
             val date = treatment.optLong("date", 0L)
             if (date != 0L && kotlin.math.abs(date - entry.timestamp) > 60_000L) continue
@@ -865,10 +879,10 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         baseUrl: String,
         secret: String,
         entry: JournalEntryEntity,
-        updatedAt: String
+        sent: JSONObject
     ): String? = runCatching {
         val body = fetchTreatmentsJson(baseUrl, secret, useV3 = false, atMillis = entry.timestamp)
-        writtenDocumentId(JSONArray(body), entry, updatedAt)
+        writtenDocumentId(JSONArray(body), entry, sent)
     }.getOrNull()
 
     private fun JSONObject.optNightscoutDocumentId(): String? =

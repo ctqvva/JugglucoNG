@@ -494,8 +494,8 @@ class JournalTreatmentUploaderTests {
     }
 
     @Test
-    fun onlyARefusalIsKnownToHaveStoredNothing() {
-        for (code in listOf(400, 401, 403, 404)) assertTrue(JournalTreatmentUploader.storedNothing(code))
-        for (code in listOf(-1, 408, 500, 502, 504)) assertFalse(JournalTreatmentUploader.storedNothing(code))
+    fun onlyARefusalIsKnownToHaveChangedNothing() {
+        for (code in listOf(400, 401, 403, 404)) assertTrue(JournalTreatmentUploader.changedNothing(code))
+        for (code in listOf(-1, 408, 500, 502, 504)) assertFalse(JournalTreatmentUploader.changedNothing(code))
     }
 }

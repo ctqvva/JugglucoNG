@@ -351,6 +351,72 @@ class JournalUploadRaceTests {
     }
 
     @Test
+    fun anEntryRestoredWhileItsDocumentIsBeingDeletedIsSentAgain() = onEveryServer { v3 ->
+        add()
+        assertTrue(upload(v3))
+        val uploaded = row()!!
+        delete()
+        server.beforeDeleteAnswer = { add(uploaded) }
+        upload(v3)
+        upload(v3)
+        assertEquals(4.0, server.only().getDouble("insulin"), 0.0)
+        assertFalse(isDue())
+        settled()
+    }
+
+    @Test
+    fun anEntryRestoredAfterAnUnansweredDeleteIsSentAgain() = onEveryServer { v3 ->
+        add()
+        assertTrue(upload(v3))
+        val uploaded = row()!!
+        delete()
+        server.loseDeleteAnswer = true
+        upload(v3)
+        assertTrue("gone there, not known here", server.documents.isEmpty() && pendingDeletes().size == 1)
+        add(uploaded)
+        upload(v3)
+        upload(v3)
+        assertEquals(4.0, server.only().getDouble("insulin"), 0.0)
+        assertFalse(isDue())
+        settled()
+    }
+
+    @Test
+    fun theProcessEndingDuringADeleteIsAnUnansweredDelete() = onEveryServer { v3 ->
+        add()
+        assertTrue(upload(v3))
+        val uploaded = row()!!
+        delete()
+        server.beforeDeleteAnswer = { throw AssertionError("process ends here") }
+        assertFalse(upload(v3))
+        add(uploaded)
+        upload(v3)
+        upload(v3)
+        assertEquals(4.0, server.only().getDouble("insulin"), 0.0)
+        settled()
+    }
+
+    @Test
+    fun aTypeEditInTheSameMillisecondWhoseAnswerIsLostKeepsTheCorrection() {
+        server.reset(legacy = true)
+        add()
+        assertTrue(upload(v3 = false))
+        runBlocking {
+            dao.upsertEntry(
+                row()!!.copy(entryType = JournalEntryType.CARBS.storageValue, amount = 30f, nsUploadedAt = 0L)
+            )
+        }
+        server.loseAnswer = true
+        assertFalse(upload(v3 = false))
+        assertEquals("the server holds both types", 2, server.documents.size)
+        resetBackoff()
+        assertTrue(upload(v3 = false))
+        assertEquals(30.0, server.only().getDouble("carbs"), 0.0)
+        assertEquals(server.only().getString("_id"), row()!!.nsRemoteId)
+        settled()
+    }
+
+    @Test
     fun aDocumentReplacedInPlaceWithoutAnAnswerIsNotTakenForItsOldCopy() {
         server.reset(legacy = true)
         add()
@@ -541,7 +607,9 @@ class FakeNightscout {
     val documents = java.util.concurrent.CopyOnWriteArrayList<JSONObject>()
     var beforeAnswer: () -> Unit = {}
     var beforeEveryAnswer: () -> Unit = {}
+    var beforeDeleteAnswer: () -> Unit = {}
     var loseAnswer = false
+    var loseDeleteAnswer = false
     var refuseWrites = false
     var refuseDeletes = false
     var refuseReads = false
@@ -569,7 +637,9 @@ class FakeNightscout {
         documents.clear()
         beforeAnswer = {}
         beforeEveryAnswer = {}
+        beforeDeleteAnswer = {}
         loseAnswer = false
+        loseDeleteAnswer = false
         refuseWrites = false
         refuseDeletes = false
         refuseReads = false
@@ -618,6 +688,10 @@ class FakeNightscout {
         if (refuseDeletes) return refuse(403, "Missing permission api:treatments:delete")
         val v3 = "/api/v3/" in url
         val removed = documents.removeAll { (v3 && it.optString("identifier") == id) || it.optString("_id") == id }
+        val once = beforeDeleteAnswer
+        beforeDeleteAnswer = {}
+        once()
+        if (loseDeleteAnswer.also { loseDeleteAnswer = false }) return NightPost.ERROR_NO_RESPONSE
         return if (removed || !v3) 200 else 404
     }
 

@@ -251,6 +251,13 @@ interface JournalDao {
     @Query("SELECT COUNT(*) FROM journal_entries WHERE nsRemoteId = :remoteId AND nsUploadedAt IS NOT NULL")
     suspend fun countOwnUploadsOfNightscoutDocument(remoteId: String): Int
 
+    /** Makes the entry holding this document due again, as one that was never sent. */
+    @Query(
+        "UPDATE journal_entries SET nsRemoteId = NULL, nsUploadedAt = NULL " +
+            "WHERE nsRemoteId = :remoteId AND nsUploadedAt IS NOT NULL"
+    )
+    suspend fun releaseNightscoutDocument(remoteId: String): Int
+
     @Query("SELECT * FROM journal_entries WHERE entryType = :entryType AND source IN (:sources) AND sourceRecordId IS NOT NULL")
     suspend fun getImportedEntriesOfType(entryType: String, sources: List<String>): List<JournalEntryEntity>
 
