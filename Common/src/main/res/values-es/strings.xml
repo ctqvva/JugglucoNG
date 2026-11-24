@@ -1673,6 +1673,11 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="nightscout_status_treatments_upload_failing">Tratamientos: envío fallido desde %1$s, último intento %3$s (%2$s)</string>
      <string name="nightscout_status_treatments_delete_failing">Tratamientos: eliminaciones rechazadas desde %1$s, último intento %3$s (%2$s)</string>
      <string name="nightscout_status_treatments_no_response">sin respuesta</string>
+     <string name="nightscout_status_treatments_invalid_config">error de configuración</string>
+     <string name="nightscout_status_pending_deletes_retry">Eliminaciones pendientes: %1$d (próximo reintento %2$s)</string>
+     <string name="nightscout_status_pending_deletes_auth">Eliminaciones pendientes: %1$d (en pausa — comprueba el token o los permisos de Nightscout)</string>
+     <string name="nightscout_status_pending_deletes_config">Eliminaciones pendientes: %1$d (en pausa — comprueba la URL o la versión de la API de Nightscout)</string>
+     <string name="nightscout_status_pending_deletes_queued">Eliminaciones pendientes: %1$d</string>
      <string name="nightscout_status_iob_no_token">Subida de IOB: omitida - aún sin token de Nightscout</string>
      <string name="nightscout_status_iob_rejected">Subida de IOB: rechazada (%1$s)</string>
      <string name="nightscout_send_long_insulin">Incluir insulina de acción prolongada</string>

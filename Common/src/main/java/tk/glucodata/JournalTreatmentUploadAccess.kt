@@ -44,4 +44,16 @@ object JournalTreatmentUploadAccess {
         runCatching { bridge?.sendAsFollower() }
             .onFailure { Log.stack(TAG, "sendAsFollower failed", it) }
     }
+
+    @JvmStatic
+    fun onConnectivityRecovered() {
+        runCatching { bridge?.onConnectivityRecovered() }
+            .onFailure { Log.stack(TAG, "onConnectivityRecovered failed", it) }
+    }
+
+    @JvmStatic
+    fun onDeleteRetryReset(wakeIfPending: Boolean) {
+        runCatching { bridge?.onDeleteRetryReset(wakeIfPending) }
+            .onFailure { Log.stack(TAG, "onDeleteRetryReset failed", it) }
+    }
 }

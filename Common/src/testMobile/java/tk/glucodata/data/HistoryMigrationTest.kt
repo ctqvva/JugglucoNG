@@ -195,9 +195,10 @@ class HistoryMigrationTest {
     @Test
     fun keepsQueuedNightscoutDeletesAndKeysThemByDocument() {
         // v33 is the food restore build's: the same two tables, and one of its own.
-        for (from in listOf(32, 33)) {
+        // v34 is the Nightscout upload ledger before v35's server-binding and retry columns.
+        for (from in listOf(32, 33, 34)) {
             val name = "nightscout-ledger-$from.db"
-            helper.createDatabase(name, 32).use { db ->
+            helper.createDatabase(name, if (from == 34) 34 else 32).use { db ->
                 db.execSQL(
                     "INSERT INTO journal_pending_deletes (entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt) " +
                         "VALUES (3, 'remote-3', 8000, 4, 9000), (4, 'remote-4', 8100, 0, 0)"
@@ -218,7 +219,8 @@ class HistoryMigrationTest {
                 helper.runMigrationsAndValidate(name, HISTORY_DATABASE_VERSION, false, *HistoryDatabase.ALL_MIGRATIONS)
 
             migrated.query(
-                "SELECT entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt FROM journal_pending_deletes ORDER BY deletedAt"
+                "SELECT entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt, targetServer, nextRetryAt, failureKind, lastErrorCode, lastErrorMessage " +
+                    "FROM journal_pending_deletes ORDER BY deletedAt"
             ).use { cursor ->
                 assertEquals("both deletes survived from v$from", 2, cursor.count)
                 cursor.moveToFirst()
@@ -227,6 +229,11 @@ class HistoryMigrationTest {
                 assertEquals(8000, cursor.getInt(2))
                 assertEquals(4, cursor.getInt(3))
                 assertEquals(9000, cursor.getInt(4))
+                assertEquals("", cursor.getString(5))
+                assertEquals(0L, cursor.getLong(6))
+                assertEquals(0, cursor.getInt(7))
+                assertEquals(0, cursor.getInt(8))
+                assertEquals("", cursor.getString(9))
             }
             // One entry may leave more than one document behind.
             migrated.execSQL(

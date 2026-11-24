@@ -1,5 +1,6 @@
 package tk.glucodata.data.journal
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -19,5 +20,8 @@ data class JournalNightscoutUploadEntity(
     val entryId: Long,
     /** With [entryId], which entry this was: an id can be taken again by a restored or re-saved row. */
     val entryCreatedAt: Long,
-    val startedAt: Long
+    val startedAt: Long,
+    /** Normalized Nightscout server origin + base path this upload targeted. */
+    @ColumnInfo(defaultValue = "")
+    val targetServer: String = "",
 )

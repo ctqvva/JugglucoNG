@@ -34,6 +34,7 @@ internal suspend fun JournalDao.recordEntryDeletion(existing: JournalEntryEntity
                 entryId = existing.id,
                 nsRemoteId = remoteId,
                 deletedAt = now,
+                targetServer = NightscoutDeleteRetry.currentTargetServer(),
             )
         )
     }

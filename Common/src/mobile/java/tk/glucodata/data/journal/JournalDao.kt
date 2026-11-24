@@ -309,4 +309,43 @@ interface JournalDao {
             "WHERE nsRemoteId = :remoteId"
     )
     suspend fun recordFailedNightscoutDelete(remoteId: String, attempts: Int, attemptedAt: Long)
+
+    @Query(
+        "UPDATE journal_pending_deletes SET targetServer = :targetServer " +
+            "WHERE nsRemoteId = :remoteId AND targetServer = ''"
+    )
+    suspend fun bindPendingNightscoutDeleteServer(remoteId: String, targetServer: String)
+
+    @Query(
+        "UPDATE journal_pending_deletes " +
+            "SET targetServer = CASE WHEN targetServer = '' THEN :targetServer ELSE targetServer END, " +
+            "attempts = :attempts, lastAttemptAt = :attemptedAt, nextRetryAt = :nextRetryAt, " +
+            "failureKind = :failureKind, lastErrorCode = :lastErrorCode, lastErrorMessage = :lastErrorMessage " +
+            "WHERE nsRemoteId = :remoteId"
+    )
+    suspend fun recordNightscoutDeleteRetryState(
+        remoteId: String,
+        targetServer: String,
+        attempts: Int,
+        attemptedAt: Long,
+        nextRetryAt: Long,
+        failureKind: Int,
+        lastErrorCode: Int,
+        lastErrorMessage: String,
+    )
+
+    @Query(
+        "UPDATE journal_pending_deletes " +
+            "SET nextRetryAt = 0, failureKind = 0, lastErrorCode = 0, lastErrorMessage = '' " +
+            "WHERE (targetServer = '' OR targetServer = :targetServer) " +
+            "AND (failureKind = 2 OR (failureKind = 1 AND lastErrorCode NOT IN (409, 425)) " +
+            "OR (failureKind = 3 AND lastErrorCode IN (-2, -4, 404, 405, 410)))"
+    )
+    suspend fun clearEndpointNightscoutDeleteHold(targetServer: String)
+
+    @Query("UPDATE journal_pending_deletes SET nextRetryAt = 0 WHERE failureKind = 1")
+    suspend fun releaseTransientNightscoutDeleteBackoff()
+
+    @Query("UPDATE journal_pending_deletes SET nextRetryAt = 0")
+    suspend fun releaseAllNightscoutDeleteBackoff()
 }

@@ -1515,6 +1515,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_treatments_upload_failing">Behandlingar: sändning misslyckas sedan %1$s, senaste försök %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Behandlingar: raderingar nekas sedan %1$s, senaste försök %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">inget svar</string>
+    <string name="nightscout_status_treatments_invalid_config">konfigurationsfel</string>
+    <string name="nightscout_status_pending_deletes_retry">Väntande raderingar: %1$d (nästa försök %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Väntande raderingar: %1$d (pausad — kontrollera Nightscout-token eller behörigheter)</string>
+    <string name="nightscout_status_pending_deletes_config">Väntande raderingar: %1$d (pausad — kontrollera Nightscout-URL eller API-version)</string>
+    <string name="nightscout_status_pending_deletes_queued">Väntande raderingar: %1$d</string>
     <string name="nightscout_status_iob_no_token">IOB-uppladdning: överhoppad - ingen Nightscout-token ännu</string>
     <string name="nightscout_status_iob_rejected">IOB-uppladdning: avvisad (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synkåtgärder</string>

@@ -66,11 +66,12 @@ class JournalUploadRaceTests {
         UploadRaceNightPost.server = server
         UploadRaceNatives.url = server.url
         UploadRaceNatives.wakes = 0
-        resetBackoff()
+        JournalTreatmentUploader.resetRuntimeStateForTesting()
     }
 
     @After
     fun tearDown() {
+        JournalTreatmentUploader.resetRuntimeStateForTesting()
         server.close()
         useDatabase(null)
         database.close()
@@ -313,6 +314,7 @@ class JournalUploadRaceTests {
         assertTrue(first in pendingDeletes())
 
         server.refuseDeletes = false
+        JournalTreatmentUploader.onDeleteRetryReset()
         upload(v3 = true)
         assertTrue(server.documents.isEmpty())
         settled()
@@ -329,6 +331,7 @@ class JournalUploadRaceTests {
         assertEquals(6.0, server.only().getDouble("insulin"), 0.0)
 
         server.refuseDeletes = false
+        JournalTreatmentUploader.onDeleteRetryReset()
         assertTrue(upload(v3))
         assertEquals("still there", 6.0, server.only().getDouble("insulin"), 0.0)
         settled()
@@ -374,6 +377,7 @@ class JournalUploadRaceTests {
         upload(v3)
         assertTrue("gone there, not known here", server.documents.isEmpty() && pendingDeletes().size == 1)
         add(uploaded)
+        JournalTreatmentUploader.onDeleteRetryReset()
         upload(v3)
         upload(v3)
         assertEquals(4.0, server.only().getDouble("insulin"), 0.0)
@@ -543,6 +547,7 @@ class JournalUploadRaceTests {
         assertEquals("not being able to look is not the document being gone", 1, pendingDeletes().size)
 
         server.refuseReads = false
+        JournalTreatmentUploader.onConnectivityRecovered()
         upload(v3 = false)
         assertTrue(server.documents.isEmpty())
         settled()
@@ -692,7 +697,7 @@ class FakeNightscout {
         beforeDeleteAnswer = {}
         once()
         if (loseDeleteAnswer.also { loseDeleteAnswer = false }) return NightPost.ERROR_NO_RESPONSE
-        return if (removed || !v3) 200 else 404
+        return if (removed || !v3) 200 else refuse(404, "Not found")
     }
 
     private fun serveV1(input: InputStream, output: java.io.OutputStream) {

@@ -1550,6 +1550,11 @@
     <string name="nightscout_status_treatments_upload_failing">Leczenie: wysyłanie nie działa od %1$s, ostatnia próba %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Leczenie: usunięcia odrzucane od %1$s, ostatnia próba %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">brak odpowiedzi</string>
+    <string name="nightscout_status_treatments_invalid_config">błąd konfiguracji</string>
+    <string name="nightscout_status_pending_deletes_retry">Oczekujące usunięcia: %1$d (kolejna próba %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Oczekujące usunięcia: %1$d (wstrzymane — sprawdź token lub uprawnienia Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_config">Oczekujące usunięcia: %1$d (wstrzymane — sprawdź adres URL lub wersję API Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_queued">Oczekujące usunięcia: %1$d</string>
     <string name="nightscout_status_iob_no_token">Wysyłka IOB: pominięta - brak jeszcze tokenu Nightscout</string>
     <string name="nightscout_status_iob_rejected">Wysyłka IOB: odrzucona (%1$s)</string>
     <string name="nightscout_sync_actions_title">Akcje synchronizacji</string>

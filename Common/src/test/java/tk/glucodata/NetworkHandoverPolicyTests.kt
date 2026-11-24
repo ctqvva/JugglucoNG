@@ -162,4 +162,17 @@ class NetworkHandoverPolicyTests {
         assertTrue(ice.contains("host.side!=givefirst"))
         assertTrue(ice.contains("authenticated LAN promotion available"))
     }
+
+    @Test
+    fun connectivityRecoveryDetectorSeedsFromActiveInternetNetworkAndLegacyResendClearsDeletionHolds() {
+        val applic = source("Common/src/main/java/tk/glucodata/Applic.java")
+            .replace(Regex("\\s+"), " ")
+        assertTrue(applic.contains("hasActiveInternetNetwork(connectivityManager)"))
+        assertFalse(applic.contains("initialOnline = hasip()"))
+
+        val nightPost = source("Common/src/main/java/tk/glucodata/NightPost.java")
+            .replace(Regex("\\s+"), " ")
+        val askClearUpload = nightPost.substringAfter("askclearupload(").substringBefore("public static void config(")
+        assertTrue(askClearUpload.contains("JournalTreatmentUploadAccess.onDeleteRetryReset(false); Natives.resetuploader();"))
+    }
 }

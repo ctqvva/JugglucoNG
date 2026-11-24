@@ -65,7 +65,12 @@ internal class NightscoutUploadLedger(private val database: HistoryDatabase) {
     private val dao = database.journalDao()
 
     /** @return null when the entry was edited or deleted since it was read; then nothing may be sent */
-    suspend fun begin(entry: JournalEntryEntity, identity: String, now: Long): NightscoutUploadAttempt? =
+    suspend fun begin(
+        entry: JournalEntryEntity,
+        identity: String,
+        now: Long,
+        targetServer: String = "",
+    ): NightscoutUploadAttempt? =
         database.withTransaction {
             val current = dao.getEntryById(entry.id)
             if (current == null || !current.isSameRevision(entry)) return@withTransaction null
@@ -80,6 +85,7 @@ internal class NightscoutUploadLedger(private val database: HistoryDatabase) {
                     entryId = current.id,
                     entryCreatedAt = current.createdAt,
                     startedAt = now,
+                    targetServer = targetServer,
                 )
             )
             NightscoutUploadAttempt(current, identity, recorded = !resumed, resumed = resumed)
@@ -98,27 +104,28 @@ internal class NightscoutUploadLedger(private val database: HistoryDatabase) {
         attempt: NightscoutUploadAttempt,
         acceptedRemoteId: String?,
         now: Long,
+        targetServer: String = "",
     ): NightscoutUploadAck = database.withTransaction {
         val sent = attempt.entry
         val current = dao.getEntryById(sent.id)?.takeIf { it.createdAt == sent.createdAt }
-        val surplus = LinkedHashSet<String>()
+        val surplus = LinkedHashMap<String, String>()
 
         for (other in dao.getNightscoutUploadsOf(sent.id, sent.createdAt)) {
             if (other.remoteId == attempt.identity) continue
             // An earlier, unanswered attempt under another name (the time was corrected since).
-            surplus += other.remoteId
+            surplus[other.remoteId] = other.targetServer.ifEmpty { targetServer }
             dao.clearNightscoutUpload(other.remoteId)
         }
         if (attempt.resumed && acceptedRemoteId != null && acceptedRemoteId != attempt.identity) {
             // v1: the unanswered attempt may have left a second document under the same name.
-            surplus += attempt.identity
+            surplus[attempt.identity] = targetServer
         }
 
         val revisionCurrent: Boolean
         if (current == null) {
             revisionCurrent = false
-            surplus += acceptedRemoteId ?: attempt.identity
-            sent.nsRemoteId?.let { surplus += it }
+            surplus[acceptedRemoteId ?: attempt.identity] = targetServer
+            sent.nsRemoteId?.let { surplus[it] = targetServer }
             dao.clearNightscoutUpload(attempt.identity)
         } else {
             revisionCurrent = current.isSameRevision(sent)
@@ -140,26 +147,26 @@ internal class NightscoutUploadLedger(private val database: HistoryDatabase) {
             if (acceptedRemoteId != null) dao.clearNightscoutUpload(attempt.identity)
             // The document is this entry's again, whatever an earlier deletion wanted of it.
             dao.clearPendingNightscoutDelete(remoteId)
-            surplus -= remoteId
+            surplus.remove(remoteId)
             if (JournalTreatmentUploader.oldCopyAction(sent.nsRemoteId, remoteId) ==
                 JournalTreatmentUploader.OldCopyAction.DELETE
             ) {
-                surplus += sent.nsRemoteId!!
+                surplus[sent.nsRemoteId!!] = targetServer
             }
         }
 
         NightscoutUploadAck(
             entryKept = current != null,
             revisionCurrent = revisionCurrent,
-            queuedDeletes = surplus.map { queueDelete(sent.id, it, now) },
+            queuedDeletes = surplus.entries.map { (remoteId, server) -> queueDelete(sent.id, remoteId, now, server) },
         )
     }
 
     /** Queues the documents of entries that are gone. Runs between passes, when nothing is on the way. */
-    suspend fun settleAbandoned(now: Long) = database.withTransaction {
+    suspend fun settleAbandoned(now: Long, currentServer: String = "") = database.withTransaction {
         for (upload in dao.getNightscoutUploads()) {
             if (dao.getEntryById(upload.entryId)?.createdAt == upload.entryCreatedAt) continue
-            queueDelete(upload.entryId, upload.remoteId, now)
+            queueDelete(upload.entryId, upload.remoteId, now, upload.targetServer.ifEmpty { currentServer })
             dao.clearNightscoutUpload(upload.remoteId)
         }
     }
@@ -176,8 +183,18 @@ internal class NightscoutUploadLedger(private val database: HistoryDatabase) {
     }
 
     /** Keeps the refusal count of a deletion that was queued already. */
-    private suspend fun queueDelete(entryId: Long, remoteId: String, now: Long): JournalPendingDeleteEntity {
-        val tombstone = JournalPendingDeleteEntity(entryId = entryId, nsRemoteId = remoteId, deletedAt = now)
+    private suspend fun queueDelete(
+        entryId: Long,
+        remoteId: String,
+        now: Long,
+        targetServer: String = "",
+    ): JournalPendingDeleteEntity {
+        val tombstone = JournalPendingDeleteEntity(
+            entryId = entryId,
+            nsRemoteId = remoteId,
+            deletedAt = now,
+            targetServer = targetServer,
+        )
         dao.enqueuePendingNightscoutDeleteIfAbsent(tombstone)
         return dao.getPendingNightscoutDelete(remoteId) ?: tombstone
     }

@@ -19,4 +19,13 @@ interface JournalTreatmentUploadBridge {
      * once; repeated calls before the pass starts collapse into one.
      */
     fun sendAsFollower()
+
+    /** Releases transient deletion backoff when connectivity genuinely recovers. */
+    fun onConnectivityRecovered() {}
+
+    /**
+     * Releases deletion backoff/holds after credential/config changes, token refresh, or an
+     * explicit Send now / Resend action.
+     */
+    fun onDeleteRetryReset(wakeIfPending: Boolean = false) {}
 }

@@ -74,3 +74,40 @@ class NetworkHandoverPolicy {
     @Synchronized
     fun currentIceNetwork(): Long = iceNetwork ?: 0L
 }
+
+/**
+ * Distinguishes a genuine connectivity recovery (offline -> online or default-network handover)
+ * from the initial `PRESENT` callback Android delivers at process startup when the device is
+ * already connected, so restarting the app during a server outage does not wipe persisted backoff.
+ */
+class ConnectivityRecoveryDetector(startedOnline: Boolean) {
+    private var observedInitialOnline = startedOnline
+    private var wasAbsent = !startedOnline
+
+    @Synchronized
+    fun shouldNotifyRecovery(action: NetworkHandoverPolicy.Action): Boolean = when (action) {
+        NetworkHandoverPolicy.Action.ABSENT -> {
+            wasAbsent = true
+            false
+        }
+        NetworkHandoverPolicy.Action.HANDOVER -> {
+            observedInitialOnline = true
+            wasAbsent = false
+            true
+        }
+        NetworkHandoverPolicy.Action.PRESENT -> {
+            if (wasAbsent) {
+                observedInitialOnline = true
+                wasAbsent = false
+                true
+            } else if (!observedInitialOnline) {
+                observedInitialOnline = true
+                false
+            } else {
+                false
+            }
+        }
+        NetworkHandoverPolicy.Action.DEFER_ABSENCE,
+        NetworkHandoverPolicy.Action.NONE -> false
+    }
+}

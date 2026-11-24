@@ -85,11 +85,13 @@ import javax.net.ssl.SSLContext;
 
 public class NightPost  {
     private static final String LOG_ID="NightPost";
-    private static final int ERROR_INVALID_URL = -2;
+    public static final int ERROR_INVALID_URL = -2;
     /** No HTTP status to report: the request never left, or no answer came back. */
     public static final int ERROR_NO_RESPONSE = -1;
     /** Ancillary upload skipped: no token cached and none could be fetched. */
     private static final int ERROR_NO_TOKEN = -3;
+    /** Endpoint or API configuration refusal (e.g. v3 token endpoint missing); never treat as remote absence. */
+    public static final int ERROR_CONFIG = -4;
     private static final int UPLOAD_CONNECT_TIMEOUT_MS = 15_000;
     private static final int UPLOAD_READ_TIMEOUT_MS = 60_000;
     private static final int DEVICE_STATUS_CONNECT_TIMEOUT_MS = 3_000;
@@ -245,6 +247,13 @@ private static int deleteUrlCode(String urlstring,String secret,boolean retryRej
     HttpURLConnection urlConnection=null;
     String auth=null;
     try {
+        if(urlstring==null || !(urlstring.startsWith("https://") || urlstring.startsWith("http://"))) {
+            lastPrimaryResponseBody="";
+            final String invalid="deleteUrl failure:\nInvalid Nightscout URL: "+urlstring;
+            uploadstatus=invalid;
+            Log.e(LOG_ID,invalid);
+            return ERROR_INVALID_URL;
+        }
         URL url = new URL(urlstring);
     uploadstatus=" start deleteURL "+urlstring;
         urlConnection = (HttpURLConnection) url.openConnection();
@@ -253,13 +262,20 @@ private static int deleteUrlCode(String urlstring,String secret,boolean retryRej
         if(secret!=null)
                 urlConnection.setRequestProperty("api-secret", secret);
         else {
-            auth = gettoken(
+            final TokenResult tokenResult = getTokenResult(
                     uploadtime,
                     UPLOAD_CONNECT_TIMEOUT_MS,
                     UPLOAD_READ_TIMEOUT_MS,
                     true
             );
+            auth = tokenResult.header();
             if(auth.isEmpty()) {
+                lastPrimaryResponseBody=tokenResult.failureError();
+                return tokenFailureCodeForDelete(tokenResult.failureCode());
+            }
+            if(!NightscoutTokenGrant.urlMatchesServer(urlstring, tokenResult.serverUrl())) {
+                lastPrimaryResponseBody="";
+                Log.w(LOG_ID,"aborting deleteUrl: configured Nightscout server changed mid-pass");
                 return ERROR_NO_RESPONSE;
             }
             urlConnection.setRequestProperty("Authorization", auth);
@@ -312,8 +328,31 @@ private static int deleteUrlCode(String urlstring,String secret,boolean retryRej
   "iat": 1708854156,
   "exp": 1708882956
 } */
+static private final Object configLock = new Object();
+static private final Object tokenExchangeLock = new Object();
+static private long  configGeneration=0L;
 static private long  expire=0L;
 static private String token="";
+static private String tokenUrl="";
+static private String tokenSecret="";
+
+private record TokenResult(String header,String serverUrl,int failureCode,String failureError) {}
+
+/**
+ * Maps a failed v3 token-exchange HTTP status onto a delete status code without ever returning
+ * 404/410 (which for a treatment delete mean the remote document is confirmed absent).
+ */
+private static int tokenFailureCodeForDelete(int exchangeCode) {
+    if(exchangeCode==HttpURLConnection.HTTP_UNAUTHORIZED ||
+            exchangeCode==HttpURLConnection.HTTP_FORBIDDEN ||
+            exchangeCode==HttpURLConnection.HTTP_PROXY_AUTH)
+        return exchangeCode;
+    if(exchangeCode>=400 && exchangeCode<500 &&
+            exchangeCode!=HttpURLConnection.HTTP_CLIENT_TIMEOUT &&
+            exchangeCode!=429)
+        return ERROR_CONFIG;
+    return ERROR_NO_RESPONSE;
+}
 
 static JSONObject  readJSONObject(HttpURLConnection urlConnection)  throws IOException, JSONException {
     String ant=getstring(urlConnection);
@@ -331,10 +370,15 @@ public record TokenExchange(NightscoutTokenGrant grant,int code,String error) {
     public boolean ok() { return grant!=null; }
     }
 
-private static TokenExchange exchangeToken(int connectTimeoutMs,int readTimeoutMs) {
-    var Nighturl=Natives.getnightuploadurl();
-    var secret=Natives.getnightuploadsecret();
-    var authstr=Nighturl+ "/api/v2/authorization/request/"+secret;
+private static TokenExchange exchangeToken(
+        String nightUrl,
+        String secret,
+        int connectTimeoutMs,
+        int readTimeoutMs
+) {
+    if(nightUrl==null || nightUrl.isEmpty())
+        return new TokenExchange(null,ERROR_INVALID_URL,"Invalid Nightscout URL");
+    var authstr=nightUrl+ "/api/v2/authorization/request/"+(secret==null?"":secret);
     HttpURLConnection urlConnection=null;
     try {
         URL url = new URL(authstr);
@@ -362,29 +406,107 @@ private static TokenExchange exchangeToken(int connectTimeoutMs,int readTimeoutM
         }
     }
 
-private static void cacheGrant(NightscoutTokenGrant grant) {
+private static void cacheGrant(NightscoutTokenGrant grant,String url,String secret) {
     expire=grant.getExpiresAtMillis();
     token="Bearer "+grant.getToken();
+    tokenUrl=url==null?"":url;
+    tokenSecret=secret==null?"":secret;
     }
 
-private static synchronized String gettoken(
+private static boolean cachedTokenMatchesCurrentCredentials(String currentUrl,String currentSecret) {
+    final String urlKey=currentUrl==null?"":currentUrl;
+    final String secretKey=currentSecret==null?"":currentSecret;
+    return urlKey.equals(tokenUrl) && secretKey.equals(tokenSecret);
+    }
+
+/**
+ * Atomically saves the Nightscout uploader configuration under [configLock] (never held across
+ * network I/O, so UI-thread saves never block on slow token exchanges) and drops any cached JWT
+ * so an in-flight token exchange cannot pair a new secret with a previous server URL.
+ */
+@Keep
+public static void saveNightUploaderConfig(
+        String url,
+        String secret,
+        boolean active,
+        boolean v3
+) {
+    synchronized (configLock) {
+        configGeneration++;
+        expire=0L;
+        token="";
+        tokenUrl="";
+        tokenSecret="";
+        setNightUploader(url,secret,active,v3);
+        }
+    }
+
+/**
+ * Drops any cached v3 bearer JWT so the next request exchanges a fresh token carrying any
+ * permissions updated on the Nightscout server.
+ */
+@Keep
+public static void dropToken() {
+    synchronized (configLock) {
+        configGeneration++;
+        expire=0L;
+        token="";
+        tokenUrl="";
+        tokenSecret="";
+        }
+    }
+
+private static TokenResult getTokenResult(
         long now,
         int connectTimeoutMs,
         int readTimeoutMs,
         boolean updateVisibleStatus
 ) {
-    if(now<expire)
-        return token;
-    final TokenExchange exchange=exchangeToken(connectTimeoutMs,readTimeoutMs);
-    if(exchange.ok()) {
-        cacheGrant(exchange.grant());
-        return token;
+    synchronized (configLock) {
+        final String currentUrl=Natives.getnightuploadurl();
+        final String currentSecret=Natives.getnightuploadsecret();
+        final String normalizedUrl=currentUrl==null?"":currentUrl;
+        if(now<expire && !token.isEmpty() && cachedTokenMatchesCurrentCredentials(normalizedUrl,currentSecret))
+            return new TokenResult(token,normalizedUrl,HTTP_OK,"");
         }
-    final String error="gettoken failed "+exchange.error();
-    if(updateVisibleStatus)
-        uploadstatus=error;
-    Log.e(LOG_ID,error);
-    return "";
+    synchronized (tokenExchangeLock) {
+        final long snapshotGen;
+        final String snapshotUrl;
+        final String snapshotSecret;
+        synchronized (configLock) {
+            final String currentUrl=Natives.getnightuploadurl();
+            final String currentSecret=Natives.getnightuploadsecret();
+            final String normalizedUrl=currentUrl==null?"":currentUrl;
+            if(now<expire && !token.isEmpty() && cachedTokenMatchesCurrentCredentials(normalizedUrl,currentSecret))
+                return new TokenResult(token,normalizedUrl,HTTP_OK,"");
+            snapshotGen=configGeneration;
+            snapshotUrl=normalizedUrl;
+            snapshotSecret=currentSecret;
+            }
+        final TokenExchange exchange=exchangeToken(snapshotUrl,snapshotSecret,connectTimeoutMs,readTimeoutMs);
+        if(exchange.ok()) {
+            final String header="Bearer "+exchange.grant().getToken();
+            synchronized (configLock) {
+                if(snapshotGen==configGeneration)
+                    cacheGrant(exchange.grant(),snapshotUrl,snapshotSecret);
+                }
+            return new TokenResult(header,snapshotUrl,exchange.code(),"");
+            }
+        final String error="gettoken failed "+exchange.error();
+        if(updateVisibleStatus)
+            uploadstatus=error;
+        Log.e(LOG_ID,error);
+        return new TokenResult("",snapshotUrl,exchange.code(),exchange.error());
+        }
+    }
+
+private static String gettoken(
+        long now,
+        int connectTimeoutMs,
+        int readTimeoutMs,
+        boolean updateVisibleStatus
+) {
+    return getTokenResult(now,connectTimeoutMs,readTimeoutMs,updateVisibleStatus).header();
     }
 
 /**
@@ -397,14 +519,35 @@ private static synchronized String gettoken(
  * from the next 403. The uploader's status line is left alone; the screen reports this itself.
  */
 @Keep
-static public synchronized TokenExchange refreshToken() {
-    expire=0L;
-    token="";
-    final TokenExchange exchange=exchangeToken(UPLOAD_CONNECT_TIMEOUT_MS,UPLOAD_READ_TIMEOUT_MS);
+static public TokenExchange refreshToken() {
+    final TokenExchange exchange;
+    synchronized (tokenExchangeLock) {
+        final long snapshotGen;
+        final String snapshotUrl;
+        final String snapshotSecret;
+        synchronized (configLock) {
+            configGeneration++;
+            expire=0L;
+            token="";
+            tokenUrl="";
+            tokenSecret="";
+            final String currentUrl=Natives.getnightuploadurl();
+            snapshotUrl=currentUrl==null?"":currentUrl;
+            snapshotSecret=Natives.getnightuploadsecret();
+            snapshotGen=configGeneration;
+            }
+        exchange=exchangeToken(snapshotUrl,snapshotSecret,UPLOAD_CONNECT_TIMEOUT_MS,UPLOAD_READ_TIMEOUT_MS);
+        if(exchange.ok()) {
+            synchronized (configLock) {
+                if(snapshotGen==configGeneration)
+                    cacheGrant(exchange.grant(),snapshotUrl,snapshotSecret);
+                }
+            }
+        else
+            Log.e(LOG_ID,"token refresh failed "+exchange.error());
+        }
     if(exchange.ok())
-        cacheGrant(exchange.grant());
-    else
-        Log.e(LOG_ID,"token refresh failed "+exchange.error());
+        JournalTreatmentUploadAccess.onDeleteRetryReset(true);
     return exchange;
     }
 
@@ -421,30 +564,43 @@ static public String getV3AuthorizationHeader() {
     return gettoken(System.currentTimeMillis(),UPLOAD_CONNECT_TIMEOUT_MS,UPLOAD_READ_TIMEOUT_MS,false);
     }
 
-private static synchronized String getCachedToken(long now) {
-    return now<expire ? token : "";
+/**
+ * Authorization header bound to [requestUrl]: returns empty if the configured Nightscout server
+ * changed away from [requestUrl] so a bearer token is never sent to a previous server.
+ */
+@Keep
+static public String getV3AuthorizationHeaderForUrl(String requestUrl) {
+    final TokenResult result=getTokenResult(System.currentTimeMillis(),UPLOAD_CONNECT_TIMEOUT_MS,UPLOAD_READ_TIMEOUT_MS,false);
+    if(result.header().isEmpty())
+        return "";
+    if(!NightscoutTokenGrant.urlMatchesServer(requestUrl,result.serverUrl())) {
+        Log.w(LOG_ID,"aborting v3 auth header: configured Nightscout server changed mid-pass");
+        return "";
+        }
+    return result.header();
     }
 
-/**
- * Forgets the cached token after Nightscout answered it with 401.
- *
- * <p>Nightscout signs its JWTs with a key that a restart can replace (a redeploy or image
- * update regenerates it), and every token it handed out before then is refused from that
- * moment on. This class used to keep sending the refused one until its own expiry, eight
- * hours by default, so a server restart looked like a connection only an app restart could
- * bring back (#716).
- *
- * <p>Only clears the cache while {@code rejected} is still what it holds: requests carrying
- * the same old token run concurrently (device status has its own thread), and the first 401
- * may already have fetched a good replacement. Callers retry once either way, so the later
- * ones pick that replacement up instead of failing the pass.
- */
-private static synchronized void dropRejectedToken(String rejected) {
-    if(rejected==null || rejected.isEmpty() || !rejected.equals(token))
-        return;
-    Log.i(LOG_ID,"Nightscout refused the cached token; exchanging a new one");
-    token="";
-    expire=0L;
+private static TokenResult getCachedTokenResult(long now) {
+    synchronized (configLock) {
+        final String currentUrl=Natives.getnightuploadurl();
+        final String currentSecret=Natives.getnightuploadsecret();
+        final String normalizedUrl=currentUrl==null?"":currentUrl;
+        if(now<expire && !token.isEmpty() && cachedTokenMatchesCurrentCredentials(normalizedUrl,currentSecret))
+            return new TokenResult(token,normalizedUrl,HTTP_OK,"");
+        return new TokenResult("",normalizedUrl,0,"");
+        }
+    }
+
+private static void dropRejectedToken(String rejected) {
+    synchronized (configLock) {
+        if(rejected==null || rejected.isEmpty() || !rejected.equals(token))
+            return;
+        Log.i(LOG_ID,"Nightscout refused the cached token; exchanging a new one");
+        token="";
+        expire=0L;
+        tokenUrl="";
+        tokenSecret="";
+        }
     }
 
 /** For v3 requests made outside this class: the header from {@link #getV3AuthorizationHeader} got a 401. */
@@ -455,25 +611,19 @@ static public void dropRejectedV3AuthorizationHeader(String rejected) {
 
 private static long ancillaryTokenAttemptTime=0L;
 
-/**
- * Token for the ancillary (device-status) path: the cached one when still valid,
- * otherwise at most one fetch per {@link NightscoutIobDeviceStatus#TOKEN_RETRY_MILLIS},
- * quiet on the visible upload status.
- *
- * <p>The fetch does not inherit the caller's device-status timeouts. Those are tight on
- * purpose (a late battery or IOB document is worthless), but a Nightscout instance that
- * has to wake up first would then miss every token request and the cache would stay
- * empty forever, which is the failure this path exists to end. They are still well under
- * the primary uploader's, so a slow auth endpoint cannot park the class lock for a minute.
- */
-private static synchronized String getAncillaryToken(long now) {
-    final String cached=getCachedToken(now);
-    if(!cached.isEmpty())
+private static TokenResult getAncillaryTokenResult(long now) {
+    final TokenResult cached=getCachedTokenResult(now);
+    if(!cached.header().isEmpty())
         return cached;
-    if(!NightscoutIobDeviceStatus.tokenRetryDue(now, ancillaryTokenAttemptTime))
-        return "";
-    ancillaryTokenAttemptTime=now;
-    return gettoken(now,ANCILLARY_TOKEN_CONNECT_TIMEOUT_MS,ANCILLARY_TOKEN_READ_TIMEOUT_MS,false);
+    synchronized (tokenExchangeLock) {
+        final TokenResult rechecked=getCachedTokenResult(now);
+        if(!rechecked.header().isEmpty())
+            return rechecked;
+        if(!NightscoutIobDeviceStatus.tokenRetryDue(now, ancillaryTokenAttemptTime))
+            return new TokenResult("",rechecked.serverUrl(),0,"");
+        ancillaryTokenAttemptTime=now;
+        return getTokenResult(now,ANCILLARY_TOKEN_CONNECT_TIMEOUT_MS,ANCILLARY_TOKEN_READ_TIMEOUT_MS,false);
+        }
     }
 
 private static long uploadtime=System.currentTimeMillis();
@@ -865,11 +1015,16 @@ private static int uploadWithTimeouts(
             // nothing refills it, so device status stayed dead until a manual resend
             // happened to trigger a primary upload. It now fetches a token itself, but
             // throttled: a refusing server is asked once per interval, not per attempt.
-            auth = updateVisibleStatus
-                    ? gettoken(requestTime, connectTimeoutMs, readTimeoutMs, true)
-                    : getAncillaryToken(requestTime);
+            final TokenResult tokenResult = updateVisibleStatus
+                    ? getTokenResult(requestTime, connectTimeoutMs, readTimeoutMs, true)
+                    : getAncillaryTokenResult(requestTime);
+            auth = tokenResult.header();
             if(auth.isEmpty()) {
                 Log.e(LOG_ID,requestKind+" upload skipped: no Nightscout token");
+                return updateVisibleStatus ? -1 : ERROR_NO_TOKEN;
+            }
+            if(!NightscoutTokenGrant.urlMatchesServer(httpurl, tokenResult.serverUrl())) {
+                Log.w(LOG_ID,requestKind+" upload aborted: configured Nightscout server changed");
                 return updateVisibleStatus ? -1 : ERROR_NO_TOKEN;
             }
             urlConnection.setRequestProperty("Authorization", auth);
@@ -933,6 +1088,7 @@ private static    void askclearupload(Context context) {
         builder.setTitle(" ").setMessage(R.string.resendquestion).
            setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
+            JournalTreatmentUploadAccess.onDeleteRetryReset(false);
             Natives.resetuploader();
                     }
                 }) .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
@@ -964,7 +1120,10 @@ public static void  config(MainActivity act, View settingsview) {
     var clear=getbutton(act,R.string.resenddata);
     clear.setOnClickListener(v->  askclearupload(act));
     var wake=getbutton(act,act.getString(R.string.sendnow));
-    wake.setOnClickListener(v-> Natives.wakeuploader());
+    wake.setOnClickListener(v-> {
+        JournalTreatmentUploadAccess.onDeleteRetryReset(false);
+        Natives.wakeuploader();
+    });
     Button help;
     CheckBox treatments=getcheckbox(act,R.string.sendamounts,Natives.getpostTreatments());
     CheckBox sensorStart=getcheckbox(act,R.string.nightscout_upload_sensor_start,getUploadSensorStart());
@@ -1070,7 +1229,11 @@ public static void  config(MainActivity act, View settingsview) {
     save.setOnClickListener(v-> {
             act.poponback();
             closerun.run();
-            setNightUploader(url.getText().toString(),editsecret.getText().toString(),activebox.isChecked(),isWearable?false:v3box.isChecked());
+            final String newUrl=url.getText().toString();
+            final String newSecret=editsecret.getText().toString();
+            final boolean newV3=!isWearable && v3box.isChecked();
+            saveNightUploaderConfig(newUrl,newSecret,activebox.isChecked(),newV3);
+            JournalTreatmentUploadAccess.onDeleteRetryReset(true);
             });
     
     }

@@ -1556,6 +1556,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="nightscout_status_treatments_upload_failing">Kezelések: a küldés sikertelen %1$s óta, utolsó kísérlet %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Kezelések: törlések elutasítva %1$s óta, utolsó kísérlet %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">nincs válasz</string>
+    <string name="nightscout_status_treatments_invalid_config">konfigurációs hiba</string>
+    <string name="nightscout_status_pending_deletes_retry">Függőben lévő törlések: %1$d (következő próba: %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Függőben lévő törlések: %1$d (szüneteltetve — ellenőrizze a Nightscout tokent vagy jogosultságokat)</string>
+    <string name="nightscout_status_pending_deletes_config">Függőben lévő törlések: %1$d (szüneteltetve — ellenőrizze a Nightscout URL-t vagy API-verziót)</string>
+    <string name="nightscout_status_pending_deletes_queued">Függőben lévő törlések: %1$d</string>
     <string name="nightscout_status_iob_no_token">IOB-feltöltés: kihagyva - még nincs Nightscout-token</string>
     <string name="nightscout_status_iob_rejected">IOB-feltöltés: elutasítva (%1$s)</string>
     <string name="nightscout_send_long_insulin">Hosszú hatású inzulin hozzáadása</string>

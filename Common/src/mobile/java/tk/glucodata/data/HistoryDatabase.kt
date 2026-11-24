@@ -65,6 +65,9 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v34 — Nightscout uploads on the way are recorded, and pending Nightscout deletes are
  *         keyed by the document. v33 is taken by the food restore build (#1022) and has the
  *         same two tables as v32, so both step straight here.
+ *   v35 — Pending Nightscout deletes store their target server and capped-backoff retry
+ *         metadata in Room (single source of truth), and in-flight uploads record their
+ *         target server.
  */
 /**
  * The current schema version (plan task H5). The migration tests migrate from the
@@ -72,7 +75,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  * A version bump also needs its exported schema JSON committed — the CI schema
  * check in H1 catches that.
  */
-internal const val HISTORY_DATABASE_VERSION = 34
+internal const val HISTORY_DATABASE_VERSION = 35
 
 @Database(
     entities = [
@@ -768,6 +771,22 @@ abstract class HistoryDatabase : RoomDatabase() {
         }
 
         /**
+         * v34 → v35: Persists server binding and capped-backoff retry metadata directly on the
+         * Room deletion ledger (single source of truth) and binds in-flight uploads to their
+         * originating Nightscout server.
+         */
+        private val MIGRATION_34_35 = object : Migration(34, 35) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN targetServer TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN nextRetryAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN failureKind INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN lastErrorCode INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN lastErrorMessage TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE journal_nightscout_uploads ADD COLUMN targetServer TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        /**
          * The Clone-owned tables and the identity backfills, idempotently. Kept
          * separate from [ensureV30Compatibility] because that one is also what a
          * Clone-less build runs, and it must never start creating tables it does
@@ -858,7 +877,8 @@ abstract class HistoryDatabase : RoomDatabase() {
             MIGRATION_30_31,
             MIGRATION_31_32,
             nightscoutLedgerToV34(32),
-            nightscoutLedgerToV34(33)
+            nightscoutLedgerToV34(33),
+            MIGRATION_34_35
         )
 
         fun getInstance(context: Context): HistoryDatabase =

@@ -1521,6 +1521,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_treatments_upload_failing">Traitements : l’envoi échoue depuis %1$s, dernier essai %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Traitements : suppressions refusées depuis %1$s, dernier essai %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">pas de réponse</string>
+    <string name="nightscout_status_treatments_invalid_config">erreur de configuration</string>
+    <string name="nightscout_status_pending_deletes_retry">Suppressions en attente : %1$d (prochaine tentative %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Suppressions en attente : %1$d (en pause — vérifiez le jeton ou les permissions Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_config">Suppressions en attente : %1$d (en pause — vérifiez l’URL ou la version de l’API Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_queued">Suppressions en attente : %1$d</string>
     <string name="nightscout_status_iob_no_token">Envoi IOB : ignoré - pas encore de jeton Nightscout</string>
     <string name="nightscout_status_iob_rejected">Envoi IOB : refusé (%1$s)</string>
     <string name="nightscout_sync_actions_title">Actions de synchronisation</string>
