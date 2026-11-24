@@ -132,8 +132,26 @@ class ICanHealthTimezoneRepairTests {
     @Test fun unreadableHistoryIsNotTakenForAnEmptyOne() {
         seedLive(0..60)
         roomReadable = false
+        // A native window this old is one an ordinary import slides forward, zeroing the stream.
+        ICanTimezoneRepairNatives.startMs = base - 30L * 24 * 60 * 60_000L
+        ICanTimezoneRepairNatives.stream[base / 1000L - 60L] = 9f
         assertTrue(flush(0..40))
         assertTrue(ICanTimezoneRepairNatives.rebases.isEmpty())
+        assertEquals(setOf(base / 1000L - 60L), ICanTimezoneRepairNatives.stream.keys.toSet())
+        assertFalse(repaired())
+    }
+
+    @Test fun nativeStorageThatRefusesWritesLeavesTheRepairPending() {
+        seedLive(0..60)
+        ICanTimezoneRepairNatives.writesRefused = true
+        assertTrue(flush(0..40))
+        assertFalse(repaired())
+    }
+
+    @Test fun oneRefusedNativeWriteLeavesTheRepairPending() {
+        seedLive(0..60)
+        ICanTimezoneRepairNatives.refusedAt = at(60) / 1000L
+        assertTrue(flush(0..40))
         assertFalse(repaired())
     }
 
@@ -185,13 +203,21 @@ class ICanTimezoneRepairNatives {
         val rebases = mutableListOf<Long>()
         val stream = TreeMap<Long, Float>()
         var rebaseFails = false
+        var writesRefused = false
+        var refusedAt = 0L
+        var startMs = 0L
 
         fun reset() {
             rebases.clear()
             stream.clear()
             rebaseFails = false
+            writesRefused = false
+            refusedAt = 0L
+            startMs = 0L
         }
 
+        @JvmStatic @Implementation fun str2sensorptr(name: String): Long = if (startMs > 0L) 1L else 0L
+        @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(sensorPtr: Long): Long = startMs
         @JvmStatic @Implementation fun __staticInitializer__() {}
         @JvmStatic @Implementation fun rebaseDirectStreamWindow(sensorId: String, startTimeSec: Long) {
             check(!rebaseFails)
@@ -201,6 +227,7 @@ class ICanTimezoneRepairNatives {
         @JvmStatic @Implementation fun addGlucoseStreamWithTemp(
             time: Long, glucose: Float, temperatureC: Float, sensorId: String,
         ): Boolean {
+            if (writesRefused || time == refusedAt) return false
             stream[time] = glucose
             return true
         }

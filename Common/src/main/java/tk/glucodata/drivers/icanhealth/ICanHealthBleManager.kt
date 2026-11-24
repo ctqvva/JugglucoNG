@@ -3954,7 +3954,13 @@ class ICanHealthBleManager(
             val nativeWriteName = resolveExistingNativeSensorName(SerialNumber)
                 ?: nativeCreationSensorName(SerialNumber)
             val newestTimestampSec = ordered.last().timestampMs / 1000L
-            val repairReplay = if (repairing) timezoneRepairNativeReplay(ordered) else null
+            val repairReplay = if (repairing) {
+                // Without the stored readings nothing may touch the stream: even sliding its
+                // window would zero readings this batch cannot put back.
+                timezoneRepairNativeReplay(ordered) ?: return false
+            } else {
+                null
+            }
             val windowStartSec = if (repairReplay != null) {
                 // The native stream holds mirrored ghosts at skewed timestamps that no corrected
                 // record will overwrite, so restart the window. This zeroes the sensor's poll
@@ -3972,23 +3978,30 @@ class ICanHealthBleManager(
             } else {
                 readings
             }
+            // Native storage that cannot be opened refuses the rebase silently and every write with
+            // it, so the writes are what tells whether the stream was really rebuilt.
+            var rejected = 0
             for (record in replayable) {
                 if (record.timestampMs <= 0L) continue
                 val glucoseMgdl = record.glucoseMgdl
                 if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f) continue
-                Natives.addGlucoseStreamWithTemp(
+                val written = Natives.addGlucoseStreamWithTemp(
                     record.timestampMs / 1000L,
                     glucoseMgdl / 10f,
                     record.temperatureC,
                     nativeWriteName
                 )
+                if (!written) rejected++
+            }
+            if (rejected > 0) {
+                Log.w(TAG, "Native mirror refused $rejected of ${replayable.size} reading(s) for $nativeWriteName")
             }
             applyNativeSensorMetadata()
             if (nativeWriteName.isNotBlank()) {
                 adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
             }
             Natives.wakehereonly()
-            !repairing || repairReplay != null
+            rejected == 0
         }.onFailure {
             Log.stack(TAG, "mirrorHistoryBatchIntoNative", it)
         }.getOrDefault(false)
