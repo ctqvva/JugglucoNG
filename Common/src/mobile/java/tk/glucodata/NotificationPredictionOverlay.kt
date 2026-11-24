@@ -50,7 +50,7 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
         revision = { JournalSnapshotAccess.revision },
         clock = System::currentTimeMillis,
         onMissedLoadReady = JournalSnapshotAccess::noteForecastJournalReady,
-        load = { start, end ->
+        loadJournal = { start, end ->
             val repository = JournalRepository()
             PredictionJournal(
                 entries = repository.getEntriesBetweenSnapshot(start, end),
