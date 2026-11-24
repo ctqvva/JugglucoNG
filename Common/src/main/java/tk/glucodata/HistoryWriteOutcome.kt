@@ -8,7 +8,7 @@ package tk.glucodata
  * must wait for one of the final outcomes.
  */
 enum class HistoryWriteOutcome {
-    /** Accepted and waiting. The listener hears the final outcome; every other value is final. */
+    /** Accepted, safe from the process dying, and waiting. The listener hears the final outcome; every other value is final. */
     QUEUED,
 
     /** In the database (or replaced there by a newer write of the same minute). */
@@ -17,7 +17,7 @@ enum class HistoryWriteOutcome {
     /** Nothing to write: no usable reading, readings the user deleted, or a device that keeps no Room history. */
     SKIPPED,
 
-    /** Not stored, and not retried any more. The readings have to be fetched again. */
+    /** Not stored, and nothing promises that they will be. The readings have to be fetched again. */
     FAILED,
 }
 

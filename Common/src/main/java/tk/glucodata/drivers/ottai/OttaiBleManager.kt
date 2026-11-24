@@ -1174,12 +1174,12 @@ class OttaiBleManager(
     @Volatile private var historyChainStart = -1
     // Guards the whole history chunk chain: the window in flight (historyWindow) and the
     // pending range above. Every chain transition takes it, start to finish. Both threads drive
-    // the chain: the BLE binder thread marks records and completes or abandons windows
-    // (onCharacteristicChanged calls handleGlucosePayload with no handler hop) and starts new
-    // chains from the live path (requestRoomBackfillAfterLive -> requestHistoryRange), while
-    // the handler runs the chunk chain, the watchdog and the hole retry. Checking a field and
-    // acting on it in separate steps let one thread act on a window the other had already
-    // closed or replaced. Taken before historyHolesLock, never while holding it. Only
+    // the chain: the BLE binder thread starts new chains from the live path
+    // (requestRoomBackfillAfterLive -> requestHistoryRange; onCharacteristicChanged calls
+    // handleGlucosePayload with no handler hop), while the handler marks records, completes or
+    // abandons windows (finishHistoryFrame) and runs the chunk chain, the watchdog and the hole
+    // retry. Checking a field and acting on it in separate steps let one thread act on a window
+    // the other had already closed or replaced. Taken before historyHolesLock, never while holding it. Only
     // non-blocking work happens under it: GATT writes are queued, prefs are applied async, and
     // the Room diff that decides what to request runs before the lock is taken.
     private val historyChainLock = Any()
@@ -3392,11 +3392,47 @@ class OttaiBleManager(
      * chunk. Record the miss first: a detected-gap window stays on the hole ledger until its data
      * arrives or the attempt cap retires it (truly-empty overshoot ranges).
      */
-    private fun abandonHistoryWindow() = synchronized(historyChainLock) {
+    private fun abandonHistoryWindow() {
         val window = historyWindow ?: return
-        cancelHistoryWatchdog()
-        settleHistoryWindow(window)
-        advanceHistoryChunkChain()
+        // After the frames that arrived before this one; see finishHistoryFrame.
+        handler.post {
+            synchronized(historyChainLock) {
+                if (historyWindow !== window) return@post
+                cancelHistoryWatchdog()
+                settleHistoryWindow(window)
+                advanceHistoryChunkChain()
+            }
+        }
+    }
+
+    /**
+     * Stores the records of one history frame, then does the window's books with them. On the
+     * handler, in arrival order: handing records to the store writes a file, which the BLE
+     * callback must not wait for.
+     */
+    private fun finishHistoryFrame(readings: List<EmittedReading>, frame: HistoryFrameStates, receivedAtMs: Long) {
+        if (readings.isEmpty()) {
+            continueHistoryAfterPayload(frame)
+            return
+        }
+        var settled = frame
+        if (!storeDecodedReadings(readings, live = false)) {
+            // Not safely taken by the store: the window must not close over these as delivered.
+            val refused = readings.mapTo(HashSet()) { it.dataNo }
+            settled = HistoryFrameStates(frame.arrived, frame.settled.filterNot { it in refused })
+        }
+        readings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
+        if (!continueHistoryAfterPayload(settled)) {
+            // History can arrive in a long burst and still end several minutes behind
+            // wall time. Ask live immediately afterwards on a one-shot that cgm-info
+            // cadence updates cannot cancel — unless live is already current, which the
+            // room-backfill caller makes the common case.
+            if (shouldReadLiveAfterHistory(receivedAtMs, lastLiveFrameAtMs)) {
+                handler.removeCallbacks(postHistoryLiveRunnable)
+                handler.postDelayed(postHistoryLiveRunnable, 1_000L)
+            }
+        }
+        UiRefreshBus.requestStatusRefresh()
     }
 
     private fun handleGlucosePayload(cipher: ByteArray, live: Boolean, source: String) {
@@ -3497,47 +3533,33 @@ class OttaiBleManager(
         }
         // Every plausible record that is not settled arrived and is deferred; see RECORD_DEFERRED.
         val historyStates = settledDataNos?.let { HistoryFrameStates(plausible.map { r -> r.record.dataNo }, it) }
+        if (historyStates != null) {
+            handler.post { finishHistoryFrame(emittedReadings, historyStates, receivedAtMs) }
+            return
+        }
         if (emittedReadings.isNotEmpty()) {
-            if (!storeDecodedReadings(emittedReadings, live)) {
-                // Not taken by the store: the window must not close over these as delivered.
-                settledDataNos?.removeAll(emittedReadings.mapTo(HashSet()) { it.dataNo })
-            }
+            storeDecodedReadings(emittedReadings, live = true)
             emittedReadings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
-            if (live) {
-                resumeDeferredHoleRetry()
-                scheduleLivePoll()
-                val liveDataNo = lastDataNo
-                val previousForHistory = previousDataNoForHistory(previousDataNo, liveDataNo)
-                if (previousForHistory != previousDataNo) {
-                    Log.w(TAG, "ignore ahead previous dataNo for history previous=$previousDataNo live=$liveDataNo")
-                }
-                // A live sample arrived — the live path owns the backfill now; drop the
-                // independent backstop so the two don't both issue (which would wipe and restart
-                // the in-flight chunk chain via clearPendingHistoryRange).
-                handler.removeCallbacks(initialHistoryRunnable)
-                ledgerLiveGap(previousForHistory, liveDataNo)
-                val backfill = requestRoomBackfillAfterLive(liveDataNo, previousForHistory)
-                if (!backfill.issued && !backfill.diffOwnsRecovery && !roomBackfillChecked) {
-                    val missingBeforeLive = liveDataNo - previousForHistory - 1
-                    if (previousForHistory < 0 || missingBeforeLive > 0) {
-                        handler.postDelayed({ requestHistoryAfterLive(previousForHistory, liveDataNo) }, 1_500L)
-                    }
-                }
-            } else {
-                if (!continueHistoryAfterPayload(historyStates!!)) {
-                    // History can arrive in a long burst and still end several minutes behind
-                    // wall time. Ask live immediately afterwards on a one-shot that cgm-info
-                    // cadence updates cannot cancel — unless live is already current, which the
-                    // room-backfill caller makes the common case.
-                    if (shouldReadLiveAfterHistory(receivedAtMs, lastLiveFrameAtMs)) {
-                        handler.removeCallbacks(postHistoryLiveRunnable)
-                        handler.postDelayed(postHistoryLiveRunnable, 1_000L)
-                    }
+            resumeDeferredHoleRetry()
+            scheduleLivePoll()
+            val liveDataNo = lastDataNo
+            val previousForHistory = previousDataNoForHistory(previousDataNo, liveDataNo)
+            if (previousForHistory != previousDataNo) {
+                Log.w(TAG, "ignore ahead previous dataNo for history previous=$previousDataNo live=$liveDataNo")
+            }
+            // A live sample arrived — the live path owns the backfill now; drop the
+            // independent backstop so the two don't both issue (which would wipe and restart
+            // the in-flight chunk chain via clearPendingHistoryRange).
+            handler.removeCallbacks(initialHistoryRunnable)
+            ledgerLiveGap(previousForHistory, liveDataNo)
+            val backfill = requestRoomBackfillAfterLive(liveDataNo, previousForHistory)
+            if (!backfill.issued && !backfill.diffOwnsRecovery && !roomBackfillChecked) {
+                val missingBeforeLive = liveDataNo - previousForHistory - 1
+                if (previousForHistory < 0 || missingBeforeLive > 0) {
+                    handler.postDelayed({ requestHistoryAfterLive(previousForHistory, liveDataNo) }, 1_500L)
                 }
             }
             UiRefreshBus.requestStatusRefresh()
-        } else if (!live) {
-            continueHistoryAfterPayload(historyStates!!)
         }
     }
 

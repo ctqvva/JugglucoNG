@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -82,12 +83,13 @@ internal class HistoryBatchWriter(
     private val queues = HashMap<String, SensorQueue>()
     private var journal: HistoryBatchJournal? = null
     private var journalStale = false
-    private var lastTicket = 0L
+    @Volatile private var lastTicket = 0L
 
     /**
-     * Accepts [readings], all of [sensorSerial]. They are in the journal when this
-     * returns, so a caller may move its own cursor past them; only [listener] says
-     * they are stored.
+     * Takes [readings], all of [sensorSerial]. With [HistoryWriteOutcome.QUEUED] they are in
+     * the journal, so a caller may move its own cursor past them; only [listener] says they
+     * are stored. [HistoryWriteOutcome.FAILED] means they could not be journaled: they are
+     * still written if this process lives to do it, but the caller must not count on that.
      */
     fun submit(
         sensorSerial: String,
@@ -97,11 +99,12 @@ internal class HistoryBatchWriter(
         val batch = HistoryBucketReplacement.collapseReadings(readings, MINUTE_MS)
         if (sensorSerial.isBlank() || batch.isEmpty()) return HistoryWriteOutcome.SKIPPED
         val settled = Settlements()
+        val journaled: Boolean
         synchronized(lock) {
             openJournalLocked()
             val ticket = ++lastTicket
-            val ack = listener?.let(::Ack)
-            journalLocked(batch)
+            journaled = journalLocked(batch)
+            val ack = listener?.takeIf { journaled }?.let(::Ack)
             val queue = queues.getOrPut(sensorSerial) { SensorQueue() }
             for (reading in batch) {
                 ack?.let { it.open++ }
@@ -116,7 +119,7 @@ internal class HistoryBatchWriter(
             ensureWorkerLocked(sensorSerial, queue)
         }
         settled.announceLater()
-        return HistoryWriteOutcome.QUEUED
+        return if (journaled) HistoryWriteOutcome.QUEUED else HistoryWriteOutcome.FAILED
     }
 
     /** Picks up what an earlier process accepted and did not store. */
@@ -125,11 +128,9 @@ internal class HistoryBatchWriter(
     /**
      * A point in the submission order. A direct write takes it when it is asked for,
      * before it waits for anything, and hands it to [supersede] once it has committed.
+     * Cheap: live readings take it on the Bluetooth callback.
      */
-    fun ticket(): Long = synchronized(lock) {
-        openJournalLocked()
-        lastTicket
-    }
+    fun ticket(): Long = lastTicket
 
     /** Runs a direct write (or delete) with no queued write running. Not reentrant, and never inside a transaction. */
     suspend fun <T> exclusive(block: suspend () -> T): T = writeOrder.withLock { block() }
@@ -141,6 +142,7 @@ internal class HistoryBatchWriter(
     fun supersede(sensorSerial: String, timestamps: Collection<Long>, ticket: Long, retainedOnly: Boolean = false) {
         val settled = Settlements()
         synchronized(lock) {
+            openJournalLocked()
             val queue = queues[sensorSerial]?.takeIf { it.entries.isNotEmpty() } ?: return
             for (timestamp in timestamps) {
                 val minute = timestamp / MINUTE_MS
@@ -165,6 +167,7 @@ internal class HistoryBatchWriter(
     ) {
         val settled = Settlements()
         synchronized(lock) {
+            openJournalLocked()
             for ((serial, queue) in queues) {
                 if (sensorSerials != null && serial !in sensorSerials) continue
                 val entries = queue.entries.values.iterator()
@@ -180,9 +183,18 @@ internal class HistoryBatchWriter(
         settled.announceLater()
     }
 
+    /** The readings submitted up to [ticket] that are still waiting. */
+    fun waiting(ticket: Long): List<HistoryReading> = synchronized(lock) {
+        openJournalLocked()
+        queues.values.flatMap { queue -> queue.entries.values.filter { it.ticket <= ticket }.map { it.reading } }
+    }
+
     /** Tries every waiting reading once, now. Not inside [exclusive]. */
     suspend fun flushPending() {
-        val sensors = synchronized(lock) { queues.entries.map { it.key to it.value } }
+        val sensors = synchronized(lock) {
+            openJournalLocked()
+            queues.entries.map { it.key to it.value }
+        }
         for ((serial, queue) in sensors) flushRound(serial, queue)
     }
 
@@ -199,63 +211,67 @@ internal class HistoryBatchWriter(
 
     private suspend fun drain(sensorSerial: String, queue: SensorQueue) {
         while (true) {
-            val waitMs = synchronized(lock) {
+            val failures: Int
+            val full: Boolean
+            synchronized(lock) {
                 if (queue.entries.isEmpty()) {
                     queue.worker = null
                     return
                 }
-                when {
-                    queue.failures > 0 -> retryDelaysMs[(queue.failures - 1).coerceAtMost(retryDelaysMs.lastIndex)]
-                    queue.entries.size >= maxBuffered -> 0L
-                    else -> coalesceMs
-                }
+                failures = queue.failures
+                full = queue.entries.size >= maxBuffered
             }
-            withTimeoutOrNull(waitMs) { queue.nudge.receive() }
+            when {
+                // Not cut short by traffic, nor by a nudge from before the write failed.
+                failures > 0 -> delay(retryDelaysMs[(failures - 1).coerceAtMost(retryDelaysMs.lastIndex)])
+                !full -> withTimeoutOrNull(coalesceMs) { queue.nudge.receive() }
+            }
             flushRound(sensorSerial, queue)
         }
     }
 
     /** Writes what was waiting when it was called, stopping at the first failed write. */
     private suspend fun flushRound(sensorSerial: String, queue: SensorQueue) {
-        val until = synchronized(lock) { lastTicket }
-        try {
-            while (true) {
-                val settled = Settlements()
-                val stored = writeOrder.withLock {
-                    // Chosen only once the write may start, so it cannot include a reading
-                    // a direct write replaced or deleted in the meantime.
-                    val chunk = synchronized(lock) { nextChunkLocked(queue, until) }
-                    if (chunk.isEmpty()) return
-                    val stored = try {
-                        store(sensorSerial, chunk.map { it.reading })
-                    } catch (e: CancellationException) {
-                        // Cancelled ourselves: the readings stay where they are. Otherwise it
-                        // was only the write that was cancelled, and that has failed.
-                        currentCoroutineContext().ensureActive()
-                        Log.stack(TAG, "store", e)
-                        Stored(HistoryRepository.BucketReplaceOutcome.FAILED)
-                    } catch (e: Exception) {
-                        Log.stack(TAG, "store", e)
-                        Stored(HistoryRepository.BucketReplaceOutcome.FAILED)
-                    }
-                    synchronized(lock) { settleLocked(sensorSerial, queue, chunk, stored.outcome, settled) }
-                    stored
+        val until = lastTicket
+        while (true) {
+            val settled = Settlements()
+            val stored = writeOrder.withLock {
+                // Chosen only once the write may start, so it cannot include a reading
+                // a direct write replaced or deleted in the meantime.
+                val chunk = synchronized(lock) { nextChunkLocked(queue, until) }
+                if (chunk.isEmpty()) return
+                val stored = try {
+                    store(sensorSerial, chunk.map { it.reading })
+                } catch (e: CancellationException) {
+                    // Cancelled ourselves: the readings stay where they are. Otherwise it
+                    // was only the write that was cancelled, and that has failed.
+                    currentCoroutineContext().ensureActive()
+                    Log.stack(TAG, "store", e)
+                    Stored(HistoryRepository.BucketReplaceOutcome.FAILED)
+                } catch (e: Exception) {
+                    Log.stack(TAG, "store", e)
+                    Stored(HistoryRepository.BucketReplaceOutcome.FAILED)
                 }
-                settled.announce()
-                if (stored.outcome == HistoryRepository.BucketReplaceOutcome.STORED) {
-                    // The rows are in the table whatever happens here.
-                    try {
-                        onStored(stored)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Log.stack(TAG, "onStored", e)
-                    }
+                synchronized(lock) {
+                    settleLocked(sensorSerial, queue, chunk, stored.outcome, settled)
+                    // Before the next write of any kind: what was just stored may be
+                    // replaced by it, and must not come back from here after a restart.
+                    if (journalStale) syncJournalLocked()
                 }
-                if (stored.outcome == HistoryRepository.BucketReplaceOutcome.FAILED) return
+                stored
             }
-        } finally {
-            synchronized(lock) { if (journalStale) syncJournalLocked() }
+            settled.announce()
+            if (stored.outcome == HistoryRepository.BucketReplaceOutcome.STORED) {
+                // The rows are in the table whatever happens here.
+                try {
+                    onStored(stored)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.stack(TAG, "onStored", e)
+                }
+            }
+            if (stored.outcome == HistoryRepository.BucketReplaceOutcome.FAILED) return
         }
     }
 
@@ -327,7 +343,6 @@ internal class HistoryBatchWriter(
             return
         }
         Log.i(TAG, "resuming ${recovered.size} history readings an earlier run did not store")
-        val ticket = ++lastTicket
         for ((serial, readings) in recovered.groupBy { it.sensorSerial }) {
             val queue = queues.getOrPut(serial) { SensorQueue() }
             // In file order, so the latest submission of a minute wins here too.
@@ -338,19 +353,18 @@ internal class HistoryBatchWriter(
             }
             for ((minute, reading) in latest) {
                 if (minute !in queue.entries) {
-                    queue.entries[minute] = Entry(reading, ticket, emptyList(), recovered = true)
+                    queue.entries[minute] = Entry(reading, RECOVERED_TICKET, emptyList(), recovered = true)
                 }
             }
             ensureWorkerLocked(serial, queue)
         }
     }
 
-    private fun journalLocked(readings: List<HistoryReading>) {
-        val journal = journal ?: return
-        if (!journal.append(readings)) {
-            journalStale = true
-            Log.w(TAG, "${readings.size} history readings are only held in memory until they are stored")
-        }
+    private fun journalLocked(readings: List<HistoryReading>): Boolean {
+        if (journal?.append(readings) == true) return true
+        journalStale = true
+        Log.w(TAG, "${readings.size} history readings are only held in memory until they are stored")
+        return false
     }
 
     /** Resubmitting minutes that cannot be written must not grow the file without end. */
@@ -409,6 +423,9 @@ internal class HistoryBatchWriter(
         private const val MINUTE_MS = 60_000L
         private const val WRITE_CHUNK = 1_000
         private const val JOURNAL_SLACK_LINES = 4_000
+
+        /** Older than anything this process does, however late the journal is opened. */
+        private const val RECOVERED_TICKET = 0L
 
         val DEFAULT_RETRY_DELAYS_MS = longArrayOf(1_000L, 5_000L, 15_000L, 60_000L, 300_000L)
 

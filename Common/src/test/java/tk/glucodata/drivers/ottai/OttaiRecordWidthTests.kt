@@ -160,6 +160,8 @@ class OttaiRecordWidthTests {
         OttaiBleManager::class.java.getDeclaredMethod("handleGlucosePayload", ByteArray::class.java,
             Boolean::class.javaPrimitiveType, String::class.java).apply { isAccessible = true }
             .invoke(manager, OttaiCrypto.encryptPayload(payload, key)!!, live, source)
+        // A history frame is stored and settled on the driver's handler.
+        org.robolectric.Shadows.shadowOf((get("handler") as android.os.Handler).looper).idle()
     }
     private fun notify(payload: ByteArray) = notifyCipher(OttaiCrypto.encryptPayload(payload, key)!!)
     private fun notifyCipher(cipher: ByteArray) {

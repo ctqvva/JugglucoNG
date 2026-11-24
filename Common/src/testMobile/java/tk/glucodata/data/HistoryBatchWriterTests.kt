@@ -80,6 +80,8 @@ class HistoryBatchWriterTests {
         retryDelaysMs: LongArray = longArrayOf(10L),
         maxAttempts: Int = 1_000,
         maxRetained: Int = 45_000,
+        maxBuffered: Int = 512,
+        onStored: suspend (HistoryBatchWriter.Stored) -> Unit = {},
         store: suspend (String, List<HistoryReading>) -> HistoryBatchWriter.Stored = ::storeInRoom,
     ) = HistoryBatchWriter(
         scope = scope,
@@ -88,8 +90,9 @@ class HistoryBatchWriterTests {
         retryDelaysMs = retryDelaysMs,
         maxAttempts = maxAttempts,
         maxRetainedPerSensor = maxRetained,
+        maxBuffered = maxBuffered,
         store = store,
-        onStored = {},
+        onStored = onStored,
     )
 
     private suspend fun storeInRoom(sensor: String, readings: List<HistoryReading>): HistoryBatchWriter.Stored {
@@ -173,6 +176,25 @@ class HistoryBatchWriterTests {
         Thread.sleep(150L)
         assertEquals("traffic does not turn the back-off into a spin", 1, attempts.get())
         assertEquals(51, writer.pendingCount(serial))
+    }
+
+    @Test
+    fun trafficDuringAFailingWriteDoesNotSkipTheBackOff() {
+        val writing = CompletableDeferred<Unit>()
+        val proceed = CompletableDeferred<Unit>()
+        val writer = writer(retryDelaysMs = longArrayOf(60_000L), maxBuffered = 2, store = { _, _ ->
+            attempts.incrementAndGet()
+            writing.complete(Unit)
+            proceed.await()
+            HistoryBatchWriter.Stored(BucketReplaceOutcome.FAILED)
+        })
+        writer.submit(serial, listOf(reading(0)))
+        runBlocking { writing.await() }
+        // Enough to ask for an immediate write, while this one is still going to fail.
+        writer.submit(serial, listOf(reading(1), reading(2), reading(3)))
+        proceed.complete(Unit)
+        Thread.sleep(200L)
+        assertEquals(1, attempts.get())
     }
 
     @Test
@@ -382,6 +404,28 @@ class HistoryBatchWriterTests {
     }
 
     @Test
+    fun clearingTombstonesWhatCouldNotBeWritten() {
+        databaseBroken = true
+        val writer = writer()
+        writer.submit(serial, listOf(reading(0)))
+        runBlocking {
+            val ticket = writer.ticket()
+            writer.flushPending()
+            writer.exclusive {
+                database.clearHistoryRows(ClearScope.READINGS, writer.waiting(ticket))
+                writer.discard(sensorSerials = null, ticket = ticket)
+            }
+        }
+        databaseBroken = false
+        // The sensor sends it again.
+        val outcomes = CopyOnWriteArrayList<HistoryWriteOutcome>()
+        writer.submit(serial, listOf(reading(0)), outcomes::add)
+        eventually("settled") { outcomes.isNotEmpty() }
+        assertEquals(listOf(HistoryWriteOutcome.SKIPPED), outcomes.toList())
+        assertTrue(rows().isEmpty())
+    }
+
+    @Test
     fun nothingUsableIsSkippedAtOnce() {
         val writer = writer()
         assertEquals(HistoryWriteOutcome.SKIPPED, writer.submit(serial, emptyList()) { error("already final") })
@@ -463,6 +507,103 @@ class HistoryBatchWriterTests {
         writer().resume()
         eventually("the stuck one is stored") { rows("X-STUCK").isNotEmpty() }
         assertEquals(mapOf(0 to 222f), rows())
+    }
+
+    @Test
+    fun aBatchThatCannotBeJournaledIsNotAccepted() {
+        databaseBroken = true
+        // A directory where the file should be: every append fails.
+        assertTrue(journalFile.mkdirs())
+        val scope = newScope()
+        val writer = writer(scope)
+        assertEquals(
+            HistoryWriteOutcome.FAILED,
+            writer.submit(serial, listOf(reading(0))) { error("already final") },
+        )
+        // Not promised, but not thrown away either.
+        databaseBroken = false
+        eventually("stored anyway") { rows() == mapOf(0 to 100f) }
+    }
+
+    @Test
+    fun aRefusedBatchDoesNotDisturbTheJournaledOneItReplaces() {
+        databaseBroken = true
+        val scope = newScope()
+        val writer = writer(scope, retryDelaysMs = longArrayOf(60_000L))
+        assertEquals(HistoryWriteOutcome.QUEUED, writer.submit(serial, listOf(reading(0, 111f))))
+        val kept = journalFile.readText()
+        journalFile.setReadOnly()
+        val refused = writer.submit(serial, listOf(reading(0, 222f)))
+        journalFile.setWritable(true)
+        scope.cancel()
+        assertEquals(HistoryWriteOutcome.FAILED, refused)
+        assertEquals(kept, journalFile.readText())
+
+        databaseBroken = false
+        writer().resume()
+        eventually("the accepted one survives") { rows() == mapOf(0 to 111f) }
+    }
+
+    @Test
+    fun whatIsStoredLeavesTheJournalBeforeAnyOtherWriteCanRun() {
+        val forwarding = CompletableDeferred<Unit>()
+        val scope = newScope()
+        val writer = writer(scope, onStored = {
+            forwarding.complete(Unit)
+            CompletableDeferred<Unit>().await() // forwarding to the exchanges takes its time
+        })
+        writer.submit(serial, listOf(reading(0, 111f)))
+        runBlocking {
+            forwarding.await()
+            assertFalse("gone while the outputs are still being served", journalFile.exists())
+            val ticket = writer.ticket()
+            writer.exclusive {
+                repository.writeBuckets(serial, listOf(reading(0, 222f)), 60_000L)
+                writer.supersede(serial, listOf(reading(0).timestamp), ticket)
+            }
+        }
+        scope.cancel() // the process dies here
+        val restarted = writer()
+        restarted.resume()
+        runBlocking { restarted.flushPending() }
+        assertEquals(mapOf(0 to 222f), rows())
+    }
+
+    @Test
+    fun aDirectWriteBeforeTheJournalIsOpenedStillOutranksIt() {
+        databaseBroken = true
+        val scope = newScope()
+        writer(scope).submit(serial, listOf(reading(0, 111f)))
+        scope.cancel()
+        databaseBroken = false
+        val restarted = writer()
+        runBlocking {
+            val ticket = restarted.ticket()
+            restarted.exclusive {
+                repository.writeBuckets(serial, listOf(reading(0, 222f)), 60_000L)
+                restarted.supersede(serial, listOf(reading(0).timestamp), ticket, retainedOnly = true)
+            }
+            restarted.flushPending()
+        }
+        assertEquals(mapOf(0 to 222f), rows())
+    }
+
+    @Test
+    fun aLineCutShortDoesNotSwallowTheNextBatch() {
+        databaseBroken = true
+        val first = newScope()
+        writer(first).submit(serial, listOf(reading(0), reading(1)))
+        first.cancel()
+        journalFile.writeText(journalFile.readText().dropLast(6))
+
+        // The next process accepts a batch and dies as well before it stores anything.
+        val second = newScope()
+        writer(second, retryDelaysMs = longArrayOf(60_000L)).submit(serial, listOf(reading(5), reading(6)))
+        second.cancel()
+
+        databaseBroken = false
+        writer().resume()
+        eventually("only the torn line is gone") { rows().keys == setOf(0, 5, 6) }
     }
 
     @Test

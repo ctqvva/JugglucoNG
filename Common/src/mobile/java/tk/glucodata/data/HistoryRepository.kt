@@ -439,15 +439,16 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         /**
          * Runs [clear], which empties the readings, so that batches accepted before it do not
          * bring readings back: they are written first, to be cleared and tombstoned with the
-         * rest, and what still cannot be written is dropped. Nothing is dropped if [clear] fails.
+         * rest. [clear] is given what still could not be written, to tombstone it as well, and
+         * once it has succeeded that is dropped. Nothing is dropped if [clear] fails.
          *
          * Not inside a transaction: [clear] opens its own, after the queued writes are held.
          */
-        suspend fun <T> clearingPendingWrites(clear: suspend () -> T): T {
+        suspend fun <T> clearingPendingWrites(clear: suspend (unwritten: List<HistoryReading>) -> T): T {
             val ticket = batchWriter.ticket()
             batchWriter.flushPending()
             return batchWriter.exclusive {
-                clear().also { batchWriter.discard(sensorSerials = null, ticket = ticket) }
+                clear(batchWriter.waiting(ticket)).also { batchWriter.discard(sensorSerials = null, ticket = ticket) }
             }
         }
 
@@ -2273,12 +2274,19 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * Does not ask the UI to refresh; the caller does, once it has cleared whatever else it is
      * clearing.
      *
+     * @param unwritten readings that were accepted but have no row yet; tombstoned like the rest
      * @return how many readings were removed
      */
-    suspend fun clearAllReadings(): Int = withContext(Dispatchers.IO) {
+    suspend fun clearAllReadings(unwritten: List<HistoryReading> = emptyList()): Int = withContext(Dispatchers.IO) {
         val removed = database.withTransaction {
             val count = dao.getCount()
-            dao.tombstoneAllReadings(System.currentTimeMillis())
+            val deletedAt = System.currentTimeMillis()
+            dao.tombstoneAllReadings(deletedAt)
+            if (unwritten.isNotEmpty()) {
+                dao.insertDeletedReadings(
+                    unwritten.map { DeletedHistoryReading(it.timestamp, it.sensorSerial, deletedAt) }
+                )
+            }
             displayDao.deleteAll()
             uncertaintyDao.deleteAll()
             dao.deleteAllReadings()

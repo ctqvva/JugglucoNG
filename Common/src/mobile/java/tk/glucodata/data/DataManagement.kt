@@ -50,7 +50,9 @@ object DataManagement {
                     database.clearHistoryRows(scope)
                 } else {
                     HistorySync.catchUpThen {
-                        HistoryRepository.clearingPendingWrites { database.clearHistoryRows(scope) }
+                        HistoryRepository.clearingPendingWrites { unwritten ->
+                            database.clearHistoryRows(scope, unwritten)
+                        }
                     }
                 }
                 deletedJournal?.let { JournalRepository().announceDeletion(it) }
@@ -107,10 +109,13 @@ object DataManagement {
  * @return what the journal clear removed, for [JournalRepository.announceDeletion] to pass on once
  * this has committed; `null` when the journal was not part of [scope]
  */
-internal suspend fun HistoryDatabase.clearHistoryRows(scope: ClearScope): DeletedJournalEntries? =
+internal suspend fun HistoryDatabase.clearHistoryRows(
+    scope: ClearScope,
+    unwritten: List<HistoryReading> = emptyList(),
+): DeletedJournalEntries? =
     withTransaction {
         if (scope != ClearScope.JOURNAL) {
-            HistoryRepository(this@clearHistoryRows).clearAllReadings()
+            HistoryRepository(this@clearHistoryRows).clearAllReadings(unwritten)
         }
         if (scope != ClearScope.READINGS) deleteAllJournalEntries() else null
     }

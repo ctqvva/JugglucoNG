@@ -152,7 +152,7 @@ class HistoryBatchAcknowledgementTests {
     @Test
     fun clearingTheHistoryAlsoClearsWhatIsStillQueued() = runBlocking {
         HistorySyncAccess.storeSensorHistoryBatchAsync(serial, times(0), values(1, 111f), FloatArray(1))
-        HistoryRepository.clearingPendingWrites { database.clearHistoryRows(ClearScope.READINGS) }
+        HistoryRepository.clearingPendingWrites { database.clearHistoryRows(ClearScope.READINGS, it) }
         HistoryRepository.batchWriter.flushPending()
         assertTrue(stored().isEmpty())
         // Tombstoned with the rest, so the sensor sending it again changes nothing.

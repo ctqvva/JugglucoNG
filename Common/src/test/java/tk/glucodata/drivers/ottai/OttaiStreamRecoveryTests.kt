@@ -449,10 +449,33 @@ class OttaiStreamRecoveryTests {
         assertTrue(holes().isEmpty())
     }
 
+    private fun finishFrame(vararg dataNos: Int) {
+        set("streamStartTimeMs", oldStart)
+        val batch = dataNos.map(::reading)
+        val emitted = batch.mapIndexed { i, r -> invoke("emitReading", r, false, r.monitorTimeMs, batch, i, false)!! }
+        val states = OttaiBleManager::class.java.declaredClasses.single { it.simpleName == "HistoryFrameStates" }
+            .declaredConstructors.first { it.parameterCount == 2 }.apply { isAccessible = true }
+            .newInstance(dataNos.toList(), dataNos.toList())
+        invoke("finishHistoryFrame", emitted, states, System.currentTimeMillis())
+    }
+
     @Test
-    fun aSubmissionTheStoreRefusedIsReportedToTheWindow() {
+    fun aWindowClosesOverTheRecordsTheStoreTook() {
+        holes() += OttaiBleManager.HistoryHole(100, 102, 0)
+        inFlight(100, 102)
+        finishFrame(100, 101)
+        assertNull(get("historyWindow"))
+        assertTrue(holes().isEmpty())
+    }
+
+    @Test
+    fun aWindowDoesNotCloseOverRecordsTheStoreRefused() {
         submission = HistoryWriteOutcome.FAILED
-        assertEquals(false, storeHistory(100, 101))
+        holes() += OttaiBleManager.HistoryHole(100, 102, 0)
+        inFlight(100, 102)
+        finishFrame(100, 101)
+        assertNull(get("historyWindow"))
+        assertEquals(listOf(OttaiBleManager.HistoryHole(100, 102, 1)), holes())
     }
 
     private fun liveEmission(r: OttaiReading, arrival: Long): Triple<Long, Boolean, Boolean> {

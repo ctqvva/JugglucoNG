@@ -312,7 +312,7 @@ object HistorySyncAccess {
 
     /**
      * Queues a batch. True says it was accepted (it is written even if this process dies
-     * first), not that it is stored; a caller that keeps track of which readings it still
+     * first), not that it is stored, and false that it may be lost with the process; a caller that keeps track of which readings it still
      * has to fetch uses [submitSensorHistoryBatch].
      */
     @JvmStatic

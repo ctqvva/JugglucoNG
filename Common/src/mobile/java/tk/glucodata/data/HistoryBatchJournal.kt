@@ -26,10 +26,15 @@ internal class HistoryBatchJournal(private val file: File) {
     var lineCount = 0
         private set
 
+    /** The file ends in a line cut short; what follows must not be glued to it. */
+    private var tornTail = false
+
     fun load(): List<HistoryReading> {
         if (!file.exists()) return emptyList()
         return try {
-            val lines = file.readLines(Charsets.UTF_8)
+            val text = file.readText(Charsets.UTF_8)
+            tornTail = text.isNotEmpty() && !text.endsWith('\n')
+            val lines = text.lines().filter { it.isNotEmpty() }
             lineCount = lines.size
             val readings = lines.mapNotNull(::decode)
             if (readings.size != lines.size) {
@@ -42,19 +47,21 @@ internal class HistoryBatchJournal(private val file: File) {
         }
     }
 
-    /** False when the readings could not be written; the file is then as it was before. */
+    /** False when the readings could not be written; those already in the file still are. */
     fun append(readings: List<HistoryReading>): Boolean {
         if (readings.isEmpty()) return true
         val lengthBefore = file.length()
         return try {
             file.parentFile?.mkdirs()
-            FileOutputStream(file, true).use { it.write(encode(readings)) }
+            val lines = encode(readings)
+            FileOutputStream(file, true).use { it.write(if (tornTail) NEWLINE + lines else lines) }
+            tornTail = false
             lineCount += readings.size
             true
         } catch (e: IOException) {
             Log.stack(TAG, "append", e)
-            // A half-written line would swallow the next append's first one.
             runCatching { FileOutputStream(file, true).use { it.channel.truncate(lengthBefore) } }
+                .onFailure { tornTail = true }
             false
         }
     }
@@ -70,6 +77,7 @@ internal class HistoryBatchJournal(private val file: File) {
                 staged.writeBytes(encode(readings))
                 if (!staged.renameTo(file)) throw IOException("could not replace $file")
             }
+            tornTail = false
             lineCount = readings.size
             true
         } catch (e: IOException) {
@@ -116,5 +124,6 @@ internal class HistoryBatchJournal(private val file: File) {
     private companion object {
         const val TAG = "HistoryBatchJournal"
         const val FORMAT = "1"
+        val NEWLINE = byteArrayOf('\n'.code.toByte())
     }
 }
