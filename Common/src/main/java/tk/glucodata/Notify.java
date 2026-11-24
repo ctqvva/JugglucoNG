@@ -925,6 +925,8 @@ public class Notify {
     private CurrentDisplaySource.Snapshot lastDisplayedGlucoseSnapshot;
     /** Coalesced visual render state, guarded by {@link #foregroundPublicationLock}. */
     private boolean visualRefreshPending = false;
+    /** Every request behind the pending render accepts what is shown if nothing changed. */
+    private boolean pendingVisualReusable = false;
     private long pendingVisualGeneration = 0L;
     private Service pendingVisualService;
     private long publicationRetryGeneration = 0L;
@@ -1419,7 +1421,7 @@ public class Notify {
                 synchronized (foregroundPublicationLock) {
                     if (pendingDataRefreshAtUptimeMs == 0L) return;
                     pendingDataRefreshAtUptimeMs = 0L;
-                    scheduleVisualNotificationRefresh();
+                    scheduleVisualNotificationRefresh(true);
                 }
             } catch (Throwable th) {
                 Log.stack(LOG_ID, "dataChangedGlucoseRefreshRunnable", th);
@@ -1476,7 +1478,7 @@ public class Notify {
                 synchronized (foregroundPublicationLock) {
                     if (pendingStatusRefreshAtUptimeMs == 0L) return;
                     pendingStatusRefreshAtUptimeMs = 0L;
-                    scheduleVisualNotificationRefresh();
+                    scheduleVisualNotificationRefresh(true);
                 }
             } catch (Throwable th) {
                 Log.stack(LOG_ID, "statusChangedRefreshRunnable", th);
@@ -1515,14 +1517,16 @@ public class Notify {
         public void run() {
             final long generation;
             final Service capturedService;
+            final boolean reusable;
             synchronized (foregroundPublicationLock) {
                 if (!visualRefreshPending) return;
                 visualRefreshPending = false;
                 generation = pendingVisualGeneration;
                 capturedService = pendingVisualService;
+                reusable = pendingVisualReusable;
             }
             try {
-                reconcileOngoingPhoneNotification(generation, capturedService);
+                reconcileOngoingPhoneNotification(generation, capturedService, reusable);
             } catch (Throwable th) {
                 Log.stack(LOG_ID, "visualRefreshRunnable", th);
             }
@@ -1530,6 +1534,15 @@ public class Notify {
     };
 
     private void scheduleVisualNotificationRefresh() {
+        scheduleVisualNotificationRefresh(false);
+    }
+
+    /**
+     * @param reusable a data or status event asked, so what is shown may stay when nothing
+     *                 drawn changed. Everything else (settings, journal, freshness, screen on)
+     *                 always draws: not all of its inputs are part of the comparison.
+     */
+    private void scheduleVisualNotificationRefresh(boolean reusable) {
         if (!shouldKeepForegroundGlucoseNotification()) {
             cancelOngoingNotificationRefreshes();
             return;
@@ -1545,14 +1558,16 @@ public class Notify {
             pendingVisualGeneration = foregroundVisualGeneration;
             pendingVisualService = keeprunning.theservice;
             if (visualRefreshPending) {
+                pendingVisualReusable &= reusable;
                 return;
             }
             visualRefreshPending = true;
+            pendingVisualReusable = reusable;
             glucoseRefreshHandler.post(visualRefreshRunnable);
         }
     }
 
-    private void reconcileOngoingPhoneNotification(long generation, Service capturedService) {
+    private void reconcileOngoingPhoneNotification(long generation, Service capturedService, boolean reusable) {
         if (isWearable) {
             return;
         }
@@ -1607,13 +1622,13 @@ public class Notify {
                 content = renderGlucoseNotification(
                         FOREGROUND_GLUCOSE_NOTIFICATION_KIND, value,
                         format(usedlocale, glucoseformat, value), toLegacyGlucose(effective),
-                        GLUCOSENOTIFICATION, true, effective, true);
+                        GLUCOSENOTIFICATION, true, effective, true, reusable);
             } catch (Throwable th) {
                 Log.stack(LOG_ID, "reconcileRender", th);
                 return;
             }
             if (publishVisualNotification(generation, capturedService, content.notification, effective,
-                    content.fingerprint)) {
+                    content.fingerprint, content.inputsFingerprint)) {
                 PeriodicGlucoseUpdates.commitAnnouncement(content.announcedReadingMillis);
             } else {
                 // A newer render owns the surface, or the post failed and will be retried:
@@ -1634,7 +1649,7 @@ public class Notify {
             publishVisualNotification(generation, capturedService, staleNotification, null,
                     new NotificationFingerprint().add("stale").add(effective.getTimeMillis())
                             .add(staleMessage(effective.getTimeMillis())).add(staleReadingBody(effective))
-                            .value());
+                            .value(), 0L);
             return;
         }
         final String status = activeSensorSerial == null || activeSensorSerial.isEmpty()
@@ -1649,7 +1664,7 @@ public class Notify {
             return;
         }
         publishVisualNotification(generation, capturedService, statusNotification, null,
-                new NotificationFingerprint().add("status").add(status).value());
+                new NotificationFingerprint().add("status").add(status).value(), 0L);
     }
 
     /** Retained last real snapshot when the resolver transiently returns null. Returns
@@ -1695,10 +1710,14 @@ public class Notify {
      *                    not reposted: listener apps would see every repost as an update
      *                    (#645). Everything else about a successful publication still
      *                    happens, including the freshness deadline.
+     * @param notification null when the render stopped early because its inputs are the
+     *                     ones already shown
+     * @param inputsFingerprint hash of what {@code notification} is drawn from, 0 when unknown
      * @return whether {@code notification} is what the phone shows now
      */
     private boolean publishVisualNotification(long generation, Service capturedService,
-            Notification notification, CurrentDisplaySource.Snapshot freshSnapshot, long fingerprint) {
+            Notification notification, CurrentDisplaySource.Snapshot freshSnapshot, long fingerprint,
+            long inputsFingerprint) {
         synchronized (foregroundPublicationLock) {
             if (generation != foregroundVisualGeneration || !shouldKeepForegroundGlucoseNotification()) {
                 return false;
@@ -1707,8 +1726,16 @@ public class Notify {
                 // A newer service epoch owns the surface; never overwrite it.
                 return false;
             }
-            final boolean unchanged = NotificationRefreshPolicy.isUnchangedPublication(
-                    fingerprint, publishedContentFingerprint, capturedService, publishedContentOwner);
+            final boolean unchanged = notification == null
+                    ? NotificationRefreshPolicy.isUnchangedPublication(
+                            inputsFingerprint, publishedInputsFingerprint, capturedService, publishedContentOwner)
+                    : NotificationRefreshPolicy.isUnchangedPublication(
+                            fingerprint, publishedContentFingerprint, capturedService, publishedContentOwner);
+            if (notification == null && !unchanged) {
+                // What the render compared itself with was replaced meanwhile: draw for real.
+                scheduleVisualNotificationRefresh();
+                return false;
+            }
             try {
                 if (unchanged) {
                     if (doLog) {
@@ -1716,6 +1743,7 @@ public class Notify {
                     }
                 } else {
                     publishedContentFingerprint = 0L;
+                    publishedInputsFingerprint = 0L;
                     if (keeprunning.theservice != null) {
                         keeprunning.theservice.startForeground(glucosenotificationid, notification);
                     } else {
@@ -1723,6 +1751,7 @@ public class Notify {
                     }
                     publishedContentFingerprint = fingerprint;
                     publishedContentOwner = capturedService;
+                    recordPublishedInputsLocked(inputsFingerprint);
                 }
             } catch (Throwable th) {
                 // Publication failure marks nothing as rendered: the last displayed
@@ -1775,7 +1804,7 @@ public class Notify {
                     return;
                 }
             }
-            reconcileOngoingPhoneNotification(generation, service);
+            reconcileOngoingPhoneNotification(generation, service, false);
         }
     };
 
@@ -1866,7 +1895,7 @@ public class Notify {
         final long displayedMillis = displayed != null ? displayed.getTimeMillis() : 0L;
         synchronized (foregroundPublicationLock) {
             try {
-                publishPhoneForegroundLocked(content.notification, content.fingerprint);
+                publishPhoneForegroundLocked(content.notification, content.fingerprint, content.inputsFingerprint);
             } catch (RuntimeException failure) {
                 PeriodicGlucoseUpdates.releaseAnnouncement(content.announcedReadingMillis);
                 scheduleFailedPublicationRetryLocked(foregroundVisualGeneration, keeprunning.theservice);
@@ -4333,15 +4362,25 @@ public class Notify {
     private static final int VOICE_READINGS_REQUEST = 8400;
 
     /**
-     * Adds "Turn off voice" / "Turn on voice" to the ongoing phone glucose notification when
-     * the user uses voice readings. Only spoken readings change; alarms are untouched.
-     * Returns 0 when no action was added, 1 for the off action, 2 for the on action.
+     * The voice action the ongoing phone glucose notification offers when the user uses voice
+     * readings: 0 none, 1 "Turn off voice", 2 "Turn on voice". Only spoken readings change;
+     * alarms are untouched.
      */
-    private static int addVoiceReadingsAction(Notification.Builder builder, String type) {
+    private static int voiceReadingsActionState(String type) {
         if (isWearable || !GLUCOSENOTIFICATION.equals(type)) return 0;
         try {
             if (!VoiceReadings.showInNotification(app) || !VoiceReadings.isInUse(app)) return 0;
-            final boolean on = VoiceReadings.isOn();
+            return VoiceReadings.isOn() ? 1 : 2;
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "voiceReadingsActionState", th);
+            return 0;
+        }
+    }
+
+    private static void addVoiceReadingsAction(Notification.Builder builder, int state) {
+        if (state == 0) return;
+        try {
+            final boolean on = state == 1;
             final Intent intent = new Intent(app, tk.glucodata.receivers.VoiceReadingsReceiver.class)
                     .setAction(tk.glucodata.receivers.VoiceReadingsReceiver.ACTION_SET_VOICE)
                     .putExtra(tk.glucodata.receivers.VoiceReadingsReceiver.EXTRA_ON, !on);
@@ -4352,18 +4391,31 @@ public class Notify {
                             on ? R.drawable.ic_voice_off : R.drawable.ic_voice_on),
                     app.getString(on ? R.string.voice_turn_off : R.string.voice_turn_on),
                     pending).build());
-            return on ? 1 : 2;
         } catch (Throwable th) {
             Log.stack(LOG_ID, "addVoiceReadingsAction", th);
-            return 0;
+        }
+    }
+
+    private boolean mayReusePublication(long inputsFingerprint) {
+        if (isScreenInteractive()) return false;
+        synchronized (foregroundPublicationLock) {
+            return NotificationRefreshPolicy.mayReusePublication(
+                    inputsFingerprint, publishedInputsFingerprint, keeprunning.theservice, publishedContentOwner,
+                    android.os.SystemClock.elapsedRealtime() - publishedInputsAtElapsed);
         }
     }
 
     private static final class GlucoseNotificationContent {
+        /** Null when a reusable render found its inputs already shown. */
         final Notification notification;
         final CurrentDisplaySource.Snapshot snapshot;
         /** {@link NotificationFingerprint} of the content; 0 when unknown. */
         final long fingerprint;
+        /**
+         * Hash of what the content is drawn from, without the chart's clock: equal means the
+         * same picture with the time axis moved on. 0 when unknown.
+         */
+        final long inputsFingerprint;
         /**
          * The reading this content announces as a periodic update, 0 for none. Whoever
          * posts it reports the outcome to {@link PeriodicGlucoseUpdates}.
@@ -4371,10 +4423,11 @@ public class Notify {
         final long announcedReadingMillis;
 
         GlucoseNotificationContent(Notification notification, CurrentDisplaySource.Snapshot snapshot,
-                long fingerprint, long announcedReadingMillis) {
+                long fingerprint, long inputsFingerprint, long announcedReadingMillis) {
             this.notification = notification;
             this.snapshot = snapshot;
             this.fingerprint = fingerprint;
+            this.inputsFingerprint = inputsFingerprint;
             this.announcedReadingMillis = announcedReadingMillis;
         }
     }
@@ -4382,6 +4435,17 @@ public class Notify {
     private GlucoseNotificationContent renderGlucoseNotification(int draw, float glvalue, String message, notGlucose glucose,
             String type, boolean once, CurrentDisplaySource.Snapshot startupSnapshot,
             boolean snapshotAlreadyResolved) {
+        return renderGlucoseNotification(draw, glvalue, message, glucose, type, once, startupSnapshot,
+                snapshotAlreadyResolved, false);
+    }
+
+    /**
+     * @param reusable stop before drawing, with a null notification, when the screen is off
+     *                 and everything this would draw is already shown
+     */
+    private GlucoseNotificationContent renderGlucoseNotification(int draw, float glvalue, String message, notGlucose glucose,
+            String type, boolean once, CurrentDisplaySource.Snapshot startupSnapshot,
+            boolean snapshotAlreadyResolved, boolean reusable) {
         final boolean customPhone = !isWearable && GLUCOSENOTIFICATION.equals(type);
         // 1. Determine Arrow
         float rate = glucose.rate;
@@ -4411,11 +4475,6 @@ public class Notify {
         java.util.List<GlucosePoint> nativePoints = DisplayTrendSource.resolveTrendPoints(
                 DisplayTrendSource.endingAtShown(chartPoints, resolvedDisplay), resolvedDisplay,
                 activeSensorSerial);
-
-        BatteryTrace.bump(
-                "notify.glucose.render",
-                20L,
-                "interactive=" + isScreenInteractive());
 
         // Status Logic & ViewMode extraction
         String statusText = "";
@@ -4545,12 +4604,6 @@ public class Notify {
                 arrowColor = GlucoseRangeColors.valueBorderline(shadeNight);
         }
 
-        // Render Arrow (Color + Size from Preferences) - still bitmap for colored
-        // vector
-        Bitmap arrowBitmap = (showArrow && !inlineMultiArrows)
-                ? NotificationChartDrawer.drawArrow(Applic.app, rate, isMmol, arrowColor, arrowSize)
-                : null;
-
         String sensorStatusText = resolveNotificationStatusText(activeSensorSerial, statusText);
 
         // The status line carries the journal IOB/eIOB/COB (when enabled) and
@@ -4578,6 +4631,85 @@ public class Notify {
                     ? deltaText
                     : new android.text.SpannableStringBuilder(deltaText).append(" · ").append(newStatusText);
         }
+
+        // Create Safe Context with System Density (Fix for Low DPI/Large Text modes
+        // where Applic.app is stale)
+        Context safeContext = Applic.app;
+        if (showChartCollapsed || showChart) {
+            try {
+                android.util.DisplayMetrics systemDm = android.content.res.Resources.getSystem().getDisplayMetrics();
+                android.content.res.Configuration config = new android.content.res.Configuration(
+                        Applic.app.getResources().getConfiguration());
+                config.densityDpi = (int) (systemDm.density * 160f);
+                safeContext = Applic.app.createConfigurationContext(config);
+            } catch (Throwable t) {
+                // fallback to app context if creation fails
+            }
+        }
+        final java.util.List<NotificationChartDrawer.PeerSeries> peerChartSeries =
+                (showChartCollapsed || showChart)
+                        ? NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
+                        : java.util.Collections.emptyList();
+        final NotificationPredictionBatch predictionBatch = (showChartCollapsed || showChart)
+                ? new NotificationPredictionBatch() : null;
+        final boolean hasCalibration = (showChartCollapsed || showChart)
+                && NightscoutCalibration.hasCalibrationForViewMode(activeSensorSerial, viewMode);
+        if (showChartCollapsed || showChart) {
+            chartPoints = DisplayTrendSource.augmentHistory(chartPoints, resolvedDisplay, activeSensorSerial, startT);
+        }
+        // The resolved chart: values and main/secondary look decided once, by
+        // the same builder the dashboard uses, from the same record. The
+        // painter paints what it is handed.
+        final tk.glucodata.chart.HistoryChartModel chartModel =
+                (showChartCollapsed || showChart)
+                        ? NotificationChartModelSource.build(safeContext, chartPoints, activeSensorSerial, viewMode,
+                                hasCalibration, peerChartSeries, startT)
+                        : null;
+
+        // Stop here when none of it changed. Only while nobody is looking: with the screen on
+        // the chart's time axis should keep up, and a setting may have changed that is not
+        // compared. A periodic announcement is decided per render, so it needs every one.
+        final int voiceAction = voiceReadingsActionState(type);
+        long inputsFingerprint = 0L;
+        if (customPhone) {
+            try {
+                final NotificationFingerprint inputs = new NotificationFingerprint()
+                        .add(type).add(once).add(valueText).add(primaryDisplayColor)
+                        .add(secondaryDisplayColor).add(tertiaryDisplayColor).add(rate).add(arrowColor)
+                        .add(isMmol).add(newStatusText).add(shadeNight).add(displayGlucoseValue)
+                        .add(glucose.sensorgen2).add((long) voiceAction)
+                        .add(fallbackDisplay != null ? fallbackDisplay.getTimeMillis() : 0L)
+                        .add((long) Applic.app.getResources().getConfiguration().hashCode())
+                        .addPresentationPrefs(prefs)
+                        .add(showChartCollapsed).add(showChart).add(hasCalibration).add((long) viewMode);
+                for (NotificationChartDrawer.ValueItem peer : peerValueItems) {
+                    inputs.add(peer.text).add(peer.color).add(peer.rate);
+                }
+                if (showChartCollapsed || showChart) {
+                    inputs.addPoints(chartPoints, isMmol).addModel(chartModel, isMmol);
+                    for (NotificationChartDrawer.PeerSeries peer : peerChartSeries) {
+                        inputs.add(peer.sensorId).addPoints(peer.points, isMmol);
+                    }
+                }
+                inputsFingerprint = inputs.value();
+            } catch (Throwable th) {
+                Log.stack(LOG_ID, "notificationInputs", th);
+            }
+            if (reusable && !NotificationForwardingSettings.isPeriodicEnabled(prefs)
+                    && mayReusePublication(inputsFingerprint)) {
+                return new GlucoseNotificationContent(null, fallbackDisplay, 0L, inputsFingerprint, 0L);
+            }
+        }
+        BatteryTrace.bump(
+                "notify.glucose.render",
+                20L,
+                "interactive=" + isScreenInteractive());
+
+        // Render Arrow (Color + Size from Preferences) - still bitmap for colored
+        // vector
+        Bitmap arrowBitmap = (showArrow && !inlineMultiArrows)
+                ? NotificationChartDrawer.drawArrow(Applic.app, rate, isMmol, arrowColor, arrowSize)
+                : null;
 
         RemoteViews remoteViews;
         RemoteViews remoteViewsExpanded;
@@ -4618,40 +4750,6 @@ public class Notify {
         // Set Chart
         Bitmap chartBitmapCollapsed = null;
         Bitmap chartBitmapExpanded = null;
-
-        // Create Safe Context with System Density (Fix for Low DPI/Large Text modes
-        // where Applic.app is stale)
-        Context safeContext = Applic.app;
-        if (showChartCollapsed || showChart) {
-            try {
-                android.util.DisplayMetrics systemDm = android.content.res.Resources.getSystem().getDisplayMetrics();
-                android.content.res.Configuration config = new android.content.res.Configuration(
-                        Applic.app.getResources().getConfiguration());
-                config.densityDpi = (int) (systemDm.density * 160f);
-                safeContext = Applic.app.createConfigurationContext(config);
-            } catch (Throwable t) {
-                // fallback to app context if creation fails
-            }
-        }
-        final java.util.List<NotificationChartDrawer.PeerSeries> peerChartSeries =
-                (showChartCollapsed || showChart)
-                        ? NotificationMultiSensorSource.peerSeries(peerCurrents, startT, isMmol)
-                        : java.util.Collections.emptyList();
-        final NotificationPredictionBatch predictionBatch = (showChartCollapsed || showChart)
-                ? new NotificationPredictionBatch() : null;
-        final boolean hasCalibration = (showChartCollapsed || showChart)
-                && NightscoutCalibration.hasCalibrationForViewMode(activeSensorSerial, viewMode);
-        if (showChartCollapsed || showChart) {
-            chartPoints = DisplayTrendSource.augmentHistory(chartPoints, resolvedDisplay, activeSensorSerial, startT);
-        }
-        // The resolved chart: values and main/secondary look decided once, by
-        // the same builder the dashboard uses, from the same record. The
-        // painter paints what it is handed.
-        final tk.glucodata.chart.HistoryChartModel chartModel =
-                (showChartCollapsed || showChart)
-                        ? NotificationChartModelSource.build(safeContext, chartPoints, activeSensorSerial, viewMode,
-                                hasCalibration, peerChartSeries, startT)
-                        : null;
 
         if (showChartCollapsed) {
             // Collapsed chart: Limit height to 48dp based on SYSTEM density
@@ -4746,9 +4844,8 @@ public class Notify {
         GluNotBuilder.setVisibility(VISIBILITY_PUBLIC);
 
         // Voice readings: one tap from the shade, for those who use them (#840).
-        // 0 = no action, 1 = "Turn off voice", 2 = "Turn on voice"; part of the fingerprint
-        // so a change made anywhere reposts the button.
-        final int voiceAction = addVoiceReadingsAction(GluNotBuilder, type);
+        // Part of the fingerprints, so a change made anywhere reposts the button.
+        addVoiceReadingsAction(GluNotBuilder, voiceAction);
 
         if (customPhone) {
             CustomGlucoseNotification.apply(GluNotBuilder, standardTitle, standardText,
@@ -4812,7 +4909,8 @@ public class Notify {
                 Log.stack(LOG_ID, "notificationFingerprint", th);
             }
         }
-        return new GlucoseNotificationContent(notif, fallbackDisplay, fingerprint, announcedReadingMillis);
+        return new GlucoseNotificationContent(notif, fallbackDisplay, fingerprint, inputsFingerprint,
+                announcedReadingMillis);
     }
 
     Notification getforgroundnotification() {
@@ -5435,15 +5533,24 @@ public class Notify {
      * by {@link #foregroundPublicationLock}. */
     private long publishedContentFingerprint = 0L;
     private Service publishedContentOwner;
+    /** {@link GlucoseNotificationContent#inputsFingerprint} of the same post, and when it was drawn. */
+    private long publishedInputsFingerprint = 0L;
+    private long publishedInputsAtElapsed = 0L;
+
+    private void recordPublishedInputsLocked(long inputsFingerprint) {
+        publishedInputsFingerprint = inputsFingerprint;
+        publishedInputsAtElapsed = android.os.SystemClock.elapsedRealtime();
+    }
 
     /** Actual phone publication while {@link #foregroundPublicationLock} is held. */
     private void publishPhoneForegroundLocked(Notification notification) {
-        publishPhoneForegroundLocked(notification, 0L);
+        publishPhoneForegroundLocked(notification, 0L, 0L);
     }
 
-    private void publishPhoneForegroundLocked(Notification notification, long fingerprint) {
+    private void publishPhoneForegroundLocked(Notification notification, long fingerprint, long inputsFingerprint) {
         final Service owner = keeprunning.theservice;
         publishedContentFingerprint = 0L;
+        publishedInputsFingerprint = 0L;
         if (owner != null) {
             owner.startForeground(glucosenotificationid, notification);
         } else {
@@ -5451,6 +5558,7 @@ public class Notify {
         }
         publishedContentFingerprint = fingerprint;
         publishedContentOwner = owner;
+        recordPublishedInputsLocked(inputsFingerprint);
         ++foregroundVisualGeneration;
         if (startupPendingService == owner) {
             startupPendingTicket = 0L;
@@ -5462,6 +5570,7 @@ public class Notify {
      * next refresh must post even if its content matches the last fingerprinted one. */
     private void forgetPublishedContentLocked() {
         publishedContentFingerprint = 0L;
+        publishedInputsFingerprint = 0L;
         publishedContentOwner = null;
     }
 

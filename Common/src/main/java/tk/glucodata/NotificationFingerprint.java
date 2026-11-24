@@ -44,6 +44,62 @@ public final class NotificationFingerprint {
         return this;
     }
 
+    /** Chart values closer than this are the same pixel: 0.02 mmol/L, a third of a mg/dL. */
+    private static final float STEPS_PER_MMOL = 50f;
+    private static final float STEPS_PER_MGDL = 3f;
+
+    private long chartStep(float value, boolean isMmol) {
+        if (!Float.isFinite(value)) return -1L;
+        return Math.round(value * (isMmol ? STEPS_PER_MMOL : STEPS_PER_MGDL));
+    }
+
+    /**
+     * The readings a chart draws, one per minute. A live reading and its stored row are the
+     * same minute of the same line, whatever their seconds.
+     */
+    public NotificationFingerprint addPoints(java.util.List<GlucosePoint> points, boolean isMmol) {
+        if (points == null) return add(-3L);
+        for (int i = 0; i < points.size(); i++) {
+            final GlucosePoint point = points.get(i);
+            final long minute = point.timestamp / 60_000L;
+            if (i + 1 < points.size() && points.get(i + 1).timestamp / 60_000L == minute) continue;
+            add(minute).add(chartStep(point.value, isMmol)).add(chartStep(point.rawValue, isMmol))
+                    .add(chartStep(point.sealedDisplayValue, isMmol)).add((long) point.sealedDisplayViewMode);
+            if (point.uncertainty != null) {
+                add(chartStep(point.uncertainty.getLower(), isMmol)).add(chartStep(point.uncertainty.getUpper(), isMmol));
+            }
+        }
+        return add(-4L);
+    }
+
+    /** The resolved lines: calibrated values, main-sensor ownership and lanes. */
+    public NotificationFingerprint addModel(tk.glucodata.chart.HistoryChartModel model, boolean isMmol) {
+        if (model == null) return add(-6L);
+        for (tk.glucodata.chart.ChartSeriesModel series : model.getSeries()) {
+            add(series.getSensorId()).add(series.isPrimary()).add((long) series.getViewMode())
+                    .add((long) series.getColorArgb());
+            addRuns(series.getRuns(), isMmol);
+            for (tk.glucodata.chart.ChartLane lane : series.getSecondaryLanes()) {
+                add((long) lane.getKind().ordinal());
+                addRuns(lane.getRuns(), isMmol);
+            }
+        }
+        return this;
+    }
+
+    private void addRuns(java.util.List<tk.glucodata.chart.ChartRun> runs, boolean isMmol) {
+        for (tk.glucodata.chart.ChartRun run : runs) {
+            add((long) run.getLook().ordinal());
+            final java.util.List<tk.glucodata.chart.ChartPointModel> points = run.getPoints();
+            for (int i = 0; i < points.size(); i++) {
+                final tk.glucodata.chart.ChartPointModel point = points.get(i);
+                final long minute = point.getTimestamp() / 60_000L;
+                if (i + 1 < points.size() && points.get(i + 1).getTimestamp() / 60_000L == minute) continue;
+                add(minute).add(chartStep(point.getValue(), isMmol));
+            }
+        }
+    }
+
     /** Only the notification's own presentation preferences: other keys in the shared
      * file change for unrelated reasons and would defeat the comparison. */
     public NotificationFingerprint addPresentationPrefs(android.content.SharedPreferences prefs) {
