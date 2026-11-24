@@ -333,14 +333,19 @@ class InstaraBleManager(
             if (stop) return
             val timestamps = LongArray(readings.size) { readings[it].timestampMs }
             val valuesMgdl = FloatArray(readings.size) { InstaraSession.mmolToMgdl(readings[it].raw) }
+            // The watch has no HistoryRepositoryBridge, so Room returns false there; its native
+            // history mirror is still the authoritative write and must advance the cursor.
             val stored = HistorySyncAccess.storeSensorHistoryBatchBlocking(
                 SerialNumber,
                 timestamps,
                 valuesMgdl,
                 FloatArray(readings.size),
             )
-            if (stored) {
-                mirror(readings)
+            if (Applic.isWearable && !stored) {
+                Log.d(TAG, "Watch history: no Room bridge, relying on the native mirror")
+            }
+            val mirrored = mirror(readings)
+            if (stored || mirrored > 0) {
                 val maxSequence = readings.maxOf { it.sequenceId }
                 Applic.app?.let { InstaraPersistence.setLastSequenceId(it, SerialNumber, maxSequence) }
             }
@@ -348,7 +353,7 @@ class InstaraBleManager(
         UiRefreshBus.requestDataRefresh()
     }
 
-    private fun mirror(readings: List<InstaraReading>) {
+    private fun mirror(readings: List<InstaraReading>): Int =
         VirtualGlucoseSensorBridge.mirrorToNative(
             SerialNumber,
             readings.map {
@@ -360,7 +365,6 @@ class InstaraBleManager(
             "Instara",
             ManagedSensorUiFamily.INSTARA,
         )
-    }
 
     override fun softDisconnect() {
         setPause(true)

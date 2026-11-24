@@ -60,6 +60,16 @@ class InstaraTransportTests {
     }
 
     @Test
+    fun wearHistoryDoesNotDependOnThePhoneOnlyRoomBridge() {
+        val body = source.substringAfter("override fun history(").substringBefore("private fun mirror(")
+        assertTrue(body.contains("Applic.isWearable"))
+        assertTrue(
+            "cursor must advance when the watch mirror succeeded even without Room",
+            body.contains("stored || mirrored > 0"),
+        )
+    }
+
+    @Test
     fun stateChangeRejectsRetiredGattBeforeDelegating() {
         assertTrue(source.contains("acceptConnectionAttemptCallback(gatt, newState)"))
     }
