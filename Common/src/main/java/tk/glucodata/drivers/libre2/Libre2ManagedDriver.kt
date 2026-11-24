@@ -28,16 +28,18 @@ object Libre2ManagedDriver {
     /**
      * Gen2 enable-streaming; stores the provisioning record and BLE address in the sensor file.
      * True only when the sensor accepted it and the record was saved to the scanned sensor.
+     * A sensor just activated has no entry yet ([newSensor]): accepted is enough there, and the
+     * next scan creates the entry and enables streaming again.
      */
     @JvmStatic
-    fun gen2EnableStreaming(nfc: NfcV, uid: ByteArray, patchInfo: ByteArray): Boolean = guarded("enable streaming", false) {
+    fun gen2EnableStreaming(nfc: NfcV, uid: ByteArray, patchInfo: ByteArray, newSensor: Boolean): Boolean = guarded("enable streaming", false) {
         val driver = gen2Nfc(nfc)
         val grant = driver.enableStreaming(uid)
         report("enable streaming", grant != null, driver)
         if (grant == null) return@guarded false
         val saved = Natives.USenabledStreaming(uid, patchInfo, grant.provisioning.toBytes(), grant.bleAddress)
         if (!saved) Log.e(LOG_ID, "Gen2 enable streaming: no sensor entry to save the login record to")
-        saved
+        saved || newSensor
     }
 
     /** Gen2 authenticated FRAM read, or null. */
