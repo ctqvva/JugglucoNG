@@ -81,6 +81,9 @@ interface HistoryRepositoryBridge {
         endTime: Long,
     ): LongArray?
 
+    /** Whether the user deleted a reading of this sensor in the minute of [timestamp]; null when unknown. */
+    fun isMinuteDeletedByUserBlocking(sensorSerial: String, timestamp: Long): Boolean?
+
     fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int
 
     /**

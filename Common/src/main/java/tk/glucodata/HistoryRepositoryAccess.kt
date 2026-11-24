@@ -164,6 +164,12 @@ object HistoryRepositoryAccess {
     ): LongArray = getHistoryTimestampsForSensorOrNull(sensorSerial, startTime, endTime) ?: LongArray(0)
 
     @JvmStatic
+    fun isMinuteDeletedByUserOrNull(sensorSerial: String, timestamp: Long): Boolean? =
+        runCatching { bridge?.isMinuteDeletedByUserBlocking(sensorSerial, timestamp) }
+            .onFailure { Log.stack(TAG, "isMinuteDeletedByUserOrNull failed", it) }
+            .getOrNull()
+
+    @JvmStatic
     fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int =
         runCatching { bridge?.deleteReadingsForSensorAfterBlocking(sensorSerial, timestampExclusive) }
             .onFailure { Log.stack(TAG, "deleteReadingsForSensorAfterBlocking failed", it) }

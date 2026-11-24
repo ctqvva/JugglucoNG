@@ -91,6 +91,9 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         endTime: Long,
     ): LongArray? = HistoryRepository.getHistoryTimestampsForSensorBlocking(sensorSerial, startTime, endTime)
 
+    override fun isMinuteDeletedByUserBlocking(sensorSerial: String, timestamp: Long): Boolean? =
+        HistoryRepository.isMinuteDeletedByUserBlocking(sensorSerial, timestamp)
+
     override fun deleteReadingsForSensorAfterBlocking(
         sensorSerial: String,
         timestampExclusive: Long,

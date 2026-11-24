@@ -4149,13 +4149,22 @@ class ICanHealthBleManager(
                 PendingHistoryReading(sequenceNumber = -1, timestampMs = it.timestamp, glucoseMgdl = it.value)
             }
         if (readings.isNullOrEmpty()) return null
-        // Room is written asynchronously by the live path, after the stream.
-        lastLiveNativeReading?.takeIf { it.sensorId == SerialNumber && it.timestampMs > newestMs }?.let {
-            readings += PendingHistoryReading(
-                sequenceNumber = -1,
-                timestampMs = it.timestampMs,
-                glucoseMgdl = it.glucoseMgdl,
-            )
+        // Room is written asynchronously by the live path, after the stream. A reading missing there may
+        // also be one the user deleted since.
+        val live = lastLiveNativeReading?.takeIf {
+            it.sensorId == SerialNumber &&
+                ICanHealthNativeRebuild.minuteOf(it.timestampMs) > ICanHealthNativeRebuild.minuteOf(newestMs)
+        }
+        if (live != null) {
+            val deleted = HistoryRepositoryAccess.isMinuteDeletedByUserOrNull(SerialNumber, live.timestampMs)
+                ?: return null
+            if (!deleted) {
+                readings += PendingHistoryReading(
+                    sequenceNumber = -1,
+                    timestampMs = live.timestampMs,
+                    glucoseMgdl = live.glucoseMgdl,
+                )
+            }
         }
         val mirrorStartMs = readings.last().timestampMs - windowMs + SEQUENCE_UNIT_MS
         return readings.filter { it.timestampMs >= mirrorStartMs }

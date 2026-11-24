@@ -41,6 +41,7 @@ class ICanHealthTimezoneRepairTests {
     private var roomReadable = true
     private var replaceFails = false
     private val deletedByUser = mutableSetOf<Long>()
+    private var deletionsReadable = true
     private val committed = CountDownLatch(1)
     private val neverResumes = CountDownLatch(1)
     private var diesAfterCommit = false
@@ -76,6 +77,8 @@ class ICanHealthTimezoneRepairTests {
                         GlucosePoint(time, value, 0f).also { it.sensorSerial = sensor }
                     } else emptyList<GlucosePoint>()
                 "getHistoryTimestampsForSensorBlocking" -> if (roomReadable) room.keys.toLongArray() else null
+                "isMinuteDeletedByUserBlocking" ->
+                    if (deletionsReadable) deletedByUser.any { it / 60_000L == (args!![1] as Long) / 60_000L } else null
                 "getLatestTimestampForSensorBlocking" -> room.lastEntry()?.key ?: 0L
                 else -> error("Unexpected history operation: ${method.name}")
             }
@@ -270,10 +273,42 @@ class ICanHealthTimezoneRepairTests {
         assertEquals(34f, nativeTemperature(61), 0.01f)
     }
 
+    @Test fun aLiveReadingTheUserDeletedStaysOutOfADelayedRebuild() {
+        seedLive(0..60)
+        ICanTimezoneRepairNatives.writesRefused = true
+        assertTrue(flush(0..40))
+        assertTrue(rebuildOwed())
+
+        // Room keeps a live reading at its whole second.
+        storeLive(120f, at(61) + 417L)
+        room[at(61)] = 120f
+        room.remove(at(61))
+        deletedByUser += at(61)
+        ICanTimezoneRepairNatives.writesRefused = false
+        // Not knowing whether it was deleted must not bring it back either.
+        deletionsReadable = false
+        retryOnTimer()
+        assertTrue(rebuildOwed())
+        assertTrue(ICanTimezoneRepairNatives.stream.isEmpty())
+
+        deletionsReadable = true
+        retryOnTimer()
+        assertStreamMatchesRoom()
+        assertFalse(rebuildOwed())
+    }
+
+    @Test fun aLiveReadingRoomHoldsAtItsWholeSecondIsNotReplayedTwice() {
+        seedLive(0..61)
+        storeLive(120f, at(61) + 417L)
+        deletionsReadable = false // not asked: Room has it
+        assertTrue(flush(0..40))
+        assertStreamMatchesRoom()
+        assertFalse(rebuildOwed())
+    }
+
     @Test fun aLiveReadingRoomDoesNotHoldYetSurvivesTheRebuild() {
         seedLive(0..60)
-        ICanHealthBleManager::class.java.getDeclaredMethod("storeMeasurement", Float::class.java, Long::class.java)
-            .apply { isAccessible = true }.invoke(manager, 120f, at(61))
+        storeLive(120f, at(61))
         assertTrue(flush(0..40))
         assertEquals((0..61).map { at(it) / 1000L }, ICanTimezoneRepairNatives.stream.keys.toList())
         assertEquals(12f, ICanTimezoneRepairNatives.stream[at(61) / 1000L]!!, 0.001f)
@@ -313,6 +348,11 @@ class ICanHealthTimezoneRepairTests {
         slots.forEach { record.invoke(manager, (it + 1) * 3, at(it), 200f, Float.NaN, temperatureC) }
         return ICanHealthBleManager::class.java.getDeclaredMethod("flushHistoryBackfillBatch")
             .apply { isAccessible = true }.invoke(manager) as Boolean
+    }
+
+    private fun storeLive(glucoseMgdl: Float, timestampMs: Long) {
+        ICanHealthBleManager::class.java.getDeclaredMethod("storeMeasurement", Float::class.java, Long::class.java)
+            .apply { isAccessible = true }.invoke(manager, glucoseMgdl, timestampMs)
     }
 
     private fun restart() {

@@ -130,6 +130,17 @@ class HistoryIntervalReplacementTests {
     }
 
     @Test
+    fun aDeletionIsFoundAnywhereInItsMinuteAndOnlyForItsSensor() = runBlocking {
+        seed()
+        repository.deleteReadingRows(listOf(serial), at(30))
+
+        assertEquals(true, repository.isMinuteDeletedByUser(serial, at(30) + 417L))
+        assertEquals(false, repository.isMinuteDeletedByUser(serial, at(29) + 59_999L))
+        assertEquals(false, repository.isMinuteDeletedByUser(serial, at(31)))
+        assertEquals(false, repository.isMinuteDeletedByUser(otherSerial, at(30)))
+    }
+
+    @Test
     fun replacingRowsKeepsTheirProvenance() = runBlocking {
         seed()
         replace((0..30 step 3).map { reading(it, 200f).copy(firstStoredAt = base + 1) }, at(0)..at(30))

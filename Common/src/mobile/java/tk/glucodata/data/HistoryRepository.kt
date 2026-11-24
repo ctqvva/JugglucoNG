@@ -311,6 +311,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             }
         }
 
+        /** See [tk.glucodata.HistoryRepositoryBridge.isMinuteDeletedByUserBlocking]. */
+        fun isMinuteDeletedByUserBlocking(sensorSerial: String, timestamp: Long): Boolean? =
+            kotlinx.coroutines.runBlocking { HistoryRepository().isMinuteDeletedByUser(sensorSerial, timestamp) }
+
         /** Resolved by name from [tk.glucodata.HistorySyncAccess] — see [getHistoryTimestampsForSensorBlocking]. */
         @Keep
         @JvmStatic
@@ -1521,6 +1525,25 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                 dao.getTimestampsForSensors(serials, startTime, endTime)
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting history timestamps for sensor $serial", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Whether the user deleted a reading of [serial] in the minute of [timestamp], or null when the
+     * query could not be answered. By minute, because a stored row need not carry the exact time the
+     * driver gave the reading: a live one is stored at its whole second.
+     */
+    suspend fun isMinuteDeletedByUser(serial: String, timestamp: Long): Boolean? {
+        val storageSerial = SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+        val serials = (resolveQuerySensorSerials(serial) + storageSerial).distinct()
+        val minuteStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
+        return withContext(Dispatchers.IO) {
+            try {
+                dao.countDeletedReadings(serials, minuteStart, minuteStart + SENSOR_MINUTE_BUCKET_MS) > 0
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking deleted readings for sensor $serial", e)
                 null
             }
         }
