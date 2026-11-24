@@ -1,6 +1,7 @@
 package tk.glucodata.data
 
 import tk.glucodata.GlucosePoint
+import tk.glucodata.HistoryReplaceOutcome
 import tk.glucodata.HistoryRepositoryBridge
 import tk.glucodata.chart.MainSensorOwnership
 
@@ -73,7 +74,7 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
         replacedIntervalsMs: List<LongRange>,
-    ): Boolean = HistoryRepository.replaceHistoryIntervalsBlocking(
+    ): HistoryReplaceOutcome = HistoryRepository.replaceHistoryIntervalsBlocking(
         sensorSerial,
         timestamps,
         valuesMgdl,

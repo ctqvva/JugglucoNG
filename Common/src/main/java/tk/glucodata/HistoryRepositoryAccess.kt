@@ -122,7 +122,7 @@ object HistoryRepositoryAccess {
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
         replacedIntervalsMs: List<LongRange>,
-    ): Boolean =
+    ): HistoryReplaceOutcome =
         runCatching {
             bridge?.replaceHistoryIntervalsBlocking(
                 sensorSerial,
@@ -132,7 +132,7 @@ object HistoryRepositoryAccess {
                 replacedIntervalsMs,
             )
         }.onFailure { Log.stack(TAG, "replaceHistoryIntervalsBlocking failed", it) }
-            .getOrNull() ?: false
+            .getOrNull() ?: HistoryReplaceOutcome.FAILED
 
     @JvmStatic
     fun getLatestTimestampForSensorBlocking(sensorSerial: String): Long =

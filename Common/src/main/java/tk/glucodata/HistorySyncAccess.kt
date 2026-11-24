@@ -362,9 +362,9 @@ object HistorySyncAccess {
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
         replacedIntervalsMs: List<LongRange>,
-    ): Boolean {
-        if (sensorSerial.isNullOrBlank()) return false
-        if (timestamps.isEmpty()) return true
+    ): HistoryReplaceOutcome {
+        if (sensorSerial.isNullOrBlank()) return HistoryReplaceOutcome.FAILED
+        if (timestamps.isEmpty()) return HistoryReplaceOutcome.NOTHING_TO_STORE
         return HistoryRepositoryAccess.replaceHistoryIntervalsBlocking(
             sensorSerial,
             timestamps,

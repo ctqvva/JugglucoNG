@@ -42,6 +42,13 @@ internal data class ICanHealthSequenceGap(
 internal object ICanHealthHistoryPolicy {
     private const val MIN_TZ_REPAIR_BATCH_RECORDS = 20
     private const val MIN_TZ_REPAIR_BATCH_SPAN_MS = 60 * 60 * 1000L
+    private const val NATIVE_REBUILD_RETRY_BASE_MS = 30_000L
+    private const val NATIVE_REBUILD_RETRY_MAX_MS = 15 * 60_000L
+
+    /** Wait before rebuilding the native stream once more; doubles per failure in a row. */
+    fun nativeRebuildRetryDelayMs(consecutiveFailures: Int): Long =
+        (NATIVE_REBUILD_RETRY_BASE_MS shl (consecutiveFailures - 1).coerceIn(0, 5))
+            .coerceAtMost(NATIVE_REBUILD_RETRY_MAX_MS)
 
     fun liveGapBetween(
         previousSequence: Int,

@@ -18,6 +18,7 @@ import tk.glucodata.Applic
 import tk.glucodata.BatteryTrace
 import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.GlucoseReadingSource
+import tk.glucodata.HistoryReplaceOutcome
 import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.Natives
 import tk.glucodata.SensorIdentity
@@ -581,7 +582,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             values: FloatArray,
             rawValues: FloatArray,
             source: String
-        ): Boolean = storeHistoryBatch(sensorSerial, timestamps, values, rawValues, source, emptyList())
+        ): Boolean =
+            // Rows the user deleted stay deleted: a batch made only of them
+            // has nothing to store, and its caller has nothing to retry.
+            storeHistoryBatch(sensorSerial, timestamps, values, rawValues, source, emptyList()) !=
+                BucketReplaceOutcome.FAILED
 
         /** See [tk.glucodata.HistoryRepositoryBridge.replaceHistoryIntervalsBlocking]. */
         fun replaceHistoryIntervalsBlocking(
@@ -590,14 +595,20 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             values: FloatArray,
             rawValues: FloatArray,
             replacedIntervalsMs: List<LongRange>,
-        ): Boolean = storeHistoryBatch(
-            sensorSerial,
-            timestamps,
-            values,
-            rawValues,
-            GlucoseReadingSource.SENSOR,
-            replacedIntervalsMs,
-        )
+        ): HistoryReplaceOutcome = when (
+            storeHistoryBatch(
+                sensorSerial,
+                timestamps,
+                values,
+                rawValues,
+                GlucoseReadingSource.SENSOR,
+                replacedIntervalsMs,
+            )
+        ) {
+            BucketReplaceOutcome.STORED -> HistoryReplaceOutcome.REPLACED
+            BucketReplaceOutcome.NOTHING_TO_STORE -> HistoryReplaceOutcome.NOTHING_TO_STORE
+            BucketReplaceOutcome.FAILED -> HistoryReplaceOutcome.FAILED
+        }
 
         private fun storeHistoryBatch(
             sensorSerial: String,
@@ -606,17 +617,17 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             rawValues: FloatArray,
             source: String,
             replacedIntervalsMs: List<LongRange>,
-        ): Boolean {
+        ): BucketReplaceOutcome {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
-            if (roomSerial.isBlank()) return false
-            if (timestamps.isEmpty()) return true
+            if (roomSerial.isBlank()) return BucketReplaceOutcome.FAILED
+            if (timestamps.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
             if (timestamps.size != values.size || timestamps.size != rawValues.size) {
                 Log.w(
                     TAG,
                     "storeHistoryBatchBlocking rejected mismatched arrays for $roomSerial " +
                         "(timestamps=${timestamps.size}, values=${values.size}, raw=${rawValues.size})"
                 )
-                return false
+                return BucketReplaceOutcome.FAILED
             }
 
             return try {
@@ -654,13 +665,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         }.getOrDefault(false),
                     )
                     if (outcome == BucketReplaceOutcome.STORED) UiRefreshBus.requestDataRefresh()
-                    // Rows the user deleted stay deleted: a batch made only of them
-                    // has nothing to store, and its caller has nothing to retry.
-                    outcome != BucketReplaceOutcome.FAILED
+                    outcome
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed storing blocking history batch for $roomSerial", e)
-                false
+                BucketReplaceOutcome.FAILED
             }
         }
     }
@@ -1010,7 +1019,9 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                     logEvery = 20L,
                     detail = "serial=$sensorSerial size=${collapsedReadings.size} bucket=${bucketDurationMs}"
                 )
-                forwardBackfillToExchanges(storedReadings)
+                // The rows are committed: an uploader that throws must not report them as not stored.
+                runCatching { forwardBackfillToExchanges(storedReadings) }
+                    .onFailure { Log.e(TAG, "Error forwarding stored history for $sensorSerial", it) }
                 BucketReplaceOutcome.STORED
             } catch (e: Exception) {
                 Log.e(TAG, "Error replacing bucket history batch for $sensorSerial", e)
