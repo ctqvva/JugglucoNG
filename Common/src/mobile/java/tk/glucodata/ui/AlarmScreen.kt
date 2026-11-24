@@ -57,9 +57,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -148,24 +150,9 @@ private fun PixelAlarmContent(
         motionActive = false
     }
 
-    // By the room there is: the smaller arrow leaves the value a larger share of a narrow row.
     val compact = rememberAdaptiveWindowMetrics().hasCompactRoom
-    val settledArrowScale = if (compact) 4.72f else 5.72f
-    val arrowScale = if (motionActive) {
-        val infiniteTransition = rememberInfiniteTransition(label = "alarm-motion")
-        val animatedArrowScale by infiniteTransition.animateFloat(
-            initialValue = if (compact) 4.6f else 5.6f,
-            targetValue = if (compact) 4.85f else 5.9f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1900),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "alarm-arrow-scale"
-        )
-        animatedArrowScale
-    } else {
-        settledArrowScale
-    }
+    // Enlarged text takes its extra height from the spacing and the trace, not from the type.
+    val tight = compact || LocalDensity.current.fontScale >= ALARM_LARGE_FONT_SCALE
     val heroOffsetY by animateFloatAsState(
         targetValue = if (visible) 0f else (-trend.verticalSign * 72f),
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 210f),
@@ -210,7 +197,7 @@ private fun PixelAlarmContent(
                             alarmLabel = alarmLabel,
                             supportingText = supportingText,
                             compact = compact,
-                            modifier = Modifier.padding(top = if (compact) 28.dp else 40.dp)
+                            modifier = Modifier.padding(top = if (tight) 28.dp else 40.dp)
                         )
                     }
 
@@ -239,7 +226,6 @@ private fun PixelAlarmContent(
                             trendResult = trendResult,
                             compact = compact,
                             motionActive = motionActive,
-                            arrowScale = arrowScale,
                             modifier = Modifier.offset { IntOffset(0, heroOffsetY.roundToInt()) }
                         )
                     }
@@ -259,7 +245,7 @@ private fun PixelAlarmContent(
                                 // Edge to edge: out through the column's 24dp sides.
                                 .bleedHorizontally(24.dp)
                                 .fillMaxWidth()
-                                .height(if (compact) 112.dp else 144.dp)
+                                .height(if (tight) 112.dp else 144.dp)
                         )
                     }
 
@@ -274,10 +260,10 @@ private fun PixelAlarmContent(
                     slideInVertically(animationSpec = tween(400, delayMillis = 150), initialOffsetY = { it / 3 })
             ) {
                 ActionDock(
-                    compact = compact,
+                    compact = tight,
                     onSnooze = onSnooze,
                     onDismiss = onDismiss,
-                    modifier = Modifier.padding(bottom = if (compact) 16.dp else 24.dp)
+                    modifier = Modifier.padding(bottom = if (tight) 16.dp else 24.dp)
                 )
             }
         }
@@ -340,9 +326,101 @@ private fun HeroBlock(
     trendResult: TrendEngine.TrendResult,
     compact: Boolean,
     motionActive: Boolean,
-    arrowScale: Float,
     modifier: Modifier = Modifier
 ) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val textMeasurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val baseStyle = MaterialTheme.typography.displayLarge.copy(
+            letterSpacing = 0.sp,
+            fontFeatureSettings = "tnum"
+        )
+        val (arrow, valueFontSize) = remember(
+            primaryGlucose, compact, maxWidth, baseStyle, density, textMeasurer
+        ) {
+            fun largestValueSize(arrow: AlarmArrow): Int {
+                val availableWidthPx = with(density) {
+                    maxWidth.roundToPx() - arrow.gap.roundToPx() - arrow.size.roundToPx()
+                }
+                return arrow.valueSizes.firstOrNull { size ->
+                    textMeasurer.measure(
+                        text = AnnotatedString(primaryGlucose),
+                        style = baseStyle.copy(fontSize = size.sp, lineHeight = (size + 2).sp),
+                        maxLines = 1,
+                        density = density
+                    ).size.width <= availableWidthPx
+                } ?: arrow.valueSizes.last()
+            }
+            val arrows = when {
+                compact -> listOf(AlarmArrow.Small)
+                density.fontScale < ALARM_LARGE_FONT_SCALE -> listOf(AlarmArrow.Regular)
+                // With enlarged text the reading comes first: the arrow keeps its size only
+                // while that costs the value nothing.
+                else -> listOf(AlarmArrow.Regular, AlarmArrow.Small)
+            }
+            arrows.map { it to largestValueSize(it) }.maxBy { (_, size) -> size }
+        }
+        HeroRow(
+            primaryGlucose = primaryGlucose,
+            valueStyle = baseStyle.copy(
+                fontSize = valueFontSize.sp,
+                lineHeight = (valueFontSize + 2).sp
+            ),
+            trend = trend,
+            trendResult = trendResult,
+            arrow = arrow,
+            motionActive = motionActive
+        )
+    }
+}
+
+/** From this text size the value takes the room it needs from the arrow and the spacing. */
+private const val ALARM_LARGE_FONT_SCALE = 1.15f
+
+private enum class AlarmArrow(
+    val gap: Dp,
+    val size: Dp,
+    val restScale: Float,
+    val minScale: Float,
+    val maxScale: Float,
+    val bob: Float,
+    /** The sizes the value may take beside this arrow. */
+    val valueSizes: List<Int>
+) {
+    Regular(
+        gap = 12.dp, size = 144.dp, restScale = 5.72f, minScale = 5.6f, maxScale = 5.9f, bob = 9f,
+        valueSizes = listOf(146, 136, 126, 116, 106, 96, 86, 76, 66, 56, 48, 40, 32)
+    ),
+    Small(
+        gap = 8.dp, size = 116.dp, restScale = 4.72f, minScale = 4.6f, maxScale = 4.85f, bob = 7f,
+        valueSizes = listOf(120, 112, 104, 96, 88, 80, 72, 64, 56, 48, 40, 32)
+    )
+}
+
+@Composable
+private fun HeroRow(
+    primaryGlucose: String,
+    valueStyle: TextStyle,
+    trend: Trend,
+    trendResult: TrendEngine.TrendResult,
+    arrow: AlarmArrow,
+    motionActive: Boolean
+) {
+    val arrowScale = if (motionActive) {
+        val infiniteTransition = rememberInfiniteTransition(label = "alarm-motion")
+        val animatedArrowScale by infiniteTransition.animateFloat(
+            initialValue = arrow.minScale,
+            targetValue = arrow.maxScale,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1900),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "alarm-arrow-scale"
+        )
+        animatedArrowScale
+    } else {
+        arrow.restScale
+    }
     val motionPhase = if (motionActive) {
         val motionTransition = rememberInfiniteTransition(label = "alarm-trend-motion")
         val animatedMotionPhase by motionTransition.animateFloat(
@@ -363,60 +441,28 @@ private fun HeroBlock(
     val arrowAngle = remember(trendResult.velocity) {
         Math.toRadians(tk.glucodata.TrendArrowAngle.rotationDegrees(trendResult.velocity).toDouble())
     }
-    val bob = if (trend.direction == TrendDirection.UNKNOWN) 0f else motionPhase * if (compact) 7f else 9f
+    val bob = if (trend.direction == TrendDirection.UNKNOWN) 0f else motionPhase * arrow.bob
     val arrowOffsetX = bob * kotlin.math.cos(arrowAngle).toFloat()
     val arrowOffsetY = bob * kotlin.math.sin(arrowAngle).toFloat()
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        BoxWithConstraints(modifier = Modifier.weight(1f)) {
-            val textMeasurer = rememberTextMeasurer()
-            val density = androidx.compose.ui.platform.LocalDensity.current
-            val availableWidthPx = with(density) { maxWidth.roundToPx() }
-            val candidateSizes = remember(compact) {
-                if (compact) {
-                    listOf(120.sp, 112.sp, 104.sp, 96.sp, 88.sp, 80.sp, 72.sp, 64.sp, 56.sp, 48.sp, 40.sp, 32.sp)
-                } else {
-                    listOf(146.sp, 136.sp, 126.sp, 116.sp, 106.sp, 96.sp, 86.sp, 76.sp, 66.sp, 56.sp, 48.sp, 40.sp, 32.sp)
-                }
-            }
-            val baseStyle = MaterialTheme.typography.displayLarge.copy(
-                letterSpacing = 0.sp,
-                fontFeatureSettings = "tnum"
-            )
-            val valueFontSize = remember(primaryGlucose, availableWidthPx, candidateSizes, baseStyle) {
-                candidateSizes.firstOrNull { size ->
-                    textMeasurer.measure(
-                        text = AnnotatedString(primaryGlucose),
-                        style = baseStyle.copy(
-                            fontSize = size,
-                            lineHeight = (size.value + 2f).sp
-                        ),
-                        maxLines = 1
-                    ).size.width <= availableWidthPx
-                } ?: candidateSizes.last()
-            }
-
-            Text(
-                text = primaryGlucose,
-                style = baseStyle.copy(
-                    fontSize = valueFontSize,
-                    lineHeight = (valueFontSize.value + 2f).sp
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        Text(
+            text = primaryGlucose,
+            style = valueStyle,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.weight(1f)
+        )
 
         Box(
             modifier = Modifier
-                .padding(start = if (compact) 8.dp else 12.dp)
-                .size(if (compact) 116.dp else 144.dp)
+                .padding(start = arrow.gap)
+                .size(arrow.size)
                 .offset { IntOffset(arrowOffsetX.roundToInt(), arrowOffsetY.roundToInt()) },
             contentAlignment = Alignment.Center
         ) {

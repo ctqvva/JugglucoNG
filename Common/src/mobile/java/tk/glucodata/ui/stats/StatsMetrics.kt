@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import android.util.DisplayMetrics
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.platform.LocalContext
@@ -77,6 +78,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -410,7 +412,7 @@ private fun titleOverflows(
     value: String,
     expandable: Boolean,
     widthPx: Int,
-    density: androidx.compose.ui.unit.Density,
+    density: Density,
     textMeasurer: androidx.compose.ui.text.TextMeasurer,
     titleStyle: androidx.compose.ui.text.TextStyle,
     valueStyle: androidx.compose.ui.text.TextStyle
@@ -1361,6 +1363,12 @@ internal fun PinnedStatsStrip(
             } else {
                 (maxWidth / preferredWidth).coerceIn(0.64f, 1f)
             }
+            // Enlarged text and display sizes never draw the strip smaller than it is without
+            // them: where fitting it would, the row is the established one at its usual size.
+            val unenlargedScale = pinnedStatsUnenlargedScale(adaptiveMetrics.isCompact, density)
+            val keepsUsualSize = !useEstablishedPhoneLayout &&
+                adaptiveMetrics.widthClass == AdaptiveWindowWidthClass.Compact &&
+                contentScale < unenlargedScale
 
             if (settling) {
                 // The shipped default is four; it stays four only if the row drew all of
@@ -1379,7 +1387,8 @@ internal fun PinnedStatsStrip(
             }
             val settlingAlpha = if (settling) 0f else 1f
 
-            if (useEstablishedPhoneLayout) {
+            if (useEstablishedPhoneLayout || keepsUsualSize) {
+                val cellScale = if (keepsUsualSize) unenlargedScale else 1f
                 // Preserve the dashboard's established phone composition: the window pill
                 // takes its natural width and the metric cards share every remaining pixel.
                 Row(
@@ -1387,7 +1396,7 @@ internal fun PinnedStatsStrip(
                         .fillMaxWidth()
                         .alpha(settlingAlpha)
                         .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(baseGap)
+                    horizontalArrangement = Arrangement.spacedBy(baseGap * cellScale)
                 ) {
                     cells.forEachIndexed { index, cell ->
                         cell(
@@ -1396,7 +1405,7 @@ internal fun PinnedStatsStrip(
                             } else {
                                 Modifier.weight(1f).fillMaxHeight()
                             },
-                            1f
+                            cellScale
                         )
                     }
                 }
@@ -1507,6 +1516,18 @@ internal fun shouldUseEstablishedPinnedStatsPhoneLayout(
 ): Boolean = widthClass == AdaptiveWindowWidthClass.Compact &&
     !hasCompactRoom &&
     fontScale < PINNED_STATS_FITTED_FONT_SCALE
+
+/**
+ * The content scale that undoes the text and display enlargement. 0, no limit, in a Compact
+ * window: its strip is fitted without any enlargement too.
+ */
+internal fun pinnedStatsUnenlargedScale(
+    isCompact: Boolean,
+    density: Density,
+    nativeDensity: Float = DisplayMetrics.DENSITY_DEVICE_STABLE / 160f
+): Float = if (isCompact) 0f else {
+    1f / (density.fontScale.coerceAtLeast(1f) * (density.density / nativeDensity).coerceAtLeast(1f))
+}
 
 /**
  * Slot editor.

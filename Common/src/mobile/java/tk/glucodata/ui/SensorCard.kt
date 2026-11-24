@@ -488,12 +488,15 @@ private fun SensorStatusText(status: String, color: Color, modifier: Modifier = 
         // its one line instead, and only past the smallest size loses its end.
         val maxSize = MaterialTheme.typography.titleSmall.fontSize
         val minSize = MaterialTheme.typography.labelMedium.fontSize
-            .withoutEnlargement(LocalDensity.current)
-        val autoSize = remember(minSize, maxSize) {
-            androidx.compose.foundation.text.TextAutoSize.StepBased(
-                minFontSize = minSize,
-                maxFontSize = maxSize,
-                stepSize = 0.5.sp,
+        val density = LocalDensity.current
+        val autoSize = remember(minSize, maxSize, density) {
+            tk.glucodata.ui.util.LargestFittingSize(
+                tk.glucodata.ui.util.labelSizes(
+                    largest = maxSize,
+                    default = maxSize,
+                    smallest = minSize,
+                    density = density,
+                )
             )
         }
         Text(

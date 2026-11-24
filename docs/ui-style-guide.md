@@ -463,9 +463,9 @@ what the rows around a slider already use.
   layout must give a fixed-size neighbour's room to the text, use `hasCompactRoom`. Take window
   sizes from those metrics, not from `LocalConfiguration`: the theme limits how far display size
   enlarges dp, so the configuration's dp are not the ones the screen lays out in.
-- A label that has to stay on one line may shrink, but only as far as it is at the default font
-  size (`TextUnit.withoutEnlargement`): enlarged text gives its extra size back before it loses
-  its end.
+- A label that has to stay on one line may shrink, but never below its own size at the default
+  font size (`TextUnit.withoutEnlargement`; `labelSizes` steps down to it): enlarged text gives its
+  extra size back before it loses its end. Labels that share a size share it only down to there.
 - Anything holding text gets a minimum height, not a height: `heightIn(min = 56.dp)` on a
   button or a text field, never `height(56.dp)`. A fixed height cuts the text off at large
   font sizes.

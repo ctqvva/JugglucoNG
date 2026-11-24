@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 enum class AdaptiveWindowWidthClass {
@@ -65,14 +66,14 @@ private fun isCompactRoom(widthDp: Int, heightDp: Int) = minOf(widthDp, heightDp
 fun rememberAdaptiveWindowMetrics(): AdaptiveWindowMetrics {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current.density
-    val windowHeightPx = LocalWindowInfo.current.containerSize.height
+    val windowPx = LocalWindowInfo.current.containerSize
     return remember(
         configuration.screenWidthDp,
         configuration.screenHeightDp,
         configuration.densityDpi,
         configuration.orientation,
         density,
-        windowHeightPx
+        windowPx
     ) {
         adaptiveWindowMetrics(
             screenWidthDp = configuration.screenWidthDp,
@@ -80,7 +81,8 @@ fun rememberAdaptiveWindowMetrics(): AdaptiveWindowMetrics {
             screenDensity = configuration.densityDpi / 160f,
             density = density,
             nativeDensity = DisplayMetrics.DENSITY_DEVICE_STABLE / 160f,
-            windowHeightPx = windowHeightPx,
+            windowWidthPx = windowPx.width,
+            windowHeightPx = windowPx.height,
             isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         )
     }
@@ -101,27 +103,29 @@ internal fun adaptiveWindowMetrics(
     screenDensity: Float,
     density: Float,
     nativeDensity: Float,
+    windowWidthPx: Int,
     windowHeightPx: Int,
     isLandscape: Boolean
 ): AdaptiveWindowMetrics {
-    fun Int.inDpOf(target: Float) =
-        if (target == screenDensity) this else (this * screenDensity / target).roundToInt()
+    // The configuration's dp are whole numbers, some Android versions rounding them and some
+    // cutting them off. Converted to another density that error decides the class of a window near
+    // a limit, so convert the window's own pixels wherever they are what the configuration rounded.
+    fun exactPx(screenDp: Int, windowPx: Int): Float {
+        val screenPx = screenDp * screenDensity
+        return if (abs(windowPx - screenPx) <= screenDensity) windowPx.toFloat() else screenPx
+    }
+    val widthPx = exactPx(screenWidthDp, windowWidthPx)
+    val heightPx = exactPx(screenHeightDp, windowHeightPx)
+    val widthDp = if (density == screenDensity) screenWidthDp else (widthPx / density).roundToInt()
+    val heightDp = if (density == screenDensity) screenHeightDp else (heightPx / density).roundToInt()
 
-    val widthDp = screenWidthDp.inDpOf(density)
-    val heightDp = screenHeightDp.inDpOf(density)
     val unenlargedDensity = minOf(density, nativeDensity)
-    // The configuration drops the fraction of its dp, and converting 264.7 back as 264 would put a
-    // 360 dp phone at 359. Count the fraction in.
-    fun Int.unenlargedDp() =
-        if (unenlargedDensity == screenDensity) this
-        else ((this + 1) * screenDensity / unenlargedDensity).toInt()
-    val unenlargedWidthDp = screenWidthDp.unenlargedDp()
+    val unenlargedWidthDp = (widthPx / unenlargedDensity).roundToInt()
     // Before Android 15 the configuration leaves the system bars out of its height, and those
     // grow with the display size too.
-    val systemBarsPx = (windowHeightPx - screenHeightDp * screenDensity).coerceAtLeast(0f)
+    val systemBarsPx = (windowHeightPx - heightPx).coerceAtLeast(0f)
     val systemBarsGrowthPx = systemBarsPx * (1f - unenlargedDensity / screenDensity)
-    val unenlargedHeightDp = screenHeightDp.unenlargedDp() +
-        (systemBarsGrowthPx / unenlargedDensity).roundToInt()
+    val unenlargedHeightDp = ((heightPx + systemBarsGrowthPx) / unenlargedDensity).roundToInt()
     val widthClass = adaptiveWindowWidthClass(widthDp)
     val heightClass = adaptiveWindowHeightClass(heightDp)
     val layoutDensity = when {

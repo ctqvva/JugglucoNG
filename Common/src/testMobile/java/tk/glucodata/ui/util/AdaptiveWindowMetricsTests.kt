@@ -17,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.math.roundToInt
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], application = android.app.Application::class)
@@ -29,10 +30,11 @@ class AdaptiveWindowMetricsTests {
         screenDensity: Float = 2.75f,
         density: Float = screenDensity,
         nativeDensity: Float = 2.75f,
-        windowHeightPx: Int = 0,
+        windowWidthPx: Int = (widthDp * screenDensity).roundToInt(),
+        windowHeightPx: Int = (heightDp * screenDensity).roundToInt(),
         isLandscape: Boolean = false
     ) = adaptiveWindowMetrics(
-        widthDp, heightDp, screenDensity, density, nativeDensity, windowHeightPx, isLandscape
+        widthDp, heightDp, screenDensity, density, nativeDensity, windowWidthPx, windowHeightPx, isLandscape
     )
 
     @Test
@@ -71,12 +73,12 @@ class AdaptiveWindowMetricsTests {
             AdaptiveLayoutDensity.Regular,
             metrics(360, 708, screenDensity = 3f, nativeDensity = 3f, windowHeightPx = window).layoutDensity
         )
-        // Enlarged 1.36x the bars are 98 of those dp.
+        // Enlarged 1.36x the bars are 98 of those dp, and 264 is 264.7 cut off.
         assertEquals(
             AdaptiveLayoutDensity.Regular,
             metrics(
                 264, 501, screenDensity = 4.08f, density = 3.3f, nativeDensity = 3f,
-                windowHeightPx = window
+                windowWidthPx = 1080, windowHeightPx = window
             ).layoutDensity
         )
     }
@@ -88,6 +90,39 @@ class AdaptiveWindowMetricsTests {
             AdaptiveLayoutDensity.Compact,
             metrics(320, 320, screenDensity = 3.375f, density = 3.025f).layoutDensity
         )
+    }
+
+    @Test
+    fun roundedConfigurationDpDoNotMoveAWindowAcrossALimit() {
+        // 988 px is 359.3 dp at 440 dpi: Compact. At 540 dpi the configuration rounds 292.7 up.
+        assertEquals(
+            AdaptiveLayoutDensity.Compact,
+            metrics(359, 800, windowWidthPx = 988, windowHeightPx = 2200).layoutDensity
+        )
+        for (screenWidthDp in listOf(292, 293)) {
+            assertEquals(
+                AdaptiveLayoutDensity.Compact,
+                metrics(
+                    screenWidthDp, 652, screenDensity = 3.375f, density = 3.025f,
+                    windowWidthPx = 988, windowHeightPx = 2200
+                ).layoutDensity
+            )
+        }
+        // 990 px is 360 dp: Regular at any display size, rounded (293) or cut off.
+        for (dpi in 440..600 step 10) {
+            val screenDensity = dpi / 160f
+            for (round in listOf(0f, 0.5f)) {
+                assertEquals(
+                    "$dpi dpi",
+                    AdaptiveLayoutDensity.Regular,
+                    metrics(
+                        (990 / screenDensity + round).toInt(), (2200 / screenDensity + round).toInt(),
+                        screenDensity = screenDensity, density = minOf(screenDensity, 3.025f),
+                        windowWidthPx = 990, windowHeightPx = 2200
+                    ).layoutDensity
+                )
+            }
+        }
     }
 
     @Test

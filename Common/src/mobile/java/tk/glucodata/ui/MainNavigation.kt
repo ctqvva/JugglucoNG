@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.ShortNavigationBar
@@ -56,6 +55,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import tk.glucodata.ui.util.LargestFittingSize
+import tk.glucodata.ui.util.labelSizes
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -714,33 +715,36 @@ private const val CALIBRATION_SHEET_WINDOW_HALF_MS = 6L * 60L * 60L * 1000L
 
 /**
  * The size the tab labels share when the system's text is enlarged: the largest that shows every
- * one of them whole, so one long label does not stand out smaller than its neighbours.
+ * one of them whole, so one long label does not stand out smaller than its neighbours. Never
+ * smaller than they are at the default text size; past that, a label too long shrinks alone.
  */
 @Composable
-private fun rememberNavigationLabelSize(labels: List<String>): TextUnit {
+internal fun rememberNavigationLabelSize(labels: List<String>): TextUnit {
     val style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.sp)
-    val smallest = MaterialTheme.typography.labelSmall.fontSize
     val density = LocalDensity.current.withFontScaleAtMost(DENSE_FONT_SCALE_CAP)
     val slotWidth = rememberAdaptiveWindowMetrics().widthDp.dp / labels.size.coerceAtLeast(1) -
         NavigationLabelGutter * 2
     val textMeasurer = rememberTextMeasurer()
-    return remember(labels, style, smallest, density, slotWidth) {
+    return remember(labels, style, density, slotWidth) {
         if (density.fontScale <= 1f) return@remember style.fontSize
         val slotPx = with(density) { slotWidth.toPx() }
-        val floor = smallest.withoutEnlargement(density).value
-        generateSequence(style.fontSize.value) { it - 0.5f }
-            .takeWhile { it > floor }
-            .firstOrNull { size ->
-                labels.all { label ->
-                    textMeasurer.measure(
-                        text = label,
-                        style = style.copy(fontSize = size.sp),
-                        softWrap = false,
-                        maxLines = 1,
-                        density = density
-                    ).size.width <= slotPx
-                }
-            }?.sp ?: floor.sp
+        val sizes = labelSizes(
+            largest = style.fontSize,
+            default = style.fontSize,
+            smallest = style.fontSize,
+            density = density
+        )
+        sizes.firstOrNull { size ->
+            labels.all { label ->
+                textMeasurer.measure(
+                    text = label,
+                    style = style.copy(fontSize = size),
+                    softWrap = false,
+                    maxLines = 1,
+                    density = density
+                ).size.width <= slotPx
+            }
+        } ?: sizes.last()
     }
 }
 
@@ -748,15 +752,19 @@ private fun rememberNavigationLabelSize(labels: List<String>): TextUnit {
 private val NavigationLabelGutter = 8.dp
 
 @Composable
-private fun AdaptiveNavigationLabel(text: String, fontSize: TextUnit) {
+internal fun AdaptiveNavigationLabel(text: String, fontSize: TextUnit) {
     val regularStyle = MaterialTheme.typography.labelMedium.copy(fontSize = fontSize, letterSpacing = 0.sp)
+    val defaultFontSize = MaterialTheme.typography.labelMedium.fontSize
     val compactFontSize = MaterialTheme.typography.labelSmall.fontSize
-        .withoutEnlargement(LocalDensity.current)
-    val autoSize = remember(compactFontSize, fontSize) {
-        TextAutoSize.StepBased(
-            minFontSize = compactFontSize,
-            maxFontSize = fontSize,
-            stepSize = 0.5.sp
+    val density = LocalDensity.current
+    val autoSize = remember(compactFontSize, defaultFontSize, fontSize, density) {
+        LargestFittingSize(
+            labelSizes(
+                largest = fontSize,
+                default = defaultFontSize,
+                smallest = compactFontSize,
+                density = density
+            )
         )
     }
 

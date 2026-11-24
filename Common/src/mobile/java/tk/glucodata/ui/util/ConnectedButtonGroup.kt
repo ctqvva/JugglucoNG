@@ -163,19 +163,18 @@ fun <T> ConnectedButtonGroup(
                     val horizontalPadding = 4.dp
                     val iconAllowance = if (customIcon != null || showsCheck) 26.dp else 0.dp
                     val textWidthPx = with(density) { (availableWidth - horizontalPadding - iconAllowance).coerceAtLeast(24.dp).toPx() }
-                    val smallest = MaterialTheme.typography.labelSmall
-                    // Labels that enlarged text leaves no room for go back to the smallest
-                    // size they have without it, rather than losing their ends.
-                    val smallestUnenlarged = smallest.copy(
-                        fontSize = smallest.fontSize.withoutEnlargement(density),
-                        lineHeight = smallest.lineHeight.withoutEnlargement(density),
-                        letterSpacing = smallest.letterSpacing.withoutEnlargement(density)
-                    ).takeIf { density.fontScale > 1f } ?: smallest
-                    listOf(
+                    val labelStyles = listOf(
                         MaterialTheme.typography.labelLarge,
                         MaterialTheme.typography.labelMedium,
-                        smallest
-                    ).firstOrNull { style ->
+                        MaterialTheme.typography.labelSmall
+                    )
+                    // Labels that enlarged text leaves no room for step down through the sizes
+                    // they have without it too: never smaller than they were, and no lost ends.
+                    val candidates = if (density.fontScale <= 1f) labelStyles else {
+                        (labelStyles + labelStyles.map { it.withoutEnlargement(density) })
+                            .sortedByDescending { with(density) { it.fontSize.toPx() } }
+                    }
+                    candidates.firstOrNull { style ->
                         options.maxOfOrNull { item ->
                             textMeasurer.measure(
                                 text = AnnotatedString(labelText(item)),
@@ -183,7 +182,7 @@ fun <T> ConnectedButtonGroup(
                                 maxLines = 1
                             ).size.width
                         }?.let { it <= textWidthPx } == true
-                    } ?: smallestUnenlarged
+                    } ?: candidates.last()
                 } else {
                     when {
                         availableWidthPx == 0 -> MaterialTheme.typography.labelLarge

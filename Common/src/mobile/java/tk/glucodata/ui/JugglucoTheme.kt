@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -225,3 +226,9 @@ internal fun Density.withFontScaleAtMost(max: Float): Density =
  */
 fun TextUnit.withoutEnlargement(density: Density): TextUnit =
     if (!isSp || density.fontScale <= 1f) this else with(density) { value.dp.toSp() }
+
+fun TextStyle.withoutEnlargement(density: Density): TextStyle = copy(
+    fontSize = fontSize.withoutEnlargement(density),
+    lineHeight = lineHeight.withoutEnlargement(density),
+    letterSpacing = letterSpacing.withoutEnlargement(density)
+)
