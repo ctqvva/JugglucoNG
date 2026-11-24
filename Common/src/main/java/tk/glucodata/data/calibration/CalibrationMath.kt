@@ -80,6 +80,7 @@ internal object CalibrationMath {
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
     private const val ENSEMBLE_DISPERSION_FRACTION = 0.05
     private const val ENSEMBLE_NEAREST_TIME_HOURS = 6.0
+    private const val ENSEMBLE_SCALE_FLOOR_FRACTION = 0.02
 
     /**
      * A raw value that is safe to store beside a calibration, or zero when the source has none.
@@ -543,7 +544,7 @@ internal object CalibrationMath {
 
         val scale = maxOf(
             median(points.map { abs(it.x - targetValue) }),
-            abs(targetValue) * 0.02,
+            abs(targetValue) * ENSEMBLE_SCALE_FLOOR_FRACTION,
             1e-9,
         )
         val localWeights = points.map { p ->

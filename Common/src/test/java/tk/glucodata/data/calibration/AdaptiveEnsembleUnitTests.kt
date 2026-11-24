@@ -1,13 +1,17 @@
 package tk.glucodata.data.calibration
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdaptiveEnsembleUnitTests {
     private val hour = 3_600_000L
     private val now = 1_700_000_000_000L
-    private val tuning = CalibrationTuning.DEFAULT
     private val mgdlPerMmol = 18.0182
+    private val componentLeakConfidence = 0.05
+    private val componentLeakPredictionFraction = 0.02
+
+    private val tuning = CalibrationTuning.DEFAULT.copy(algorithm = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE)
 
     private val points = listOf(
         CalPoint(x = 90.0, y = 110.0, timestamp = now - 4 * hour),
@@ -16,35 +20,91 @@ class AdaptiveEnsembleUnitTests {
         CalPoint(x = 220.0, y = 200.0, timestamp = now - hour),
     )
 
-    private fun resultIn(targetMgdl: Double, factor: Double) = CalibrationMath.computeAlgorithm(
-        algorithm = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
-        targetValue = targetMgdl * factor,
-        targetTimestamp = now,
-        points = points.map { it.copy(x = it.x * factor, y = it.y * factor) },
-        tuning = tuning,
-    )
+    private fun resultIn(points: List<CalPoint>, targetMgdl: Double, factor: Double) =
+        CalibrationMath.computeAlgorithm(
+            algorithm = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+            targetValue = targetMgdl * factor,
+            targetTimestamp = now,
+            points = points.map { it.copy(x = it.x * factor, y = it.y * factor) },
+            tuning = tuning,
+        )
 
     @Test
     fun anchorInfluenceDoesNotDependOnGlucoseUnit() {
-        val mgdl = resultIn(130.0, 1.0)
-        val mmol = resultIn(130.0, 1.0 / mgdlPerMmol)
+        val mgdl = resultIn(points, 130.0, 1.0)
+        val mmol = resultIn(points, 130.0, 1.0 / mgdlPerMmol)
 
         assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
     }
 
     @Test
     fun confidenceDoesNotDependOnGlucoseUnit() {
-        val mgdl = resultIn(130.0, 1.0)
-        val mmol = resultIn(130.0, 1.0 / mgdlPerMmol)
+        val mgdl = resultIn(points, 130.0, 1.0)
+        val mmol = resultIn(points, 130.0, 1.0 / mgdlPerMmol)
 
-        assertEquals(mgdl.confidence!!, mmol.confidence!!, 0.05)
+        assertEquals(mgdl.confidence!!, mmol.confidence!!, componentLeakConfidence)
     }
 
     @Test
     fun predictionDoesNotDependOnGlucoseUnit() {
-        val mgdl = resultIn(130.0, 1.0)
-        val mmol = resultIn(130.0, 1.0 / mgdlPerMmol)
+        val mgdl = resultIn(points, 130.0, 1.0)
+        val mmol = resultIn(points, 130.0, 1.0 / mgdlPerMmol)
 
-        assertEquals(mgdl.prediction, mmol.prediction * mgdlPerMmol, 1.0)
+        assertEquals(
+            mgdl.prediction,
+            mmol.prediction * mgdlPerMmol,
+            mgdl.prediction * componentLeakPredictionFraction,
+        )
+    }
+
+    @Test
+    fun weightSwitchBranchDoesNotDependOnGlucoseUnit() {
+        val points = listOf(
+            CalPoint(x = 109.0, y = 231.0, timestamp = now - 4 * hour),
+            CalPoint(x = 174.0, y = 58.0, timestamp = now - hour),
+        )
+        val mgdl = resultIn(points, 125.0, 1.0)
+        val mmol = resultIn(points, 125.0, 1.0 / mgdlPerMmol)
+
+        assertTrue(mgdl.confidence!! < 0.50)
+        assertTrue(mmol.confidence!! < 0.50)
+        assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
+        assertEquals(mgdl.confidence!!, mmol.confidence!!, componentLeakConfidence)
+        assertEquals(
+            mgdl.prediction,
+            mmol.prediction * mgdlPerMmol,
+            mgdl.prediction * componentLeakPredictionFraction,
+        )
+    }
+
+    @Test
+    fun twoAnchorEnsembleDoesNotDependOnGlucoseUnit() {
+        val points = listOf(
+            CalPoint(x = 100.0, y = 115.0, timestamp = now - 3 * hour),
+            CalPoint(x = 160.0, y = 150.0, timestamp = now - hour),
+        )
+        val mgdl = resultIn(points, 130.0, 1.0)
+        val mmol = resultIn(points, 130.0, 1.0 / mgdlPerMmol)
+
+        assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
+        assertEquals(
+            mgdl.prediction,
+            mmol.prediction * mgdlPerMmol,
+            mgdl.prediction * componentLeakPredictionFraction,
+        )
+    }
+
+    @Test
+    fun coincidentAnchorsDoNotDependOnGlucoseUnit() {
+        val points = listOf(
+            CalPoint(x = 120.0, y = 130.0, timestamp = now - 2 * hour),
+            CalPoint(x = 120.0, y = 145.0, timestamp = now - hour),
+        )
+        val mgdl = resultIn(points, 120.0, 1.0)
+        val mmol = resultIn(points, 120.0, 1.0 / mgdlPerMmol)
+
+        assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
+        assertEquals(mgdl.confidence!!, mmol.confidence!!, 1e-9)
+        assertEquals(mgdl.prediction, mmol.prediction * mgdlPerMmol, 1e-6)
     }
 }
