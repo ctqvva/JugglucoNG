@@ -601,7 +601,8 @@ class HistoryBatchWriterTests {
         writer.submit(serial, listOf(reading(0, 111f)))
         eventually("stored") { writer.pendingCount(serial) == 0 }
         runBlocking { writer.exclusive { repository.writeBuckets(serial, listOf(reading(0, 222f)), 60_000L) } }
-        assertEquals(1, journalFile.readLines().size)
+        // Crossed out where it stood: the line of the other sensor was never out of the file.
+        assertEquals(listOf(false, true), journalFile.readLines().map { it.startsWith("-") })
         scope.cancel()
 
         writer().resume()

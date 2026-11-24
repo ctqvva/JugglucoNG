@@ -3,6 +3,7 @@ package tk.glucodata.data
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.zip.CRC32
@@ -34,8 +35,9 @@ internal class HistoryBatchJournal(private val file: File) {
         return try {
             val text = file.readText(Charsets.UTF_8)
             tornTail = text.isNotEmpty() && !text.endsWith('\n')
-            val lines = text.lines().filter { it.isNotEmpty() }
-            lineCount = lines.size
+            val written = text.lines().filter { it.isNotEmpty() }
+            lineCount = written.size
+            val lines = written.filter { it[0] != CROSSED_OUT }
             val readings = lines.mapNotNull(::decode)
             if (readings.size != lines.size) {
                 Log.w(TAG, "dropped ${lines.size - readings.size} unreadable pending history lines")
@@ -67,18 +69,17 @@ internal class HistoryBatchJournal(private val file: File) {
     }
 
     /**
-     * Makes the file hold exactly [readings]. False when some of them are not in it; what is
-     * no longer pending is gone either way, unless the file cannot even be deleted.
+     * Makes the file hold exactly [readings]. False when some of them are not in it, or the
+     * file could not be changed at all.
      */
     fun replaceWith(readings: List<HistoryReading>): Boolean {
-        val lines = encode(readings)
         val staged = File(file.path + ".new")
         return try {
             if (readings.isEmpty()) {
                 if (file.exists() && !file.delete()) throw IOException("could not delete $file")
             } else {
                 file.parentFile?.mkdirs()
-                staged.writeBytes(lines)
+                staged.writeBytes(encode(readings))
                 if (!staged.renameTo(file)) throw IOException("could not replace $file")
             }
             tornTail = false
@@ -87,46 +88,55 @@ internal class HistoryBatchJournal(private val file: File) {
         } catch (e: IOException) {
             Log.stack(TAG, "replaceWith", e)
             staged.delete()
-            replaceInPlace(lines, readings.size)
+            crossOutAllBut(readings.mapTo(HashSet(), ::encodeLine))
         }
     }
 
     /**
-     * No room for a second copy. Readings that were stored meanwhile must not stay in the file,
-     * a restart would write them over what replaced them since; so the old file goes first, and
-     * its space usually takes the new lines.
+     * No room for a second copy: crosses out, where they stand, the lines that are not among
+     * [pending]. A restart would write them over what has replaced them since. One byte each,
+     * so no other line is ever at risk. True when every pending line is in the file.
      */
-    private fun replaceInPlace(lines: ByteArray, count: Int): Boolean {
-        if (file.exists() && !file.delete()) return false
-        lineCount = 0
-        tornTail = false
-        if (count == 0) return true
-        return try {
-            file.writeBytes(lines)
-            lineCount = count
-            true
-        } catch (e: IOException) {
-            Log.stack(TAG, "replaceInPlace", e)
-            tornTail = file.length() > 0L
-            false
+    private fun crossOutAllBut(pending: Set<String>): Boolean = try {
+        val found = HashSet<String>()
+        if (file.exists()) {
+            RandomAccessFile(file, "rw").use { raw ->
+                var offset = 0L
+                // ISO-8859-1 keeps one character per byte; the lines themselves are ASCII.
+                for (line in file.readText(Charsets.ISO_8859_1).split('\n')) {
+                    if (line in pending) {
+                        found += line
+                    } else if (line.isNotEmpty() && line[0] != CROSSED_OUT) {
+                        raw.seek(offset)
+                        raw.write(CROSSED_OUT.code)
+                    }
+                    offset += line.length + 1
+                }
+            }
         }
+        found.size == pending.size
+    } catch (e: IOException) {
+        Log.stack(TAG, "crossOutAllBut", e)
+        false
     }
 
     private fun encode(readings: List<HistoryReading>): ByteArray = buildString(readings.size * 80) {
-        for (reading in readings) {
-            val body = listOf(
-                FORMAT,
-                URLEncoder.encode(reading.sensorSerial, "UTF-8"),
-                reading.timestamp,
-                reading.value,
-                reading.rawValue,
-                reading.rate ?: "",
-                URLEncoder.encode(reading.source, "UTF-8"),
-                reading.firstStoredAt,
-            ).joinToString("\t")
-            append(body).append('\t').append(checksum(body)).append('\n')
-        }
+        for (reading in readings) append(encodeLine(reading)).append('\n')
     }.toByteArray(Charsets.UTF_8)
+
+    private fun encodeLine(reading: HistoryReading): String {
+        val body = listOf(
+            FORMAT,
+            URLEncoder.encode(reading.sensorSerial, "UTF-8"),
+            reading.timestamp,
+            reading.value,
+            reading.rawValue,
+            reading.rate ?: "",
+            URLEncoder.encode(reading.source, "UTF-8"),
+            reading.firstStoredAt,
+        ).joinToString("\t")
+        return body + "\t" + checksum(body)
+    }
 
     private fun decode(line: String): HistoryReading? = runCatching {
         val body = line.substringBeforeLast('\t')
@@ -150,6 +160,7 @@ internal class HistoryBatchJournal(private val file: File) {
     private companion object {
         const val TAG = "HistoryBatchJournal"
         const val FORMAT = "1"
+        const val CROSSED_OUT = '-'
         val NEWLINE = byteArrayOf('\n'.code.toByte())
     }
 }
