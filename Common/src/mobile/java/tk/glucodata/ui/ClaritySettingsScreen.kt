@@ -146,10 +146,12 @@ fun ClaritySettingsScreen(navController: NavController) {
         savingCount += 1
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
-                val result = withContext(NonCancellable + Dispatchers.IO) {
+                val result = withContext(NonCancellable) {
                     claritySaveMutex.withLock {
-                        // Amounts stay as stored: see the class comment.
-                        Clarity.configure(enabled, history, numbers, since)
+                        withContext(Dispatchers.IO) {
+                            // Amounts stay as stored: see the class comment.
+                            Clarity.configure(enabled, history, numbers, since)
+                        }
                     }
                 }
                 error = if (result == null) context.getString(R.string.clarity_save_settings_error) else result.takeIf { it.isNotEmpty() }
