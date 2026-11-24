@@ -26,6 +26,8 @@ internal data class CloneIceReport(
                 .replace(Regex("(?i)<br\\s*/?>|</p>|</h\\d>"), "\n")
                 .replace(Regex("<[^>]+>"), "")
                 .replace("&quot;", "\"")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
                 .replace("&amp;", "&")
                 .lines()
                 .map { it.trim() }

@@ -41,6 +41,18 @@ class CloneIceReportTests {
     }
 
     @Test
+    fun escapedSpecialCharactersInIceLabelDoNotCorruptTheReport() {
+        val report = CloneIceReport.parse(
+            """<h1>ICE Connection 0: Hybrid &amp; &lt;Clone&gt;</h1><p><b>ICElabel</b>: "Bq${'$'}uZ:_5_&gt;&lt;o4\\MYpME&amp;tiM+fc.[CbT" <b>Side</b>=0</p><p><b>Phase</b>: Put description<br><b>ICE State:</b> disconnected""",
+        )
+        assertEquals("Put description", report.phase)
+        assertEquals("disconnected", report.state)
+        assertNull(report.local)
+        assertNull(report.remote)
+        assertNull(report.connectedAtMs)
+    }
+
+    @Test
     fun emptyIsEmpty() {
         assertEquals(CloneIceReport(), CloneIceReport.parse(""))
         assertEquals(CloneIceReport(), CloneIceReport.parse(null))

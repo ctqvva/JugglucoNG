@@ -231,12 +231,9 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getbackuphostport)(JNIEnv *envin,
 extern "C" JNIEXPORT jboolean JNICALL fromjava(isWearOS)(JNIEnv *envin,
                                                          jclass cl, jint pos) {
   if (!backup || pos < 0 || pos >= backup->gethostnr()) {
-    LOGGER("isWearos(%d)=false\n", pos);
     return false;
   }
-  auto ret = backup->getupdatedata()->allhosts[pos].wearos;
-  LOGGER("isWearos(%d)=%d\n", pos, ret);
-  return ret;
+  return backup->getupdatedata()->allhosts[pos].wearos;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

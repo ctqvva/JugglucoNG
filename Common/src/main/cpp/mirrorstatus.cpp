@@ -20,6 +20,8 @@
 
 #include <memory>
 #include <array>
+#include <string>
+#include <string_view>
 #include "datbackup.hpp"
 #include "mirrorstatus.hpp"
 #include "net/netstuff.hpp"
@@ -32,12 +34,6 @@ extern std::array<int,maxallhosts>   messagereceiversockets;
 extern std::array<int,maxallhosts>             us2peers;
 extern mirrorstatus_t mirrorstatus[maxallhosts];
 #include "deleter.hpp"
-//constexpr const int maxmirrortext=200;
-#ifdef NOLOG
-static constexpr const int RELEASEEXTRA=50;
-#else
-static constexpr const int RELEASEEXTRA=0;
-#endif
 extern char *getmirrorerror(const passhost_t *pass);
 extern std::unique_ptr<const char[],deleter> ICEstatus(int allindex);
 std::unique_ptr<const char[],deleter> getnetstatus(int allindex)  {
@@ -104,41 +100,81 @@ extern bool getactive(int pos);
 	
 	
 
-	static char format[]=R"(<h1>Connection %d: %s</h1><p>%s <i>%s</i><br>Send to: %s%s%s running=%s socket=%d locked=%s<br>Receive from: %s %d %s socket=%d wait for commands: %s, interpret: %s</p>  <p><b>WearOS</b><br>messages=%s<br>Sender:<br>to bluetooth running=%d received=%s  sendmessage: %s<br>messagesendersocket=%d<br>Receiver:<br>to bluetooth running=%d received=%s  sendmessage: %s<br>messagereceiversocket=%d<br>otherside index=%d</p>)";
-	const int maxbuf=sizeof(format)+12*5+2*8+2+passhost_t::maxnamelen+100+20+maxmirrortext+40+RELEASEEXTRA;
-	char *buf=new(nothrow) char[maxbuf];
-		if(!buf)  {
-			return std::unique_ptr<const char[],deleter>((char *)errormessage,deleter(errormessage));
+	static const char format[]=R"(<h1>Connection %d: %s</h1><p>%s <i>%s</i><br>Send to: %s%s%s running=%s socket=%d locked=%s<br>Receive from: %s %d %s socket=%d wait for commands: %s, interpret: %s</p>)";
+	static const char wearosFormat[]=R"(  <p><b>WearOS</b><br>messages=%s<br>Sender:<br>to bluetooth running=%d received=%s  sendmessage: %s<br>messagesendersocket=%d<br>Receiver:<br>to bluetooth running=%d received=%s  sendmessage: %s<br>messagereceiversocket=%d<br>otherside index=%d</p>)";
+	auto escapeHtml = [](std::string_view input) {
+		std::string out;
+		out.reserve(input.size());
+		for(char c : input) {
+			switch(c) {
+				case '&': out.append("&amp;"); break;
+				case '<': out.append("&lt;"); break;
+				case '>': out.append("&gt;"); break;
+				case '"': out.append("&quot;"); break;
+				default: out.push_back(c); break;
 			}
-	constexpr const  int startwearos=168;
-	int buflen;
-	if(host.wearos) {
-		format[startwearos]=' ';
-		buflen=snprintf(buf,maxbuf,format,allindex,host.getnameif(),ips,connect,sendnums?"Amounts ":"",sendscans?"Scans ":"",sendstream?"Stream ":"",boolstr[status.sender.running],sendsock,boolstr[status.sender.locked],
-
-		boolstr[receives],status.receive.tid,receivethread,receivesock,boolstr[status.receive.ingetcom()],boolstr[status.receive.ininterpret],
-
-		boolstr[wearmessages[allindex]],
-		status.toblue[true].runs, boolstr[status.toblue[true].recv], sendptr[status.toblue[true].sendmessage], messagesendersockets[allindex],
-
-		status.toblue[false].runs, boolstr[status.toblue[false].recv], sendptr[status.toblue[false].sendmessage],
-
-messagereceiversockets[allindex],
-            us2peers[allindex]
-		);
 		}
-	else {
-		format[startwearos]='\0';
-
-		buflen=snprintf(buf,maxbuf,format,allindex,host.getnameif(),ips,connect,sendnums?"Amounts ":"",sendscans?"Scans ":"",sendstream?"Stream ":"",boolstr[status.sender.running],sendsock,boolstr[status.sender.locked],
-
-		boolstr[receives],status.receive.tid,receivethread,receivesock,boolstr[status.receive.ingetcom()],boolstr[status.receive.ininterpret]);
-
+		return out;
+	};
+	const std::string escapedName = escapeHtml(host.getnameif());
+	const std::string escapedIps = escapeHtml(ips);
+	const std::string escapedError = escapeHtml(getmirrorerror(&host));
+	const bool senderRunning = status.sender.running;
+	const bool senderLocked = status.sender.locked;
+	const int receiveTid = status.receive.tid;
+	const bool receiveInGetCom = status.receive.ingetcom();
+	const bool receiveInInterpret = status.receive.ininterpret;
+	const bool isWearOs = host.wearos;
+	const bool wearMsg = isWearOs ? wearmessages[allindex] : false;
+	const int toBlueTrueRuns = isWearOs ? status.toblue[true].runs : 0;
+	const bool toBlueTrueRecv = isWearOs ? status.toblue[true].recv : false;
+	const int toBlueTrueSend = isWearOs ? status.toblue[true].sendmessage : 0;
+	const int msgSenderSock = isWearOs ? messagesendersockets[allindex] : -1;
+	const int toBlueFalseRuns = isWearOs ? status.toblue[false].runs : 0;
+	const bool toBlueFalseRecv = isWearOs ? status.toblue[false].recv : false;
+	const int toBlueFalseSend = isWearOs ? status.toblue[false].sendmessage : 0;
+	const int msgReceiverSock = isWearOs ? messagereceiversockets[allindex] : -1;
+	const int peerIndex = isWearOs ? us2peers[allindex] : -1;
+	const int baseLen = snprintf(nullptr, 0, format, allindex, escapedName.c_str(), escapedIps.c_str(), connect,
+		sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
+		boolstr[senderRunning], sendsock, boolstr[senderLocked],
+		boolstr[receives], receiveTid, receivethread, receivesock,
+		boolstr[receiveInGetCom], boolstr[receiveInInterpret]);
+	const int wearLen = isWearOs ? snprintf(nullptr, 0, wearosFormat,
+		boolstr[wearMsg],
+		toBlueTrueRuns, boolstr[toBlueTrueRecv], sendptr[toBlueTrueSend], msgSenderSock,
+		toBlueFalseRuns, boolstr[toBlueFalseRecv], sendptr[toBlueFalseSend],
+		msgReceiverSock,
+		peerIndex) : 0;
+	std::string out;
+	out.reserve((baseLen > 0 ? static_cast<size_t>(baseLen) : 0) +
+		(wearLen > 0 ? static_cast<size_t>(wearLen) : 0) + 1 + escapedError.size());
+	if(baseLen > 0) {
+		std::string part(static_cast<size_t>(baseLen), '\0');
+		snprintf(part.data(), part.size() + 1, format, allindex, escapedName.c_str(), escapedIps.c_str(), connect,
+			sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
+			boolstr[senderRunning], sendsock, boolstr[senderLocked],
+			boolstr[receives], receiveTid, receivethread, receivesock,
+			boolstr[receiveInGetCom], boolstr[receiveInInterpret]);
+		out.append(part);
 		}
-	buf[buflen++]='\n';
-   const char *errorstr=getmirrorerror(&host);
-   int errlen=strlen(errorstr);
-	memcpy(buf+buflen,errorstr,errlen+1);
+	if(isWearOs && wearLen > 0) {
+		std::string part(static_cast<size_t>(wearLen), '\0');
+		snprintf(part.data(), part.size() + 1, wearosFormat,
+			boolstr[wearMsg],
+			toBlueTrueRuns, boolstr[toBlueTrueRecv], sendptr[toBlueTrueSend], msgSenderSock,
+			toBlueFalseRuns, boolstr[toBlueFalseRecv], sendptr[toBlueFalseSend],
+			msgReceiverSock,
+			peerIndex);
+		out.append(part);
+		}
+	out.push_back('\n');
+	out.append(escapedError);
+	char *buf=new(nothrow) char[out.size() + 1];
+	if(!buf)  {
+		return std::unique_ptr<const char[],deleter>((char *)errormessage,deleter(errormessage));
+		}
+	memcpy(buf, out.data(), out.size() + 1);
    return std::unique_ptr<const char[],deleter> (buf,deleter(nullptr));
 
 	}
@@ -181,9 +217,12 @@ extern "C" JNIEXPORT jstring JNICALL fromjava(getCloneRendezvousHost)(
     if (!host.ICE)
         return nullptr;
     ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
-    if (!connection || connection->rendezvousHost.empty())
+    if (!connection)
         return nullptr;
-    return env->NewStringUTF(connection->rendezvousHost.c_str());
+    const auto endpoint = connection->activeRendezvousEndpoint();
+    if (endpoint.host.empty())
+        return nullptr;
+    return env->NewStringUTF(endpoint.host.c_str());
 }
 
 extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousPort)(
@@ -194,7 +233,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousPort)(
     if (!host.ICE)
         return 0;
     ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
-    return connection ? connection->rendezvousPort : 0;
+    return connection ? connection->activeRendezvousEndpoint().port : 0;
 }
 
 extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousCertificateVerification)(
@@ -205,7 +244,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getCloneRendezvousCertificateVerifica
     if (!host.ICE)
         return -1;
     ICEConnect *connection = static_cast<ICEConnect *>(connections[allindex]);
-    return connection ? (connection->verifyRendezvousCertificate ? 1 : 0) : -1;
+    return connection ? (connection->activeRendezvousEndpoint().verifyCertificate ? 1 : 0) : -1;
 }
 
 extern "C" JNIEXPORT jint JNICALL fromjava(getCloneSignalingSource)(
