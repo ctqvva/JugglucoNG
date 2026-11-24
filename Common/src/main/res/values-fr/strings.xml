@@ -3417,4 +3417,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Les éléments au-dessus se placent avant la caméra, les autres après</string>
     <string name="floating_layout_hidden">Masqué</string>
     <string name="floating_layout_order_desc">Faites glisser une poignée pour déplacer un élément</string>
+    <string name="instara_sensor_desc">Saisissez le code à 8 caractères imprimé sur le capteur</string>
+    <string name="instara_sn_hint">Code du capteur</string>
+    <string name="instara_sn_invalid">Saisissez le code à 8 caractères imprimé sur le capteur</string>
+    <string name="instara_activation_time">Heure d\'activation du capteur (facultatif)</string>
+    <string name="instara_connecting">En attente du capteur</string>
+    <string name="instara_saved">Capteur enregistré — Juggluco continuera à essayer de se connecter</string>
 </resources>

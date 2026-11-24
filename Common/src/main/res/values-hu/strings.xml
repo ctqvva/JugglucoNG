@@ -3478,4 +3478,10 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="floating_layout_camera_desc">A fölötte lévő elemek a kamera elé, a többi mögé kerül</string>
     <string name="floating_layout_hidden">Rejtett</string>
     <string name="floating_layout_order_desc">Húzzon egy fogantyút az elem áthelyezéséhez</string>
+    <string name="instara_sensor_desc">Adja meg a szenzorra nyomtatott 8 karakteres kódot</string>
+    <string name="instara_sn_hint">Szenzorkód</string>
+    <string name="instara_sn_invalid">Adja meg a szenzorra nyomtatott 8 karakteres kódot</string>
+    <string name="instara_activation_time">A szenzor aktiválási ideje (opcionális)</string>
+    <string name="instara_connecting">Várakozás a szenzorra</string>
+    <string name="instara_saved">Szenzor mentve — a Juggluco továbbra is megpróbál csatlakozni</string>
 </resources>

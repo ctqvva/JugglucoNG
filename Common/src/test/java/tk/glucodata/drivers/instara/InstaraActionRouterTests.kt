@@ -40,12 +40,23 @@ class InstaraActionRouterTests {
     }
 
     @Test
-    fun duplicateSequenceIdsArePublishedOnlyOnceAcrossHistoryAndLive() {
+    fun historyDoesNotSuppressLiveDeliveryOfTheSameSequence() {
         val sink = Sink()
         val router = InstaraActionRouter(sink)
         router.route(listOf(InstaraSession.Action.PublishReading(5.5f, 10, 1_000L, isHistory = true)))
-        router.route(listOf(InstaraSession.Action.PublishReading(9.0f, 10, 2_000L)))
+        router.route(listOf(InstaraSession.Action.PublishReading(5.5f, 10, 2_000L)))
         assertEquals(1, sink.history[0].size)
-        assertEquals(emptyList<InstaraReading>(), sink.live)
+        assertEquals(1, sink.live.size)
+        assertEquals(2_000L, sink.live[0].timestampMs)
+    }
+
+    @Test
+    fun duplicateHistoryFramesAreStoredOnlyOnce() {
+        val sink = Sink()
+        val router = InstaraActionRouter(sink)
+        val action = InstaraSession.Action.PublishReading(5.5f, 10, 1_000L, isHistory = true)
+        router.route(listOf(action))
+        router.route(listOf(action))
+        assertEquals(1, sink.history[0].size)
     }
 }

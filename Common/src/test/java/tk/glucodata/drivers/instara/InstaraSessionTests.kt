@@ -87,6 +87,33 @@ class InstaraSessionTests {
     }
 
     @Test
+    fun futureActivationDoesNotThrowAndClampsToNow() {
+        assertEquals(10_000L, InstaraSession.timestampFor(20_000L, 0, 300_000L, 10_000L))
+        assertEquals(10_000L, InstaraSession.timestampFor(20_000L, 5, 300_000L, 10_000L))
+    }
+
+    @Test
+    fun authRequestsHistoryFromTheGivenCursor() {
+        val s = InstaraSession("ABC12345", 1_000L, 300_000L, historyCursor = 41)
+        val sends = s.onPacket(InstaraProtocol.Packet.SnAuth(true))
+            .filterIsInstance<InstaraSession.Action.Send>()
+        val cursor = sends.first { it.bytes[2] == 0x03.toByte() }
+        assertEquals(41, InstaraProtocol.u16(cursor.bytes, 4))
+    }
+
+    @Test
+    fun durationReplyChangesTheHistoryInterval() {
+        val s = InstaraSession("ABC12345", 1_000L, 300_000L)
+        s.onPacket(InstaraProtocol.Packet.SnAuth(true))
+        s.onPacket(InstaraProtocol.Packet.Duration(7))
+        val readings = s.onPacket(
+            InstaraProtocol.Packet.HistoryPayload(4, 2, 7, listOf(80f, 90f)),
+        ).filterIsInstance<InstaraSession.Action.PublishReading>()
+        assertEquals(1_000L + 2 * 7 * 60_000L, readings[0].timestampMs)
+        assertEquals(1_000L + 3 * 7 * 60_000L, readings[1].timestampMs)
+    }
+
+    @Test
     fun dedupKeepsFirstOccurrenceOfEachSequenceId() {
         assertEquals(
             listOf(1 to 5f, 2 to 6f),

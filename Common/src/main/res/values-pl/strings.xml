@@ -3472,4 +3472,10 @@
     <string name="floating_layout_camera_desc">Elementy powyżej są przed aparatem, pozostałe za nim</string>
     <string name="floating_layout_hidden">Ukryte</string>
     <string name="floating_layout_order_desc">Przeciągnij uchwyt, aby przenieść element</string>
+    <string name="instara_sensor_desc">Wpisz 8-znakowy kod wydrukowany na czujniku</string>
+    <string name="instara_sn_hint">Kod czujnika</string>
+    <string name="instara_sn_invalid">Wpisz 8-znakowy kod wydrukowany na czujniku</string>
+    <string name="instara_activation_time">Czas aktywacji czujnika (opcjonalnie)</string>
+    <string name="instara_connecting">Oczekiwanie na czujnik</string>
+    <string name="instara_saved">Czujnik zapisany — Juggluco będzie nadal próbować się połączyć</string>
 </resources>

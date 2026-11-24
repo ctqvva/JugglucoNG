@@ -33,6 +33,17 @@ class InstaraTransportTests {
     }
 
     @Test
+    fun wizardNeverLogsTheSensorAuthenticationCode() {
+        val wizard = File("src/mobile/java/tk/glucodata/ui/setup/InstaraSetupWizard.kt").let {
+            if (it.isFile) it else File("../Common/src/mobile/java/tk/glucodata/ui/setup/InstaraSetupWizard.kt")
+        }
+        assertFalse(
+            "the SN is a sensor key and must not enter the log ring",
+            wizard.readText().contains("setup \$code"),
+        )
+    }
+
+    @Test
     fun stateChangeRejectsRetiredGattBeforeDelegating() {
         assertTrue(source.contains("acceptConnectionAttemptCallback(gatt, newState)"))
     }

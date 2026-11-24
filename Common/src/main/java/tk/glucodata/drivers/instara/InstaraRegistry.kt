@@ -10,7 +10,7 @@ object InstaraRegistry {
     private const val TAG = "InstaraRegistry"
 
     @JvmStatic
-    fun addSensor(context: Context, sn: String): String? {
+    fun addSensor(context: Context, sn: String, activationMs: Long? = null): String? {
         if (!InstaraPersistence.isValidSn(sn)) {
             Log.w(TAG, "addSensor: invalid SN")
             return null
@@ -19,11 +19,13 @@ object InstaraRegistry {
         val previous = InstaraPersistence.getSerialNumber(context)
         if (previous.isNotBlank() && !previous.equals(sensorId, ignoreCase = true)) {
             InstaraPersistence.setLastBtAddress(context, "")
-            InstaraPersistence.setSensorStartMs(context, 0L)
+            InstaraPersistence.setLastSequenceId(context, 0)
+            if (activationMs == null) InstaraPersistence.setSensorStartMs(context, 0L)
             runCatching { Natives.finishSensorById(previous) }
                 .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }
         }
         InstaraPersistence.setSerialNumber(context, sensorId)
+        if (activationMs != null) InstaraPersistence.setSensorStartMs(context, activationMs)
 
         retireOtherDrivers(sensorId)
         val blue = SensorBluetooth.blueone ?: return sensorId

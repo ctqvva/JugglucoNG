@@ -3510,4 +3510,10 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="floating_layout_camera_desc">Дээрх зүйлс камерын өмнө, бусад нь ард байрлана</string>
     <string name="floating_layout_hidden">Нуугдсан</string>
     <string name="floating_layout_order_desc">Зүйлийг зөөхийн тулд бариулаас чирнэ үү</string>
+    <string name="instara_sensor_desc">Мэдрэгч дээр хэвлэгдсэн 8 тэмдэгттэй кодыг оруулна уу</string>
+    <string name="instara_sn_hint">Мэдрэгчийн код</string>
+    <string name="instara_sn_invalid">Мэдрэгч дээр хэвлэгдсэн 8 тэмдэгттэй кодыг оруулна уу</string>
+    <string name="instara_activation_time">Мэдрэгчийг идэвхжүүлсэн цаг (сонголтоор)</string>
+    <string name="instara_connecting">Мэдрэгчийг хүлээж байна</string>
+    <string name="instara_saved">Мэдрэгч хадгалагдлаа — Juggluco холбогдохыг оролдох болно</string>
 </resources>

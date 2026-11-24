@@ -221,11 +221,25 @@ hardware validation, which is explicitly out of scope until a sensor is availabl
 - `connectDevice` coalesces only on a live GATT (never on the remembered device address), and
   `onConnectionStateChange` rejects retired GATT handles before delegating to the base class.
 - `parse` validates a minimum payload length per opcode before reading any payload byte.
+- Follow-up from the decompiled app and review: the driver now sends the `0x03` history cursor
+  (`last stored sequenceId`), polls the battery as a keepalive every 25 s after 20 s idle, and uses
+  the `0x0A` duration reply as the history sampling interval.
+- Greptile review fixes: SN no longer appears in logs; future activation times are clamped; history
+  storage dedup is separate from live delivery; pause/rejected-device/Bluetooth-off states stop
+  reconnect loops and clear transport state; failed writes restart the link; the native mirror is
+  finished on removal and the worker thread is quit; all setup strings are translated.
+
+## Source of truth for units and history timing
+
+`BleReceiveCoordinator.createDeviceDataBean`: `dataTime = initTime + duration * sequenceId * 60_000`.
+`BloodUnitUtils.getCorrectValue2`: mmol/L is stored as-is, mg/dL is `source * 18`.
 
 ## Hardware validation checklist (requires a real G1 + its 8-character code)
 
-1. **Units** — confirm whether `u16 / 10` is mmol/L or mg/dL. The driver assumes mmol/L and converts
-   with `MGDL_PER_MMOL = 18.0182f`; if the device sends mg/dL, change `InstaraSession.mmolToMgdl`.
+1. **Units — confirmed from the vendor code.** `BleReceiveCoordinator.createDeviceDataBean` stores
+   `u16 / 10` unchanged, and `BloodUnitUtils.getCorrectValue2` multiplies by 18 only when mg/dL is
+   selected, so the device value is mmol/L. The driver's `MGDL_PER_MMOL` conversion stands; a quick
+   real-sensor sanity check is still worthwhile.
 2. **SN format** — confirm the printed code is exactly 8 ASCII alphanumerics and that `0x07` always
    carries `len = 8` (hard-coded by the vendor app).
 3. **`0x04` function model** — confirm whether streaming/history is gated on the two function-model

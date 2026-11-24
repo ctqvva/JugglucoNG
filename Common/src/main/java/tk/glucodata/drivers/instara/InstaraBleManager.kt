@@ -30,11 +30,15 @@ class InstaraBleManager(
         private const val TAG = "InstaraBLE"
         private const val DISCOVERY_DELAY_MS = 250L
         private const val RECONNECT_DELAY_MS = 3_000L
+        private const val KEEPALIVE_INTERVAL_MS = 25_000L
+        private const val KEEPALIVE_IDLE_MS = 20_000L
+        private const val MAX_FAILED_ATTEMPTS = 5
     }
 
     override var viewMode: Int = 0
 
-    private val handler = Handler(HandlerThread("InstaraBle").apply { start() }.looper)
+    private val thread = HandlerThread("InstaraBle").apply { start() }
+    private val handler = Handler(thread.looper)
     private val readingLock = Any()
     private val router = InstaraActionRouter(this)
     private val txLock = Any()
@@ -47,8 +51,24 @@ class InstaraBleManager(
     private var authRejected = false
     private var deviceRejected = false
     private var linkUp = false
+    private var paused = false
+    private var lastNotifyAt = 0L
+    private var failedAttempts = 0
     private val reconnectRunnable = Runnable {
-        if (!stop && mBluetoothGatt == null) connectDevice(0L)
+        if (!stop && !paused && !deviceRejected && !authRejected &&
+            failedAttempts < MAX_FAILED_ATTEMPTS && mBluetoothGatt == null
+        ) {
+            connectDevice(0L)
+        }
+    }
+    private val keepaliveRunnable: Runnable = Runnable {
+        if (stop || paused || mBluetoothGatt == null) return@Runnable
+        if (lastNotifyAt <= 0L ||
+            android.os.SystemClock.elapsedRealtime() - lastNotifyAt > KEEPALIVE_IDLE_MS
+        ) {
+            enqueue(InstaraSession.Action.Send(InstaraProtocol.frame(InstaraProtocol.CMD_BATTERY)))
+        }
+        handler.postDelayed(keepaliveRunnable, KEEPALIVE_INTERVAL_MS)
     }
 
     override fun getSerialNumber(): String = SerialNumber
@@ -58,6 +78,7 @@ class InstaraBleManager(
     override fun getBatteryPercent(): Int = batteryPercent
     fun isAuthRejected(): Boolean = authRejected
     fun isDeviceRejected(): Boolean = deviceRejected
+    fun isAuthorized(): Boolean = session?.isAuthorized == true
 
     override fun getSensorStartMs(): Long =
         Applic.app?.let { InstaraPersistence.getSensorStartMs(it) } ?: 0L
@@ -108,6 +129,8 @@ class InstaraBleManager(
                 }
                 connectionStatus = "Connected"
                 handler.removeCallbacks(reconnectRunnable)
+                handler.removeCallbacks(keepaliveRunnable)
+                handler.postDelayed(keepaliveRunnable, KEEPALIVE_INTERVAL_MS)
                 handler.postDelayed({
                     if (!stop && mBluetoothGatt === gatt) {
                         if (!gatt.discoverServices()) {
@@ -119,10 +142,12 @@ class InstaraBleManager(
             }
 
             BluetoothProfile.STATE_DISCONNECTED -> {
+                val wasUp = linkUp
                 linkUp = false
                 connectionStatus = "Disconnected"
                 session = null
                 writeChar = null
+                lastNotifyAt = 0L
                 handler.removeCallbacksAndMessages(null)
                 synchronized(txLock) {
                     txQueue.clear()
@@ -130,6 +155,10 @@ class InstaraBleManager(
                 }
                 runCatching { gatt.close() }
                 if (mBluetoothGatt === gatt) mBluetoothGatt = null
+                if (!wasUp) {
+                    failedAttempts++
+                    if (failedAttempts >= MAX_FAILED_ATTEMPTS) deviceRejected = true
+                }
                 handler.postDelayed(reconnectRunnable, RECONNECT_DELAY_MS)
             }
         }
@@ -173,7 +202,8 @@ class InstaraBleManager(
             val ctx = Applic.app
             val startMs = ctx?.let { InstaraPersistence.getSensorStartMs(it) } ?: 0L
             val intervalMs = 5L * 60L * 1000L
-            session = InstaraSession(SerialNumber, startMs, intervalMs).also { it.onConnected() }
+            val cursor = ctx?.let { InstaraPersistence.getLastSequenceId(it) } ?: 0
+            session = InstaraSession(SerialNumber, startMs, intervalMs, cursor).also { it.onConnected() }
             connectionStatus = "Waiting for sensor"
             UiRefreshBus.requestStatusRefresh()
         }
@@ -204,7 +234,9 @@ class InstaraBleManager(
     ) {
         if (stop || mBluetoothGatt !== gatt) return
         val data = characteristic.value ?: return
+        lastNotifyAt = android.os.SystemClock.elapsedRealtime()
         val packet = InstaraProtocol.parse(data)
+        if (packet is InstaraProtocol.Packet.SnAuth && packet.ok) failedAttempts = 0
         if (packet == null) {
             Log.d(TAG, "Dropping malformed notification (${data.size} bytes)")
             return
@@ -259,8 +291,13 @@ class InstaraBleManager(
         synchronized(txLock) { txInFlight = true }
         char.value = send.bytes
         if (!gatt.writeCharacteristic(char)) {
-            synchronized(txLock) { txInFlight = false }
+            synchronized(txLock) {
+                txQueue.clear()
+                txInFlight = false
+            }
             Log.e(TAG, "writeCharacteristic failed for cmd ${send.bytes[2].toInt() and 0xFF}")
+            // A refused command can leave a half-open handshake; restart it from a clean link.
+            runCatching { gatt.disconnect() }
         }
     }
 
@@ -298,6 +335,8 @@ class InstaraBleManager(
                 FloatArray(readings.size),
             )
             mirror(readings)
+            val maxSequence = readings.maxOf { it.sequenceId }
+            Applic.app?.let { InstaraPersistence.setLastSequenceId(it, maxSequence) }
         }
         UiRefreshBus.requestDataRefresh()
     }
@@ -317,33 +356,54 @@ class InstaraBleManager(
     }
 
     override fun softDisconnect() {
-        handler.removeCallbacks(reconnectRunnable)
+        setPause(true)
+        paused = true
+        resetTransport()
         mBluetoothGatt?.let { runCatching { it.disconnect() } }
+        UiRefreshBus.requestStatusRefresh()
     }
 
     override fun softReconnect() {
+        setPause(false)
+        paused = false
         authRejected = false
         deviceRejected = false
-        handler.removeCallbacks(reconnectRunnable)
+        failedAttempts = 0
+        resetTransport()
         mBluetoothGatt?.let { runCatching { it.disconnect() } }
             ?: connectDevice(0L)
+        UiRefreshBus.requestStatusRefresh()
     }
 
     override fun onBluetoothAdapterUnavailable() {
         linkUp = false
-        session = null
-        mBluetoothGatt = null
+        resetTransport()
     }
 
-    override fun terminateManagedSensor(wipeData: Boolean) {
-        stop = true
+    private fun resetTransport() {
+        session = null
+        writeChar = null
+        lastNotifyAt = 0L
         handler.removeCallbacksAndMessages(null)
         synchronized(txLock) {
             txQueue.clear()
             txInFlight = false
         }
-        mBluetoothGatt?.let { runCatching { it.close() } }
-        mBluetoothGatt = null
-        if (wipeData) Applic.app?.let { InstaraPersistence.clear(it) }
+    }
+
+    override fun terminateManagedSensor(wipeData: Boolean) {
+        stop = true
+        setPause(true)
+        resetTransport()
+        synchronized(readingLock) {
+            mBluetoothGatt?.let { runCatching { it.close() } }
+            mBluetoothGatt = null
+            // Finish the native mirror while the persisted record still claims it; otherwise the
+            // next refresh recreates it as a generic Libre callback.
+            runCatching { Natives.finishSensorById(SerialNumber) }
+                .onFailure { Log.stack(TAG, "terminateManagedSensor(finishSensorById)", it) }
+            if (wipeData) Applic.app?.let { InstaraPersistence.clear(it) }
+        }
+        thread.quit()
     }
 }

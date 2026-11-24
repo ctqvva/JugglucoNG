@@ -48,14 +48,21 @@ private const val CONNECT_TIMEOUT_MS = 90_000L
 private const val CONNECT_POLL_MS = 500L
 
 private enum class Step { ENTRY, CONNECTING, SUCCESS, SAVED }
+private enum class LinkResult { AUTHORIZED, REJECTED, TIMED_OUT }
 
-private suspend fun awaitLink(sensorId: String): Boolean =
+private suspend fun awaitLink(sensorId: String): LinkResult =
     withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
-        while (InstaraRegistry.findDriver(sensorId)?.isConnected() != true) {
+        while (true) {
+            val driver = InstaraRegistry.findDriver(sensorId)
+            when {
+                driver?.isAuthRejected() == true || driver?.isDeviceRejected() == true ->
+                    return@withTimeoutOrNull LinkResult.REJECTED
+                driver?.isAuthorized() == true -> return@withTimeoutOrNull LinkResult.AUTHORIZED
+            }
             delay(CONNECT_POLL_MS)
         }
-        true
-    } ?: false
+        LinkResult.TIMED_OUT
+    } ?: LinkResult.TIMED_OUT
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,20 +86,25 @@ fun InstaraSetupWizard(
     val valid = InstaraPersistence.isValidSn(sn)
 
     fun startAttach(code: String) {
+        val nowMs = System.currentTimeMillis()
         val activatedAt = runCatching {
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse(activationInput)?.time
-        }.getOrNull() ?: System.currentTimeMillis()
-        InstaraPersistence.setSensorStartMs(context, activatedAt)
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).apply { isLenient = false }
+                .parse(activationInput)?.time
+        }.getOrNull()?.coerceAtMost(nowMs) ?: nowMs
         step = Step.CONNECTING
         val current = ++attempt
         job?.cancel()
         job = scope.launch {
             try {
-                val sensorId = InstaraRegistry.addSensor(context, code)
-                val connected = sensorId != null && awaitLink(sensorId)
+                val sensorId = InstaraRegistry.addSensor(context, code, activatedAt)
+                val result = if (sensorId == null) LinkResult.REJECTED else awaitLink(sensorId)
                 if (current != attempt) return@launch
-                step = if (connected) Step.SUCCESS else Step.SAVED
-                Log.i(TAG, "Instara setup $code connected=$connected")
+                step = when (result) {
+                    LinkResult.AUTHORIZED -> Step.SUCCESS
+                    LinkResult.REJECTED -> Step.ENTRY
+                    LinkResult.TIMED_OUT -> Step.SAVED
+                }
+                Log.i(TAG, "Instara setup result=$result")
             } catch (c: CancellationException) {
                 throw c
             } catch (t: Throwable) {
@@ -107,7 +119,7 @@ fun InstaraSetupWizard(
     ) {
         val code = pendingSn
         pendingSn = null
-        if (code != null) startAttach(code)
+        if (code != null && hasBleScanPermissions(context)) startAttach(code)
     }
 
     fun requestPermissionsAndAttach(code: String) {

@@ -9,6 +9,7 @@ object InstaraPersistence {
     private const val KEY_SN = "instara_sn"
     private const val KEY_BT_ADDRESS = "instara_bt_address"
     private const val KEY_SENSOR_START_MS = "instara_sensor_start_ms"
+    private const val KEY_LAST_SEQUENCE_ID = "instara_last_sequence_id"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -36,6 +37,12 @@ object InstaraPersistence {
 
     fun setSensorStartMs(context: Context, startMs: Long) {
         prefs(context).edit().putLong(KEY_SENSOR_START_MS, startMs).apply()
+    }
+
+    fun getLastSequenceId(context: Context): Int = prefs(context).getInt(KEY_LAST_SEQUENCE_ID, 0)
+
+    fun setLastSequenceId(context: Context, sequenceId: Int) {
+        prefs(context).edit().putInt(KEY_LAST_SEQUENCE_ID, sequenceId).apply()
     }
 
     fun clear(context: Context) {

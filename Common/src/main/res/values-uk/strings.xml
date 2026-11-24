@@ -3506,4 +3506,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Елементи вище стоять перед камерою, решта — після</string>
     <string name="floating_layout_hidden">Приховано</string>
     <string name="floating_layout_order_desc">Перетягніть маркер, щоб перемістити елемент</string>
+    <string name="instara_sensor_desc">Введіть 8-символьний код, надрукований на датчику</string>
+    <string name="instara_sn_hint">Код датчика</string>
+    <string name="instara_sn_invalid">Введіть 8-символьний код, надрукований на датчику</string>
+    <string name="instara_activation_time">Час активації датчика (необов\'язково)</string>
+    <string name="instara_connecting">Очікування датчика</string>
+    <string name="instara_saved">Датчик збережено — Juggluco продовжить спроби підключення</string>
 </resources>

@@ -3401,4 +3401,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Gli elementi sopra stanno prima della fotocamera, gli altri dopo</string>
     <string name="floating_layout_hidden">Nascosto</string>
     <string name="floating_layout_order_desc">Trascina una maniglia per spostare un elemento</string>
+    <string name="instara_sensor_desc">Inserisci il codice di 8 caratteri stampato sul sensore</string>
+    <string name="instara_sn_hint">Codice sensore</string>
+    <string name="instara_sn_invalid">Inserisci il codice di 8 caratteri stampato sul sensore</string>
+    <string name="instara_activation_time">Ora di attivazione del sensore (facoltativa)</string>
+    <string name="instara_connecting">In attesa del sensore</string>
+    <string name="instara_saved">Sensore salvato — Juggluco continuerà a provare a connettersi</string>
 </resources>

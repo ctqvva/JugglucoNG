@@ -3677,4 +3677,10 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="floating_layout_camera_desc">Los elementos de arriba van antes de la cámara; el resto, después</string>
     <string name="floating_layout_hidden">Oculto</string>
     <string name="floating_layout_order_desc">Arrastra un asa para mover un elemento</string>
+    <string name="instara_sensor_desc">Introduzca el código de 8 caracteres impreso en el sensor</string>
+    <string name="instara_sn_hint">Código del sensor</string>
+    <string name="instara_sn_invalid">Introduzca el código de 8 caracteres impreso en el sensor</string>
+    <string name="instara_activation_time">Hora de activación del sensor (opcional)</string>
+    <string name="instara_connecting">Esperando al sensor</string>
+    <string name="instara_saved">Sensor guardado — Juggluco seguirá intentando conectarse</string>
 </resources>

@@ -4,7 +4,9 @@ class InstaraSession(
     private val sn: String,
     private val activationMs: Long,
     private val intervalMs: Long,
+    private val historyCursor: Int = 0,
 ) {
+    private var samplingIntervalMs: Long = intervalMs
     sealed class Action {
         data class Send(val bytes: ByteArray, val delayMs: Long = 0) : Action()
         data class PublishReading(
@@ -48,13 +50,15 @@ class InstaraSession(
 
         is InstaraProtocol.Packet.SnAuth -> {
             if (!packet.ok) {
+                isAuthorized = false
                 listOf(Action.StatusChanged("SN rejected"))
             } else {
                 isAuthorized = true
-                val minutes = (intervalMs / 60_000L).coerceIn(1L, 255L).toInt()
+                val minutes = (samplingIntervalMs / 60_000L).coerceIn(1L, 255L).toInt()
                 listOf(
                     Action.Send(InstaraProtocol.frame(InstaraProtocol.CMD_USE_TIME, byteArrayOf(DEFAULT_USE_TIME_DAYS.toByte()))),
                     Action.Send(InstaraProtocol.frame(InstaraProtocol.CMD_SET_DURATION, u16Bytes(minutes))),
+                    Action.Send(InstaraProtocol.frame(InstaraProtocol.CMD_SEQUENCE, u16Bytes(historyCursor))),
                 )
             }
         }
@@ -84,7 +88,7 @@ class InstaraSession(
                 actions += Action.PublishReading(
                     value,
                     seq,
-                    timestampFor(activationMs, seq, intervalMs, nowMs),
+                    timestampFor(activationMs, seq, samplingIntervalMs, nowMs),
                     isHistory = true,
                 )
             }
@@ -95,6 +99,11 @@ class InstaraSession(
                 actions += Action.HistoryComplete
             }
             actions
+        }
+
+        is InstaraProtocol.Packet.Duration -> {
+            if (packet.minutes in 1..255) samplingIntervalMs = packet.minutes.toLong() * 60_000L
+            emptyList()
         }
 
         is InstaraProtocol.Packet.Battery -> listOf(
@@ -114,7 +123,8 @@ class InstaraSession(
 
         fun timestampFor(activationMs: Long, sequenceId: Int, intervalMs: Long, nowMs: Long): Long {
             if (activationMs <= 0L) return nowMs
-            return (activationMs + sequenceId.toLong() * intervalMs).coerceIn(activationMs, nowMs)
+            val start = activationMs.coerceAtMost(nowMs)
+            return (start + sequenceId.toLong() * intervalMs).coerceIn(start, nowMs)
         }
 
         fun dedupBySequenceId(readings: List<Pair<Int, Float>>): List<Pair<Int, Float>> {
