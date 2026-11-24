@@ -21,10 +21,15 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
+import android.os.OperationCanceledException
 import androidx.core.content.ContextCompat
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,10 +103,19 @@ object VoiceAudioTrigger {
 
     private val lock = Any()
     private val refreshLock = Any()
+    private val carProjectionLock = Any()
+    private var carProjectionRefreshInFlight = false
+    private var carProjectionRefreshPending = false
+    private val carProjectionExecutor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "VoiceCarProjection").apply { isDaemon = true }
+    }
     private val stateFlow = MutableStateFlow(Snapshot())
     val state: StateFlow<Snapshot> = stateFlow.asStateFlow()
 
     private const val CAR_PROJECTION_RECHECK_MS = 30_000L
+    private const val CAR_PROJECTION_QUERY_TIMEOUT_MS = 5_000L
+    @Volatile
+    internal var carProjectionQueryTimeoutMs: Long = CAR_PROJECTION_QUERY_TIMEOUT_MS
 
     private var appContext: Context? = null
     private var monitoringRegistered = false
@@ -749,7 +763,9 @@ object VoiceAudioTrigger {
             }
             val carProjRec = object : BroadcastReceiver() {
                 override fun onReceive(ctx: Context, intent: Intent) {
-                    if (intent.action == ACTION_CAR_CONNECTION_UPDATED) {
+                    if (intent.action == ACTION_CAR_CONNECTION_UPDATED &&
+                        (loadConfig(app).includeCarMode || hasUiMonitors())
+                    ) {
                         refreshCarProjectionAsync(app)
                     }
                 }
@@ -928,14 +944,50 @@ object VoiceAudioTrigger {
         }
     }
 
-    private fun refreshCarProjectionAsync(app: Context) {
+    internal fun refreshCarProjectionAsync(app: Context) {
+        val appCtx = app.applicationContext
+        synchronized(carProjectionLock) {
+            if (carProjectionRefreshInFlight) {
+                carProjectionRefreshPending = true
+                return
+            }
+            carProjectionRefreshInFlight = true
+            carProjectionRefreshPending = false
+        }
         try {
-            Applic.scheduler.execute {
-                refreshCarProjectionNow(app)
+            carProjectionExecutor.execute {
+                var runAgain = true
+                while (runAgain) {
+                    try {
+                        refreshCarProjectionNow(appCtx)
+                    } catch (t: Throwable) {
+                        Log.stack(LOG_ID, "refreshCarProjectionAsync", t)
+                    } finally {
+                        synchronized(carProjectionLock) {
+                            if (carProjectionRefreshPending) {
+                                carProjectionRefreshPending = false
+                                runAgain = true
+                            } else {
+                                carProjectionRefreshInFlight = false
+                                runAgain = false
+                            }
+                        }
+                    }
+                }
             }
         } catch (t: Throwable) {
+            synchronized(carProjectionLock) {
+                carProjectionRefreshInFlight = false
+                carProjectionRefreshPending = false
+            }
             Log.stack(LOG_ID, "refreshCarProjectionAsync", t)
         }
+    }
+
+    internal fun awaitCarProjectionIdleForTests(timeoutMs: Long = 5_000L): Boolean {
+        val latch = CountDownLatch(1)
+        carProjectionExecutor.execute { latch.countDown() }
+        return latch.await(timeoutMs, TimeUnit.MILLISECONDS)
     }
 
     internal fun refreshCarProjectionNow(app: Context) {
@@ -949,6 +1001,16 @@ object VoiceAudioTrigger {
     }
 
     internal fun queryCarProjectionProvider(context: Context): Int {
+        val cancellationSignal = CancellationSignal()
+        val timeoutTask: ScheduledFuture<*>? = try {
+            Applic.scheduler.schedule(
+                { cancellationSignal.cancel() },
+                carProjectionQueryTimeoutMs.coerceAtLeast(1L),
+                TimeUnit.MILLISECONDS,
+            )
+        } catch (_: Throwable) {
+            null
+        }
         return try {
             context.contentResolver.query(
                 CAR_CONNECTION_URI,
@@ -956,6 +1018,7 @@ object VoiceAudioTrigger {
                 null,
                 null,
                 null,
+                cancellationSignal,
             )?.use { cursor ->
                 val idx = cursor.getColumnIndex(CAR_CONNECTION_COLUMN)
                 if (idx >= 0 && cursor.moveToFirst()) {
@@ -964,11 +1027,16 @@ object VoiceAudioTrigger {
                     CONNECTION_TYPE_NOT_CONNECTED
                 }
             } ?: CONNECTION_TYPE_NOT_CONNECTED
+        } catch (_: OperationCanceledException) {
+            Log.i(LOG_ID, "CarConnection provider query timed out")
+            CONNECTION_TYPE_NOT_CONNECTED
         } catch (_: SecurityException) {
             CONNECTION_TYPE_NOT_CONNECTED
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "queryCarProjectionProvider", t)
             CONNECTION_TYPE_NOT_CONNECTED
+        } finally {
+            timeoutTask?.cancel(false)
         }
     }
 
@@ -1410,6 +1478,10 @@ object VoiceAudioTrigger {
 
     internal fun resetForTests() {
         cancelPendingConnectAnnouncement()
+        synchronized(carProjectionLock) {
+            carProjectionRefreshPending = false
+        }
+        awaitCarProjectionIdleForTests(2_000L)
         synchronized(lock) {
             monitoringRegistered = false
             uiMonitorCount = 0
@@ -1427,6 +1499,7 @@ object VoiceAudioTrigger {
             lastSpokenAtMs = 0L
             carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
             lastCarProjectionCheckMs = 0L
+            carProjectionQueryTimeoutMs = CAR_PROJECTION_QUERY_TIMEOUT_MS
             cachedBondedMetas = emptyList()
             cachedBluetoothEnabled = false
             profileConnectedDevices.clear()

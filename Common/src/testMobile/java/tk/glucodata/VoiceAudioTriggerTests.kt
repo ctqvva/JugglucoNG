@@ -12,7 +12,9 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Looper
+import android.os.OperationCanceledException
 import android.speech.tts.TextToSpeech
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -63,6 +65,7 @@ class VoiceAudioTriggerTests {
 
         VoiceTriggerTestNatives.reset()
         VoiceTriggerTestEngine.reset()
+        FakeCarConnectionProvider.reset()
         SuperGattCallback.dotalk = false
         SuperGattCallback.talker?.destruct()
         SuperGattCallback.talker = null
@@ -81,6 +84,7 @@ class VoiceAudioTriggerTests {
 
     @After
     fun tearDown() {
+        FakeCarConnectionProvider.reset()
         VoiceAudioTrigger.resetForTests()
         SuperGattCallback.dotalk = false
         SuperGattCallback.talker?.destruct()
@@ -381,9 +385,7 @@ class VoiceAudioTriggerTests {
         assertFalse(uiMode.currentModeType == Configuration.UI_MODE_TYPE_CAR)
 
         // Wait for startup's async projection refresh to settle, then verify activation.
-        val startupLatch = java.util.concurrent.CountDownLatch(1)
-        Applic.scheduler.execute { startupLatch.countDown() }
-        assertTrue(startupLatch.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
         VoiceAudioTrigger.refreshCarProjectionNow(app)
         assertTrue("Android Auto CarConnection projection must activate voice", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
         assertEquals("car_mode", VoiceAudioTrigger.currentMatch(app).triggerKey)
@@ -590,9 +592,7 @@ class VoiceAudioTriggerTests {
         VoiceAudioTrigger.setAnnounceOnConnect(app, false)
         VoiceAudioTrigger.setEnabled(app, true)
 
-        val latch1 = java.util.concurrent.CountDownLatch(1)
-        Applic.scheduler.execute { latch1.countDown() }
-        assertTrue(latch1.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
         assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
 
         // Provider now reports active Android Auto (e.g. startup query had transiently failed).
@@ -600,13 +600,150 @@ class VoiceAudioTriggerTests {
         VoiceAudioTrigger.lastCarProjectionCheckMs = System.currentTimeMillis() - 60_000L
         VoiceAudioTrigger.refreshAndCheckReadingSpeech(app)
 
-        val latch2 = java.util.concurrent.CountDownLatch(1)
-        Applic.scheduler.execute { latch2.countDown() }
-        assertTrue(latch2.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
         assertTrue(
             "Throttled async refresh while disconnected must recover an active Android Auto connection",
             VoiceAudioTrigger.isAutoReadingSpeechActive(app),
         )
+    }
+
+    @Test
+    fun carProjectionRefresh_runsOffSharedSchedulerAndCoalescesOverlappingRequests() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        val enteredFirstQuery = java.util.concurrent.CountDownLatch(1)
+        val releaseFirstQuery = java.util.concurrent.CountDownLatch(1)
+        FakeCarConnectionProvider.onQuery = { _ ->
+            if (FakeCarConnectionProvider.queryCount.get() == 1) {
+                enteredFirstQuery.countDown()
+                releaseFirstQuery.await(5L, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
+
+        VoiceAudioTrigger.refreshCarProjectionAsync(app)
+        assertTrue("First provider query should start on dedicated executor", enteredFirstQuery.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+
+        // Applic.scheduler must stay completely unblocked while the external provider query stalls.
+        val schedulerRan = java.util.concurrent.CountDownLatch(1)
+        Applic.scheduler.execute { schedulerRan.countDown() }
+        assertTrue("Shared Applic.scheduler must not be blocked by CarConnection query", schedulerRan.await(1L, java.util.concurrent.TimeUnit.SECONDS))
+
+        // Burst of 5 refresh requests during an in-flight query must coalesce into at most 1 follow-up.
+        repeat(5) {
+            VoiceAudioTrigger.refreshCarProjectionAsync(app)
+        }
+        releaseFirstQuery.countDown()
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
+
+        assertEquals("Dedicated worker must never overlap provider queries", 1, FakeCarConnectionProvider.maxConcurrentQueries.get())
+        assertEquals("Burst of overlapping refreshes must coalesce to 1 in-flight + 1 follow-up", 2, FakeCarConnectionProvider.queryCount.get())
+        assertEquals("VoiceCarProjection", FakeCarConnectionProvider.lastQueryThreadName)
+    }
+
+    @Test
+    fun carProjectionQuery_timesOutViaCancellationSignal() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        val canceled = java.util.concurrent.CountDownLatch(1)
+        FakeCarConnectionProvider.onQuery = { signal ->
+            signal?.setOnCancelListener { canceled.countDown() }
+            if (canceled.await(5L, java.util.concurrent.TimeUnit.SECONDS)) {
+                throw OperationCanceledException()
+            }
+        }
+        VoiceAudioTrigger.carProjectionQueryTimeoutMs = 50L
+
+        val result = VoiceAudioTrigger.queryCarProjectionProvider(app)
+        assertEquals(VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED, result)
+        assertEquals(0L, canceled.count)
+    }
+
+    @Test
+    fun closingAlarmSpeech_revalidatesEligibilityBeforePlaybackAndReleasesFocus() {
+        // Keep the TTS engine alive via touchTalk so pause/disconnect does not tear down talker.
+        VoiceTriggerTestNatives.touchTalkVal = true
+        VoiceTriggerTestNatives.speakAlarmsVal = false
+
+        val carMac = "AA:BB:CC:DD:EE:88"
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setSpeakAlarms(app, true)
+        VoiceAudioTrigger.setUseMediaStream(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "Mazda Connect")))
+        VoiceAudioTrigger.refreshState(app)
+        assertTrue(VoiceAudioTrigger.isAlarmSpeechEnabled(app))
+
+        val talker = SuperGattCallback.talker!!
+        talker.engineReady = true
+        val values = tk.glucodata.ui.DisplayValueResolver.resolve(
+            autoValue = 4.1f,
+            rawValue = 4.1f,
+            calibratedValue = 4.1f,
+            viewMode = 0,
+            isMmol = true,
+        )
+        val snapshot = CurrentDisplaySource.Snapshot(
+            timeMillis = 1_700_000_000_000L,
+            rate = -1f,
+            sensorId = "alarm-test",
+            sensorGen = 0,
+            index = 0,
+            viewMode = 0,
+            source = "test",
+            autoValue = values.primaryValue,
+            rawValue = values.primaryValue,
+            sharedDisplayValue = values.primaryValue,
+            sharedMgdl = 74,
+            isMmol = true,
+            displayValues = values,
+        )
+
+        var focusAbandoned = false
+        val focus = SpeechFocus(object : SpeechFocus.Audio {
+            override fun request() {}
+            override fun abandon() {
+                focusAbandoned = true
+            }
+        })
+
+        // 1) Session paused during the 300 ms delay -> must NOT speak, must still release focus.
+        VoiceReadings.setOn(app, false)
+        assertTrue(VoiceAudioTrigger.isSessionPaused(app))
+        assertNotNull(SuperGattCallback.talker)
+        focusAbandoned = false
+        VoiceTriggerTestEngine.speakCount = 0
+        Notify.speakClosingAlarmIfEligible(app, snapshot, false, focus.reserve())
+        assertEquals("Paused session must block delayed closing alarm speech", 0, VoiceTriggerTestEngine.speakCount)
+        assertTrue("Focus hold must still be released when closing alarm speech is skipped", focusAbandoned)
+
+        // 2) Resume, then disconnect BT during the 300 ms delay -> must NOT speak, must still release focus.
+        VoiceReadings.setOn(app, true)
+        shadowOf(audio).setOutputDevices(emptyList())
+        VoiceAudioTrigger.refreshState(app)
+        assertNotNull(SuperGattCallback.talker)
+        focusAbandoned = false
+        VoiceTriggerTestEngine.speakCount = 0
+        Notify.speakClosingAlarmIfEligible(app, snapshot, false, focus.reserve())
+        assertEquals("Disconnected BT device must block delayed closing alarm speech", 0, VoiceTriggerTestEngine.speakCount)
+        assertTrue("Focus hold must still be released after disconnect", focusAbandoned)
+
+        // 3) Reconnected and active -> closing alarm speech plays over media stream and releases focus.
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(carMac, "Mazda Connect")))
+        VoiceAudioTrigger.refreshState(app)
+        focusAbandoned = false
+        VoiceTriggerTestEngine.speakCount = 0
+        Notify.speakClosingAlarmIfEligible(app, snapshot, false, focus.reserve())
+        assertEquals("Active connected BT device must speak closing alarm", 1, VoiceTriggerTestEngine.speakCount)
+        assertEquals(AudioAttributes.USAGE_MEDIA, VoiceTriggerTestEngine.attributesAtSpeak?.usage)
+        assertTrue("Focus hold must be released after queuing closing alarm", focusAbandoned)
     }
 
     @Test
@@ -647,11 +784,29 @@ class FakeCarConnectionProvider : ContentProvider() {
         selection: String?,
         selectionArgs: Array<out String>?,
         sortOrder: String?,
+    ): Cursor = query(uri, projection, selection, selectionArgs, sortOrder, null)
+
+    override fun query(
+        uri: Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?,
+        cancellationSignal: CancellationSignal?,
     ): Cursor {
+        val active = activeQueries.incrementAndGet()
+        maxConcurrentQueries.accumulateAndGet(active, ::maxOf)
+        lastQueryThreadName = Thread.currentThread().name
         queryCount.incrementAndGet()
-        val cursor = MatrixCursor(arrayOf(VoiceAudioTrigger.CAR_CONNECTION_COLUMN))
-        cursor.addRow(arrayOf(state))
-        return cursor
+        try {
+            onQuery?.invoke(cancellationSignal)
+            cancellationSignal?.throwIfCanceled()
+            val cursor = MatrixCursor(arrayOf(VoiceAudioTrigger.CAR_CONNECTION_COLUMN))
+            cursor.addRow(arrayOf(state))
+            return cursor
+        } finally {
+            activeQueries.decrementAndGet()
+        }
     }
 
     override fun getType(uri: Uri): String? = null
@@ -663,6 +818,21 @@ class FakeCarConnectionProvider : ContentProvider() {
         @Volatile
         var state: Int = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
         val queryCount = java.util.concurrent.atomic.AtomicInteger(0)
+        val activeQueries = java.util.concurrent.atomic.AtomicInteger(0)
+        val maxConcurrentQueries = java.util.concurrent.atomic.AtomicInteger(0)
+        @Volatile
+        var lastQueryThreadName: String? = null
+        @Volatile
+        var onQuery: ((CancellationSignal?) -> Unit)? = null
+
+        fun reset() {
+            state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+            queryCount.set(0)
+            activeQueries.set(0)
+            maxConcurrentQueries.set(0)
+            lastQueryThreadName = null
+            onQuery = null
+        }
     }
 }
 
