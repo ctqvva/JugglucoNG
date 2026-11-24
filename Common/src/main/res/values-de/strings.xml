@@ -3522,4 +3522,27 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="floating_layout_camera_desc">Elemente darüber stehen vor der Kamera, die übrigen danach</string>
     <string name="floating_layout_hidden">Ausgeblendet</string>
     <string name="floating_layout_order_desc">Zum Verschieben einen Griff ziehen</string>
+    <string name="bioe_sensor_desc">Gerätecode und die k/b-Koeffizienten Ihres Sensors</string>
+    <string name="bioe_device_code_label">Gerätecode</string>
+    <string name="bioe_k_label">Koeffizient k</string>
+    <string name="bioe_b_label">Koeffizient b</string>
+    <string name="bioe_token_label">Bioecare-Kontotoken</string>
+    <string name="bioe_load_from_server">Parameter vom Server laden</string>
+    <string name="bioe_server_loading">Wird geladen…</string>
+    <string name="bioe_server_loaded">Parameter vom Server geladen</string>
+    <string name="bioe_server_load_failed">Parameter konnten nicht vom Server geladen werden</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Auf dem Server wurde kein Sensor mit gültigen Parametern gefunden</string>
+    <string name="bioe_threshold_label">Schwelle für niedrigen Strom (nA, optional)</string>
+    <string name="bioe_setup_saved_title">Sensor gespeichert</string>
+    <string name="bioe_setup_saved_message">Der Sensor ist gespeichert. Halten Sie ihn in der Nähe, damit die App eine Verbindung herstellen und ihn auslesen kann.</string>
+    <string name="bioe_setup_invalid">Gerätecode und endliche k/b-Werte eingeben (k muss positiv sein)</string>
+    <string name="scgm_sensor_desc">Gerätecode in Hexadezimalform und die k/b-Koeffizienten Ihres Sensors</string>
+    <string name="scgm_device_code_label">Gerätecode (hexadezimal, Kleinbuchstaben)</string>
+    <string name="scgm_setup_invalid">Hexadezimalen Gerätecode und endliche k/b-Werte eingeben (k muss positiv sein)</string>
+    <string name="novo_sensor_desc">Experimenteller DN-Treiber: Gerätecode und die k/b-Koeffizienten Ihres Sensors</string>
+    <string name="novo_device_code_label">Gerätecode (DN-…)</string>
+    <string name="novo_password_low_label">Niederwertiges Passwortbyte (optional)</string>
+    <string name="novo_password_high_label">Höherwertiges Passwortbyte (optional)</string>
+    <string name="novo_setup_invalid">Gerätecode und endliche k/b-Werte eingeben (k muss positiv sein)</string>
 </resources>

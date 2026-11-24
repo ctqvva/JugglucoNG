@@ -3506,4 +3506,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Елементи вище стоять перед камерою, решта — після</string>
     <string name="floating_layout_hidden">Приховано</string>
     <string name="floating_layout_order_desc">Перетягніть маркер, щоб перемістити елемент</string>
+    <string name="bioe_sensor_desc">Код пристрою та коефіцієнти k/b вашого датчика</string>
+    <string name="bioe_device_code_label">Код пристрою</string>
+    <string name="bioe_k_label">Коефіцієнт k</string>
+    <string name="bioe_b_label">Коефіцієнт b</string>
+    <string name="bioe_token_label">Токен облікового запису Bioecare</string>
+    <string name="bioe_load_from_server">Завантажити параметри з сервера</string>
+    <string name="bioe_server_loading">Завантаження…</string>
+    <string name="bioe_server_loaded">Параметри завантажено з сервера</string>
+    <string name="bioe_server_load_failed">Не вдалося завантажити параметри з сервера</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">На сервері не знайдено датчика з коректними параметрами</string>
+    <string name="bioe_threshold_label">Поріг низького струму (нА, необов’язково)</string>
+    <string name="bioe_setup_saved_title">Датчик збережено</string>
+    <string name="bioe_setup_saved_message">Датчик збережено. Тримайте його поруч, щоб застосунок міг підключитися та зчитувати дані.</string>
+    <string name="bioe_setup_invalid">Введіть код пристрою та скінченні значення k/b (k має бути додатним)</string>
+    <string name="scgm_sensor_desc">Код пристрою у шістнадцятковому форматі та коефіцієнти k/b вашого датчика</string>
+    <string name="scgm_device_code_label">Код пристрою (шістнадцятковий, малими літерами)</string>
+    <string name="scgm_setup_invalid">Введіть шістнадцятковий код пристрою та скінченні значення k/b (k має бути додатним)</string>
+    <string name="novo_sensor_desc">Експериментальний драйвер DN-: код пристрою та коефіцієнти k/b вашого датчика</string>
+    <string name="novo_device_code_label">Код пристрою (DN-…)</string>
+    <string name="novo_password_low_label">Молодший байт пароля (необов’язково)</string>
+    <string name="novo_password_high_label">Старший байт пароля (необов’язково)</string>
+    <string name="novo_setup_invalid">Введіть код пристрою та скінченні значення k/b (k має бути додатним)</string>
 </resources>

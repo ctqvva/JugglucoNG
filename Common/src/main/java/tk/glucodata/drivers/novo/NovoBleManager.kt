@@ -27,6 +27,12 @@ class NovoBleManager(
         private val CGM_SERVICE = UUID.fromString(NovoConstants.SERVICE_CGM)
         private val CONTROL_POINT = UUID.fromString(NovoConstants.CHAR_CGM_SPECIFIC_OPS_CONTROL)
         private val MEASUREMENT = UUID.fromString(NovoConstants.CHAR_CGM_MEASUREMENT)
+        private const val WRITE_RETRY_DELAY_MS = 300L
+        private const val MAX_WRITE_RETRIES = 2
+        private const val CONNECT_TIMEOUT_MS = 20_000L
+        private const val SCAN_WAIT_TIMEOUT_MS = 30_000L
+        private const val MAX_SILENT_CONNECT_ATTEMPTS = 2
+        private const val CONNECT_BACKOFF_MS = 60_000L
     }
 
     enum class Phase { IDLE, CONNECTING, DISCOVERING, SUBSCRIBING, STREAMING, ERROR }
@@ -66,8 +72,29 @@ class NovoBleManager(
     @Volatile private var passwordHigh: Byte = 0
     @Volatile private var historyEndMs = 0L
     @Volatile private var firmwareInfo = ""
+    @Volatile private var silentConnectAttempts = 0
+    @Volatile private var nextConnectAllowedAtMs = 0L
+    @Volatile private var connectScheduled = false
+    @Volatile private var scanWaitDeadlineMs = 0L
+
+    private val reconnectRunnable = Runnable {
+        nextConnectAllowedAtMs = 0L
+        if (!stop && mBluetoothGatt == null) connectDevice(0L)
+    }
+
+    private val scanTimeoutRunnable = Runnable {
+        if (stop || mBluetoothGatt != null || connectScheduled) return@Runnable
+        if (phase == Phase.IDLE && System.currentTimeMillis() >= scanWaitDeadlineMs) {
+            phase = Phase.ERROR
+            scheduleRetry()
+            UiRefreshBus.requestStatusRefresh()
+        }
+    }
 
     private val stateLock = Any()
+    private var pendingRetryFrame: ByteArray? = null
+    private var inFlightFrame: ByteArray? = null
+    private var writeRetries = 0
 
     init {
         Applic.app?.let(::applyRegistrySettings)
@@ -119,22 +146,56 @@ class NovoBleManager(
     private fun matchesNovoName(name: String?): Boolean =
         name?.trim()?.startsWith(NovoConstants.SCAN_NAME_PREFIX, ignoreCase = true) ?: false
 
+    private fun scheduleRetry() {
+        nextConnectAllowedAtMs = System.currentTimeMillis() + CONNECT_BACKOFF_MS
+        silentConnectAttempts = 0
+        mainHandler.removeCallbacks(reconnectRunnable)
+        mainHandler.postDelayed(reconnectRunnable, CONNECT_BACKOFF_MS + 500L)
+    }
+
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop) return false
+        if (System.currentTimeMillis() < nextConnectAllowedAtMs) return true
         if (phase != Phase.IDLE && phase != Phase.ERROR) {
-            if (mBluetoothGatt != null || mActiveBluetoothDevice != null) return true
+            if (mBluetoothGatt != null || connectScheduled) return true
         }
         phase = Phase.CONNECTING
+        connectScheduled = true
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
         val scheduled = super.connectDevice(delayMillis)
-        if (!scheduled && phase == Phase.CONNECTING && mActiveBluetoothDevice != null) phase = Phase.IDLE
+        if (!scheduled) {
+            connectScheduled = false
+            phase = Phase.IDLE
+            scanWaitDeadlineMs = System.currentTimeMillis() + SCAN_WAIT_TIMEOUT_MS
+            mainHandler.removeCallbacks(scanTimeoutRunnable)
+            mainHandler.postDelayed(scanTimeoutRunnable, SCAN_WAIT_TIMEOUT_MS)
+        }
         return scheduled
+    }
+
+    protected override fun connectionAttemptTimeoutMillis(): Long = CONNECT_TIMEOUT_MS
+
+    protected override fun onConnectionAttemptTimeout() {
+        silentConnectAttempts++
+        if (silentConnectAttempts >= MAX_SILENT_CONNECT_ATTEMPTS) {
+            phase = Phase.ERROR
+            mActiveBluetoothDevice = null
+            mActiveDeviceAddress = null
+            Applic.app?.let { NovoRegistry.setLastBtAddress(it, "") }
+            scheduleRetry()
+        }
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         noteFirstGattCallback("onConnectionStateChange", gatt)
         if (!acceptConnectionAttemptCallback(gatt, newState)) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
+            if (gatt === mBluetoothGatt) {
+                runCatching { closeGattTransport() }
+            } else {
+                if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
+                runCatching { gatt.close() }
+            }
             return
         }
         super.onConnectionStateChange(gatt, status, newState)
@@ -147,12 +208,16 @@ class NovoBleManager(
                     Applic.app?.let { NovoRegistry.setLastBtAddress(it, address) }
                 }
                 connectTime = System.currentTimeMillis()
+                silentConnectAttempts = 0
+                nextConnectAllowedAtMs = 0L
+                connectScheduled = false
+                mainHandler.removeCallbacks(scanTimeoutRunnable)
                 phase = Phase.DISCOVERING
                 mainHandler.postDelayed({
                     if (!stop && phase == Phase.DISCOVERING && mBluetoothGatt === gatt) {
                         if (!runCatching { gatt.discoverServices() }.getOrDefault(false)) {
                             phase = Phase.ERROR
-                            runCatching { gatt.disconnect() }
+                            runCatching { closeGattTransport() }
                         }
                     }
                 }, NovoConstants.DISCOVERY_DELAY_MS)
@@ -161,12 +226,17 @@ class NovoBleManager(
             BluetoothProfile.STATE_DISCONNECTED -> {
                 synchronized(stateLock) {
                     txQueue.clear()
+                    pendingRetryFrame = null
+                    inFlightFrame = null
                     txInFlight = false
+                    writeRetries = 0
                 }
                 writeCharacteristic = null
                 notifyCharacteristic = null
+                connectScheduled = false
+                mainHandler.removeCallbacks(scanTimeoutRunnable)
                 phase = Phase.IDLE
-                runCatching { gatt.close() }
+                runCatching { closeGattTransport() }
                 if (mBluetoothGatt === gatt) mBluetoothGatt = null
                 UiRefreshBus.requestStatusRefresh()
             }
@@ -177,7 +247,7 @@ class NovoBleManager(
         if (stop || mBluetoothGatt !== gatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
             return
         }
         val cgm = gatt.getService(CGM_SERVICE)
@@ -195,7 +265,7 @@ class NovoBleManager(
         if (write == null || notify == null) {
             Log.w(TAG, "Required NOVO characteristics not found (write=$write notify=$notify)")
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
             return
         }
         writeCharacteristic = write
@@ -208,7 +278,7 @@ class NovoBleManager(
         phase = Phase.SUBSCRIBING
         if (!enableNotification(gatt, notify)) {
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
         }
     }
 
@@ -221,7 +291,7 @@ class NovoBleManager(
         if (descriptor.uuid != CCCD) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
             return
         }
         if (notifyCharacteristic == null || descriptor.characteristic?.uuid != notifyCharacteristic?.uuid) return
@@ -238,13 +308,16 @@ class NovoBleManager(
         if (stop || mBluetoothGatt !== gatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "NOVO write failed status=$status")
-            runCatching { gatt.disconnect() }
+            val frame = synchronized(stateLock) { inFlightFrame }
+            if (frame != null) onWriteFailed(gatt, frame)
             return
         }
         mainHandler.post {
             if (stop || mBluetoothGatt !== gatt) return@post
             synchronized(stateLock) {
                 txInFlight = false
+                inFlightFrame = null
+                writeRetries = 0
                 schedulePumpLocked()
             }
         }
@@ -298,23 +371,63 @@ class NovoBleManager(
         if (txInFlight) return
         val gatt = mBluetoothGatt ?: return
         val characteristic = writeCharacteristic ?: return
-        val command = txQueue.removeFirstOrNull() ?: return
-        val frame = if (command.useDefaultPassword) {
-            NovoCrypto.encrypt(command.payload)
-        } else {
-            NovoCrypto.encrypt(command.payload, passwordLow, passwordHigh)
-        }
+        val frame = pendingRetryFrame ?: txQueue.removeFirstOrNull()?.let { command ->
+            if (command.useDefaultPassword) {
+                NovoCrypto.encrypt(command.payload)
+            } else {
+                NovoCrypto.encrypt(command.payload, passwordLow, passwordHigh)
+            }
+        } ?: return
+        pendingRetryFrame = null
         if (frame.isEmpty()) {
             Log.w(TAG, "encryption returned an empty frame")
             return
         }
         txCommandCount++
         txInFlight = true
+        inFlightFrame = frame
         characteristic.value = frame
         if (!runCatching { gatt.writeCharacteristic(characteristic) }.getOrDefault(false)) {
-            txInFlight = false
             Log.w(TAG, "writeCharacteristic returned false")
+            onWriteFailed(gatt, frame)
         }
+    }
+
+    private fun onWriteFailed(gatt: BluetoothGatt, frame: ByteArray) {
+        val exhausted = synchronized(stateLock) {
+            inFlightFrame = null
+            txInFlight = false
+            if (writeRetries < MAX_WRITE_RETRIES) {
+                writeRetries++
+                pendingRetryFrame = frame
+                false
+            } else {
+                true
+            }
+        }
+        if (exhausted) {
+            resetFailedSession()
+            return
+        }
+        val delay = WRITE_RETRY_DELAY_MS * writeRetries
+        mainHandler.postDelayed({
+            if (stop || mBluetoothGatt !== gatt) return@postDelayed
+            synchronized(stateLock) { pumpLocked() }
+        }, delay)
+    }
+
+    private fun resetFailedSession() {
+        synchronized(stateLock) {
+            txQueue.clear()
+            pendingRetryFrame = null
+            inFlightFrame = null
+            txInFlight = false
+            writeRetries = 0
+        }
+        phase = Phase.ERROR
+        runCatching { closeGattTransport() }
+        scheduleRetry()
+        UiRefreshBus.requestStatusRefresh()
     }
 
     private fun handlePayload(uuid: UUID, data: ByteArray) {
@@ -369,17 +482,27 @@ class NovoBleManager(
         mainHandler.removeCallbacksAndMessages(null)
         synchronized(stateLock) {
             txQueue.clear()
+            pendingRetryFrame = null
+            inFlightFrame = null
             txInFlight = false
+            writeRetries = 0
         }
-        runCatching { mBluetoothGatt?.disconnect() }
+        runCatching { closeGattTransport() }
         if (wipeData) Applic.app?.let { NovoRegistry.clear(it) }
     }
 
     override fun onBluetoothAdapterUnavailable() {
         phase = Phase.IDLE
+        connectScheduled = false
+        mainHandler.removeCallbacks(reconnectRunnable)
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
         synchronized(stateLock) {
             txQueue.clear()
+            pendingRetryFrame = null
+            inFlightFrame = null
             txInFlight = false
+            writeRetries = 0
         }
+        runCatching { closeGattTransport() }
     }
 }

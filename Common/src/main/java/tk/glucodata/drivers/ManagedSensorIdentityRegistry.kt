@@ -37,6 +37,20 @@ object ManagedSensorIdentityRegistry {
         ApiGlucoseSourceIdentityAdapter,
     )
 
+    private val handoffUnpreparedAdapters = listOf(
+        BioeIdentityAdapter,
+        ScgmIdentityAdapter,
+        NovoIdentityAdapter,
+    )
+
+    fun supportsHandoff(sensorId: String?): Boolean {
+        val normalized = sensorId?.trim().takeIf { !it.isNullOrEmpty() } ?: return true
+        return handoffUnpreparedAdapters.none { adapter ->
+            adapter.resolveCanonicalSensorId(normalized) != null ||
+                adapter.hasPersistedManagedRecord(normalized)
+        }
+    }
+
     private fun orderedAdapters(sensorId: String?, context: Context?): Sequence<ManagedSensorIdentityAdapter> {
         val normalized = sensorId?.trim().takeIf { !it.isNullOrEmpty() }
         if (normalized == null || context == null) {

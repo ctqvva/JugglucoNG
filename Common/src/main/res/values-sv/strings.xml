@@ -3410,4 +3410,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Objekt ovanför hamnar före kameran, resten efter</string>
     <string name="floating_layout_hidden">Dold</string>
     <string name="floating_layout_order_desc">Dra i ett handtag för att flytta ett objekt</string>
+    <string name="bioe_sensor_desc">Enhetskod och k/b-koefficienterna för din sensor</string>
+    <string name="bioe_device_code_label">Enhetskod</string>
+    <string name="bioe_k_label">Koefficient k</string>
+    <string name="bioe_b_label">Koefficient b</string>
+    <string name="bioe_token_label">Token för Bioecare-kontot</string>
+    <string name="bioe_load_from_server">Ladda parametrar från servern</string>
+    <string name="bioe_server_loading">Laddar…</string>
+    <string name="bioe_server_loaded">Parametrar laddade från servern</string>
+    <string name="bioe_server_load_failed">Kunde inte ladda parametrarna från servern</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Ingen sensor med giltiga parametrar hittades på servern</string>
+    <string name="bioe_threshold_label">Tröskel för låg ström (nA, valfritt)</string>
+    <string name="bioe_setup_saved_title">Sensor sparad</string>
+    <string name="bioe_setup_saved_message">Sensorn är sparad. Håll den nära så att appen kan ansluta och läsa den.</string>
+    <string name="bioe_setup_invalid">Ange en enhetskod och ändliga k/b-värden (k måste vara positivt)</string>
+    <string name="scgm_sensor_desc">Enhetskod i hexadecimal form och k/b-koefficienterna för din sensor</string>
+    <string name="scgm_device_code_label">Enhetskod (hexadecimal, små bokstäver)</string>
+    <string name="scgm_setup_invalid">Ange en hexadecimal enhetskod och ändliga k/b-värden (k måste vara positivt)</string>
+    <string name="novo_sensor_desc">Experimentell DN-drivrutin: enhetskod och k/b-koefficienterna för din sensor</string>
+    <string name="novo_device_code_label">Enhetskod (DN-…)</string>
+    <string name="novo_password_low_label">Låg byte av lösenordet (valfritt)</string>
+    <string name="novo_password_high_label">Hög byte av lösenordet (valfritt)</string>
+    <string name="novo_setup_invalid">Ange en enhetskod och ändliga k/b-värden (k måste vara positivt)</string>
 </resources>

@@ -10,6 +10,7 @@ import tk.glucodata.SensorBluetooth
 object ScgmRegistry {
     private const val TAG = "ScgmRegistry"
     private const val PREFS_NAME = "tk.glucodata_scgm_prefs"
+    private const val SECRETS_PREFS_NAME = "tk.glucodata_scgm_secrets"
     private const val KEY_SENSOR_ID = "scgm_sensor_id"
     private const val KEY_DEVICE_CODE = "scgm_device_code"
     private const val KEY_BT_ADDRESS = "scgm_bt_address"
@@ -26,6 +27,9 @@ object ScgmRegistry {
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun secrets(context: Context): SharedPreferences =
+        context.getSharedPreferences(SECRETS_PREFS_NAME, Context.MODE_PRIVATE)
 
     fun canonicalSensorId(deviceCode: String?): String {
         val raw = deviceCode?.trim().orEmpty()
@@ -67,10 +71,10 @@ object ScgmRegistry {
             .apply()
     }
 
-    fun getApiToken(context: Context): String = prefs(context).getString(KEY_API_TOKEN, "") ?: ""
+    fun getApiToken(context: Context): String = secrets(context).getString(KEY_API_TOKEN, "") ?: ""
 
     fun setApiToken(context: Context, token: String) {
-        prefs(context).edit().putString(KEY_API_TOKEN, token.trim()).apply()
+        secrets(context).edit().putString(KEY_API_TOKEN, token.trim()).apply()
     }
 
     fun getUseAtMs(context: Context): Long = prefs(context).getLong(KEY_USE_AT, 0L)
@@ -123,14 +127,15 @@ object ScgmRegistry {
         }
         val sensorId = canonicalSensorId(deviceCode)
         val previous = getSensorId(context)
+        retireOtherDrivers(sensorId)
         if (previous != sensorId && previous.isNotBlank()) {
+            runCatching { Natives.finishSensorById(previous) }
+                .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }
             setLastBtAddress(context, "")
             setBootAtSeconds(context, 0L)
             setLastPid(context, 0)
             setLastTimeMs(context, 0L)
             setNextBrokePosition(context, 0)
-            runCatching { Natives.finishSensorById(previous) }
-                .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }
         }
         prefs(context).edit()
             .putString(KEY_SENSOR_ID, sensorId)
@@ -138,7 +143,6 @@ object ScgmRegistry {
             .apply()
         setCalibration(context, calibration)
         setUseAtMs(context, useAtMs)
-        retireOtherDrivers(sensorId)
         val blue = SensorBluetooth.blueone
         if (!connectNow || blue == null) return sensorId
         val existing = findDriver(sensorId)
@@ -173,5 +177,8 @@ object ScgmRegistry {
     fun isScgmSensorId(sensorId: String?): Boolean =
         !sensorId.isNullOrBlank() && sensorId.trim().startsWith(ScgmConstants.SENSOR_ID_PREFIX, ignoreCase = true)
 
-    fun clear(context: Context) = prefs(context).edit().clear().apply()
+    fun clear(context: Context) {
+        prefs(context).edit().clear().apply()
+        secrets(context).edit().clear().apply()
+    }
 }

@@ -32,6 +32,12 @@ class BioeBleManager(
         private val FALLBACK_NOTIFY = UUID.fromString(BioeConstants.FALLBACK_NOTIFY_UUID)
         private const val DISCOVERY_DELAY_MS = 250L
         private const val MAX_LOCAL_PACKAGES = 32
+        private const val CONNECT_ATTEMPT_TIMEOUT_MS = 30_000L
+        private const val CONNECT_RETRY_DELAY_MS = 60_000L
+        private const val SCAN_WAIT_TIMEOUT_MS = 30_000L
+        private const val WRITE_RETRY_DELAY_MS = 150L
+        private const val MAX_WRITE_RETRIES = 2
+        private const val MAX_REJECTED_ADDRESSES = 16
     }
 
     enum class Phase { IDLE, CONNECTING, DISCOVERING, SUBSCRIBING, STREAMING, ERROR }
@@ -56,9 +62,36 @@ class BioeBleManager(
     @Volatile private var latestFlashIndex = 0
     @Volatile private var totalLocalCount = 0
     @Volatile private var firmwareInfo = ""
+    @Volatile private var connectScheduled = false
+    @Volatile private var nextConnectAtMs = 0L
+    @Volatile private var scanWaitDeadlineMs = 0L
+    @Volatile private var deviceVerified = false
+    @Volatile private var candidateDeviceName: String? = null
+    @Volatile private var flashBackfillEndIndex = 0
+    @Volatile private var flashBackfillAnchorMs = 0L
+    @Volatile private var localBackfillAnchorMs = 0L
+    private var inFlightFrame: ByteArray? = null
+    private var writeRetries = 0
+    private val rejectedAddresses = HashSet<String>()
 
     private val stateLock = Any()
     private val readingLock = Any()
+
+    private val reconnectRunnable = Runnable {
+        nextConnectAtMs = 0L
+        if (!stop && mBluetoothGatt == null) connectDevice(0L)
+    }
+
+    private val scanTimeoutRunnable = Runnable {
+        if (stop || mBluetoothGatt != null || connectScheduled) return@Runnable
+        if (phase == Phase.IDLE && System.currentTimeMillis() >= scanWaitDeadlineMs) {
+            phase = Phase.ERROR
+            nextConnectAtMs = System.currentTimeMillis() + CONNECT_RETRY_DELAY_MS
+            mainHandler.removeCallbacks(reconnectRunnable)
+            mainHandler.postDelayed(reconnectRunnable, CONNECT_RETRY_DELAY_MS + 500L)
+            UiRefreshBus.requestStatusRefresh()
+        }
+    }
 
     init {
         Applic.app?.let(::applyRegistrySettings)
@@ -97,40 +130,166 @@ class BioeBleManager(
     override fun getService(): UUID? = null
 
     override fun matchDeviceName(deviceName: String?, address: String?): Boolean {
+        if (isAddressRejected(address)) return false
         val known = mActiveDeviceAddress?.takeIf { it.isNotBlank() }
-        if (known != null && address != null && address.equals(known, ignoreCase = true)) return true
-        return matchesBioeName(deviceName)
+        if (known != null && address != null && address.equals(known, ignoreCase = true)) {
+            if (!deviceName.isNullOrBlank()) candidateDeviceName = deviceName
+            return true
+        }
+        val matched = matchesBioeName(deviceName)
+        if (matched && !deviceName.isNullOrBlank()) candidateDeviceName = deviceName
+        return matched
     }
 
     override fun matchScanResult(result: ScanResult): Boolean {
+        val address = result.device?.address
+        if (isAddressRejected(address)) return false
         val name = result.device?.name ?: result.scanRecord?.deviceName
-        return matchesBioeName(name)
+        val matched = matchesBioeName(name)
+        if (matched && !name.isNullOrBlank()) candidateDeviceName = name
+        return matched
     }
 
     private fun matchesBioeName(name: String?): Boolean =
         name?.trim()?.startsWith(BioeConstants.SCAN_NAME_PREFIX, ignoreCase = true) ?: false
 
+    private fun isAddressRejected(address: String?): Boolean {
+        if (address.isNullOrBlank()) return false
+        val key = address.trim().uppercase()
+        return synchronized(stateLock) { rejectedAddresses.contains(key) }
+    }
+
+    private fun rejectAddress(address: String?) {
+        if (address.isNullOrBlank()) return
+        val key = address.trim().uppercase()
+        synchronized(stateLock) {
+            if (rejectedAddresses.size >= MAX_REJECTED_ADDRESSES) rejectedAddresses.clear()
+            rejectedAddresses.add(key)
+        }
+    }
+
+    private fun expectedDeviceCode(): String {
+        val stored = Applic.app?.let { BioeRegistry.getDeviceCode(it) }?.trim()?.uppercase().orEmpty()
+        val fromId = SerialNumber?.trim()?.uppercase()?.removePrefix(BioeConstants.SENSOR_ID_PREFIX).orEmpty()
+        return stored.ifBlank { fromId }.removePrefix(BioeConstants.SCAN_NAME_PREFIX)
+    }
+
+    private fun deviceCodeMatches(name: String?): Boolean {
+        val expected = expectedDeviceCode()
+        if (expected.isBlank()) return true
+        val actual = name?.trim()?.uppercase()?.removePrefix(BioeConstants.SCAN_NAME_PREFIX).orEmpty()
+        return actual.equals(expected, ignoreCase = true)
+    }
+
+    private fun isPersistedAddress(address: String?): Boolean {
+        if (address.isNullOrBlank()) return false
+        val persisted = Applic.app?.let { BioeRegistry.getLastBtAddress(it) }?.trim() ?: return false
+        return persisted.equals(address, ignoreCase = true)
+    }
+
+    private fun verifyConnectedDevice(gatt: BluetoothGatt): Boolean {
+        val address = gatt.device?.address
+        if (isAddressRejected(address)) return false
+        val name = gatt.device?.name?.takeIf { it.isNotBlank() } ?: candidateDeviceName
+        if (deviceCodeMatches(name) || (name.isNullOrBlank() && isPersistedAddress(address))) {
+            deviceVerified = true
+            return true
+        }
+        rejectAddress(address)
+        Log.w(TAG, "BIOE device rejected: unexpected device code")
+        deviceVerified = false
+        return false
+    }
+
+    protected override fun connectionAttemptTimeoutMillis(): Long = CONNECT_ATTEMPT_TIMEOUT_MS
+
+    protected override fun onConnectionAttemptTimeout() {
+        connectScheduled = false
+        deviceVerified = false
+        phase = Phase.ERROR
+        nextConnectAtMs = System.currentTimeMillis() + CONNECT_RETRY_DELAY_MS
+        mainHandler.removeCallbacks(reconnectRunnable)
+        mainHandler.postDelayed(reconnectRunnable, CONNECT_RETRY_DELAY_MS + 500L)
+    }
+
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop) return false
+        if (System.currentTimeMillis() < nextConnectAtMs) return true
         if (phase != Phase.IDLE && phase != Phase.ERROR) {
-            if (mBluetoothGatt != null || mActiveBluetoothDevice != null) return true
+            if (mBluetoothGatt != null || connectScheduled) return true
         }
         phase = Phase.CONNECTING
+        connectScheduled = true
+        deviceVerified = false
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
         val scheduled = super.connectDevice(delayMillis)
-        if (!scheduled && phase == Phase.CONNECTING && mActiveBluetoothDevice != null) phase = Phase.IDLE
+        if (!scheduled) {
+            connectScheduled = false
+            phase = Phase.IDLE
+            scanWaitDeadlineMs = System.currentTimeMillis() + SCAN_WAIT_TIMEOUT_MS
+            mainHandler.postDelayed(scanTimeoutRunnable, SCAN_WAIT_TIMEOUT_MS)
+        }
         return scheduled
+    }
+
+    private fun failConnection(gatt: BluetoothGatt, retry: Boolean = true) {
+        phase = Phase.ERROR
+        connectScheduled = false
+        deviceVerified = false
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
+        synchronized(stateLock) {
+            txQueue.clear()
+            txInFlight = false
+            inFlightFrame = null
+            writeRetries = 0
+        }
+        writeCharacteristic = null
+        notifyCharacteristic = null
+        if (retry) {
+            nextConnectAtMs = System.currentTimeMillis() + CONNECT_RETRY_DELAY_MS
+            mainHandler.removeCallbacks(reconnectRunnable)
+            mainHandler.postDelayed(reconnectRunnable, CONNECT_RETRY_DELAY_MS + 500L)
+        } else {
+            val address = gatt.device?.address
+            rejectAddress(address)
+            mActiveBluetoothDevice = null
+            mActiveDeviceAddress = null
+            if (!address.isNullOrBlank()) {
+                Applic.app?.let { context ->
+                    if (BioeRegistry.getLastBtAddress(context).equals(address, ignoreCase = true)) {
+                        BioeRegistry.setLastBtAddress(context, "")
+                    }
+                }
+            }
+        }
+        if (mBluetoothGatt === gatt) {
+            closeGattTransport()
+        } else {
+            runCatching {
+                gatt.disconnect()
+                gatt.close()
+            }
+        }
+        UiRefreshBus.requestStatusRefresh()
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         noteFirstGattCallback("onConnectionStateChange", gatt)
         if (!acceptConnectionAttemptCallback(gatt, newState)) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
+            runCatching {
+                gatt.disconnect()
+                gatt.close()
+            }
             return
         }
         super.onConnectionStateChange(gatt, status, newState)
         when (newState) {
             BluetoothProfile.STATE_CONNECTED -> {
+                if (!verifyConnectedDevice(gatt)) {
+                    failConnection(gatt, retry = false)
+                    return
+                }
                 mBluetoothGatt = gatt
                 mActiveBluetoothDevice = gatt.device
                 gatt.device?.address?.let { address ->
@@ -142,8 +301,7 @@ class BioeBleManager(
                 mainHandler.postDelayed({
                     if (!stop && phase == Phase.DISCOVERING && mBluetoothGatt === gatt) {
                         if (!runCatching { gatt.discoverServices() }.getOrDefault(false)) {
-                            phase = Phase.ERROR
-                            runCatching { gatt.disconnect() }
+                            failConnection(gatt)
                         }
                     }
                 }, DISCOVERY_DELAY_MS)
@@ -153,9 +311,14 @@ class BioeBleManager(
                 synchronized(stateLock) {
                     txQueue.clear()
                     txInFlight = false
+                    inFlightFrame = null
+                    writeRetries = 0
                 }
                 writeCharacteristic = null
                 notifyCharacteristic = null
+                connectScheduled = false
+                deviceVerified = false
+                mainHandler.removeCallbacks(scanTimeoutRunnable)
                 phase = Phase.IDLE
                 runCatching { gatt.close() }
                 if (mBluetoothGatt === gatt) mBluetoothGatt = null
@@ -167,8 +330,7 @@ class BioeBleManager(
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
         if (stop || mBluetoothGatt !== gatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            failConnection(gatt)
             return
         }
         var write: BluetoothGattCharacteristic? = null
@@ -192,9 +354,8 @@ class BioeBleManager(
             notify = gatt.getService(FALLBACK_SERVICE)?.getCharacteristic(FALLBACK_NOTIFY)
         }
         if (write == null || notify == null) {
-            Log.w(TAG, "Required BIOE characteristics not found (write=$write notify=$notify)")
-            phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            Log.w(TAG, "Required BIOE characteristics not found")
+            failConnection(gatt, retry = false)
             return
         }
         writeCharacteristic = write
@@ -206,8 +367,7 @@ class BioeBleManager(
         }
         phase = Phase.SUBSCRIBING
         if (!enableNotification(gatt, notify)) {
-            phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            failConnection(gatt)
         }
     }
 
@@ -219,11 +379,13 @@ class BioeBleManager(
         if (stop || mBluetoothGatt !== gatt) return
         if (descriptor.uuid != CCCD) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            failConnection(gatt)
             return
         }
-        if (notifyCharacteristic == null || descriptor.characteristic?.uuid != notifyCharacteristic?.uuid) return
+        if (notifyCharacteristic == null || descriptor.characteristic?.uuid != notifyCharacteristic?.uuid) {
+            failConnection(gatt)
+            return
+        }
         phase = Phase.STREAMING
         UiRefreshBus.requestStatusRefresh()
         enqueue(BioeParser.getVersion())
@@ -239,13 +401,18 @@ class BioeBleManager(
         if (stop || mBluetoothGatt !== gatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "BIOE write failed status=$status")
-            runCatching { gatt.disconnect() }
+            synchronized(stateLock) {
+                val frame = inFlightFrame
+                if (frame == null) failConnection(gatt) else retryWriteLocked(gatt, frame)
+            }
             return
         }
         mainHandler.post {
             if (stop || mBluetoothGatt !== gatt) return@post
             synchronized(stateLock) {
                 txInFlight = false
+                inFlightFrame = null
+                writeRetries = 0
                 pumpLocked()
             }
         }
@@ -256,7 +423,7 @@ class BioeBleManager(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
     ) {
-        if (stop || mBluetoothGatt !== gatt) return
+        if (stop || !deviceVerified || mBluetoothGatt !== gatt) return
         val data = characteristic.value ?: return
         handleFrame(data)
     }
@@ -277,11 +444,28 @@ class BioeBleManager(
         val characteristic = writeCharacteristic ?: return
         val frame = txQueue.removeFirstOrNull() ?: return
         txInFlight = true
+        inFlightFrame = frame
         characteristic.value = frame
         if (!runCatching { gatt.writeCharacteristic(characteristic) }.getOrDefault(false)) {
-            txInFlight = false
             Log.w(TAG, "writeCharacteristic returned false")
+            retryWriteLocked(gatt, frame)
         }
+    }
+
+    private fun retryWriteLocked(gatt: BluetoothGatt, frame: ByteArray) {
+        txInFlight = false
+        inFlightFrame = null
+        writeRetries++
+        if (writeRetries > MAX_WRITE_RETRIES) {
+            Log.w(TAG, "BIOE write rejected repeatedly; resetting session")
+            failConnection(gatt)
+            return
+        }
+        txQueue.addFirst(frame)
+        mainHandler.postDelayed({
+            if (stop || mBluetoothGatt !== gatt) return@postDelayed
+            synchronized(stateLock) { pumpLocked() }
+        }, WRITE_RETRY_DELAY_MS)
     }
 
     private fun handleFrame(data: ByteArray) {
@@ -316,10 +500,11 @@ class BioeBleManager(
             enqueue(BioeParser.inquireLocalData())
             return
         }
+        flashBackfillEndIndex = maxOf(flashBackfillEndIndex, inquiry.latestIndex, count - 1)
         val start = if (latestFlashIndex <= 0) {
             (count - BioeConstants.MAX_FLASH_REQUEST).coerceAtLeast(0)
         } else {
-            minOf(latestFlashIndex + 1, count - 1)
+            minOf(latestFlashIndex, count - 1)
         }
         if (start >= count) return
         var offset = start
@@ -334,12 +519,14 @@ class BioeBleManager(
         val batch = BioeParser.parseFlashBatch(data) ?: return
         val context = Applic.app
         val now = System.currentTimeMillis()
+        val endIndex = maxOf(flashBackfillEndIndex, batch.index + batch.count - 1)
+        val anchorMs = if (flashBackfillAnchorMs > 0L) flashBackfillAnchorMs else now
         var previous = if (batch.index > 0) BioeConstants.ADC_FALLBACK else null
         val samples = batch.adc.mapIndexed { position, word ->
             val adc = BioeParser.sanitizeHistoryAdc(word, previous)
             previous = adc
             val index = batch.index + position
-            BioeParser.flashTimeMs(index, maxOf(latestFlashIndex, batch.index + batch.count - 1), now, useAtMs) to adc
+            BioeParser.flashTimeMs(index, endIndex, anchorMs, useAtMs) to adc
         }
         storeBatch(samples)
         val nextIndex = batch.index + batch.count
@@ -352,6 +539,7 @@ class BioeBleManager(
     private fun handleLocalInquiry(data: ByteArray) {
         val inquiry = BioeParser.parseLocalDataInquiry(data) ?: return
         totalLocalCount = inquiry.dataCount
+        localBackfillAnchorMs = System.currentTimeMillis()
         if (!inquiry.hasPackage || inquiry.packageCount <= 0) return
         for (packageIndex in 1..minOf(inquiry.packageCount, MAX_LOCAL_PACKAGES)) {
             enqueue(BioeParser.getLocalData(packageIndex))
@@ -360,13 +548,13 @@ class BioeBleManager(
 
     private fun handleLocalBatch(data: ByteArray) {
         val batch = BioeParser.parseLocalDataBatch(data) ?: return
-        val now = System.currentTimeMillis()
+        val anchorMs = if (localBackfillAnchorMs > 0L) localBackfillAnchorMs else System.currentTimeMillis()
         var previous: Int? = null
         val samples = batch.adc.mapIndexed { position, word ->
             val adc = BioeParser.sanitizeHistoryAdc(word, previous)
             previous = adc
             val index = batch.sampleIndex(position)
-            BioeParser.sampleTimeMs(index, totalLocalCount, now, useAtMs) to adc
+            BioeParser.sampleTimeMs(index, totalLocalCount, anchorMs, useAtMs) to adc
         }
         storeBatch(samples)
     }
@@ -377,7 +565,7 @@ class BioeBleManager(
         val mgdl = (mmol * BioeConstants.MGDL_PER_MMOL).toFloat()
         if (mgdl !in 1f..600f) return
         synchronized(readingLock) {
-            if (stop) return
+            if (stop || !deviceVerified) return
             val sensorId = SerialNumber ?: return
             markLocalReadingAccepted(now)
             HistorySyncAccess.storeCurrentReadingAsync(now, mgdl, 0f, 0f, sensorId)
@@ -406,7 +594,7 @@ class BioeBleManager(
         }
         if (decoded.isEmpty()) return
         synchronized(readingLock) {
-            if (stop) return
+            if (stop || !deviceVerified) return
             val timestamps = LongArray(decoded.size) { decoded[it].first }
             val values = FloatArray(decoded.size) { decoded[it].second }
             HistorySyncAccess.storeSensorHistoryBatchAsync(sensorId, timestamps, values, FloatArray(decoded.size))
@@ -422,7 +610,10 @@ class BioeBleManager(
 
     override fun requestHistoryBackfill(): Boolean {
         if (phase != Phase.STREAMING) return false
-        enqueue(BioeParser.inquireFlashData(maxOf(latestFlashIndex - 1, 0)))
+        flashBackfillEndIndex = 0
+        flashBackfillAnchorMs = System.currentTimeMillis()
+        localBackfillAnchorMs = 0L
+        enqueue(BioeParser.inquireFlashData(latestFlashIndex))
         return true
     }
 
@@ -436,8 +627,15 @@ class BioeBleManager(
         synchronized(stateLock) {
             txQueue.clear()
             txInFlight = false
+            inFlightFrame = null
+            writeRetries = 0
+            rejectedAddresses.clear()
         }
-        runCatching { mBluetoothGatt?.disconnect() }
+        connectScheduled = false
+        deviceVerified = false
+        phase = Phase.IDLE
+        mActiveBluetoothDevice = null
+        closeGattTransport()
         if (wipeData) Applic.app?.let { BioeRegistry.clear(it) }
     }
 
@@ -446,6 +644,11 @@ class BioeBleManager(
         synchronized(stateLock) {
             txQueue.clear()
             txInFlight = false
+            inFlightFrame = null
+            writeRetries = 0
         }
+        connectScheduled = false
+        deviceVerified = false
+        closeGattTransport()
     }
 }

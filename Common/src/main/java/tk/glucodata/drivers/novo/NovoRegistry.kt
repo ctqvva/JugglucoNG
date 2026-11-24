@@ -9,6 +9,7 @@ import tk.glucodata.SensorBluetooth
 object NovoRegistry {
     private const val TAG = "NovoRegistry"
     private const val PREFS_NAME = "tk.glucodata_novo_prefs"
+    private const val SECRETS_PREFS_NAME = "tk.glucodata_novo_secrets"
     private const val KEY_SENSOR_ID = "novo_sensor_id"
     private const val KEY_DEVICE_CODE = "novo_device_code"
     private const val KEY_BT_ADDRESS = "novo_bt_address"
@@ -21,6 +22,9 @@ object NovoRegistry {
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun secrets(context: Context): SharedPreferences =
+        context.getSharedPreferences(SECRETS_PREFS_NAME, Context.MODE_PRIVATE)
 
     fun canonicalSensorId(deviceCode: String?): String {
         val raw = deviceCode?.trim().orEmpty()
@@ -66,14 +70,14 @@ object NovoRegistry {
     }
 
     fun getPasswordBytes(context: Context): Pair<Byte, Byte> {
-        val p = prefs(context)
+        val p = secrets(context)
         val lo = runCatching { p.getInt(KEY_PASSWORD_LO, 0).toByte() }.getOrDefault(0)
         val hi = runCatching { p.getInt(KEY_PASSWORD_HI, 0).toByte() }.getOrDefault(0)
         return lo to hi
     }
 
     fun setPasswordBytes(context: Context, lo: Byte, hi: Byte) {
-        prefs(context).edit()
+        secrets(context).edit()
             .putInt(KEY_PASSWORD_LO, lo.toInt() and 0xFF)
             .putInt(KEY_PASSWORD_HI, hi.toInt() and 0xFF)
             .apply()
@@ -101,11 +105,12 @@ object NovoRegistry {
         }
         val sensorId = canonicalSensorId(deviceCode)
         val previous = getSensorId(context)
+        retireOtherDrivers(sensorId)
         if (previous != sensorId && previous.isNotBlank()) {
-            setLastBtAddress(context, "")
-            setLastFlashCount(context, 0)
             runCatching { Natives.finishSensorById(previous) }
                 .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }
+            setLastBtAddress(context, "")
+            setLastFlashCount(context, 0)
         }
         prefs(context).edit()
             .putString(KEY_SENSOR_ID, sensorId)
@@ -114,7 +119,6 @@ object NovoRegistry {
         setCalibration(context, calibration)
         setPasswordBytes(context, passwordLow, passwordHigh)
         setUseAtMs(context, useAtMs)
-        retireOtherDrivers(sensorId)
         val blue = SensorBluetooth.blueone
         if (!connectNow || blue == null) return sensorId
         val existing = findDriver(sensorId)
@@ -149,5 +153,8 @@ object NovoRegistry {
     fun isNovoSensorId(sensorId: String?): Boolean =
         !sensorId.isNullOrBlank() && sensorId.trim().startsWith(NovoConstants.SENSOR_ID_PREFIX, ignoreCase = true)
 
-    fun clear(context: Context) = prefs(context).edit().clear().apply()
+    fun clear(context: Context) {
+        prefs(context).edit().clear().apply()
+        secrets(context).edit().clear().apply()
+    }
 }

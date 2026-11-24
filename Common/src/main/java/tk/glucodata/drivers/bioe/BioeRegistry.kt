@@ -9,6 +9,7 @@ import tk.glucodata.SensorBluetooth
 object BioeRegistry {
     private const val TAG = "BioeRegistry"
     private const val PREFS_NAME = "tk.glucodata_bioe_prefs"
+    private const val SECRETS_PREFS_NAME = "tk.glucodata_bioe_secrets"
     private const val KEY_SENSOR_ID = "bioe_sensor_id"
     private const val KEY_DEVICE_CODE = "bioe_device_code"
     private const val KEY_BT_ADDRESS = "bioe_bt_address"
@@ -22,6 +23,9 @@ object BioeRegistry {
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private fun secrets(context: Context): SharedPreferences =
+        context.getSharedPreferences(SECRETS_PREFS_NAME, Context.MODE_PRIVATE)
 
     fun canonicalSensorId(deviceCode: String?): String {
         val raw = deviceCode?.trim().orEmpty()
@@ -69,10 +73,10 @@ object BioeRegistry {
         prefs(context).edit().putLong(KEY_USE_AT, useAtMs).apply()
     }
 
-    fun getApiToken(context: Context): String = prefs(context).getString(KEY_API_TOKEN, "") ?: ""
+    fun getApiToken(context: Context): String = secrets(context).getString(KEY_API_TOKEN, "") ?: ""
 
     fun setApiToken(context: Context, token: String) {
-        prefs(context).edit().putString(KEY_API_TOKEN, token.trim()).apply()
+        secrets(context).edit().putString(KEY_API_TOKEN, token.trim()).apply()
     }
 
     fun getLastFlashIndex(context: Context): Int = prefs(context).getInt(KEY_LAST_FLASH_INDEX, 0)
@@ -101,12 +105,13 @@ object BioeRegistry {
         }
         val sensorId = canonicalSensorId(deviceCode)
         val previous = getSensorId(context)
+        retireOtherDrivers(sensorId)
         if (previous != sensorId && previous.isNotBlank()) {
+            runCatching { Natives.finishSensorById(previous) }
+                .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }
             setLastBtAddress(context, "")
             setLastFlashIndex(context, 0)
             setLastFlashCount(context, 0)
-            runCatching { Natives.finishSensorById(previous) }
-                .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }
         }
         prefs(context).edit()
             .putString(KEY_SENSOR_ID, sensorId)
@@ -114,7 +119,6 @@ object BioeRegistry {
             .apply()
         setCalibration(context, calibration)
         setUseAtMs(context, useAtMs)
-        retireOtherDrivers(sensorId)
         val blue = SensorBluetooth.blueone
         if (!connectNow || blue == null) return sensorId
         val existing = findDriver(sensorId)
@@ -149,5 +153,8 @@ object BioeRegistry {
     fun isBioeSensorId(sensorId: String?): Boolean =
         !sensorId.isNullOrBlank() && sensorId.trim().startsWith(BioeConstants.SENSOR_ID_PREFIX, ignoreCase = true)
 
-    fun clear(context: Context) = prefs(context).edit().clear().apply()
+    fun clear(context: Context) {
+        prefs(context).edit().clear().apply()
+        secrets(context).edit().clear().apply()
+    }
 }

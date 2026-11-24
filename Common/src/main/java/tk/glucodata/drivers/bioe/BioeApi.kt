@@ -118,6 +118,14 @@ object BioeApi {
         } ?: devices.firstOrNull { it.calibration != null }
     }
 
+    fun selectDeviceExact(devices: List<BioeServerDevice>, deviceCode: String?): BioeServerDevice? {
+        val code = deviceCode?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        if (code.isEmpty()) return devices.firstOrNull { it.calibration != null }
+        return devices.firstOrNull {
+            it.deviceCode.trim().uppercase(Locale.ROOT) == code && it.calibration != null
+        }
+    }
+
     fun parseDeviceList(body: String): List<BioeServerDevice> {
         val root = JSONObject(body)
         val succeeded = root.optBoolean("result", false) || root.optInt("code", -1) == 0

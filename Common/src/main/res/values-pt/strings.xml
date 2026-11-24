@@ -3412,4 +3412,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Os itens acima ficam antes da câmara, os restantes depois</string>
     <string name="floating_layout_hidden">Oculto</string>
     <string name="floating_layout_order_desc">Arraste uma pega para mover um item</string>
+    <string name="bioe_sensor_desc">Código do dispositivo e os coeficientes k/b do seu sensor</string>
+    <string name="bioe_device_code_label">Código do dispositivo</string>
+    <string name="bioe_k_label">Coeficiente k</string>
+    <string name="bioe_b_label">Coeficiente b</string>
+    <string name="bioe_token_label">Token da conta Bioecare</string>
+    <string name="bioe_load_from_server">Carregar parâmetros do servidor</string>
+    <string name="bioe_server_loading">Carregando…</string>
+    <string name="bioe_server_loaded">Parâmetros carregados do servidor</string>
+    <string name="bioe_server_load_failed">Não foi possível carregar os parâmetros do servidor</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Nenhum sensor com parâmetros válidos encontrado no servidor</string>
+    <string name="bioe_threshold_label">Limiar de corrente baixa (nA, opcional)</string>
+    <string name="bioe_setup_saved_title">Sensor salvo</string>
+    <string name="bioe_setup_saved_message">O sensor foi salvo. Mantenha-o por perto para que o aplicativo possa se conectar e lê-lo.</string>
+    <string name="bioe_setup_invalid">Informe um código de dispositivo e valores k/b finitos (k deve ser positivo)</string>
+    <string name="scgm_sensor_desc">Código do dispositivo em hexadecimal e os coeficientes k/b do seu sensor</string>
+    <string name="scgm_device_code_label">Código do dispositivo (hexadecimal, minúsculas)</string>
+    <string name="scgm_setup_invalid">Informe um código hexadecimal e valores k/b finitos (k deve ser positivo)</string>
+    <string name="novo_sensor_desc">Driver DN- experimental: código do dispositivo e os coeficientes k/b do seu sensor</string>
+    <string name="novo_device_code_label">Código do dispositivo (DN-…)</string>
+    <string name="novo_password_low_label">Byte baixo da senha (opcional)</string>
+    <string name="novo_password_high_label">Byte alto da senha (opcional)</string>
+    <string name="novo_setup_invalid">Informe um código de dispositivo e valores k/b finitos (k deve ser positivo)</string>
 </resources>

@@ -3416,4 +3416,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">上方的项目位于摄像头之前，其余位于之后</string>
     <string name="floating_layout_hidden">已隐藏</string>
     <string name="floating_layout_order_desc">拖动手柄以移动项目</string>
+    <string name="bioe_sensor_desc">设备代码和传感器的 k/b 系数</string>
+    <string name="bioe_device_code_label">设备代码</string>
+    <string name="bioe_k_label">系数 k</string>
+    <string name="bioe_b_label">系数 b</string>
+    <string name="bioe_token_label">Bioecare 账户令牌</string>
+    <string name="bioe_load_from_server">从服务器加载参数</string>
+    <string name="bioe_server_loading">加载中…</string>
+    <string name="bioe_server_loaded">参数已从服务器加载</string>
+    <string name="bioe_server_load_failed">无法从服务器加载参数</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">服务器上未找到参数有效的传感器</string>
+    <string name="bioe_threshold_label">低电流阈值（nA，可选）</string>
+    <string name="bioe_setup_saved_title">传感器已保存</string>
+    <string name="bioe_setup_saved_message">传感器已保存。请将其放在附近，以便应用连接并读取数据。</string>
+    <string name="bioe_setup_invalid">请输入设备代码和有限的 k/b 值（k 必须为正数）</string>
+    <string name="scgm_sensor_desc">十六进制设备代码和传感器的 k/b 系数</string>
+    <string name="scgm_device_code_label">设备代码（十六进制，小写）</string>
+    <string name="scgm_setup_invalid">请输入十六进制设备代码和有限的 k/b 值（k 必须为正数）</string>
+    <string name="novo_sensor_desc">实验性 DN- 驱动：设备代码和传感器的 k/b 系数</string>
+    <string name="novo_device_code_label">设备代码（DN-…）</string>
+    <string name="novo_password_low_label">密码低位字节（可选）</string>
+    <string name="novo_password_high_label">密码高位字节（可选）</string>
+    <string name="novo_setup_invalid">请输入设备代码和有限的 k/b 值（k 必须为正数）</string>
 </resources>

@@ -32,6 +32,12 @@ class ScgmBleManager(
         private val FALLBACK_SERVICE = UUID.fromString(ScgmConstants.FALLBACK_SERVICE_UUID)
         private val FALLBACK_NOTIFY = UUID.fromString(ScgmConstants.FALLBACK_NOTIFY_UUID)
         private const val DISCOVERY_DELAY_MS = 250L
+        private const val WRITE_RETRY_DELAY_MS = 300L
+        private const val MAX_WRITE_RETRIES = 2
+        private const val CONNECT_TIMEOUT_MS = 20_000L
+        private const val SCAN_WAIT_TIMEOUT_MS = 30_000L
+        private const val MAX_SILENT_CONNECT_ATTEMPTS = 2
+        private const val CONNECT_BACKOFF_MS = 60_000L
     }
 
     enum class Phase { IDLE, CONNECTING, DISCOVERING, SUBSCRIBING, STREAMING, ERROR }
@@ -56,15 +62,39 @@ class ScgmBleManager(
     @Volatile private var bootAtSeconds = 0L
     @Volatile private var lastPid = 0
     @Volatile private var lastTimeMs = 0L
+    @Volatile private var liveAnchorPid = 0
+    @Volatile private var liveAnchorTimeMs = 0L
     @Volatile private var nextBrokePosition = 0
     @Volatile private var batteryMv = 0
     @Volatile private var firmwareInfo = ""
     @Volatile private var advDeviceCode = ""
+    @Volatile private var deviceVerified = false
     @Volatile private var isReadingHistory = false
     @Volatile private var pendingHistorySamples = 0
+    @Volatile private var silentConnectAttempts = 0
+    @Volatile private var nextConnectAllowedAtMs = 0L
+    @Volatile private var connectScheduled = false
+    @Volatile private var scanWaitDeadlineMs = 0L
+
+    private val reconnectRunnable = Runnable {
+        nextConnectAllowedAtMs = 0L
+        if (!stop && mBluetoothGatt == null) connectDevice(0L)
+    }
+
+    private val scanTimeoutRunnable = Runnable {
+        if (stop || mBluetoothGatt != null || connectScheduled) return@Runnable
+        if (phase == Phase.IDLE && System.currentTimeMillis() >= scanWaitDeadlineMs) {
+            phase = Phase.ERROR
+            scheduleRetry()
+            UiRefreshBus.requestStatusRefresh()
+        }
+    }
 
     private val stateLock = Any()
     private val readingLock = Any()
+    private var pendingRetryFrame: ByteArray? = null
+    private var inFlightFrame: ByteArray? = null
+    private var writeRetries = 0
 
     init {
         Applic.app?.let(::applyRegistrySettings)
@@ -115,9 +145,32 @@ class ScgmBleManager(
     override fun matchScanResult(result: ScanResult): Boolean {
         val name = result.device?.name ?: result.scanRecord?.deviceName
         if (!isScgmName(name)) return false
-        val code = readAdvertisedDeviceCode(result)
-        if (code != null) advDeviceCode = code
+        val code = readAdvertisedDeviceCode(result) ?: return false
+        if (!deviceCodeMatches(code)) return false
+        advDeviceCode = code
         return true
+    }
+
+    private fun deviceCodeMatches(candidate: String): Boolean {
+        val expected = expectedDeviceCode()
+        if (expected.isEmpty()) return true
+        return normalizedDeviceCode(candidate) == normalizedDeviceCode(expected)
+    }
+
+    private fun normalizedDeviceCode(value: String): String {
+        val trimmed = value.trim().lowercase(Locale.ROOT)
+        if (trimmed.length % 2 == 0 && trimmed.all { it.isDigit() || it in 'a'..'f' }) return trimmed
+        return ScgmParser.hex(trimmed.toByteArray(Charsets.ISO_8859_1))
+    }
+
+    private fun expectedDeviceCode(): String {
+        val stored = Applic.app?.let { ScgmRegistry.getDeviceCode(it) }.orEmpty().trim()
+        val code = stored.ifEmpty {
+            SerialNumber?.trim()?.takeIf {
+                it.startsWith(ScgmConstants.SENSOR_ID_PREFIX, ignoreCase = true)
+            }?.substring(ScgmConstants.SENSOR_ID_PREFIX.length).orEmpty()
+        }
+        return code.lowercase(Locale.ROOT)
     }
 
     private fun isScgmName(name: String?): Boolean =
@@ -132,22 +185,56 @@ class ScgmBleManager(
         return null
     }
 
+    private fun scheduleRetry() {
+        nextConnectAllowedAtMs = System.currentTimeMillis() + CONNECT_BACKOFF_MS
+        silentConnectAttempts = 0
+        mainHandler.removeCallbacks(reconnectRunnable)
+        mainHandler.postDelayed(reconnectRunnable, CONNECT_BACKOFF_MS + 500L)
+    }
+
     @Synchronized
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop) return false
+        if (System.currentTimeMillis() < nextConnectAllowedAtMs) return true
         if (phase != Phase.IDLE && phase != Phase.ERROR) {
-            if (mBluetoothGatt != null || mActiveBluetoothDevice != null) return true
+            if (mBluetoothGatt != null || connectScheduled) return true
         }
         phase = Phase.CONNECTING
+        connectScheduled = true
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
         val scheduled = super.connectDevice(delayMillis)
-        if (!scheduled && phase == Phase.CONNECTING && mActiveBluetoothDevice != null) phase = Phase.IDLE
+        if (!scheduled) {
+            connectScheduled = false
+            phase = Phase.IDLE
+            scanWaitDeadlineMs = System.currentTimeMillis() + SCAN_WAIT_TIMEOUT_MS
+            mainHandler.removeCallbacks(scanTimeoutRunnable)
+            mainHandler.postDelayed(scanTimeoutRunnable, SCAN_WAIT_TIMEOUT_MS)
+        }
         return scheduled
+    }
+
+    protected override fun connectionAttemptTimeoutMillis(): Long = CONNECT_TIMEOUT_MS
+
+    protected override fun onConnectionAttemptTimeout() {
+        silentConnectAttempts++
+        if (silentConnectAttempts >= MAX_SILENT_CONNECT_ATTEMPTS) {
+            phase = Phase.ERROR
+            mActiveBluetoothDevice = null
+            mActiveDeviceAddress = null
+            Applic.app?.let { ScgmRegistry.setLastBtAddress(it, "") }
+            scheduleRetry()
+        }
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         noteFirstGattCallback("onConnectionStateChange", gatt)
         if (!acceptConnectionAttemptCallback(gatt, newState)) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
+            if (gatt === mBluetoothGatt) {
+                runCatching { closeGattTransport() }
+            } else {
+                if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
+                runCatching { gatt.close() }
+            }
             return
         }
         super.onConnectionStateChange(gatt, status, newState)
@@ -160,13 +247,18 @@ class ScgmBleManager(
                     Applic.app?.let { ScgmRegistry.setLastBtAddress(it, address) }
                 }
                 connectTime = System.currentTimeMillis()
+                silentConnectAttempts = 0
+                nextConnectAllowedAtMs = 0L
+                connectScheduled = false
+                mainHandler.removeCallbacks(scanTimeoutRunnable)
+                deviceVerified = false
                 phase = Phase.DISCOVERING
                 runCatching { gatt.requestMtu(ScgmConstants.REQUESTED_MTU) }
                 mainHandler.postDelayed({
                     if (!stop && phase == Phase.DISCOVERING && mBluetoothGatt === gatt) {
                         if (!runCatching { gatt.discoverServices() }.getOrDefault(false)) {
                             phase = Phase.ERROR
-                            runCatching { gatt.disconnect() }
+                            runCatching { closeGattTransport() }
                         }
                     }
                 }, DISCOVERY_DELAY_MS)
@@ -175,14 +267,20 @@ class ScgmBleManager(
             BluetoothProfile.STATE_DISCONNECTED -> {
                 synchronized(stateLock) {
                     txQueue.clear()
+                    pendingRetryFrame = null
+                    inFlightFrame = null
                     txInFlight = false
+                    writeRetries = 0
                 }
                 writeCharacteristic = null
                 notifyCharacteristic = null
+                connectScheduled = false
+                mainHandler.removeCallbacks(scanTimeoutRunnable)
+                deviceVerified = false
                 isReadingHistory = false
                 pendingHistorySamples = 0
                 phase = Phase.IDLE
-                runCatching { gatt.close() }
+                runCatching { closeGattTransport() }
                 if (mBluetoothGatt === gatt) mBluetoothGatt = null
                 UiRefreshBus.requestStatusRefresh()
             }
@@ -193,7 +291,7 @@ class ScgmBleManager(
         if (stop || mBluetoothGatt !== gatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
             return
         }
         var write: BluetoothGattCharacteristic? = null
@@ -219,7 +317,7 @@ class ScgmBleManager(
         if (write == null || notify == null) {
             Log.w(TAG, "Required SCGM characteristics not found (write=$write notify=$notify)")
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
             return
         }
         writeCharacteristic = write
@@ -232,7 +330,7 @@ class ScgmBleManager(
         phase = Phase.SUBSCRIBING
         if (!enableNotification(gatt, notify)) {
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
         }
     }
 
@@ -245,7 +343,7 @@ class ScgmBleManager(
         if (descriptor.uuid != CCCD) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             phase = Phase.ERROR
-            runCatching { gatt.disconnect() }
+            runCatching { closeGattTransport() }
             return
         }
         if (notifyCharacteristic == null || descriptor.characteristic?.uuid != notifyCharacteristic?.uuid) return
@@ -264,13 +362,16 @@ class ScgmBleManager(
         if (stop || mBluetoothGatt !== gatt) return
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "SCGM write failed status=$status")
-            runCatching { gatt.disconnect() }
+            val frame = synchronized(stateLock) { inFlightFrame }
+            if (frame != null) onWriteFailed(gatt, frame)
             return
         }
         mainHandler.post {
             if (stop || mBluetoothGatt !== gatt) return@post
             synchronized(stateLock) {
                 txInFlight = false
+                inFlightFrame = null
+                writeRetries = 0
                 pumpLocked()
             }
         }
@@ -307,17 +408,60 @@ class ScgmBleManager(
         if (txInFlight) return
         val gatt = mBluetoothGatt ?: return
         val characteristic = writeCharacteristic ?: return
-        val frame = txQueue.removeFirstOrNull() ?: return
+        val frame = pendingRetryFrame ?: txQueue.removeFirstOrNull() ?: return
+        pendingRetryFrame = null
         txInFlight = true
+        inFlightFrame = frame
         characteristic.value = frame
         if (!runCatching { gatt.writeCharacteristic(characteristic) }.getOrDefault(false)) {
-            txInFlight = false
             Log.w(TAG, "writeCharacteristic returned false")
+            onWriteFailed(gatt, frame)
         }
     }
 
+    private fun onWriteFailed(gatt: BluetoothGatt, frame: ByteArray) {
+        val exhausted = synchronized(stateLock) {
+            inFlightFrame = null
+            txInFlight = false
+            if (writeRetries < MAX_WRITE_RETRIES) {
+                writeRetries++
+                pendingRetryFrame = frame
+                false
+            } else {
+                true
+            }
+        }
+        if (exhausted) {
+            resetFailedSession()
+            return
+        }
+        val delay = WRITE_RETRY_DELAY_MS * writeRetries
+        mainHandler.postDelayed({
+            if (stop || mBluetoothGatt !== gatt) return@postDelayed
+            synchronized(stateLock) { pumpLocked() }
+        }, delay)
+    }
+
+    private fun resetFailedSession() {
+        synchronized(stateLock) {
+            txQueue.clear()
+            pendingRetryFrame = null
+            inFlightFrame = null
+            txInFlight = false
+            writeRetries = 0
+        }
+        isReadingHistory = false
+        pendingHistorySamples = 0
+        phase = Phase.ERROR
+        runCatching { closeGattTransport() }
+        scheduleRetry()
+        UiRefreshBus.requestStatusRefresh()
+    }
+
     private fun handleFrame(data: ByteArray) {
-        when (ScgmParser.command(data)) {
+        val command = ScgmParser.command(data)
+        if (command != ScgmConstants.CMD_TERMINAL_INFO && !deviceVerified) return
+        when (command) {
             ScgmConstants.CMD_HEARTBEAT -> ScgmParser.parseHeartbeat(data)
             ScgmConstants.CMD_CURRENT_RESULT -> handleRealtime(data)
             ScgmConstants.CMD_QUERY_HISTORY -> handleHistoryInquiry(data)
@@ -330,6 +474,14 @@ class ScgmBleManager(
     private fun handleTerminalInfo(data: ByteArray) {
         val info = ScgmParser.parseTerminalInfo(data) ?: return
         val context = Applic.app
+        if (!deviceCodeMatches(info.deviceCode)) {
+            Log.w(TAG, "SCGM terminal info device code mismatch; rejecting sensor")
+            phase = Phase.ERROR
+            deviceVerified = false
+            runCatching { closeGattTransport() }
+            return
+        }
+        deviceVerified = true
         val now = System.currentTimeMillis()
         if (bootAtSeconds == 0L) {
             bootAtSeconds = ScgmParser.bootAtSeconds(now, info.packageCount)
@@ -360,6 +512,8 @@ class ScgmBleManager(
         }
         lastPid = sample.index
         lastTimeMs = now
+        liveAnchorPid = sample.index
+        liveAnchorTimeMs = now
         if (context != null) {
             ScgmRegistry.setLastPid(context, lastPid)
             ScgmRegistry.setLastTimeMs(context, lastTimeMs)
@@ -370,13 +524,19 @@ class ScgmBleManager(
     private fun handleHistoryInquiry(data: ByteArray) {
         val inquiry = ScgmParser.parseHistoryInquiry(data) ?: return
         if (isReadingHistory) return
+        val start = when {
+            nextBrokePosition > 0 -> nextBrokePosition
+            lastPid > 0 -> lastPid + 1
+            else -> 1
+        }
+        if (start > inquiry.latestIndex) return
+        val gapCount = inquiry.latestIndex - start + 1
         val shouldRead = ScgmParser.shouldRead(inquiry.dataCount, nextBrokePosition, inquiry.latestIndex)
-        val start = if (lastPid > 0) lastPid + 1 else maxOf(nextBrokePosition, 1)
-        if (shouldRead <= 0 || start > inquiry.latestIndex) return
+        val remainingCount = if (shouldRead > 0) shouldRead else minOf(gapCount, inquiry.dataCount.coerceAtLeast(1))
         isReadingHistory = true
         pendingHistorySamples = 0
         var offset = start
-        var remaining = shouldRead
+        var remaining = remainingCount
         while (offset <= inquiry.latestIndex && remaining > 0) {
             val count = minOf(ScgmConstants.HISTORY_PAGE_SIZE, remaining, inquiry.latestIndex - offset + 1)
             enqueue(ScgmParser.historyPage(offset, count))
@@ -389,8 +549,10 @@ class ScgmBleManager(
     private fun handleHistoryPage(data: ByteArray) {
         val page = ScgmParser.parseHistoryPage(data) ?: return
         val now = System.currentTimeMillis()
-        val referenceTime = lastTimeMs.takeIf { it > 0L } ?: now
-        val referencePid = lastPid.takeIf { it > 0L }
+        val referenceTime = liveAnchorTimeMs.takeIf { it > 0L }
+            ?: lastTimeMs.takeIf { it > 0L } ?: now
+        val referencePid = liveAnchorPid.takeIf { it > 0 }
+            ?: lastPid.takeIf { it > 0 }
             ?: ScgmParser.lastPidFromBoot(now, bootAtSeconds)
         val samples = page.adc.mapIndexed { position, adc ->
             val index = page.startIndex + 1 + position
@@ -407,6 +569,7 @@ class ScgmBleManager(
     }
 
     private fun publishLive(adc: Int, now: Long) {
+        if (!deviceVerified) return
         val mmol = ScgmParser.glucoseMmol(adc, calibration)
         if (mmol <= 0.0) return
         val mgdl = (mmol * ScgmConstants.MGDL_PER_MMOL).toFloat()
@@ -434,6 +597,7 @@ class ScgmBleManager(
     }
 
     private fun storeBatch(samples: List<Pair<Long, Int>>) {
+        if (!deviceVerified) return
         val sensorId = SerialNumber ?: return
         val decoded = samples.mapNotNull { (timestamp, adc) ->
             val mmol = ScgmParser.glucoseMmol(adc, calibration)
@@ -456,7 +620,7 @@ class ScgmBleManager(
     }
 
     override fun requestHistoryBackfill(): Boolean {
-        if (phase != Phase.STREAMING) return false
+        if (phase != Phase.STREAMING || !deviceVerified) return false
         enqueue(ScgmParser.queryHistory())
         return true
     }
@@ -470,17 +634,33 @@ class ScgmBleManager(
         mainHandler.removeCallbacksAndMessages(null)
         synchronized(stateLock) {
             txQueue.clear()
+            pendingRetryFrame = null
+            inFlightFrame = null
             txInFlight = false
+            writeRetries = 0
         }
-        runCatching { mBluetoothGatt?.disconnect() }
+        deviceVerified = false
+        isReadingHistory = false
+        pendingHistorySamples = 0
+        runCatching { closeGattTransport() }
         if (wipeData) Applic.app?.let { ScgmRegistry.clear(it) }
     }
 
     override fun onBluetoothAdapterUnavailable() {
         phase = Phase.IDLE
+        connectScheduled = false
+        mainHandler.removeCallbacks(reconnectRunnable)
+        mainHandler.removeCallbacks(scanTimeoutRunnable)
         synchronized(stateLock) {
             txQueue.clear()
+            pendingRetryFrame = null
+            inFlightFrame = null
             txInFlight = false
+            writeRetries = 0
         }
+        deviceVerified = false
+        isReadingHistory = false
+        pendingHistorySamples = 0
+        runCatching { closeGattTransport() }
     }
 }

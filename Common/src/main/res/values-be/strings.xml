@@ -3501,4 +3501,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Элементы вышэй стаяць перад камерай, астатнія — пасля</string>
     <string name="floating_layout_hidden">Схавана</string>
     <string name="floating_layout_order_desc">Перацягніце маркер, каб перамясціць элемент</string>
+    <string name="bioe_sensor_desc">Код прылады і каэфіцыенты k/b вашага датчыка</string>
+    <string name="bioe_device_code_label">Код прылады</string>
+    <string name="bioe_k_label">Каэфіцыент k</string>
+    <string name="bioe_b_label">Каэфіцыент b</string>
+    <string name="bioe_token_label">Токен уліковага запісу Bioecare</string>
+    <string name="bioe_load_from_server">Загрузіць параметры з сервера</string>
+    <string name="bioe_server_loading">Загрузка…</string>
+    <string name="bioe_server_loaded">Параметры загружаны з сервера</string>
+    <string name="bioe_server_load_failed">Не ўдалося загрузіць параметры з сервера</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">На серверы не знойдзена датчыка з карэктнымі параметрамі</string>
+    <string name="bioe_threshold_label">Парог нізкага току (нА, неабавязкова)</string>
+    <string name="bioe_setup_saved_title">Датчык захаваны</string>
+    <string name="bioe_setup_saved_message">Датчык захаваны. Трымайце яго побач, каб дадатак мог падключыцца і счытваць даныя.</string>
+    <string name="bioe_setup_invalid">Увядзіце код прылады і канечныя значэнні k/b (k павінна быць станоўчым)</string>
+    <string name="scgm_sensor_desc">Код прылады ў шаснаццатковым фармаце і каэфіцыенты k/b вашага датчыка</string>
+    <string name="scgm_device_code_label">Код прылады (шаснаццатковы, малымі літарамі)</string>
+    <string name="scgm_setup_invalid">Увядзіце шаснаццатковы код прылады і канечныя значэнні k/b (k павінна быць станоўчым)</string>
+    <string name="novo_sensor_desc">Эксперыментальны драйвер DN-: код прылады і каэфіцыенты k/b вашага датчыка</string>
+    <string name="novo_device_code_label">Код прылады (DN-…)</string>
+    <string name="novo_password_low_label">Малодшы байт пароля (неабавязкова)</string>
+    <string name="novo_password_high_label">Старшы байт пароля (неабавязкова)</string>
+    <string name="novo_setup_invalid">Увядзіце код прылады і канечныя значэнні k/b (k павінна быць станоўчым)</string>
 </resources>

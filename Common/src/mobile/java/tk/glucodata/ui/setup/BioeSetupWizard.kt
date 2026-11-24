@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -73,8 +75,9 @@ fun BioeSetupWizard(
 
     val k = kInput.trim().toDoubleOrNull()
     val b = bInput.trim().toDoubleOrNull()
-    val threshold = thresholdInput.trim().toDoubleOrNull() ?: BioeConstants.DEFAULT_LOW_CURRENT_NA
-    val thresholdValid = thresholdInput.isBlank() || (threshold.isFinite() && threshold >= 0.0)
+    val threshold = thresholdInput.trim().toDoubleOrNull()
+    val thresholdValid = thresholdInput.isBlank() ||
+        (threshold != null && threshold.isFinite() && threshold >= 0.0)
     val valid = BioeRegistry.isValidDeviceCode(deviceCode) &&
         k != null && k > 0.0 && k.isFinite() && b != null && b.isFinite() && thresholdValid
 
@@ -109,7 +112,7 @@ fun BioeSetupWizard(
             showError = false
             when (result) {
                 is BioeApiResult.Success -> {
-                    val device = BioeApi.selectDevice(result.value, deviceCode)
+                    val device = BioeApi.selectDeviceExact(result.value, deviceCode)
                     if (device?.calibration == null) {
                         serverMessage = context.getString(R.string.bioe_server_no_device)
                     } else {
@@ -122,8 +125,11 @@ fun BioeSetupWizard(
                         serverMessage = context.getString(R.string.bioe_server_loaded)
                     }
                 }
-                is BioeApiResult.HttpError -> serverMessage =
-                    context.getString(R.string.bioe_server_load_failed) + " (HTTP ${result.code})"
+                is BioeApiResult.HttpError -> serverMessage = context.getString(
+                    R.string.bioe_server_load_failed_http,
+                    context.getString(R.string.bioe_server_load_failed),
+                    result.code,
+                )
                 is BioeApiResult.TransportError, is BioeApiResult.ProtocolError ->
                     serverMessage = context.getString(R.string.bioe_server_load_failed)
             }
@@ -169,6 +175,7 @@ fun BioeSetupWizard(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = ui.horizontalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
@@ -271,7 +278,9 @@ fun BioeSetupWizard(
                         if (!valid || k == null || b == null) {
                             showError = true
                         } else {
-                            requestPermissionsAndSave(BioeCalibration(k, b, threshold))
+                            requestPermissionsAndSave(
+                                BioeCalibration(k, b, threshold ?: BioeConstants.DEFAULT_LOW_CURRENT_NA)
+                            )
                         }
                     },
                     enabled = valid,

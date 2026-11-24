@@ -3453,4 +3453,27 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="floating_layout_camera_desc">Items erboven staan vóór de camera, de rest erna</string>
     <string name="floating_layout_hidden">Verborgen</string>
     <string name="floating_layout_order_desc">Sleep een greep om een item te verplaatsen</string>
+    <string name="bioe_sensor_desc">Apparaatcode en de k/b-coëfficiënten van uw sensor</string>
+    <string name="bioe_device_code_label">Apparaatcode</string>
+    <string name="bioe_k_label">Coëfficiënt k</string>
+    <string name="bioe_b_label">Coëfficiënt b</string>
+    <string name="bioe_token_label">Bioecare-accounttoken</string>
+    <string name="bioe_load_from_server">Parameters van server laden</string>
+    <string name="bioe_server_loading">Laden…</string>
+    <string name="bioe_server_loaded">Parameters van server geladen</string>
+    <string name="bioe_server_load_failed">Kan parameters niet van de server laden</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Geen sensor met geldige parameters gevonden op de server</string>
+    <string name="bioe_threshold_label">Drempel voor lage stroom (nA, optioneel)</string>
+    <string name="bioe_setup_saved_title">Sensor opgeslagen</string>
+    <string name="bioe_setup_saved_message">De sensor is opgeslagen. Houd hem dichtbij zodat de app verbinding kan maken en hem kan uitlezen.</string>
+    <string name="bioe_setup_invalid">Voer een apparaatcode en eindige k/b-waarden in (k moet positief zijn)</string>
+    <string name="scgm_sensor_desc">Apparaatcode in hexadecimaal en de k/b-coëfficiënten van uw sensor</string>
+    <string name="scgm_device_code_label">Apparaatcode (hexadecimaal, kleine letters)</string>
+    <string name="scgm_setup_invalid">Voer een hexadecimale apparaatcode en eindige k/b-waarden in (k moet positief zijn)</string>
+    <string name="novo_sensor_desc">Experimentele DN-stuurprogramma: apparaatcode en de k/b-coëfficiënten van uw sensor</string>
+    <string name="novo_device_code_label">Apparaatcode (DN-…)</string>
+    <string name="novo_password_low_label">Laag byte van wachtwoord (optioneel)</string>
+    <string name="novo_password_high_label">Hoog byte van wachtwoord (optioneel)</string>
+    <string name="novo_setup_invalid">Voer een apparaatcode en eindige k/b-waarden in (k moet positief zijn)</string>
 </resources>

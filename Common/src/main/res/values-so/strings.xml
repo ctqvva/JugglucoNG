@@ -3594,4 +3594,27 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="floating_layout_camera_desc">Waxyaabaha ka sarreeya waxay ka horreeyaan kamarada, inta kalena way ka dambeeyaan</string>
     <string name="floating_layout_hidden">Qarsoon</string>
     <string name="floating_layout_order_desc">Jiid gacan si aad shay u guurto</string>
+    <string name="bioe_sensor_desc">Koodka qalabka iyo iskudhafyada k/b ee dareemahaaga</string>
+    <string name="bioe_device_code_label">Koodka qalabka</string>
+    <string name="bioe_k_label">Iskudhafka k</string>
+    <string name="bioe_b_label">Iskudhafka b</string>
+    <string name="bioe_token_label">Token-ka xisaabta Bioecare</string>
+    <string name="bioe_load_from_server">Ka soo deji cabbirrada serverka</string>
+    <string name="bioe_server_loading">Soo dejinaya…</string>
+    <string name="bioe_server_loaded">Cabbirrada laga soo dejiyay serverka</string>
+    <string name="bioe_server_load_failed">Ma suurtagal ahayn in cabbirrada laga soo dejiyo serverka</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Serverka lama helin dareeme leh cabbirro sax ah</string>
+    <string name="bioe_threshold_label">Xadka hadda hooseeya (nA, ikhtiyaari)</string>
+    <string name="bioe_setup_saved_title">Dareeme waa la keydiyay</string>
+    <string name="bioe_setup_saved_message">Dareemaha waa la keydiyay. Ku hay meel u dhow si app-ku uu ugu xidhmo oo uu u akhriyo.</string>
+    <string name="bioe_setup_invalid">Geli koodka qalabka iyo qiimayaal k/b oo dhammaad leh (k waa in uu togan yahay)</string>
+    <string name="scgm_sensor_desc">Koodka qalabka oo qaab hex ah iyo iskudhafyada k/b ee dareemahaaga</string>
+    <string name="scgm_device_code_label">Koodka qalabka (hex, xarfaha yar-yar)</string>
+    <string name="scgm_setup_invalid">Geli koodka qalabka ee hex iyo qiimayaal k/b oo dhammaad leh (k waa in uu togan yahay)</string>
+    <string name="novo_sensor_desc">Dareewalka tijaabada ah ee DN-: koodka qalabka iyo iskudhafyada k/b ee dareemahaaga</string>
+    <string name="novo_device_code_label">Koodka qalabka (DN-…)</string>
+    <string name="novo_password_low_label">Baytka hoose ee furaha sirta ah (ikhtiyaari)</string>
+    <string name="novo_password_high_label">Baytka sare ee furaha sirta ah (ikhtiyaari)</string>
+    <string name="novo_setup_invalid">Geli koodka qalabka iyo qiimayaal k/b oo dhammaad leh (k waa in uu togan yahay)</string>
 </resources>

@@ -1113,6 +1113,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="bioe_server_loading">Loading…</string>
     <string name="bioe_server_loaded">Parameters loaded from server</string>
     <string name="bioe_server_load_failed">Could not load parameters from server</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
     <string name="bioe_server_no_device">No sensor with valid parameters found on the server</string>
     <string name="bioe_threshold_label">Low-current threshold (nA, optional)</string>
     <string name="bioe_setup_saved_title">Sensor saved</string>
