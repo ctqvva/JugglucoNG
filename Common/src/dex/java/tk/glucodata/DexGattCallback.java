@@ -121,8 +121,9 @@ private int authSlot;
         final var saved = persistedDeviceName;
         if (saved != null && !saved.trim().isEmpty())
             return saved;
-        if (mActiveDeviceAddress != null)
-            return mActiveDeviceAddress;
+        final var address = mActiveDeviceAddress;
+        if (address != null)
+            return address;
         return "?";
     }
 

@@ -23,14 +23,16 @@ object SensorDisplayName {
     private val MANAGED_PREFIX_REGEX = Regex("^[A-Z0-9]{2,6}:")
     private val MAC_ADDRESS_REGEX = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
 
+    private class CachedMirrored(
+        val generation: Long,
+        val entries: Map<String, String>,
+    )
+
     private val cacheGeneration = AtomicLong(0L)
     private val cacheLock = Any()
 
     @Volatile
-    private var cachedMirrored: Map<String, String>? = null
-
-    @Volatile
-    private var cachedMirroredGeneration: Long = -1L
+    private var cachedMirrored: CachedMirrored? = null
 
     private val pushLock = Any()
 
@@ -217,9 +219,10 @@ object SensorDisplayName {
     @JvmStatic
     fun pushIfChanged() {
         if (Applic.isWearable) return
-        if (!runCatching { Applic.useWearos() }.getOrDefault(false)) return
+        if (MessageSender.getMessageSender() == null) return
         val task = Runnable {
             synchronized(pushLock) {
+                if (!runCatching { Applic.useWearos() }.getOrDefault(false)) return@synchronized
                 if (MessageSender.getMessageSender() == null) return@synchronized
                 val wire = effectiveWireValue() ?: return@synchronized
                 if (wire == lastPushedWire) return@synchronized
@@ -236,7 +239,6 @@ object SensorDisplayName {
         synchronized(cacheLock) {
             cacheGeneration.incrementAndGet()
             cachedMirrored = null
-            cachedMirroredGeneration = -1L
         }
     }
 
@@ -327,8 +329,8 @@ object SensorDisplayName {
     internal fun loadMirroredNames(prefsProvider: () -> SharedPreferences?): Map<String, String> {
         val generation = cacheGeneration.get()
         val existing = cachedMirrored
-        if (existing != null && cachedMirroredGeneration == generation) {
-            return existing
+        if (existing != null && existing.generation == generation) {
+            return existing.entries
         }
         val prefs = runCatching(prefsProvider).getOrNull() ?: return emptyMap()
         val loaded = runCatching {
@@ -336,8 +338,7 @@ object SensorDisplayName {
         }.getOrNull() ?: return emptyMap()
         synchronized(cacheLock) {
             if (cacheGeneration.get() == generation) {
-                cachedMirrored = loaded
-                cachedMirroredGeneration = generation
+                cachedMirrored = CachedMirrored(generation, loaded)
             }
         }
         return loaded
