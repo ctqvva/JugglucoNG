@@ -158,9 +158,11 @@ class ScgmBleManager(
     }
 
     private fun normalizedDeviceCode(value: String): String {
-        val trimmed = value.trim().lowercase(Locale.ROOT)
-        if (trimmed.length % 2 == 0 && trimmed.all { it.isDigit() || it in 'a'..'f' }) return trimmed
-        return ScgmParser.hex(trimmed.toByteArray(Charsets.ISO_8859_1))
+        val trimmed = value.trim()
+        if (trimmed.length % 2 == 0 && trimmed.all { it.isDigit() || it.uppercaseChar() in 'A'..'F' }) {
+            return trimmed.lowercase(Locale.ROOT)
+        }
+        return ScgmParser.hex(trimmed.toByteArray(Charsets.ISO_8859_1)).lowercase(Locale.ROOT)
     }
 
     private fun expectedDeviceCode(): String {
@@ -217,12 +219,15 @@ class ScgmBleManager(
 
     protected override fun onConnectionAttemptTimeout() {
         silentConnectAttempts++
+        connectScheduled = false
         if (silentConnectAttempts >= MAX_SILENT_CONNECT_ATTEMPTS) {
             phase = Phase.ERROR
             mActiveBluetoothDevice = null
             mActiveDeviceAddress = null
             Applic.app?.let { ScgmRegistry.setLastBtAddress(it, "") }
             scheduleRetry()
+        } else {
+            phase = Phase.CONNECTING
         }
     }
 

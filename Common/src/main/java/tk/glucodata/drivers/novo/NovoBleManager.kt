@@ -178,12 +178,15 @@ class NovoBleManager(
 
     protected override fun onConnectionAttemptTimeout() {
         silentConnectAttempts++
+        connectScheduled = false
         if (silentConnectAttempts >= MAX_SILENT_CONNECT_ATTEMPTS) {
             phase = Phase.ERROR
             mActiveBluetoothDevice = null
             mActiveDeviceAddress = null
             Applic.app?.let { NovoRegistry.setLastBtAddress(it, "") }
             scheduleRetry()
+        } else {
+            phase = Phase.CONNECTING
         }
     }
 
