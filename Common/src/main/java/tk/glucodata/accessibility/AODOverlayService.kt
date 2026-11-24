@@ -228,6 +228,9 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
         serviceScope.launch {
             UiRefreshBus.revision.collect { requestEventRefresh() }
         }
+        serviceScope.launch {
+            tk.glucodata.JournalSnapshotAccess.forecastJournalReady.collect { requestEventRefresh() }
+        }
         
         isScreenOn = resolveScreenOn()
         isLocked = resolveDeviceLocked()
@@ -654,6 +657,7 @@ class AODOverlayService : AccessibilityService(), SensorEventListener {
             .add(displayRate).add(usesLightPalette).add(isMmol).add(viewMode.toLong())
             .add(hasCalibration).add(dataState.isFresh).add(staleStatus).add(deltaText)
             .add(activeSensorSerial).add(tk.glucodata.JournalSnapshotAccess.revision)
+            .add(tk.glucodata.JournalSnapshotAccess.forecastJournalReady.value)
             .also { hash ->
                 peerValueItems.forEach { hash.add(it.text).add(it.color.toLong()).add(it.rate) }
                 if (showChart) {

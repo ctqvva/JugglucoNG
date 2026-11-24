@@ -1,5 +1,10 @@
 package tk.glucodata
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+
 /**
  * Registration seam for [JournalSnapshotBridge] (plan P1/Q1).
  *
@@ -39,6 +44,15 @@ object JournalSnapshotAccess {
     @JvmStatic
     fun noteJournalChanged() {
         revisionCounter.incrementAndGet()
+    }
+
+    private val _forecastJournalReady = MutableStateFlow(0L)
+
+    /** Grows when the journal a forecast was drawn without has been loaded, so it can be redrawn. */
+    val forecastJournalReady: StateFlow<Long> = _forecastJournalReady.asStateFlow()
+
+    fun noteForecastJournalReady() {
+        _forecastJournalReady.update { it + 1L }
     }
 
     /** Empty when there is no journal to serve, or the snapshot failed. */
