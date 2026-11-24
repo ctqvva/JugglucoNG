@@ -3339,6 +3339,7 @@ public:
   uint32_t sensorErrorTime = 0;
   uint32_t sensorErrorStart = 0;
   uint32_t sensorErrorCode = 0;
+  uint32_t sensorErrorFrames = 0;
   uint32_t lastPacketTime = 0;
   bool persistentSensorError = false;
   bool replacesensor = false;
@@ -3357,12 +3358,14 @@ public:
     if (!sensorerror || staleEpisode) {
       sensorErrorStart = nu;
       sensorErrorCode = code;
+      sensorErrorFrames = 0;
       replacesensor = false;
     } else if (code) {
       sensorErrorCode = code;
     }
     sensorerror = true;
     sensorErrorTime = nu;
+    ++sensorErrorFrames;
     persistentSensorError = true;
     if (sensorErrorStart && nu >= sensorErrorStart &&
         (nu - sensorErrorStart) >= 10 * 60) {
@@ -3375,18 +3378,19 @@ public:
     sensorErrorTime = 0;
     sensorErrorStart = 0;
     sensorErrorCode = 0;
+    sensorErrorFrames = 0;
     persistentSensorError = false;
     replacesensor = false;
     dexcomWarmingUp = false;
   }
 
-  // A lone frame without a value is a gap, not a sensor error: the error shows once three frames
-  // in a row (two minutes) had none.
-  static constexpr uint32_t sensorErrorShowSecs = 100;
+  // A lone frame without a value is a gap, not a sensor error: the error shows once three
+  // received frames in a row had none. Frames that never arrived do not count.
+  static constexpr uint32_t sensorErrorShowFrames = 3;
   bool hasSensorError(uint32_t nu) const {
     if (!sensorerror) return false;
     if (persistentSensorError) {
-      if (sensorErrorTime < sensorErrorStart + sensorErrorShowSecs)
+      if (sensorErrorFrames < sensorErrorShowFrames)
         return false;
       // Keep the error until a valid reading, but do not mask a link that stopped
       // delivering frames: after ten minutes without a packet, no connection is the

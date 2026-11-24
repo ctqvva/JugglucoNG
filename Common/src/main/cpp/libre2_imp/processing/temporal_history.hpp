@@ -49,7 +49,6 @@ inline std::array<PersistedHistory,31> merge_reported_history(
         const std::array<PersistedHistory,31>&previous,const TemporalSample*history,
         const float*correction,unsigned raw_first_index,unsigned output_first_index,
         std::uint16_t maximum=500,std::uint16_t minimum=40,bool is_scan=true,unsigned output_count=31,HistoryReportLimits limits={}){
-    (void)raw_first_index;
     const auto projected=project_reported_history(history,correction);
     std::array<PersistedHistory,31>out{};
     for(unsigned i=0;i<31;++i){
@@ -61,11 +60,14 @@ inline std::array<PersistedHistory,31> merge_reported_history(
         if(reused)continue;
         out[i]={0,0xffff,minute,0.f};
         if(!is_scan&&i+1<output_count)continue;
+        // JugglucoNG: the native slots are positional. In the first two minutes of a quarter hour
+        // the raw window has moved on and the reported one has not, so that gave a point the
+        // sample of 15 minutes later. Take the sample of the point's own minute; the oldest point
+        // has then left the raw window and stays missing.
+        if(index<raw_first_index||index-raw_first_index>=projected.size())continue;
+        const auto&r=projected[index-raw_first_index];
         const auto elapsed=limits.first_elapsed+15*i;
-        if(limits.enabled&&(elapsed<limits.warmup||elapsed>limits.wear)){out[i].quality=projected[i].status|0x8000;continue;}
-        // Native output slots are positional, including the quarter-hour
-        // boundary where the raw and completed-history timestamp bases differ.
-        const auto&r=projected[i];
+        if(limits.enabled&&(elapsed<limits.warmup||elapsed>limits.wear)){out[i].quality=r.status|0x8000;continue;}
         // JugglucoNG: project_reported_history raises a negative result to 0, which would be
         // stored as a clipped low; it is no reading.
         if(!r.status&&!(r.glucose>0.f)){out[i].quality=0x8000;continue;}

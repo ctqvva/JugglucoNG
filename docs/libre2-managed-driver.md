@@ -83,9 +83,14 @@ The algorithm still averages the raw signal over five minutes and blends each re
 previous one; further smoothing is the app's.
 
 A BLE frame without a current value still keeps the history it carries and the state it
-advances. "Sensor error" shows once three frames in a row (two minutes) had no value, not on a
-single gap; "Replace sensor?" still follows after ten minutes. Frames during the warm-up never
-count toward either.
+advances. "Sensor error" shows once three received frames in a row had no value, not on a single
+gap; a frame that never arrived does not count. "Replace sensor?" still follows after ten minutes.
+Frames during the warm-up never count toward either.
+
+History points take the sample of their own quarter hour. The native code numbered the points by
+position, so a new point computed in the first two minutes of a quarter hour got the sample of
+15 minutes later. From about minute 495 on, the oldest of the 31 points has left the sensor's raw
+window during those two minutes and is not filled then.
 
 An NFC scan the backend cannot process asks for activation only when the data shows a verified,
 not yet started sensor (phase, checksums, ring pointers and age 0).

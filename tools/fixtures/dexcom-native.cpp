@@ -81,8 +81,8 @@ struct SensorGlucoseData {
     string sensordir;
     bool haserror=false,sensorerror=false,missingInfo=false;
     bool dexcomWarmingUp=false,persistentSensorError=false;
-    uint32_t sensorErrorTime=0,sensorErrorStart=0,lastPacketTime=0;
-    static constexpr uint32_t sensorErrorShowSecs=100;
+    uint32_t sensorErrorTime=0,sensorErrorFrames=0,lastPacketTime=0;
+    static constexpr uint32_t sensorErrorShowFrames=3;
     int saved=0,lastSaved=-1,broadcast=10000;
     map<int,pair<int,float>> readings;
     string address="F0:00:00:00:00:01";
