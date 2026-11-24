@@ -1036,13 +1036,18 @@ static void duplicateAndPostGatheringCandidatesAreIgnored() {
     deliver(MessageType::Candidate, "a=candidate:foreign", secondPeerGen);
     require(link.peers[0].candidates == 2, "foreign generation candidate leaked into active agent");
 
-    // GatheringDone is applied once; subsequent candidates and GatheringDone are ignored.
+    // GatheringDone is applied once; duplicate candidates are ignored while
+    // an unseen candidate from the accepted generation (e.g. reordered or
+    // recovered on retry) is still delivered once.
     deliver(MessageType::GatheringDone, {}, firstPeerGen);
     deliver(MessageType::GatheringDone, {}, firstPeerGen);
-    deliver(MessageType::Candidate, "a=candidate:3", firstPeerGen);
+    deliver(MessageType::GatheringDone, {}, secondPeerGen);
     deliver(MessageType::Candidate, "a=candidate:1", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:3", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:3", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:foreign2", secondPeerGen);
     require(link.peers[0].gatheringDoneCount == 1, "GatheringDone was applied more than once");
-    require(link.peers[0].candidates == 2, "candidate was applied after remote gathering done");
+    require(link.peers[0].candidates == 3, "unseen recovered candidate was lost or duplicates were re-applied");
 }
 
 static void answererGenerationChurnUsesRateLimitedNonHelloReplies() {

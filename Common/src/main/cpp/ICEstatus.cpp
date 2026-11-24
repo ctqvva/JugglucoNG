@@ -66,15 +66,22 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
         }
     const std::string escapedName = escapeHtml(host.getnameif());
     const std::string escapedIceLabel = escapeHtml(host.getICEname());
+    const bool senderRunning = status.sender.running;
+    const bool senderLocked = status.sender.locked;
+    const bool senderShutdown = con->icedata[0].shutdown;
+    const int receiveTid = status.receive.tid;
+    const bool receiveInGetCom = status.receive.ingetcom();
+    const bool receiveInInterpret = status.receive.ininterpret;
+    const bool receiverShutdown = con->icedata[1].shutdown;
     static const char format[]=R"(<h1>ICE Connection %d: %s</h1><p><b>ICElabel</b>: "%s" <b>Side</b>=%d<br><b>Send to</b>: %s%s%s <b>Running</b>=%s <b>Locked</b>=%s  %s<br><b>Receive from</b>: %s    %d wait for commands: %s    <b>interpret</b>: %s %s</p><p><b>Phase</b>: )";
     const int headerLen = snprintf(nullptr, 0, format,
         allindex, escapedName.c_str(), escapedIceLabel.c_str(), host.side,
         sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
-        boolstr[status.sender.running], boolstr[status.sender.locked],
-        con->icedata[0].shutdown?"shutdown":"",
-        boolstr[receives], status.receive.tid,
-        boolstr[status.receive.ingetcom()], boolstr[status.receive.ininterpret],
-        con->icedata[1].shutdown?"shutdown":"");
+        boolstr[senderRunning], boolstr[senderLocked],
+        senderShutdown?"shutdown":"",
+        boolstr[receives], receiveTid,
+        boolstr[receiveInGetCom], boolstr[receiveInInterpret],
+        receiverShutdown?"shutdown":"");
     std::string out;
     out.reserve((headerLen > 0 ? static_cast<size_t>(headerLen) : 0) + 256);
     if (headerLen > 0) {
@@ -82,11 +89,11 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
         snprintf(out.data(), out.size() + 1, format,
             allindex, escapedName.c_str(), escapedIceLabel.c_str(), host.side,
             sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
-            boolstr[status.sender.running], boolstr[status.sender.locked],
-            con->icedata[0].shutdown?"shutdown":"",
-            boolstr[receives], status.receive.tid,
-            boolstr[status.receive.ingetcom()], boolstr[status.receive.ininterpret],
-            con->icedata[1].shutdown?"shutdown":"");
+            boolstr[senderRunning], boolstr[senderLocked],
+            senderShutdown?"shutdown":"",
+            boolstr[receives], receiveTid,
+            boolstr[receiveInGetCom], boolstr[receiveInInterpret],
+            receiverShutdown?"shutdown":"");
     }
     juice_agent *agent=con->agent.load();
     char localAddr[JUICE_MAX_ADDRESS_STRING_LEN+10];

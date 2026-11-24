@@ -871,7 +871,6 @@ struct LocalICESignalSession::Impl {
                     {
                         const std::lock_guard<std::mutex> lock(stateMutex);
                         if (acceptedRemoteGeneration == generation &&
-                            !remoteGatheringDoneApplied &&
                             std::find(appliedRemoteCandidates.begin(),
                                       appliedRemoteCandidates.end(), data) ==
                                 appliedRemoteCandidates.end()) {

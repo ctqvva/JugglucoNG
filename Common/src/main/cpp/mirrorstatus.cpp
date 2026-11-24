@@ -119,41 +119,62 @@ extern bool getactive(int pos);
 	const std::string escapedName = escapeHtml(host.getnameif());
 	const std::string escapedIps = escapeHtml(ips);
 	const std::string escapedError = escapeHtml(getmirrorerror(&host));
+	const bool senderRunning = status.sender.running;
+	const bool senderLocked = status.sender.locked;
+	const int receiveTid = status.receive.tid;
+	const bool receiveInGetCom = status.receive.ingetcom();
+	const bool receiveInInterpret = status.receive.ininterpret;
+	const bool isWearOs = host.wearos;
+	const bool wearMsg = isWearOs ? wearmessages[allindex] : false;
+	const int toBlueTrueRuns = isWearOs ? status.toblue[true].runs : 0;
+	const bool toBlueTrueRecv = isWearOs ? status.toblue[true].recv : false;
+	const int toBlueTrueSend = isWearOs ? status.toblue[true].sendmessage : 0;
+	const int msgSenderSock = isWearOs ? messagesendersockets[allindex] : -1;
+	const int toBlueFalseRuns = isWearOs ? status.toblue[false].runs : 0;
+	const bool toBlueFalseRecv = isWearOs ? status.toblue[false].recv : false;
+	const int toBlueFalseSend = isWearOs ? status.toblue[false].sendmessage : 0;
+	const int msgReceiverSock = isWearOs ? messagereceiversockets[allindex] : -1;
+	const int peerIndex = isWearOs ? us2peers[allindex] : -1;
 	const int baseLen = snprintf(nullptr, 0, format, allindex, escapedName.c_str(), escapedIps.c_str(), connect,
 		sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
-		boolstr[status.sender.running], sendsock, boolstr[status.sender.locked],
-		boolstr[receives], status.receive.tid, receivethread, receivesock,
-		boolstr[status.receive.ingetcom()], boolstr[status.receive.ininterpret]);
-	const int wearLen = host.wearos ? snprintf(nullptr, 0, wearosFormat,
-		boolstr[wearmessages[allindex]],
-		status.toblue[true].runs, boolstr[status.toblue[true].recv], sendptr[status.toblue[true].sendmessage], messagesendersockets[allindex],
-		status.toblue[false].runs, boolstr[status.toblue[false].recv], sendptr[status.toblue[false].sendmessage],
-		messagereceiversockets[allindex],
-		us2peers[allindex]) : 0;
-	const size_t totalLen = (baseLen > 0 ? static_cast<size_t>(baseLen) : 0) +
-		(wearLen > 0 ? static_cast<size_t>(wearLen) : 0) + 1 + escapedError.size();
-	char *buf=new(nothrow) char[totalLen + 1];
+		boolstr[senderRunning], sendsock, boolstr[senderLocked],
+		boolstr[receives], receiveTid, receivethread, receivesock,
+		boolstr[receiveInGetCom], boolstr[receiveInInterpret]);
+	const int wearLen = isWearOs ? snprintf(nullptr, 0, wearosFormat,
+		boolstr[wearMsg],
+		toBlueTrueRuns, boolstr[toBlueTrueRecv], sendptr[toBlueTrueSend], msgSenderSock,
+		toBlueFalseRuns, boolstr[toBlueFalseRecv], sendptr[toBlueFalseSend],
+		msgReceiverSock,
+		peerIndex) : 0;
+	std::string out;
+	out.reserve((baseLen > 0 ? static_cast<size_t>(baseLen) : 0) +
+		(wearLen > 0 ? static_cast<size_t>(wearLen) : 0) + 1 + escapedError.size());
+	if(baseLen > 0) {
+		std::string part(static_cast<size_t>(baseLen), '\0');
+		snprintf(part.data(), part.size() + 1, format, allindex, escapedName.c_str(), escapedIps.c_str(), connect,
+			sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
+			boolstr[senderRunning], sendsock, boolstr[senderLocked],
+			boolstr[receives], receiveTid, receivethread, receivesock,
+			boolstr[receiveInGetCom], boolstr[receiveInInterpret]);
+		out.append(part);
+		}
+	if(isWearOs && wearLen > 0) {
+		std::string part(static_cast<size_t>(wearLen), '\0');
+		snprintf(part.data(), part.size() + 1, wearosFormat,
+			boolstr[wearMsg],
+			toBlueTrueRuns, boolstr[toBlueTrueRecv], sendptr[toBlueTrueSend], msgSenderSock,
+			toBlueFalseRuns, boolstr[toBlueFalseRecv], sendptr[toBlueFalseSend],
+			msgReceiverSock,
+			peerIndex);
+		out.append(part);
+		}
+	out.push_back('\n');
+	out.append(escapedError);
+	char *buf=new(nothrow) char[out.size() + 1];
 	if(!buf)  {
 		return std::unique_ptr<const char[],deleter>((char *)errormessage,deleter(errormessage));
 		}
-	size_t buflen = 0;
-	if(baseLen > 0) {
-		buflen += static_cast<size_t>(snprintf(buf, static_cast<size_t>(baseLen) + 1, format, allindex, escapedName.c_str(), escapedIps.c_str(), connect,
-			sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
-			boolstr[status.sender.running], sendsock, boolstr[status.sender.locked],
-			boolstr[receives], status.receive.tid, receivethread, receivesock,
-			boolstr[status.receive.ingetcom()], boolstr[status.receive.ininterpret]));
-		}
-	if(host.wearos && wearLen > 0) {
-		buflen += static_cast<size_t>(snprintf(buf + buflen, static_cast<size_t>(wearLen) + 1, wearosFormat,
-			boolstr[wearmessages[allindex]],
-			status.toblue[true].runs, boolstr[status.toblue[true].recv], sendptr[status.toblue[true].sendmessage], messagesendersockets[allindex],
-			status.toblue[false].runs, boolstr[status.toblue[false].recv], sendptr[status.toblue[false].sendmessage],
-			messagereceiversockets[allindex],
-			us2peers[allindex]));
-		}
-	buf[buflen++]='\n';
-	memcpy(buf+buflen, escapedError.c_str(), escapedError.size()+1);
+	memcpy(buf, out.data(), out.size() + 1);
    return std::unique_ptr<const char[],deleter> (buf,deleter(nullptr));
 
 	}
