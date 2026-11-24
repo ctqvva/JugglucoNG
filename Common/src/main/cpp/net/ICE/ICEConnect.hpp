@@ -139,6 +139,10 @@ void reloadNetworkConfig(const passhost_t &host);
 void endConnectionHere() {
        LOGGERICE("%d: endConnectionHere\n",side);
        isConnected=false;
+       selectedCloneTransport.store(clone_transport_unknown);
+       connectTime.store(0);
+       if(state.load()!=JUICE_STATE_FAILED)
+           state.store(JUICE_STATE_DISCONNECTED);
        endConnect=true;
        recoveryWake.cancel();
        cancelRendezvous();
@@ -161,6 +165,10 @@ bool requestReconnectIfCurrent(juice_agent_t *candidate,uint64_t generation,
            return true;
        })) return false;
        isConnected=false;
+       selectedCloneTransport.store(clone_transport_unknown);
+       connectTime.store(0);
+       if(state.load()!=JUICE_STATE_FAILED)
+           state.store(JUICE_STATE_DISCONNECTED);
        cancelRendezvous();
        cancelGenerationWatch();
        icedata[1].setshutdown();
@@ -348,6 +356,8 @@ void releaseReceiverThread() {
         resetStart();
         wakeReceiver=false;
         selectedCloneTransport.store(clone_transport_unknown);
+        state.store(JUICE_STATE_DISCONNECTED);
+        connectTime.store(0);
         generationWatchCapability.store(0,std::memory_order_release);
         isConnected=false;
         endConnect=false;
@@ -427,6 +437,9 @@ void endConnection() override{
         turnRelayRotation.failedAttempt(currentAgentGeneration());
         juice_agent *wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
+        state.store(JUICE_STATE_DISCONNECTED);
+        connectTime.store(0);
+        selectedCloneTransport.store(clone_transport_unknown);
         if(wasagent) {
             LOGGER("endConnection: juice_destroy(%p)\n",wasagent);
             #ifndef NOLOG
