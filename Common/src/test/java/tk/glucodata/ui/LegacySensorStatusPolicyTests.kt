@@ -54,6 +54,7 @@ class LegacySensorStatusPolicyTests {
     @Test fun nativeErrorLiteralsMapToCardStatuses() {
         assertEquals(LegacySensorStatusText.SensorError, classifyLegacySensorStatus("Sensor Error"))
         assertEquals(LegacySensorStatusText.ReplaceSensor, classifyLegacySensorStatus("Replace Sensor?"))
+        assertEquals(LegacySensorStatusText.ScanSensor, classifyLegacySensorStatus("Scan Sensor"))
         assertEquals(LegacySensorStatusText.SensorEnded, classifyLegacySensorStatus("Sensor Ended"))
         assertEquals(LegacySensorStatusText.WarmingUp, classifyLegacySensorStatus("Warming Up"))
     }

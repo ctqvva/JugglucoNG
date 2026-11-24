@@ -503,6 +503,7 @@
     <string name="status_connected">Conectado</string>
     <string name="sensor_error">Erro do sensor</string>
     <string name="sensor_replace">Substituir o sensor</string>
+    <string name="sensor_scan_needed">Escanear o sensor</string>
     <string name="sensor_ended">Sensor terminado</string>
     <string name="sensor_warming_up">Aquecendo</string>
     <string name="sensor_error_code">Código de erro do sensor</string>

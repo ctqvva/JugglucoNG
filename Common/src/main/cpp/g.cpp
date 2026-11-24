@@ -288,7 +288,6 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
 
     sensor *senso = sensors->getsensor(ab.sensorindex);
     senso->initialized = true;
-    senso->halfdays = 29;
   } else {
     if (alg) {
       destruct _desalg(
@@ -2608,8 +2607,8 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     }
   } else
     delete newstate;
-  // A refused frame (no usable state, checksum, time or wear check) says nothing about the sensor.
-  // processTooth counts the sensor's own errors, after the warm-up.
+  // A refused frame (no usable state, checksum or time check) says nothing about the sensor.
+  // processTooth counts the sensor's own errors, after the warm-up, and the end of its wear.
   return 0LL;
 }
 

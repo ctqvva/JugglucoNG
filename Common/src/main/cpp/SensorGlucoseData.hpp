@@ -978,8 +978,12 @@ public:
     // retires a 28-day sensor on day 14 and it silently leaves the watch feed.
     // Only AiDex, Libre3 and direct-stream shells carry wearduration2, and for
     // the first two it never exceeds days*24*60, so this is a no-op there.
-    const int minutes =
+    int minutes =
         std::max(hours * 60, static_cast<int>(info->wearduration2));
+    // Its frames are read for a day past the nominal wear (wear_grace_minutes in libre2_imp).
+    // info->days normally covers that day already.
+    if (isNfcLibre2())
+      minutes = std::max(minutes, getweardurationMIN() + 24 * 60);
     uint32_t maxtime = minutes * 60 + getstarttime();
 
     // ARCHITECTURAL FIX: Support Custom Calibration for aged sensors.
@@ -1432,6 +1436,7 @@ static int getgeneration(const char *info) {
     }
     return false;
   }
+  bool isNfcLibre2() const { return isLibre2() && !isAiDex() && hasLibrePatchInfo(); }
   // The plain record a watch builds for a phone's sensor from mirrored
   // readings alone: no driver of its own and nothing but polls. Anything with
   // a driver flag, patch info, scans or history belongs to a sensor this
@@ -3344,6 +3349,13 @@ public:
   bool persistentSensorError = false;
   bool replacesensor = false;
   bool dexcomWarmingUp = false;
+  // Libre 2 frames arrive, but there is no saved state to read them with until an NFC scan.
+  bool awaitsScan = false;
+
+  bool receivingPackets(uint32_t nu) const {
+    return lastPacketTime && nu >= lastPacketTime && (nu - lastPacketTime) < (10 * 60);
+  }
+  bool isScanNeeded(uint32_t nu) const { return awaitsScan && receivingPackets(nu); }
 
   /**
    * Start or refresh an error episode. Libre 2 errors are kept until a valid reading

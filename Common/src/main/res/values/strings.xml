@@ -1064,6 +1064,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_connected">Connected</string>
     <string name="sensor_error">Sensor error</string>
     <string name="sensor_replace">Replace sensor</string>
+    <string name="sensor_scan_needed">Scan the sensor</string>
     <string name="sensor_ended">Sensor ended</string>
     <string name="sensor_warming_up">Warming up</string>
     <string name="sensor_error_code">Sensor error code</string>

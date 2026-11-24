@@ -40,7 +40,8 @@ touches either Libre 3 path.
   so a copy on a watch or mirror carries its owner. Update the phone and the watch together:
   a build older than this change would hand that state to the vendor library.
 - The vendor library's end-of-wear workaround is gone: no artificial restart in the last hour,
-  and the stream no longer moves the start time by a day near the end of wear.
+  and the stream no longer moves the start time by a day near the end of wear. The day it gave is
+  a plain grace period now, see "End of wear".
 
 The glucose values of the open backend can differ from the vendor library's. When it marks the
 rate of change unreliable, the rate is reported as unknown and no trend arrow is shown.
@@ -87,8 +88,9 @@ A BLE frame without a current value still keeps the history it carries and the s
 advances. "Sensor error" shows once three received frames in a row had no value, not on a single
 gap; a frame that never arrived does not count. "Replace sensor?" still follows after ten minutes.
 Frames during the warm-up never count toward either. A frame the backend refuses (no usable saved
-state, or a failed checksum, time or wear check) says nothing about the sensor: it does not count
-and does not end an error. The log names the reason.
+state, or a failed checksum or time check) says nothing about the sensor: it does not count and
+does not end an error. The log names the reason. While frames arrive that no saved state fits, the
+status is "Scan the sensor" until a scan has rebuilt it.
 
 History points take the sample of their own quarter hour. The native code numbered the points by
 position, so a new point computed in the first two minutes of a quarter hour got the sample of
@@ -97,6 +99,27 @@ window during those two minutes and is not filled then.
 
 An NFC scan the backend cannot process asks for activation only when the data shows a verified,
 not yet started sensor (phase, checksums, ring pointers and age 0).
+
+## End of wear
+
+Frames and scans are read for 24 hours past the nominal wear (`wear_grace_minutes`). The saved
+start and the nominal wear stay as they are, and the official and expected ends the app shows do
+not move. After that a frame is refused and counts as the end of the sensor: three received frames
+show "Replace sensor?". The sensor's own minute counter must be past the nominal wear too, so a
+wrong phone clock only refuses frames.
+
+What the app ends on its own, for a sensor with NFC patch info:
+
+- `getmaxtime()` / `checkinfo()` retire it after the same 24 hours, and not while frames arrive.
+- The sensor list's own length ended the live updates to a watch or Clone at nominal + 12 h, and
+  at 14.5 days for a 15-day sensor added by a first scan. It covers the 24 hours now.
+- An automatic handover waits for the 24 hours while the old sensor still reads; its "remove"
+  option would have stopped the old sensor at 12 h.
+- A stream history point past the mapped history is dropped instead of written.
+
+Left alone: a scan whose newest reading is more than 3 minutes old finishes the sensor. That is
+the sensor's own end (the age its footer caps the records at), not a clock here. The LibreView
+switch that stops uploads at the official end stays.
 
 ## Evidence
 
@@ -166,5 +189,6 @@ carry no keys, unlock payloads or glucose values.
 5. First generation and Libre 1: scan, enable streaming, BLE reconnects and history.
 6. Two sensors at once, one of each generation if available.
 7. Delete or corrupt the sensor's saved state, scan: the state is rebuilt, no crash.
-8. Scan in the last hour of wear and the day after: every scan reads.
+8. Scan and stream in the last hour of wear and the 24 hours after: every scan and frame reads,
+   the shown start and ends do not move, and a watch or Clone keeps receiving.
 9. Phone and watch both on this build, watch connected directly to the sensor.

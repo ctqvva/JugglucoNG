@@ -1304,6 +1304,8 @@ public:
       if (!error) {
         if (hist[ind]->isDexcom())
           sensorlist()[ind].halfdays = hist[ind]->getinfo()->days * 2;
+        else
+          coverLibre2Grace(sensorlist()[ind], *hist[ind]);
         if (hist[ind]->infowrong()) {
           LOGGER("hist[%d] %s: infoblock wrong", ind, name);
           goto INFOWRONGERROR;
@@ -1384,6 +1386,16 @@ public:
       sensorlist()[ind].reactivateExplicitly();
     }
   }
+  // The list entry's length stops live updates to other devices (update()). It was nominal + 12 h,
+  // or 14.5 days whatever the sensor; the readings go on for a day past the nominal wear.
+  // Values from stdMaxDaysSI * 2 mean Sibionics.
+  static void coverLibre2Grace(sensor &entry, const SensorGlucoseData &data) {
+    if (!data.isNfcLibre2())
+      return;
+    const int half = (data.getweardurationMIN() + 24 * 60 + 12 * 60 - 1) / (12 * 60);
+    if (half < stdMaxDaysSI * 2 && entry.halfdays < half)
+      entry.halfdays = half;
+  }
   template <typename F> bool checkinfo(const int ind, uint32_t nu, F dont) {
 
     const SensorGlucoseData *thishist = getSensorData(ind);
@@ -1403,6 +1415,9 @@ public:
         // if(((thishist->isAccuChek()&&thishist->pollcount()<4000)||(thishist->isDexcom()&&thishist->pollcount()<maxdexcount))&&(nu-sensorlist()[ind].endtime)<
         // youngsensorsecs)
         if (thishist->hasData(nu)) {
+          return true;
+        } else if (thishist->isNfcLibre2() && thishist->receivingPackets(nu)) {
+          // Still sending: it stays listed, with its readings or "Replace sensor?".
           return true;
         } else if (thishist->isSibionics() && thishist->hasSensorError(nu)) {
           LOGGER("%s expired with recent Sibionics sensor error; keeping active\n",

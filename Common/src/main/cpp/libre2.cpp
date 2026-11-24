@@ -179,6 +179,7 @@ extern int saveScanTrend(const nfcdata *nfcptr,time_t nutime,int nuid, SensorGlu
             if(state) state->removefile();
             delete state;
             state=newstate;
+            hist->awaitsScan=false;
             return {res,&last.back()};
             }
 
@@ -300,7 +301,7 @@ const data_t *ident,
 const data_t *info,
 #endif
 scanstate *state,
-scanstate *newstate,uint32_t startsincebase,uint32_t nutime,int warmup,int wearduration) ;
+scanstate *newstate,uint32_t startsincebase,uint32_t nutime,int warmup,int wearduration,bool &pastWear) ;
 
 
 timevalues     patchtimevalues(const data_t *info) {
@@ -362,7 +363,7 @@ const data_t *ident,
 const data_t *info,
 #endif
 scanstate *state,
-scanstate *newstate,uint32_t startsincebase,uint32_t nutime,int warmup,int wear) {
+scanstate *newstate,uint32_t startsincebase,uint32_t nutime,int warmup,int wear,bool &pastWear) {
     const char *why="unknown";
     AlgorithmResults *alg=libre2_imp::stream(ident,
 #ifdef HASP1
@@ -370,7 +371,7 @@ scanstate *newstate,uint32_t startsincebase,uint32_t nutime,int warmup,int wear)
 #else
         nullptr,
 #endif
-        bluedata,state,newstate,unsigned(nutime-basesecs),startsincebase,false,&why);
+        bluedata,state,newstate,unsigned(nutime-basesecs),startsincebase,false,&why,&pastWear);
     if(!alg)
         LOGGER("BLE frame refused: %s\n",why);
     return alg;
@@ -395,16 +396,19 @@ if(!state||!state->good()||!libre2_imp::usable_state(state,info)) {
         LOGGER("BLE frame refused: no usable saved state (%s), waiting for an NFC scan\n",
             !fresh||!fresh->good()?"missing":"does not fit this sensor");
         delete fresh;
+        hist->awaitsScan=true;
         return nullptr;
         }
     delete state;
     state=fresh;
     }
+hist->awaitsScan=false;
 if(hist->getinfo()->wearduration<(7*24*60)) {
      auto [warmup,wear]= patchtimevalues(info) ;
    hist->getinfo()->warmup=warmup;
    hist->getinfo()->wearduration=wear;
    }
+bool pastWear=false;
 const AlgorithmResults * alg= processBlue(bluedata, person,
 
 ident,
@@ -412,7 +416,12 @@ ident,
 info,
 #endif
 state,
-newstate, startsincebase,nutime,hist->getinfo()->warmup,hist->getinfo()->wearduration);
+newstate, startsincebase,nutime,hist->getinfo()->warmup,hist->getinfo()->wearduration,pastWear);
+if(!alg&&pastWear) {
+    // Not a fault of ours or of the link: the sensor is over.
+    hist->setSensorError(nutime);
+    hist->replacesensor=true;
+    }
 if(alg) {
         /*int insert=reinterpret_cast<intptr_t>(confinsert.ptr);
         int isremoved=reinterpret_cast<intptr_t>(removed.ptr);

@@ -36,7 +36,7 @@ AlgorithmResults *scan(const data_t *uid,const data_t *info,data_t *data,
     scanstate *previous,scanstate *next,unsigned now,outobj *start,outobj *end,int warmup,unsigned known_start=0);
 AlgorithmResults *stream(const data_t *uid,const data_t *info,const data_t *packet,
     scanstate *previous,scanstate *next,unsigned now,unsigned known_start=0, bool plaintext=false,
-    const char **why=nullptr);
+    const char **why=nullptr,bool *past_wear=nullptr);
 jint family(JNIEnv *,jobject,jint,jbyteArray,jbyteArray);
 jboolean times(JNIEnv *,jobject,jint,jbyteArray,jobject,jobject,jbyteArray);
 jbyte activation_command(JNIEnv *,jobject,jint,jbyteArray,jbyteArray);

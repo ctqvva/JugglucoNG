@@ -1413,6 +1413,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         if (kind == tk.glucodata.ui.LegacySensorStatusText.ReplaceSensor) {
             return app.getString(tk.glucodata.R.string.sensor_replace);
         }
+        if (kind == tk.glucodata.ui.LegacySensorStatusText.ScanSensor) {
+            return app.getString(tk.glucodata.R.string.sensor_scan_needed);
+        }
         if (kind == tk.glucodata.ui.LegacySensorStatusText.SensorEnded) {
             return app.getString(tk.glucodata.R.string.sensor_ended);
         }

@@ -88,6 +88,8 @@ inline void write_numeric_configuration(Configuration &configuration,
 }
 struct NfcProcessingResult {
     bool accepted{};
+    // JugglucoNG: a BLE frame refused because the sensor is past its wear and the grace.
+    bool past_wear{};
     NumericResult numeric{};
     PersistentState state{};
 };
@@ -99,10 +101,7 @@ inline NfcProcessingResult process_active_nfc(std::span<const std::uint8_t,344>f
     if(!valid_state(previous)||!payload.checksums_valid||!payload.pointers_valid||!payload.readable())return out;
     auto c=configuration_from_state(previous);
     c=apply_nfc_payload(c,payload,algorithm_timestamp);
-    // Give final NFC records the same recovery window as the old last-day
-    // scan path. BLE still uses the 12-hour grace and MESS keeps nominal wear.
-    constexpr unsigned final_scan_grace=24*60;
-    const auto inputs=prepare_decoded_inputs(c,true,payload.final_readings()?final_scan_grace:wear_grace_minutes);
+    const auto inputs=prepare_decoded_inputs(c,true);
     if(inputs.parameters.age<inputs.previous.minute||
        inputs.parameters.elapsed_minutes>inputs.parameters.wear_minutes)return out;
     out.numeric=evaluate_numeric(inputs.trend,inputs.history,inputs.parameters,inputs.previous);

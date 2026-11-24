@@ -593,6 +593,7 @@
     <string name="status_connected">Падлучана</string>
     <string name="sensor_error">Памылка датчыка</string>
     <string name="sensor_replace">Замяніць датчык</string>
+    <string name="sensor_scan_needed">Адскануйце датчык</string>
     <string name="sensor_ended">Датчык завершаны</string>
     <string name="sensor_warming_up">Ідзе прагрэў</string>
     <string name="sensor_error_code">Код памылкі датчыка</string>

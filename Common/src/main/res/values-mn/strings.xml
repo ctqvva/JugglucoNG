@@ -933,6 +933,7 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="status_connected">Холбогдсон</string>
     <string name="sensor_error">Мэдрэгчийн алдаа</string>
     <string name="sensor_replace">Мэдрэгчийг солих</string>
+    <string name="sensor_scan_needed">Мэдрэгчийг уншуулах</string>
     <string name="sensor_ended">Мэдрэгч дууссан</string>
     <string name="sensor_warming_up">Халааж байна</string>
     <string name="sensor_error_code">Мэдрэгчийн алдааны код</string>

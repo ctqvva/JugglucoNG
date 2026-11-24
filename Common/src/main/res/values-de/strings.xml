@@ -717,6 +717,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="status_connected">Verbunden</string>
     <string name="sensor_error">Sensorfehler</string>
     <string name="sensor_replace">Sensor ersetzen</string>
+    <string name="sensor_scan_needed">Sensor scannen</string>
     <string name="sensor_ended">Sensor beendet</string>
     <string name="sensor_warming_up">Aufwärmen</string>
     <string name="sensor_error_code">Sensor-Fehlercode</string>

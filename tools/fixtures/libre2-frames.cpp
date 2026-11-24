@@ -97,13 +97,14 @@ struct libre2stream {
     void setstate(scanstate *next) { delete state; state = next; }
     const AlgorithmResults *processTooth(data_t *, scanstate *, uint32_t);
 };
-enum Verdict { Refused, NoValue, Reading };
+enum Verdict { Refused, PastWear, NoValue, Reading };
 static Verdict verdict;
 static int backend_calls;
 static AlgorithmResults *processBlue(data_t *, jbyte, const data_t *, const data_t *, scanstate *, scanstate *,
-        uint32_t, uint32_t, int, int) {
+        uint32_t, uint32_t, int, int, bool &pastWear) {
     ++backend_calls;
-    if(verdict == Refused) return nullptr;
+    pastWear = verdict == PastWear;
+    if(verdict == Refused || pastWear) return nullptr;
     return new AlgorithmResults{verdict == Reading ? GlucoseNow{100, 0} : GlucoseNow{0, 0x8000}, {}};
 }
 
@@ -173,16 +174,33 @@ static int unusable_state() {
         for(int i = 0; i < 15; ++i) {
             CHECK(!frame(s, Reading), "a frame was read without a usable state");
             CHECK(!h.hasSensorError(clock_now) && !h.replacesensor, "a state we cannot use counted as a sensor error");
+            CHECK(h.isScanNeeded(clock_now), "no scan asked for");
         }
+        // Frames that stopped arriving are a lost link, which a scan does not bring back.
+        CHECK(!h.isScanNeeded(clock_now + 600), "a scan asked for without frames");
         CHECK(!backend_calls, "an unusable state reached the backend");
         disk = Usable;
         CHECK(frame(s, Reading) == 1000 && h.polls == 1, "the frame after the scan gave no reading");
+        CHECK(!h.isScanNeeded(clock_now), "a scan still asked for after a reading");
         loads = 0;
         CHECK(frame(s, Reading) == 1000 && !loads, "a usable state was loaded again");
     }
     return 0;
 }
+static int past_wear() {
+    clock_now = 100000 + 15 * 24 * 3600;
+    disk = Usable;
+    SensorGlucoseData h;
+    libre2stream s(&h);
+    for(int i = 0; i < 3; ++i) {
+        CHECK(!h.hasSensorError(clock_now), "replace hint after %d frames", i);
+        CHECK(!frame(s, PastWear), "a frame past the wear gave a reading");
+    }
+    CHECK(h.hasSensorError(clock_now) && h.replacesensor, "no replace hint for a sensor past its wear");
+    CHECK(!h.isScanNeeded(clock_now), "a scan asked for a sensor past its wear");
+    return 0;
+}
 int main() {
-    if(refused_frames() || unusable_state()) return 1;
-    std::puts("PASS: Libre 2 refused frames, state rebuilt under a running stream");
+    if(refused_frames() || unusable_state() || past_wear()) return 1;
+    std::puts("PASS: Libre 2 refused frames, state rebuilt under a running stream, frames past the wear");
 }

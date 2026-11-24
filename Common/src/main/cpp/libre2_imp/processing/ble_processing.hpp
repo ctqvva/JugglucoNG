@@ -69,7 +69,7 @@ inline Configuration apply_ble_payload(Configuration c,std::span<const std::uint
 // Advance the portable calibration block. Invalid input leaves it unchanged.
 inline bool calibrate_ble_payload(Configuration &configuration,
         std::span<const std::uint8_t,44> plain, std::uint32_t algorithm_timestamp,
-        NumericResult &numeric) {
+        NumericResult &numeric, bool *past_wear = nullptr) {
     if (!valid_configuration(configuration) ||
         state_crc(plain.first(42)) != read_state_u16(plain.data() + 42)) {
         return false;
@@ -77,8 +77,10 @@ inline bool calibrate_ble_payload(Configuration &configuration,
     auto next = apply_ble_payload(configuration, plain, algorithm_timestamp);
     next[processing_flags_offset] |= delayed_history;
     const auto inputs = prepare_decoded_inputs(next, false);
-    if (inputs.parameters.age < inputs.previous.minute ||
-        inputs.parameters.elapsed_minutes > inputs.parameters.wear_minutes) {
+    if (inputs.parameters.age < inputs.previous.minute) return false;
+    if (inputs.parameters.elapsed_minutes > inputs.parameters.wear_minutes) {
+        // Elapsed is the phone's clock, which can be wrong; the sensor's own counter must agree.
+        if (past_wear) *past_wear = inputs.parameters.age > read_state_u16(configuration.data() + 0x14);
         return false;
     }
     numeric = evaluate_numeric(inputs.trend, inputs.history, inputs.parameters, inputs.previous);
@@ -96,7 +98,7 @@ inline NfcProcessingResult process_active_ble_payload(std::span<const std::uint8
     NfcProcessingResult out{};
     if (!has_state_header(previous)) return out;
     auto configuration = configuration_from_state(previous);
-    if (!calibrate_ble_payload(configuration, plain, algorithm_timestamp, out.numeric)) return out;
+    if (!calibrate_ble_payload(configuration, plain, algorithm_timestamp, out.numeric, &out.past_wear)) return out;
     out.state = replace_configuration(previous, configuration);
     out.accepted = true;
     return out;

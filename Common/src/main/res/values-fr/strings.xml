@@ -553,6 +553,7 @@
     <string name="status_connected">Connecté</string>
     <string name="sensor_error">Erreur du capteur</string>
     <string name="sensor_replace">Remplacer le capteur</string>
+    <string name="sensor_scan_needed">Scanner le capteur</string>
     <string name="sensor_ended">Capteur terminé</string>
     <string name="sensor_warming_up">Préchauffage</string>
     <string name="sensor_error_code">Code d\'erreur du capteur</string>

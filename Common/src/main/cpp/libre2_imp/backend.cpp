@@ -165,7 +165,7 @@ AlgorithmResults *scan(const data_t *uid,const data_t *info,data_t *data, scanst
     return results(processed.state);
 }
 AlgorithmResults *stream(const data_t *uid,const data_t *info,const data_t *packet,
-        scanstate *previous,scanstate *next,unsigned now,unsigned known_start,bool plaintext,const char **why){
+        scanstate *previous,scanstate *next,unsigned now,unsigned known_start,bool plaintext,const char **why,bool *past_wear){
     const auto refuse=[why](const char *reason)->AlgorithmResults*{if(why)*why=reason;return nullptr;};
     if(!identity(uid,info)||!bluetooth_supported(info)||bytes(packet).size()!=46||!previous||!next)return refuse("sensor identity or frame size");
     const auto patch=bytes(info).first<6>();
@@ -186,6 +186,10 @@ AlgorithmResults *stream(const data_t *uid,const data_t *info,const data_t *pack
         ar::process_active_ble_eu(bytes(uid).first<8>(),patch,frame,state,now):
         ar::process_active_ble_plain(frame,state,now);
     if(!processed.accepted){
+        if(processed.past_wear){
+            if(past_wear)*past_wear=true;
+            return refuse("past the end of wear");
+        }
         if(!plaintext&&classic)return refuse("frame failed decryption, checksum or time check");
         return refuse(ar::state_crc(frame.subspan<2,42>())!=ar::read_state_u16(frame.data()+44)?
             "frame checksum":"frame time or wear check");
