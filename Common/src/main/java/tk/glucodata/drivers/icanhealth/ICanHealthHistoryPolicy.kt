@@ -40,6 +40,9 @@ internal data class ICanHealthSequenceGap(
 
 /** Pure history decisions shared by the BLE manager and JVM regression tests. */
 internal object ICanHealthHistoryPolicy {
+    private const val MIN_TZ_REPAIR_BATCH_RECORDS = 20
+    private const val MIN_TZ_REPAIR_BATCH_SPAN_MS = 60 * 60 * 1000L
+
     fun liveGapBetween(
         previousSequence: Int,
         currentSequence: Int,
@@ -120,6 +123,35 @@ internal object ICanHealthHistoryPolicy {
             return true
         }
         return coveredTimestampMs > 0L && sampleTimeMs > 0L && sampleTimeMs <= coveredTimestampMs
+    }
+
+    /**
+     * The time a timezone-repair batch really replaces, as inclusive ranges, or nothing when the
+     * batch is too small to stand in for stored history.
+     *
+     * Only runs of consecutive readings count. Where the batch skips a reading, whatever is stored
+     * there has no replacement: it may be the live copy of a record this transfer lost.
+     */
+    fun timezoneRepairIntervals(
+        sortedTimestampsMs: LongArray,
+        readingIntervalMs: Long,
+    ): List<LongRange> {
+        if (sortedTimestampsMs.size < MIN_TZ_REPAIR_BATCH_RECORDS) return emptyList()
+        if (sortedTimestampsMs.last() - sortedTimestampsMs.first() < MIN_TZ_REPAIR_BATCH_SPAN_MS) return emptyList()
+        // One missed reading leaves a step of two intervals; half an interval is for anchor jitter.
+        val maxStepMs = readingIntervalMs + readingIntervalMs / 2
+        val intervals = ArrayList<LongRange>()
+        var start = sortedTimestampsMs.first()
+        var end = start
+        for (timestamp in sortedTimestampsMs) {
+            if (timestamp - end > maxStepMs) {
+                intervals += start..end
+                start = timestamp
+            }
+            end = timestamp
+        }
+        intervals += start..end
+        return intervals
     }
 
     /**

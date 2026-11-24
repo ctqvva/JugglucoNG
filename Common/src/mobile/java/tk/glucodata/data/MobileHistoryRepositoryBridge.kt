@@ -67,6 +67,20 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         source,
     )
 
+    override fun replaceHistoryIntervalsBlocking(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        replacedIntervalsMs: List<LongRange>,
+    ): Boolean = HistoryRepository.replaceHistoryIntervalsBlocking(
+        sensorSerial,
+        timestamps,
+        valuesMgdl,
+        rawValuesMgdl,
+        replacedIntervalsMs,
+    )
+
     override fun getLatestTimestampForSensorBlocking(sensorSerial: String): Long =
         HistoryRepository.getLatestTimestampForSensorBlocking(sensorSerial)
 

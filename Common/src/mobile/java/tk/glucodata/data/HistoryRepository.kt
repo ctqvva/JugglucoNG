@@ -581,6 +581,31 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             values: FloatArray,
             rawValues: FloatArray,
             source: String
+        ): Boolean = storeHistoryBatch(sensorSerial, timestamps, values, rawValues, source, emptyList())
+
+        /** See [tk.glucodata.HistoryRepositoryBridge.replaceHistoryIntervalsBlocking]. */
+        fun replaceHistoryIntervalsBlocking(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            replacedIntervalsMs: List<LongRange>,
+        ): Boolean = storeHistoryBatch(
+            sensorSerial,
+            timestamps,
+            values,
+            rawValues,
+            GlucoseReadingSource.SENSOR,
+            replacedIntervalsMs,
+        )
+
+        private fun storeHistoryBatch(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            source: String,
+            replacedIntervalsMs: List<LongRange>,
         ): Boolean {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
             if (roomSerial.isBlank()) return false
@@ -619,6 +644,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         sensorSerial = roomSerial,
                         readings = readings,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
+                        replacedIntervalsMs = replacedIntervalsMs,
                         invalidateAutoDisplayRecords = runCatching {
                             tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(sensorSerial, false) ||
                                 tk.glucodata.drivers.ManagedSensorRuntime.rewritesAutoHistory(sensorSerial)
@@ -855,6 +881,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * crash in between cannot destroy the rows they are judged against. Those
      * rows are the ones replaced, or [deletedRowsByMinute] when a full resync
      * already deleted them.
+     *
+     * Inside [replacedIntervalsMs] (inclusive) the batch replaces the sensor's
+     * history rather than only its own minutes: the same transaction drops every
+     * other row there, so a failed or interrupted write leaves all of them.
      */
     suspend fun replaceSensorBuckets(
         sensorSerial: String,
@@ -864,6 +894,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         deletedRowsByMinute: Map<Long, HistoryReading>? = null,
         invalidateAutoDisplayRecords: Boolean = false,
         invalidateRawDisplayRecords: Boolean = false,
+        replacedIntervalsMs: List<LongRange> = emptyList(),
     ): BucketReplaceOutcome {
         if (sensorSerial.isBlank() || readings.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
 
@@ -950,6 +981,20 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         bucketDurationMs = bucketDurationMs,
                         bucketRanges = plan.bucketRanges
                     )
+                    if (replacedIntervalsMs.isNotEmpty()) {
+                        val serials = (resolveQuerySensorSerials(sensorSerial) + sensorSerial).distinct()
+                        var dropped = 0
+                        for (interval in replacedIntervalsMs) {
+                            for (serial in serials) {
+                                dropped += dao.deleteSensorRowsInTimeRange(serial, interval.first, interval.last + 1L)
+                            }
+                        }
+                        tk.glucodata.Log.i(
+                            TAG,
+                            "replacing ${replacedIntervalsMs.size} interval(s) for $sensorSerial: dropped $dropped " +
+                                "rows besides the ${readingsWithStableSources.size} being written"
+                        )
+                    }
                     dao.insertAll(readingsWithStableSources)
                     if (historyTimestamps.isNotEmpty()) {
                         val previousByMinute = deletedRowsByMinute

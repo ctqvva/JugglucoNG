@@ -167,4 +167,39 @@ class ICanHealthHistoryPolicyTests {
         // Every record failed to decode to a valid reading (wrong key, garbage fields).
         assertTrue(ICanHealthHistoryPolicy.glucoseBatchShowsUnsupportedHistory(0, 0, 0))
     }
+
+    private fun slots(slots: Iterable<Int>, intervalMs: Long) = slots.map { 1_000_000L + it * intervalMs }.toLongArray()
+
+    @Test
+    fun timezoneRepair_coversOneContiguousBatchExactly() {
+        for (intervalMs in listOf(60_000L, 180_000L)) {
+            val batch = slots(0..99, intervalMs)
+            assertEquals(
+                listOf(batch.first()..batch.last()),
+                ICanHealthHistoryPolicy.timezoneRepairIntervals(batch, intervalMs),
+            )
+        }
+    }
+
+    @Test
+    fun timezoneRepair_leavesOutReadingsTheBatchSkipped() {
+        val batch = slots((0..39).filter { it !in listOf(10, 20, 21) }, 180_000L)
+        assertEquals(
+            listOf(0..9, 11..19, 22..39).map { (1_000_000L + it.first * 180_000L)..(1_000_000L + it.last * 180_000L) },
+            ICanHealthHistoryPolicy.timezoneRepairIntervals(batch, 180_000L),
+        )
+    }
+
+    @Test
+    fun timezoneRepair_toleratesAnchorJitter() {
+        val batch = slots(0..39, 180_000L).mapIndexed { i, t -> if (i % 2 == 0) t else t + 45_000L }.toLongArray()
+        assertEquals(1, ICanHealthHistoryPolicy.timezoneRepairIntervals(batch, 180_000L).size)
+    }
+
+    @Test
+    fun timezoneRepair_needsASessionSizedBatch() {
+        assertTrue(ICanHealthHistoryPolicy.timezoneRepairIntervals(LongArray(0), 180_000L).isEmpty())
+        assertTrue(ICanHealthHistoryPolicy.timezoneRepairIntervals(slots(0..18, 360_000L), 360_000L).isEmpty())
+        assertTrue(ICanHealthHistoryPolicy.timezoneRepairIntervals(slots(0..58, 60_000L), 60_000L).isEmpty())
+    }
 }

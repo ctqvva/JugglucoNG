@@ -354,6 +354,26 @@ object HistorySyncAccess {
         )
     }
 
+    /** See [HistoryRepositoryBridge.replaceHistoryIntervalsBlocking]. */
+    @JvmStatic
+    fun replaceSensorHistoryIntervalsBlocking(
+        sensorSerial: String?,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        replacedIntervalsMs: List<LongRange>,
+    ): Boolean {
+        if (sensorSerial.isNullOrBlank()) return false
+        if (timestamps.isEmpty()) return true
+        return HistoryRepositoryAccess.replaceHistoryIntervalsBlocking(
+            sensorSerial,
+            timestamps,
+            valuesMgdl,
+            rawValuesMgdl,
+            replacedIntervalsMs,
+        )
+    }
+
     @JvmStatic
     fun getLatestTimestampForSensor(sensorSerial: String?): Long {
         if (sensorSerial.isNullOrBlank()) return 0L

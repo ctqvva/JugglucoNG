@@ -30,12 +30,14 @@ import android.os.SystemClock
 import java.util.ArrayDeque
 import java.util.LinkedHashMap
 import java.util.Locale
+import java.util.TreeMap
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.math.abs
 import kotlin.math.round
 import tk.glucodata.Applic
+import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.logd
@@ -99,8 +101,6 @@ class ICanHealthBleManager(
         private const val NATIVE_MIRROR_STREAM_WINDOW_SEC = 15L * 24L * 60L * 60L
         private const val HISTORY_SYNC_STATUS_STEP = 500
         private const val LIVE_GAP_BACKFILL_MIN_INTERVAL_MS = 10 * 60 * 1000L
-        private const val MIN_TZ_REPAIR_BATCH_RECORDS = 20
-        private const val MIN_TZ_REPAIR_BATCH_SPAN_MS = 60 * 60 * 1000L
 
         // CorrectCode (per-sensor calibration table) write path, mirroring the 2026-10-20
         // vendor capture: after the `1A` ack and the Session Start Time write, three
@@ -3905,19 +3905,22 @@ class ICanHealthBleManager(
                 ?: 0f
         }
         Log.i(TAG, "Persisting ${timestamps.size} direct RACP history readings to Room")
-        val stored = HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
+        val repairIntervals = timezoneRepairIntervals(timestamps)
+        val repairing = repairIntervals.isNotEmpty()
+        val stored = if (repairing) {
+            // One transaction drops the skewed rows and writes the corrected ones, so a failure or a
+            // kill midway keeps the history as it was and leaves the repair pending.
+            HistorySyncAccess.replaceSensorHistoryIntervalsBlocking(
+                SerialNumber, timestamps, values, rawValues, repairIntervals,
+            )
+        } else {
+            HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
+        }
         if (stored) {
-            // Only now, with the corrected records demonstrably written, is it safe to drop the
-            // skewed ones. Deleting first would risk clearing history for a store that then
-            // failed — the batch goes back in immediately afterwards.
-            val repairing = historyTimezoneRepairPending() && purgeHistoryForTimezoneRepair(ordered)
-            if (repairing) {
-                HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
-            }
             updatePersistedHistoryTailTimestamp(timestamps.last())
             val lastRecord = ordered.last()
             rememberCoveredEdge(lastRecord.sequenceNumber, lastRecord.timestampMs)
-            mirrorHistoryBatchIntoNative(ordered, repairing)
+            val mirrored = mirrorHistoryBatchIntoNative(ordered, repairing)
             val liveGap = pendingLiveHistoryGap
             if (liveGap != null && liveGap.isFullyCoveredBy(ordered.mapTo(HashSet<Int>()) { it.sequenceNumber })) {
                 pendingLiveHistoryGap = null
@@ -3928,7 +3931,11 @@ class ICanHealthBleManager(
                 )
             }
             if (repairing) {
-                markHistoryTimezoneRepairApplied()
+                if (mirrored) {
+                    markHistoryTimezoneRepairApplied()
+                } else {
+                    Log.w(TAG, "Timezone repair stays pending; its native mirror was not rebuilt")
+                }
             }
         }
         return stored
@@ -3937,31 +3944,33 @@ class ICanHealthBleManager(
     private fun mirrorHistoryBatchIntoNative(
         ordered: List<PendingHistoryReading>,
         repairing: Boolean = false,
-    ) {
+    ): Boolean {
         if (ordered.isEmpty() || SerialNumber.isBlank()) {
-            return
+            return false
         }
-        runCatching {
+        return runCatching {
             ensureNativeDataptr(SerialNumber)
             applyNativeSensorMetadata()
             val nativeWriteName = resolveExistingNativeSensorName(SerialNumber)
                 ?: nativeCreationSensorName(SerialNumber)
             val newestTimestampSec = ordered.last().timestampMs / 1000L
-            val windowStartSec = if (repairing) {
+            val repairReplay = if (repairing) timezoneRepairNativeReplay(ordered) else null
+            val windowStartSec = if (repairReplay != null) {
                 // The native stream holds mirrored ghosts at skewed timestamps that no corrected
-                // record will overwrite, so restart the window at the batch's first record. This
-                // zeroes the sensor's poll array; every record below is then replayed into it.
-                val repairStartSec = ordered.first().timestampMs / 1000L
+                // record will overwrite, so restart the window. This zeroes the sensor's poll
+                // array; every reading below is then replayed into it.
+                val repairStartSec = repairReplay.first().timestampMs / 1000L
                 Log.i(TAG, "Timezone repair: rebasing native mirror window for $nativeWriteName to $repairStartSec")
                 Natives.rebaseDirectStreamWindow(nativeWriteName, repairStartSec)
                 repairStartSec
             } else {
                 prepareNativeMirrorWindow(nativeWriteName, newestTimestampSec)
             }
+            val readings = repairReplay ?: ordered
             val replayable = if (windowStartSec > 0L) {
-                ordered.filter { (it.timestampMs / 1000L) >= windowStartSec }
+                readings.filter { (it.timestampMs / 1000L) >= windowStartSec }
             } else {
-                ordered
+                readings
             }
             for (record in replayable) {
                 if (record.timestampMs <= 0L) continue
@@ -3979,9 +3988,43 @@ class ICanHealthBleManager(
                 adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
             }
             Natives.wakehereonly()
+            !repairing || repairReplay != null
         }.onFailure {
             Log.stack(TAG, "mirrorHistoryBatchIntoNative", it)
+        }.getOrDefault(false)
+    }
+
+    /**
+     * Everything the native mirror has to hold after a timezone repair rebased it: the batch, and
+     * the stored readings outside it, which the rebase zeroes along with the ghosts. Null when the
+     * stored readings could not be read, which must not be taken for there being none.
+     */
+    private fun timezoneRepairNativeReplay(ordered: List<PendingHistoryReading>): List<PendingHistoryReading>? {
+        val windowStartMs =
+            (ordered.last().timestampMs - NATIVE_MIRROR_STREAM_WINDOW_SEC * 1000L).coerceAtLeast(1L)
+        val stored = HistoryRepositoryAccess.getHistoryForSensor(SerialNumber, windowStartMs, false)
+            ?.filter { SensorIdentity.matches(it.sensorSerial, SerialNumber) }
+            .orEmpty()
+        if (stored.isEmpty() && HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
+                SerialNumber, windowStartMs, Long.MAX_VALUE,
+            )?.isEmpty() != true
+        ) {
+            return null
         }
+        val byMinute = TreeMap<Long, PendingHistoryReading>()
+        for (point in stored) {
+            byMinute[point.timestamp / SEQUENCE_UNIT_MS] = PendingHistoryReading(
+                sequenceNumber = -1,
+                timestampMs = point.timestamp,
+                glucoseMgdl = point.value,
+            )
+        }
+        for (record in ordered) {
+            if (record.timestampMs >= windowStartMs) byMinute[record.timestampMs / SEQUENCE_UNIT_MS] = record
+        }
+        // Readings newer than the batch push the mirror's window along with them.
+        val mirrorStartMs = byMinute.lastEntry().value.timestampMs - NATIVE_MIRROR_STREAM_WINDOW_SEC * 1000L
+        return byMinute.values.filter { it.timestampMs > mirrorStartMs }
     }
 
     private fun resolveSequenceTimelineTimestampMs(
@@ -4121,6 +4164,23 @@ class ICanHealthBleManager(
         return historyTzRepairPending
     }
 
+    /** What [timestamps] replaces as a pending timezone repair; empty for an ordinary import. */
+    private fun timezoneRepairIntervals(timestamps: LongArray): List<LongRange> {
+        if (!historyTimezoneRepairPending()) return emptyList()
+        val intervals = ICanHealthHistoryPolicy.timezoneRepairIntervals(timestamps, readingIntervalMs())
+        Log.i(
+            TAG,
+            if (intervals.isEmpty()) {
+                "Deferring timezone repair; a batch of ${timestamps.size} record(s) spanning " +
+                    "${(timestamps.last() - timestamps.first()) / 60000L}min is too small to replace stored history"
+            } else {
+                "Timezone repair: replacing ${timestamps.first()}..${timestamps.last()} in " +
+                    "${intervals.size} run(s) with ${timestamps.size} re-pulled record(s)"
+            }
+        )
+        return intervals
+    }
+
     private fun markHistoryTimezoneRepairApplied() {
         val sensorId = SerialNumber.takeIf {
             it.isNotBlank() && !ICanHealthConstants.isProvisionalSensorId(it)
@@ -4136,33 +4196,6 @@ class ICanHealthBleManager(
             )
             .commit()
         Log.i(TAG, "Timezone repair complete for $sensorId")
-    }
-
-    /**
-     * Drop stored readings that the corrected batch is about to replace.
-     *
-     * Only the window the batch actually covers is cleared, and only once the replacement records
-     * are already in hand, so this can never leave a hole it does not immediately refill. Batches
-     * too small to be a session re-pull are left alone and the repair waits for a better one.
-     */
-    private fun purgeHistoryForTimezoneRepair(ordered: List<PendingHistoryReading>): Boolean {
-        val earliestMs = ordered.first().timestampMs
-        val latestMs = ordered.last().timestampMs
-        if (ordered.size < MIN_TZ_REPAIR_BATCH_RECORDS || latestMs - earliestMs < MIN_TZ_REPAIR_BATCH_SPAN_MS) {
-            Log.i(
-                TAG,
-                "Deferring timezone repair; batch of ${ordered.size} record(s) spanning " +
-                    "${(latestMs - earliestMs) / 60000L}min is too small to replace stored history"
-            )
-            return false
-        }
-        val removed = HistorySyncAccess.deleteReadingsForSensorAfter(SerialNumber, earliestMs - 1)
-        Log.i(
-            TAG,
-            "Timezone repair: dropped $removed stored reading(s) from $earliestMs onward, " +
-                "replacing them with ${ordered.size} re-pulled record(s)"
-        )
-        return true
     }
 
     private fun invalidatePersistedCoveredEdge(reason: String) {

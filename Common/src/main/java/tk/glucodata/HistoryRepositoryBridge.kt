@@ -51,6 +51,19 @@ interface HistoryRepositoryBridge {
         source: String,
     ): Boolean
 
+    /**
+     * Stores the batch and, in the same transaction, drops every other row the
+     * sensor holds inside [replacedIntervalsMs] (inclusive). Rows outside them
+     * stay. False means nothing changed: neither the delete nor the write.
+     */
+    fun replaceHistoryIntervalsBlocking(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        replacedIntervalsMs: List<LongRange>,
+    ): Boolean
+
     fun getLatestTimestampForSensorBlocking(sensorSerial: String): Long
 
     /**
