@@ -20,14 +20,18 @@ class AdaptiveEnsembleUnitTests {
         CalPoint(x = 220.0, y = 200.0, timestamp = now - hour),
     )
 
-    private fun resultIn(points: List<CalPoint>, targetMgdl: Double, factor: Double) =
-        CalibrationMath.computeAlgorithm(
-            algorithm = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
-            targetValue = targetMgdl * factor,
-            targetTimestamp = now,
-            points = points.map { it.copy(x = it.x * factor, y = it.y * factor) },
-            tuning = tuning,
-        )
+    private fun resultIn(
+        points: List<CalPoint>,
+        targetMgdl: Double,
+        factor: Double,
+        algorithm: String = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+    ) = CalibrationMath.computeAlgorithm(
+        algorithm = algorithm,
+        targetValue = targetMgdl * factor,
+        targetTimestamp = now,
+        points = points.map { it.copy(x = it.x * factor, y = it.y * factor) },
+        tuning = tuning,
+    )
 
     @Test
     fun anchorInfluenceDoesNotDependOnGlucoseUnit() {
@@ -106,5 +110,64 @@ class AdaptiveEnsembleUnitTests {
         assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
         assertEquals(mgdl.confidence!!, mmol.confidence!!, 1e-9)
         assertEquals(mgdl.prediction, mmol.prediction * mgdlPerMmol, predictionToleranceMgdl)
+    }
+
+    @Test
+    fun everyAlgorithmIsUnitInvariant() {
+        val algorithms = listOf(
+            CalibrationMath.ALG_SANE_WEIGHTED_OLS,
+            CalibrationMath.ALG_XDRIP_MEDIAN_SLOPE,
+            CalibrationMath.ALG_TIME_WEIGHTED_ROBUST_REGRESSION,
+            CalibrationMath.ALG_ELASTIC_TIME_WEIGHTED_INTERPOLATION,
+            CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+        )
+
+        algorithms.forEach { algorithm ->
+            val mgdl = resultIn(points, 130.0, 1.0, algorithm)
+            val mmol = resultIn(points, 130.0, 1.0 / mgdlPerMmol, algorithm)
+
+            assertEquals("$algorithm anchorInfluence", mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
+            assertEquals("$algorithm confidence", mgdl.confidence!!, mmol.confidence!!, unitInvarianceTolerance)
+            assertEquals(
+                "$algorithm prediction",
+                mgdl.prediction,
+                mmol.prediction * mgdlPerMmol,
+                predictionToleranceMgdl,
+            )
+        }
+    }
+
+    @Test
+    fun relativeFloorsStayInvariantForTightlyClusteredPoints() {
+        val tightFit = listOf(
+            CalPoint(x = 100.01, y = 100.02, timestamp = now - 3 * hour),
+            CalPoint(x = 130.01, y = 130.02, timestamp = now - 2 * hour),
+            CalPoint(x = 160.01, y = 160.02, timestamp = now - hour),
+        )
+        val tightCluster = listOf(
+            CalPoint(x = 128.0, y = 130.0, timestamp = now - 2 * hour),
+            CalPoint(x = 132.0, y = 135.0, timestamp = now - hour),
+        )
+
+        listOf(tightFit, tightCluster).forEach { scenario ->
+            listOf(
+                CalibrationMath.ALG_SANE_WEIGHTED_OLS,
+                CalibrationMath.ALG_TIME_WEIGHTED_ROBUST_REGRESSION,
+                CalibrationMath.ALG_ELASTIC_TIME_WEIGHTED_INTERPOLATION,
+                CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+            ).forEach { algorithm ->
+                val mgdl = resultIn(scenario, 130.0, 1.0, algorithm)
+                val mmol = resultIn(scenario, 130.0, 1.0 / mgdlPerMmol, algorithm)
+
+                assertEquals("$algorithm anchorInfluence", mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
+                assertEquals("$algorithm confidence", mgdl.confidence!!, mmol.confidence!!, unitInvarianceTolerance)
+                assertEquals(
+                    "$algorithm prediction",
+                    mgdl.prediction,
+                    mmol.prediction * mgdlPerMmol,
+                    predictionToleranceMgdl,
+                )
+            }
+        }
     }
 }
