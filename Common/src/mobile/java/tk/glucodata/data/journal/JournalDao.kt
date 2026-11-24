@@ -212,12 +212,6 @@ interface JournalDao {
     @Query("DELETE FROM journal_foods")
     suspend fun deleteAllFoods()
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun recordFoodRestoreCommit(commit: JournalFoodRestoreCommit)
-
-    @Query("SELECT token FROM journal_food_restore_commit WHERE id = 1")
-    suspend fun getFoodRestoreCommit(): String?
-
     @Query("SELECT COUNT(*) FROM journal_foods")
     suspend fun countFoods(): Int
 

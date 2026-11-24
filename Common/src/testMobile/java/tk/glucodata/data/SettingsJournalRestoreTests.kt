@@ -3,6 +3,7 @@ package tk.glucodata.data
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.withTransaction
@@ -16,7 +17,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -26,7 +27,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
 import tk.glucodata.data.food.FoodLibrary
 import tk.glucodata.data.food.FoodLibraryDatabase
-import tk.glucodata.data.journal.JournalFoodRestoreCommit
+import tk.glucodata.data.food.FoodRestoreRecovery
+import tk.glucodata.data.food.recordFoodRestoreCommit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)
@@ -105,25 +107,29 @@ class SettingsJournalRestoreTests {
     @Test
     fun insertionFailureRollsBackAllJournalTablesAndFoodDetails() = runBlocking {
         val before = snapshot()
+        val prefs = context.getSharedPreferences("restore_test", Context.MODE_PRIVATE)
+        assertTrue(prefs.edit().putString("value", "before").commit())
+        val native = File(context.filesDir, "settings.dat").apply { writeText("before") }
         history.openHelper.writableDatabase.execSQL(
             """
             CREATE TRIGGER fail_entry_insert BEFORE INSERT ON journal_entries WHEN NEW.id = 21
             BEGIN SELECT RAISE(ABORT, 'journal insert failed'); END
             """.trimIndent()
         )
-        val backup = payload(20)
+        val backup = payloadWithSettings(20)
         backup.getJSONObject("journalData").getJSONArray("entries").put(entry(21))
 
         val failure = SettingsExporter.importPayload(context, backup).exceptionOrNull()
         assertTrue(failure?.message.orEmpty().contains("journal insert failed"))
         assertEquals(before, snapshot())
-        assertNull(details.getRestoreToken())
+        assertEquals("before", prefs.getString("value", null))
+        assertEquals("before", native.readText())
+        assertFalse(hasStagedRestore())
     }
 
     @Test
-    fun cancellationAfterDeletingEntriesRollsBackBothDatabases() = runBlocking {
-        val before = snapshot()
-        val restoring = async(start = CoroutineStart.LAZY) { SettingsExporter.importPayload(context, payload(20)) }
+    fun cancellationAfterDeletingEntriesCompletesTheEntireWritePhase() = runBlocking {
+        val restoring = async(start = CoroutineStart.LAZY) { SettingsExporter.importPayload(context, payloadWithSettings(20)) }
         onHistoryQuery = { sql ->
             // The preceding entry delete has executed when Room issues the preset delete.
             if (sql == "DELETE FROM journal_insulin_presets") restoring.cancel()
@@ -132,8 +138,14 @@ class SettingsJournalRestoreTests {
         onHistoryQuery = null
 
         assertTrue(restoring.isCancelled)
-        assertEquals(before, snapshot())
-        assertNull(details.getRestoreToken())
+        assertEquals(20L, journal.getEntries().single().id)
+        assertEquals(20L, journal.getInsulinPresets().single().id)
+        assertEquals(120L, journal.getCloneJournalTombstones().single().entryId)
+        assertEquals(20L, journal.getFoods().single().id)
+        assertEquals(20L, details.getAll().single().foodId)
+        assertEquals("after", context.getSharedPreferences("restore_test", Context.MODE_PRIVATE).getString("value", null))
+        assertEquals("after", File(context.filesDir, "settings.dat").readText())
+        assertFalse(hasStagedRestore())
     }
 
     @Test
@@ -149,7 +161,7 @@ class SettingsJournalRestoreTests {
         val failure = SettingsExporter.importPayload(context, payload(20)).exceptionOrNull()
         assertTrue(failure?.message.orEmpty().contains("food details insert failed"))
         assertEquals(before, snapshot())
-        assertNull(details.getRestoreToken())
+        assertFalse(hasStagedRestore())
     }
 
     @Test
@@ -163,7 +175,7 @@ class SettingsJournalRestoreTests {
         assertEquals(120L, journal.getCloneJournalTombstones().single().entryId)
         assertEquals(20L, journal.getFoods().single().id)
         assertEquals(20L, details.getAll().single().foodId)
-        assertNull(details.getRestoreToken())
+        assertFalse(hasStagedRestore())
 
         val legacy = payload(30).put("schemaVersion", 2)
         legacy.getJSONObject("journalData").apply {
@@ -179,42 +191,74 @@ class SettingsJournalRestoreTests {
 
     @Test
     fun interruptedRestoreRecoversFromTheDurableJournalCommit() = runBlocking {
-        val original = details.getAll().single()
+        // Preserve the exact previously stored values, including legacy portion shorthand.
+        val original = details.getAll().single().copy(portions = "piece:100:original")
+        details.upsert(original)
         val replacement = original.copy(referenceGrams = 200f)
+        val recovery = FoodRestoreRecovery(history, foods)
 
-        details.stageRestore("before-commit", listOf(replacement))
-        assertEquals(listOf(original), FoodLibrary(journal, details).snapshot().second)
-        assertNull(details.getRestoreToken())
+        recovery.stage("before-commit", listOf(replacement))
+        assertEquals(listOf(original), FoodLibrary(history, foods).snapshot().second)
+        assertFalse(hasStagedRestore())
 
-        details.stageRestore("after-commit", listOf(replacement))
+        recovery.stage("after-commit", listOf(replacement))
         history.withTransaction {
-            journal.upsertFood(journal.getFoods().single().copy(displayName = "Replaced"))
-            journal.recordFoodRestoreCommit(JournalFoodRestoreCommit(token = "after-commit"))
+            // The core food rows can be identical before and after a successful restore.
+            history.recordFoodRestoreCommit("after-commit")
         }
-        val (rows, recoveredDetails) = FoodLibrary(journal, details).snapshot()
-        assertEquals("Replaced", rows.single().displayName)
+        val (rows, recoveredDetails) = FoodLibrary(history, foods).snapshot()
+        assertEquals(10L, rows.single().id)
         assertEquals(listOf(replacement), recoveredDetails)
-        assertNull(details.getRestoreToken())
+        assertFalse(hasStagedRestore())
     }
 
     @Test
-    fun cleanupFailureKeepsACompletedRestoreAndCanBeRetried() = runBlocking {
-        val sqlite = foods.openHelper.writableDatabase
-        sqlite.execSQL(
-            """
-            CREATE TRIGGER fail_restore_cleanup BEFORE DELETE ON pending_food_restore
-            BEGIN SELECT RAISE(ABORT, 'restore cleanup failed'); END
-            """.trimIndent()
-        )
-        SettingsExporter.importPayload(context, payload(20)).getOrThrow()
-        assertEquals(20L, journal.getEntries().single().id)
-        assertEquals(20L, details.getAll().single().foodId)
-        assertEquals(journal.getFoodRestoreCommit(), details.getRestoreToken())
-
-        sqlite.execSQL("DROP TRIGGER fail_restore_cleanup")
-        assertEquals(20L, FoodLibrary(journal, details).foods().single().id)
-        assertNull(details.getRestoreToken())
+    fun deeplyNestedBackupReturnsFailureWithoutWriting() = runBlocking {
+        val before = snapshot()
+        val file = File.createTempFile("settings-restore", ".json", context.cacheDir)
+        try {
+            file.writeText("{\"data\":" + "[".repeat(200_000) + "0" + "]".repeat(200_000) + "}")
+            assertTrue(SettingsExporter.importFromJson(context, Uri.fromFile(file)).isFailure)
+            assertEquals(before, snapshot())
+        } finally {
+            file.delete()
+        }
     }
+
+    @Test
+    fun interruptedRestoreKeepsReleasedRoomVersionsAndCanReopenBothFiles() = runBlocking {
+        val historyName = "restore-compatibility-history.db"
+        val foodName = "restore-compatibility-food.db"
+        suspend fun withDatabases(block: suspend (HistoryDatabase, FoodLibraryDatabase) -> Unit) {
+            val fileHistory = Room.databaseBuilder(context, HistoryDatabase::class.java, historyName)
+                .allowMainThreadQueries().build()
+            val fileFood = Room.databaseBuilder(context, FoodLibraryDatabase::class.java, foodName)
+                .allowMainThreadQueries().build()
+            try {
+                block(fileHistory, fileFood)
+            } finally {
+                fileFood.close()
+                fileHistory.close()
+            }
+        }
+        val currentDetail = details.getAll().single()
+        withDatabases { fileHistory, fileFood ->
+            FoodRestoreRecovery(fileHistory, fileFood).stage("committed", listOf(currentDetail))
+            fileHistory.withTransaction {
+                fileHistory.journalDao().insertFoods(journal.getFoods())
+                fileHistory.recordFoodRestoreCommit("committed")
+            }
+        }
+        withDatabases { reopenedHistory, reopenedFood ->
+            assertEquals(32, reopenedHistory.openHelper.writableDatabase.version)
+            assertEquals(2, reopenedFood.openHelper.writableDatabase.version)
+            assertEquals(listOf(currentDetail), FoodLibrary(reopenedHistory, reopenedFood).snapshot().second)
+        }
+    }
+
+    private fun hasStagedRestore(): Boolean = foods.openHelper.writableDatabase.query(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settings_food_restore_stage'"
+    ).use { it.moveToFirst() }
 
     private suspend fun snapshot(): List<List<Any>> = listOf(
         journal.getEntries(),
@@ -242,6 +286,12 @@ class SettingsJournalRestoreTests {
             .put("nativeSettingsFiles", JSONObject())
             .put("journalData", journal)
     }
+
+    private fun payloadWithSettings(id: Int) = payload(id)
+        .put("sharedPreferences", JSONObject().put("restore_test", JSONObject().put("values", JSONObject()
+            .put("value", JSONObject().put("type", "string").put("value", "after")))))
+        .put("nativeSettingsFiles", JSONObject().put("settings.dat", JSONObject()
+            .put("base64", Base64.encodeToString("after".toByteArray(), Base64.NO_WRAP))))
 
     private fun entry(id: Int) = JSONObject()
         .put("id", id).put("timestamp", 1).put("entryType", "note")

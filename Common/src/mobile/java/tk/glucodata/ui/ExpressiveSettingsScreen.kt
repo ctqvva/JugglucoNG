@@ -43,6 +43,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.semantics
@@ -985,7 +987,9 @@ fun ExpressiveSettingsScreen(
             icon = Symbols.SettingsFilled,
             onConfirm = {
                 pendingSettingsImportUri = null
-                scope.launch {
+                // A confirmed restore can finish and restart after navigation leaves this screen.
+                val restoreScope = (context.findActivity() as? LifecycleOwner)?.lifecycleScope ?: scope
+                restoreScope.launch {
                     val result = tk.glucodata.data.SettingsExporter.importFromJson(context, uri)
                     withContext(Dispatchers.Main) {
                         if (result.isSuccess) {

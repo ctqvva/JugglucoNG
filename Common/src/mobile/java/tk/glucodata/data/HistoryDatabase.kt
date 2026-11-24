@@ -11,7 +11,6 @@ import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.JournalDao
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
-import tk.glucodata.data.journal.JournalFoodRestoreCommit
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
 
@@ -62,7 +61,6 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         (main v19, a Clone build at v20–v23, a test build at v24–v31) arrives
  *         here through the steps above, so this is the one place the tables
  *         are guaranteed rather than assumed.
- *   v33 — commit record for restoring journal foods across the history and food databases.
  */
 /**
  * The current schema version (plan task H5). The migration tests migrate from the
@@ -70,7 +68,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  * A version bump also needs its exported schema JSON committed — the CI schema
  * check in H1 catches that.
  */
-internal const val HISTORY_DATABASE_VERSION = 33
+internal const val HISTORY_DATABASE_VERSION = 32
 
 @Database(
     entities = [
@@ -80,7 +78,6 @@ internal const val HISTORY_DATABASE_VERSION = 33
         ReadingDisplay::class,
         JournalEntryEntity::class,
         JournalFoodEntity::class,
-        JournalFoodRestoreCommit::class,
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class,
         CloneJournalTombstoneEntity::class,
@@ -724,15 +721,6 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_32_33 = object : Migration(32, 33) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS journal_food_restore_commit " +
-                        "(id INTEGER NOT NULL, token TEXT NOT NULL, PRIMARY KEY(id))"
-                )
-            }
-        }
-
         /**
          * The Clone-owned tables and the identity backfills, idempotently. Kept
          * separate from [ensureV30Compatibility] because that one is also what a
@@ -822,8 +810,7 @@ abstract class HistoryDatabase : RoomDatabase() {
             bridgeCloneToV30(28),
             bridgeCloneToV30(29),
             MIGRATION_30_31,
-            MIGRATION_31_32,
-            MIGRATION_32_33
+            MIGRATION_31_32
         )
 
         fun getInstance(context: Context): HistoryDatabase =

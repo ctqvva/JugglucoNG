@@ -25,7 +25,7 @@ import tk.glucodata.data.backupInt
 import tk.glucodata.data.backupLong
 import tk.glucodata.data.backupString
 
-internal const val FOOD_LIBRARY_DATABASE_VERSION = 3
+internal const val FOOD_LIBRARY_DATABASE_VERSION = 2
 
 /**
  * What the food library knows about a food beyond the row in the journal's `journal_foods`
@@ -67,50 +67,8 @@ data class PendingFoodWrite(
     val detailsJson: String?
 )
 
-@Entity(tableName = "pending_food_restore")
-data class PendingFoodRestore(@PrimaryKey val id: Int = 1, val token: String)
-
-@Entity(tableName = "previous_food_details", primaryKeys = ["foodId"])
-data class PreviousFoodDetails(@Embedded val details: FoodDetailsEntity)
-
 @Dao
 interface FoodDetailsDao {
-    @Transaction
-    suspend fun stageRestore(token: String, replacement: List<FoodDetailsEntity>) {
-        saveRestoreToken(PendingFoodRestore(token = token))
-        savePreviousDetails(getAll().map(::PreviousFoodDetails))
-        deleteAll()
-        upsertAll(replacement)
-    }
-
-    @Transaction
-    suspend fun finishRestore(committed: Boolean) {
-        if (!committed) {
-            deleteAll()
-            upsertAll(getPreviousDetails().map { it.details })
-        }
-        clearPreviousDetails()
-        clearRestoreToken()
-    }
-
-    @Insert
-    suspend fun saveRestoreToken(restore: PendingFoodRestore)
-
-    @Query("SELECT token FROM pending_food_restore WHERE id = 1")
-    suspend fun getRestoreToken(): String?
-
-    @Query("DELETE FROM pending_food_restore")
-    suspend fun clearRestoreToken()
-
-    @Insert
-    suspend fun savePreviousDetails(rows: List<PreviousFoodDetails>)
-
-    @Query("SELECT * FROM previous_food_details")
-    suspend fun getPreviousDetails(): List<PreviousFoodDetails>
-
-    @Query("DELETE FROM previous_food_details")
-    suspend fun clearPreviousDetails()
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun stage(write: PendingFoodWrite)
 
@@ -155,15 +113,12 @@ interface FoodDetailsDao {
 /**
  * The food library's own database, apart from the glucose history.
  *
- * The history database keeps each food's core preset in `journal_foods`. It records the
- * journal commit for a settings restore so this database can recover its own detail rows
- * after interruption. Food detail schema changes belong here.
+ * Apart because the history database carries every reading a person has, a long migration
+ * chain, and builds that cannot open a newer version of it. Nothing about a food library is
+ * worth a version bump there: with this file a build without the library still opens the
+ * history, and still finds every food in `journal_foods` as the preset it used to be.
  */
-@Database(
-    entities = [FoodDetailsEntity::class, PendingFoodWrite::class, PendingFoodRestore::class, PreviousFoodDetails::class],
-    version = FOOD_LIBRARY_DATABASE_VERSION,
-    exportSchema = true
-)
+@Database(entities = [FoodDetailsEntity::class, PendingFoodWrite::class], version = FOOD_LIBRARY_DATABASE_VERSION, exportSchema = true)
 abstract class FoodLibraryDatabase : RoomDatabase() {
     abstract fun foodDetailsDao(): FoodDetailsDao
 
@@ -177,23 +132,6 @@ abstract class FoodLibraryDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("CREATE TABLE IF NOT EXISTS pending_food_restore (id INTEGER NOT NULL, token TEXT NOT NULL, PRIMARY KEY(id))")
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS previous_food_details (
-                        foodId INTEGER NOT NULL, referenceGrams REAL, portions TEXT NOT NULL,
-                        fiberGrams REAL, kcal REAL, brand TEXT, barcode TEXT, sourceKey TEXT,
-                        isLiquid INTEGER NOT NULL, kept INTEGER NOT NULL, useCount INTEGER NOT NULL,
-                        lastUsedAt INTEGER NOT NULL, lastQuantity REAL, lastPortionIndex INTEGER,
-                        hasOwnAbsorption INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(foodId)
-                    )
-                    """.trimIndent()
-                )
-            }
-        }
-
         private const val FILE_NAME = "food_library.db"
 
         @Volatile
@@ -202,7 +140,7 @@ abstract class FoodLibraryDatabase : RoomDatabase() {
         fun getInstance(context: Context): FoodLibraryDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(context.applicationContext, FoodLibraryDatabase::class.java, FILE_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                     .also { instance = it }
             }

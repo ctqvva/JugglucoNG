@@ -26,7 +26,3 @@ data class JournalFoodEntity(
     val createdAt: Long,
     val updatedAt: Long
 )
-
-/** Updated atomically with the journal rows so the food database can recover after a crash. */
-@Entity(tableName = "journal_food_restore_commit")
-data class JournalFoodRestoreCommit(@PrimaryKey val id: Int = 1, val token: String)

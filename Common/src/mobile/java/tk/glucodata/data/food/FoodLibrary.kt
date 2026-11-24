@@ -1,14 +1,11 @@
 package tk.glucodata.data.food
 
-import android.util.Log
 import java.util.Locale
-import java.util.UUID
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import tk.glucodata.data.HistoryDatabase
 import tk.glucodata.data.journal.JournalDao
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalFoodEntity
@@ -25,10 +22,15 @@ data class DeletedFoods(val rows: List<JournalFoodEntity>, val details: List<Foo
  * Besides the foods saved on purpose it remembers the ones that were eaten, with the amount,
  * so the next meal starts from "what I had last time" instead of from a search.
  */
-class FoodLibrary(
+class FoodLibrary internal constructor(
     private val journalDao: JournalDao,
-    private val detailsDao: FoodDetailsDao
+    private val detailsDao: FoodDetailsDao,
+    private val restoreRecovery: FoodRestoreRecovery? = null
 ) {
+    constructor(history: HistoryDatabase, food: FoodLibraryDatabase) : this(
+        history.journalDao(), food.foodDetailsDao(), FoodRestoreRecovery(history, food)
+    )
+
     fun observe(): Flow<List<JournalFood>> =
         journalDao.observeFoods().combine(detailsDao.observeAll()) { _, _ -> foods() }
 
@@ -215,41 +217,21 @@ class FoodLibrary(
         details: List<FoodDetailsEntity>,
         commitJournal: suspend (String) -> Unit
     ) = withWrites {
-        val token = UUID.randomUUID().toString()
-        try {
-            detailsDao.stageRestore(token, details)
-            commitJournal(token)
-        } catch (failure: Exception) {
-            try {
-                withContext(NonCancellable) { recoverRestore() }
-            } catch (recoveryFailure: Exception) {
-                failure.addSuppressed(recoveryFailure)
-            }
-            throw failure
-        }
-        withContext(NonCancellable) {
-            try {
-                detailsDao.finishRestore(committed = true)
-            } catch (failure: Exception) {
-                // Both replacements committed. The next library access can retry cleanup.
-                Log.w("FoodLibrary", "Could not clear committed food restore", failure)
-            }
-        }
-    }
-
-    private suspend fun recoverRestore() {
-        val token = detailsDao.getRestoreToken() ?: return
-        detailsDao.finishRestore(committed = journalDao.getFoodRestoreCommit() == token)
+        checkNotNull(restoreRecovery).replace(details, commitJournal)
     }
 
     private suspend fun write(row: JournalFoodEntity, details: FoodDetailsEntity?) {
-        detailsDao.stage(PendingFoodWrite(food = row, detailsJson = details?.let { FoodDetailsBackup.toJson(listOf(it)).toString() }))
-        recoverWrite()
+        val pending = PendingFoodWrite(food = row, detailsJson = details?.let { FoodDetailsBackup.toJson(listOf(it)).toString() })
+        detailsDao.stage(pending)
+        finishWrite(pending)
     }
 
     private suspend fun recoverWrite() {
-        recoverRestore()
-        val pending = detailsDao.pending() ?: return
+        restoreRecovery?.recover()
+        detailsDao.pending()?.let { finishWrite(it) }
+    }
+
+    private suspend fun finishWrite(pending: PendingFoodWrite) {
         journalDao.upsertFood(pending.food)
         detailsDao.finish(pending)
     }

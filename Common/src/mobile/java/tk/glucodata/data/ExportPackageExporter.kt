@@ -537,7 +537,7 @@ object ExportPackageExporter {
             database.journalDao().getEntries()
         }
         val insulinPresets = database.journalDao().getInsulinPresets()
-        val (foods, foodDetails) = FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
+        val (foods, foodDetails) = FoodLibrary(database, FoodLibraryDatabase.getInstance(context)).snapshot()
         val pendingJournalDeletes = database.journalDao().getPendingNightscoutDeletes()
             .filter { it.deletedAt >= startMillis }
 
@@ -873,7 +873,7 @@ object ExportPackageExporter {
         flushReadings()
         flushTombstones()
         if (foods.isNotEmpty()) {
-            FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
+            FoodLibrary(database, FoodLibraryDatabase.getInstance(context)).restore(
                 foods, FoodDetailsBackup.fromJson(history.optJSONArray(HISTORY_FOOD_DETAILS))
             )
         }

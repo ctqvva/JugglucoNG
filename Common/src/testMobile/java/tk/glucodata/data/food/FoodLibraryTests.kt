@@ -385,8 +385,7 @@ class FoodLibraryTests {
             db.version = 1
         }
         val migrated = Room.databaseBuilder(context, FoodLibraryDatabase::class.java, name)
-            .addMigrations(FoodLibraryDatabase.MIGRATION_1_2, FoodLibraryDatabase.MIGRATION_2_3)
-            .allowMainThreadQueries().build()
+            .addMigrations(FoodLibraryDatabase.MIGRATION_1_2).allowMainThreadQueries().build()
         try {
             val row = migrated.foodDetailsDao().getAll().single()
             assertEquals(100f, row.referenceGrams)

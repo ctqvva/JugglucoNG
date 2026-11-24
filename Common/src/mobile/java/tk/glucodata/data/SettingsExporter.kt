@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,8 +23,8 @@ import tk.glucodata.data.food.FoodDetailsBackup
 import tk.glucodata.data.food.FoodDetailsEntity
 import tk.glucodata.data.food.FoodLibrary
 import tk.glucodata.data.food.FoodLibraryDatabase
+import tk.glucodata.data.food.recordFoodRestoreCommit
 import tk.glucodata.data.journal.JournalFoodEntity
-import tk.glucodata.data.journal.JournalFoodRestoreCommit
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
 import java.io.OutputStreamWriter
@@ -143,13 +144,13 @@ object SettingsExporter {
             val replacement = parseImport(read(appContext), requireJournalData)
             val summary = importMutex.withLock {
                 coroutineContext.ensureActive()
-                restoreSettings(appContext, replacement)
+                withContext(NonCancellable) { restoreSettings(appContext, replacement) }
             }
             coroutineContext.ensureActive()
             Result.success(summary)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: Exception) {
+        } catch (failure: Throwable) {
             Log.e(TAG, "Settings import failed", failure)
             Result.failure(failure)
         }
@@ -235,18 +236,16 @@ object SettingsExporter {
     }
 
     private suspend fun restoreSettings(context: Context, replacement: ValidatedImport): ImportSummary {
-        val preferencesSummary = importSharedPreferences(context, replacement.preferences)
-        coroutineContext.ensureActive()
-        val nativeFileCount = importNativeSettingsFiles(context, replacement.nativeFiles)
-        coroutineContext.ensureActive()
         val journal = replacement.journal
         if (journal != null) {
             val database = HistoryDatabase.getInstance(context)
             val foodLibrary = journal.foods?.let {
-                FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(context).foodDetailsDao())
+                FoodLibrary(database, FoodLibraryDatabase.getInstance(context))
             }
             replaceJournal(database, foodLibrary, journal)
         }
+        val preferencesSummary = importSharedPreferences(context, replacement.preferences)
+        val nativeFileCount = importNativeSettingsFiles(context, replacement.nativeFiles)
 
         return ImportSummary(
             sharedPreferenceFiles = preferencesSummary.first,
@@ -493,8 +492,9 @@ object SettingsExporter {
     }
 
     private suspend fun buildJournalData(context: Context): JSONObject {
-        val journalDao = HistoryDatabase.getInstance(context).journalDao()
-        val (foods, foodDetails) = FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).snapshot()
+        val database = HistoryDatabase.getInstance(context)
+        val journalDao = database.journalDao()
+        val (foods, foodDetails) = FoodLibrary(database, FoodLibraryDatabase.getInstance(context)).snapshot()
         return JSONObject()
             .put(
                 "entries",
@@ -554,9 +554,8 @@ object SettingsExporter {
             dao.upsertEntries(journal.entries.sortedBy { it.id == 0L })
             dao.upsertCloneJournalTombstones(journal.cloneTombstones)
             if (foodRestoreToken != null) {
-                dao.recordFoodRestoreCommit(JournalFoodRestoreCommit(token = foodRestoreToken))
+                database.recordFoodRestoreCommit(foodRestoreToken)
             }
-            coroutineContext.ensureActive()
         }
         if (foodLibrary == null) commitJournal(null)
         else foodLibrary.restoreWithJournal(journal.foodDetails, ::commitJournal)
