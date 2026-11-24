@@ -2,6 +2,7 @@ package tk.glucodata.share.ican
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,7 +45,7 @@ class ICanHealthCloudQueueTests {
     }
 
     @Test
-    fun clampsOutOfRange() {
+    fun preservesOutOfRangeReadings() {
         val app = RuntimeEnvironment.getApplication() as ICanHealthCloudQueueTestApplication
         val context = app
         val queue = ICanHealthCloudQueue(context)
@@ -52,8 +53,26 @@ class ICanHealthCloudQueueTests {
         queue.enqueue(EgvUpload(serial = "SN1", timeMs = 1L, mgdl = 10, trend = 1))
         queue.enqueue(EgvUpload(serial = "SN1", timeMs = 2L, mgdl = 500, trend = 1))
         val vals = queue.peek().map { it.mgdl }
-        assertTrue(vals.contains(40))
-        assertTrue(vals.contains(400))
+        assertTrue(vals.contains(10))
+        assertTrue(vals.contains(500))
+    }
+
+    @Test
+    fun failedWriteIsSurfacedAndRetried() {
+        val context = RuntimeEnvironment.getApplication()
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        val dir = context.filesDir
+        assertTrue(dir.setWritable(false))
+        try {
+            queue.enqueue(EgvUpload("SN1", 1L, 100, 1))
+            assertTrue(queue.hasUnpersistedRows())
+        } finally {
+            assertTrue(dir.setWritable(true))
+        }
+        assertTrue(queue.persistNow())
+        assertFalse(queue.hasUnpersistedRows())
+        assertEquals(listOf(1L), ICanHealthCloudQueue(context).peek().map { it.timeMs })
     }
     @Test
     fun clearingAnotherInstanceInvalidatesAlreadyLoadedItems() {

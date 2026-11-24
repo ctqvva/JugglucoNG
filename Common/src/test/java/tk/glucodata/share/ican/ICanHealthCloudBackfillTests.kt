@@ -81,6 +81,24 @@ class ICanHealthCloudBackfillTests {
         val firstCall = source.calls.first()
         assertTrue(firstCall.first >= settings.lastSyncMs)
     }
+
+    @Test
+    fun backfillUsesItsOwnProgressWhenLiveSyncMarkerIsAhead() {
+        val context = RuntimeEnvironment.getApplication()
+        val client = ICanHealthCloudClient(FakeTransport())
+        val settings = ICanHealthCloudSettings(context)
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        val now = System.currentTimeMillis()
+        settings.lastSyncMs = now - 10_000L
+        settings.backfillProgressMs = now - 120_000L
+        val source = FakeGlucoseSource()
+        source.readings.add(ICanHealthCloudBackfill.Reading(now - 60_000L, 35, 0))
+        val result = ICanHealthCloudBackfill.backfill(client, settings, queue, source, days = 7)
+        assertEquals(1, result.count)
+        assertTrue(source.calls.first().first < settings.lastSyncMs)
+        assertEquals(35, queue.peek().single().mgdl)
+    }
 }
 
 class ICanHealthCloudBackfillTestApplication : Applic() {

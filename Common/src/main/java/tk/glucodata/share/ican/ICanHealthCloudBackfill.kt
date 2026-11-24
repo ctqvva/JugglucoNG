@@ -33,33 +33,24 @@ object ICanHealthCloudBackfill {
         days: Int = 7,
     ): BackfillResult {
         val now = System.currentTimeMillis()
-        val fromMs = if (settings.lastSyncMs > 0L) {
-            settings.lastSyncMs
-        } else {
-            now - days.toLong() * 24L * 60L * 60L * 1000L
+        val fromMs = when {
+            settings.backfillProgressMs > 0L -> settings.backfillProgressMs
+            settings.lastSyncMs > 0L -> settings.lastSyncMs
+            else -> now - days.toLong() * 24L * 60L * 60L * 1000L
         }
         val toMs = now
         val readings = glucoseSource.getReadings(fromMs, toMs)
         if (queue == null) {
-            var count = 0
-            for (reading in readings) {
-                if (settings.lastSyncMs > 0L && reading.timeMs <= settings.lastSyncMs) {
-                    continue
-                }
-                count++
-            }
-            return BackfillResult(count)
+            return BackfillResult(readings.count { it.timeMs > fromMs })
         }
-        var count = 0
-        for (reading in readings) {
-            if (settings.lastSyncMs > 0L && reading.timeMs <= settings.lastSyncMs) {
-                continue
-            }
-            val clamped = reading.mgdl.coerceIn(40, 400)
-            queue.enqueue(EgvUpload(serial = "", timeMs = reading.timeMs, mgdl = clamped, trend = reading.trend))
-            count++
+        val pending = readings.filter { it.timeMs > fromMs }
+        val accepted = queue.enqueueAll(pending.map {
+            EgvUpload(serial = "", timeMs = it.timeMs, mgdl = it.mgdl, trend = it.trend)
+        })
+        if (accepted > 0 && !queue.hasUnpersistedRows()) {
+            settings.backfillProgressMs = maxOf(settings.backfillProgressMs, pending.maxOf { it.timeMs })
         }
-        return BackfillResult(count)
+        return BackfillResult(accepted)
     }
 }
 

@@ -24,9 +24,8 @@ class ICanHealthCloudQueue(context: Context) {
     fun enqueue(egv: EgvUpload) {
         synchronized(lock) {
             sync()
-            val clamped = egv.copy(mgdl = egv.mgdl.coerceIn(MIN_MGDL, MAX_MGDL))
-            if (items.any { it.serial == clamped.serial && it.timeMs == clamped.timeMs }) return
-            items.add(clamped)
+            if (items.any { it.serial == egv.serial && it.timeMs == egv.timeMs }) return
+            items.add(egv)
             items.sortBy { it.timeMs }
             persist()
         }
@@ -39,10 +38,9 @@ class ICanHealthCloudQueue(context: Context) {
             val keys = items.map { it.serial to it.timeMs }.toHashSet()
             var added = 0
             for (egv in egvs) {
-                val clamped = egv.copy(mgdl = egv.mgdl.coerceIn(MIN_MGDL, MAX_MGDL))
-                val key = clamped.serial to clamped.timeMs
+                val key = egv.serial to egv.timeMs
                 if (!keys.add(key)) continue
-                items.add(clamped)
+                items.add(egv)
                 added++
             }
             if (added > 0) {
@@ -51,6 +49,13 @@ class ICanHealthCloudQueue(context: Context) {
             }
             return added
         }
+    }
+
+    fun hasUnpersistedRows(): Boolean = synchronized(lock) { dirty && items.isNotEmpty() }
+
+    fun persistNow(): Boolean = synchronized(lock) {
+        sync()
+        persist()
     }
 
     fun clear() {
@@ -199,7 +204,7 @@ class ICanHealthCloudQueue(context: Context) {
         }
     }
 
-    private fun persist() {
+    private fun persist(): Boolean {
         // sync() guarantees in-memory rows belong to the current account before
         // any mutation, so the durable copy records the current owner.
         itemsAccount = settings.accountKey
@@ -209,18 +214,13 @@ class ICanHealthCloudQueue(context: Context) {
             file.parentFile?.mkdirs()
             val tmp = java.io.File(file.parentFile, file.name + ".tmp")
             tmp.writeText(JSONObject().put("account", settings.accountKey).put("items", array).toString())
-            if (!tmp.renameTo(file)) {
-                file.writeText(tmp.readText())
-                tmp.delete()
-            }
+            check(tmp.renameTo(file)) { "atomic queue write failed" }
         }.isSuccess
         dirty = !ok
+        return ok
     }
 
     companion object {
-        private const val MIN_MGDL = 40
-        private const val MAX_MGDL = 400
-
         private val cache = java.util.concurrent.ConcurrentHashMap<String, ICanHealthCloudQueue>()
 
         /** One instance per backing file: callers share the same in-memory queue. */

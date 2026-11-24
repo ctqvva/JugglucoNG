@@ -1,11 +1,11 @@
 # iCan / SinoCare — the "server blob", `correctCode`, and history (investigation)
 
-Date: 2026-10-18 · Branch: `t3/ican-history-fetch` · PR: #635 · Working copy: `/Users/ctqwa/.t3/worktrees/JugglucoNG/t3-3c1a7693`
+Date: 2026-10-18 · Branch: `t3/ican-history-fetch` · PR: #635 · Working copy: `<working copy>`
 
 Living document: everything accumulated during this work —
 (1) verification of the claim "history only reads after a big blob arrives from the server and is written into the sensor";
 (2) what the vendor app does — primary reference: the current pure-iCan build (`com.sinocare.ican.health.ce` 01.17.00.19; Flutter part disassembled, Java part packed) — §3.6, §9; for comparison: the RU build `luch-ru-cgm-0.1.0-vc39` (plaintext dex), which contains the same `com.sinocare.cgm.cgm_sdk`;
-(3) analysis of the August TECNO LI7 logs (two iCGM-t6 sensors: "ours" `04SQ` and "official" `05FE`);
+(3) analysis of the August TECNO LI7 logs (two iCGM-t6 sensors: "ours" `<SN A>` and "official" `<SN B>`);
 (4) side finding: byte `0x14` in `0x2AAA` and GMT+8;
 (5) CE auto-calibration fix (PR #635);
 (6) the vendor app's own sensor lifecycle — why "repair an unprovisioned sensor by connecting the vendor app" is not viable (§3.6).
@@ -15,7 +15,7 @@ Living document: everything accumulated during this work —
 ## TL;DR
 
 1. **The claim is confirmed — only the location of the gate needed correcting.** The "big blob from the server" = `correctCode` (25 coefficients). The official app writes it into the sensor (at activation, or on its first connect to an unprovisioned sensor), and **without it the sensor refuses RACP history**: `TX 2A52 F1 …` → `RX 2A52 06 00 F1 0A`, zero records. Proven on hardware (§3.5): a sensor activated by OUR app never served a single history record; a sensor activated by the official app did.
-2. **The exact tell-tale is F6:** `RX 1C F6 01 xx xx`; `0xFFFF` ⇒ code not written (`hasWriteCorrectCode=false`, `j2.java:718-727`), otherwise written (500/510/530/600 observed). All known FFFF sensors were activated with our app (TECNO `<sensor SN prefix>…` Aug 17–18; HONOR `7EC00B8C…` Sep 29); all provisioned ones (F6 ≠ FFFF) had been serviced by the official app.
+2. **The exact tell-tale is F6:** `RX 1C F6 01 xx xx`; `0xFFFF` ⇒ code not written (`hasWriteCorrectCode=false`, `j2.java:718-727`), otherwise written (500/510/530/600 observed). All known FFFF sensors were activated with our app (TECNO `<sensor SN prefix>…` Aug 17–18; HONOR `<sensor SN prefix>…` Sep 29); all provisioned ones (F6 ≠ FFFF) had been serviced by the official app.
 3. **Second, independent story:** on the PROVISIONED sensor from the chat log (iCGM-t6 `<sensor SN prefix>…`, F6=500) history read fine, but exactly **one record** per connection: the driver only catches up its own tail (`from seq=<lastKnown+interval>`) and never re-reads the session. That is driver policy, separate from correctCode.
 4. **Side finding (important for the driver):** byte 7 of `0x2AAA` (`0x14` = 20) is a **vendor constant**, not a BT-spec timezone. The vendor SDK always writes `20, 0` there, and when reading it **ignores bytes 7–8** and interprets the wall clock as **GMT+8**. Our parser honestly reads `0x14` as +5:00 → session start shifts by (activation zone − 5h); in the August log that is exactly +3 hours (`drift=177..179min`) and a permanent `Distrusting session timeline`.
 5. **No repair path for an unprovisioned sensor.** "Connect the vendor app once to provision it" is withdrawn (§3.6): the vendor app gates on its cloud, does not adopt unknown sensors, and its sensor-lifecycle operations are unbind/terminate flows (owner's note: it would just kill the *wrong* sensor). The only working order is: **vendor app first, Juggluco after**.
@@ -63,7 +63,7 @@ Observed values (F6 ≠ 0xFFFF = provisioned):
 * our i3 (capture `re-work/05a-dump/gatt_auth_log.txt`, official app via LSPosed): `1c f6 01 58 02` → **0x0258 = 600**;
 * iCGM-t6 `<sensor SN prefix>…` (Aug 20, official activation): `1c f6 01 f4 01` → **0x01F4 = 500**;
 * realme RMX5566 (Aug 17): `01 FE` = 510; motorola edge 50 fusion (Aug 7): `12 02` = 530;
-* **`FF FF` (not provisioned)**: TECNO `<sensor SN prefix>…` (Aug 17–18, activated with our app) and HONOR `7EC00B8C…` (Sep 29) — see §3.5.
+* **`FF FF` (not provisioned)**: TECNO `<sensor SN prefix>…` (Aug 17–18, activated with our app) and HONOR `<sensor SN prefix>…` (Sep 29) — see §3.5.
 
 The exact meaning of a non-FFFF value is unknown (a marker of the written parameter set; the sensor never returns the coefficients themselves).
 
@@ -200,16 +200,16 @@ Found on Oct 18 by scanning every `juggluco-trace*` on disk. Five logs (copies i
 
 | file | window |
 |---|---|
-| `juggluco-trace-20260817-191054-tecno-04SQ-ourstarted.log` | Aug 17 18:53–19:11 |
-| `juggluco-trace-20260817-215156-tecno-04SQ-ourstarted.log` | Aug 17, fragment (92 lines) |
-| `juggluco-trace-20260817-222906-tecno-04SQ-ourstarted.log` | Aug 17 21:54–22:29 |
-| `juggluco-trace-20260818-185912-tecno-04SQ-ourstarted.log` | Aug 18 07:56–08:53 |
-| `juggluco-trace-20260818-203321-tecno-04SQ-ourstarted.log` | Aug 18 09:56–10:53 |
+| `juggluco-trace-20260817-191054-tecno-<SN A>-ourstarted.log` | Aug 17 18:53–19:11 |
+| `juggluco-trace-20260817-215156-tecno-<SN A>-ourstarted.log` | Aug 17, fragment (92 lines) |
+| `juggluco-trace-20260817-222906-tecno-<SN A>-ourstarted.log` | Aug 17 21:54–22:29 |
+| `juggluco-trace-20260818-185912-tecno-<SN A>-ourstarted.log` | Aug 18 07:56–08:53 |
+| `juggluco-trace-20260818-203321-tecno-<SN A>-ourstarted.log` | Aug 18 09:56–10:53 |
 
 Hardware is the same family: `iCGM-t6`, fw `4.2.3`, sw `V01.05.00.00_B0001`, `2AAB` = 480 h, address `<MAC>`.
 Counter: first log `offset=72` (18:53) ⇒ start ~17:41; last log `offset=1590` (≈26.5 h of life). History: **zero records across all five logs** — not a single `glucose history batch`/`imported`, ~59 read attempts (2+4+20+33).
 
-**Who activated it** — visible from authorization: `authUserId=P1TH04SQE525 from source=ZP1TH04SQE525 (recovered=null configured=null onboarding=…)`, and the sensor accepted our onboarding id **on the first try** (`1C F4 01`). That never happens with a sensor activated by the official app: there our id is rejected first (F4 → `1C F4 02 <payload>`) and the numeric id must be recovered (§3.2). ⇒ this sensor was activated by our scan; the official app never connected to it.
+**Who activated it** — visible from authorization: `authUserId=<USER_ID> from source=<USER_ID> (recovered=null configured=null onboarding=…)`, and the sensor accepted our onboarding id **on the first try** (`1C F4 01`). That never happens with a sensor activated by the official app: there our id is rejected first (F4 → `1C F4 02 <payload>`) and the numeric id must be recovered (§3.2). ⇒ this sensor was activated by our scan; the official app never connected to it.
 
 **F6 (correctCode state)** — identical in all four logs that contain it:
 
@@ -366,15 +366,15 @@ Bytes 7 and 8 are **never read at all**. (String-decode verification: `{75,73,27
 ## 8. Artifacts and how to reproduce
 
 **Logs (copies, this folder):** `ican-2026-08/`
-* chat of Aug 20, official activation (05FE): `juggluco-trace-20260820-080139-tecno.log`, `juggluco-trace-20260820-083057-tecno.log`;
-* our activation (04SQ, Aug 17–18, §3.5): `juggluco-trace-20260817-191054-tecno-04SQ-ourstarted.log`, `…-215156-…`, `…-222906-…`, `…-20260818-185912-…`, `…-20260818-203321-…`;
+* chat of Aug 20, official activation (<SN B>): `juggluco-trace-20260820-080139-tecno.log`, `juggluco-trace-20260820-083057-tecno.log`;
+* our activation (<SN A>, Aug 17–18, §3.5): `juggluco-trace-20260817-191054-tecno-<SN A>-ourstarted.log`, `…-215156-…`, `…-222906-…`, `…-20260818-185912-…`, `…-20260818-203321-…`;
 * second FFFF case (HONOR, Sep 29): `juggluco-trace-20260929-033421-honor-<sensor SN prefix>-ourstarted.log`, `…-173112-…`;
 * for comparison: `juggluco-trace-20260820-141034-pixel-anytime.log`, `chat-2026-08-20-history.png`.
 
 Found on Oct 18 by scanning every `juggluco-trace*` on disk; originals — in `~/Downloads/`.
 
-**Vendor decompilation (plaintext SDK):** `/Users/ctqwa/Downloads/luch-ru-cgm-0.1.0-vc39/`
-jadx output: `/private/var/folders/r0/sdf4rvb53pv9w_vxk9jf2ywm0000gn/T/opencode/luch-jadx/out/sources/com/sinocare/cgm/cgm_sdk/`
+**Vendor decompilation (plaintext SDK):** `<downloads>/luch-ru-cgm-0.1.0-vc39/`
+jadx output: `$TMP/luch-jadx/out/sources/com/sinocare/cgm/cgm_sdk/`
 * `j2.java` — BLE state machine (F3/F4/F6/F7/F2, RACP, `writeStartTime` 1115, `readHistoryGluRecord` ~1866-1940, F6 decode case 246 ~718, `a(0,true)` trigger ~930, chunk writer ~1760-1830)
 * `f1.java` — callbacks/gates (`n` onPrepareReadHistoryData 148, `t` onWriteCorrectCodeCompleted 202, `setEndTime` 515)
 * `BleDataUtilKt.java` — `2AAA` parsing (15-36, GMT+8)
@@ -383,7 +383,7 @@ jadx output: `/private/var/folders/r0/sdf4rvb53pv9w_vxk9jf2ywm0000gn/T/opencode/
 * `SinoBleManager.java` — public SDK API (`bindCgm(sn, userId, timeout)`, `startCgmTest`, `terminateCgm(TerminateType, testTime)`, `getShortSnFromActiveCode`); `cgm/TerminateType.java`, `d0.java` (`onDeviceTerminate`), `h2.java` (native terminate) — the terminate path; `j2.java` case 245 — its "reset reason" response
 * `AbstractC0533h.java` — date/byte helpers (native, `NCall`)
 
-**iCan CE APK (pure iCan, primary reference):** `re-research/ican-health-01-17-00-19.apk` (`com.sinocare.ican.health.ce`, 01.17.00.19, vc39). Persistent extracts: `re-research/icantmp/ce-20261018/` — Dart sources of the app's kit (`dart-flutter_modular_base/`), `pp.txt`/`objs.txt`/`blutter_frida.js`, `fix_ican_dynsym.py` (SHT_DYNSYM repair), `libapp_fixed.so` (blutter-ready input), `libsinoCgmSdk.so`, `ce-lang-en.json`, `blutter_ce_run4.log`. Full temp work dir: `$TMP/icanfresh/` (`/private/var/folders/r0/sdf4rvb53pv9w_vxk9jf2ywm0000gn/T/opencode/icanfresh`): extracted `lib/arm64-v8a/`, `blutter_ce_out4/` (complete disassembly), `ce_maps.txt`, `ce_shot*.png`, `tombstone_latest.txt` (anti-tamper crash). Also inside the APK: an `assets/agp/` web bundle (in-app page) — not analysed. NB: `dexA.bin`/`dexB.bin` in the same temp dir are from the unrelated AiDEX X app (`com.microtech.aidexx`) — ignored.
+**iCan CE APK (pure iCan, primary reference):** `re-research/ican-health-01-17-00-19.apk` (`com.sinocare.ican.health.ce`, 01.17.00.19, vc39). Persistent extracts: `re-research/icantmp/ce-20261018/` — Dart sources of the app's kit (`dart-flutter_modular_base/`), `pp.txt`/`objs.txt`/`blutter_frida.js`, `fix_ican_dynsym.py` (SHT_DYNSYM repair), `libapp_fixed.so` (blutter-ready input), `libsinoCgmSdk.so`, `ce-lang-en.json`, `blutter_ce_run4.log`. Full temp work dir: `$TMP/icanfresh/`: extracted `lib/arm64-v8a/`, `blutter_ce_out4/` (complete disassembly), `ce_maps.txt`, `ce_shot*.png`, `tombstone_latest.txt` (anti-tamper crash). Also inside the APK: an `assets/agp/` web bundle (in-app page) — not analysed. NB: `dexA.bin`/`dexB.bin` in the same temp dir are from the unrelated AiDEX X app (`com.microtech.aidexx`) — ignored.
 
 **Vendor RU-app Dart snapshot:** `~/Downloads/luch-ru-cgm-0.1.0-vc39/lib/arm64-v8a/libapp.so` → `strings -a` dump at `re-research/icantmp/luch-app-libapp-strings-0.1.0-vc39.txt` (flow/error names quoted in §3.6: `sensor.gate: cloud rejected sensor (terminated/not found)`, `DEVICE_ALREADY_BOUND`, `bind.cleanup_after_cloud_reject`, `endMonitoring`, `luch.sensor.last_terminated_sn`, …).
 
@@ -405,7 +405,7 @@ jadx output: `/private/var/folders/r0/sdf4rvb53pv9w_vxk9jf2ywm0000gn/T/opencode/
 
 Fixes (persisted in `re-research/icantmp/ce-20261018/` resp. the blutter checkout):
 * `fix_ican_dynsym.py` rewrites the decoy entry back to a real DYNSYM header (`type=11, addr=off=0x270, size=0x90, link=strtab(2), info=1, entsize=24`) — a 9-field patch in a copy of the `.so`. Stock blutter then works end-to-end.
-* blutter's `extract_dart_info.py` (`/Users/ctqwa/Dev/Apple/iglucco/blutter/`; backup saved as `extract_dart_info.py.orig`) is made tolerant for future files: `_kDartVmSnapshotData` is found by section **type** (or by the strtab that contains the name, parsing symbols right after it), and `extract_libflutter_info` scans the whole file when `.rodata` is missing (`libflutter.so` has the same wiped table). Note: LIEF (`lief.write`, `lief.ELF.Builder`) does **not** rebuild these names/sections.
+* blutter's `extract_dart_info.py` (`<blutter checkout>`; backup saved as `extract_dart_info.py.orig`) is made tolerant for future files: `_kDartVmSnapshotData` is found by section **type** (or by the strtab that contains the name, parsing symbols right after it), and `extract_libflutter_info` scans the whole file when `.rodata` is missing (`libflutter.so` has the same wiped table). Note: LIEF (`lief.write`, `lief.ELF.Builder`) does **not** rebuild these names/sections.
 * Result: `blutter_ce_out4/` — full Dart 3.9.0 disassembly (`asm/`, `pp.txt`, `objs.txt`, `blutter_frida.js`); snapshot hash `97ff04a728735e6b6b098bdf983faaba`, flags `product, no-code_comments, …, compressed-pointers` (identical to the RU build → same engine).
 * The RU build's `libapp.so` kept its DYNSYM entry (only names are wiped), so blutter's C++ part accepts it as-is; the Python pre-step there needs the same fallback (or the `--dart-version` bypass).
 

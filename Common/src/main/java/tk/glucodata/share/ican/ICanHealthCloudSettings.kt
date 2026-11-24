@@ -68,6 +68,12 @@ class ICanHealthCloudSettings(
             prefs.edit().putLong(KEY_LAST_SYNC_MS, value).apply()
         }
 
+    var backfillProgressMs: Long
+        get() = prefs.getLong(KEY_BACKFILL_PROGRESS_MS, 0L)
+        set(value) {
+            prefs.edit().putLong(KEY_BACKFILL_PROGRESS_MS, value).apply()
+        }
+
     var password: String
         get() {
             val raw = prefs.getString(KEY_PASSWORD, "") ?: ""
@@ -101,7 +107,9 @@ class ICanHealthCloudSettings(
         val encryptedPassword = passwordCipher.encrypt(password)
         synchronized(sessionLock) {
             val nextAccount = accountKey(result.model.tenantId, result.model.userId, account)
-            val progress = if (accountKey == nextAccount) lastSyncMs else 0L
+            val sameAccount = accountKey == nextAccount
+            val progress = if (sameAccount) lastSyncMs else 0L
+            val backfillProgress = if (sameAccount) backfillProgressMs else 0L
             prefs.edit()
                 .putString(KEY_ACCOUNT, account.trim())
                 .putString(KEY_TOKEN, result.sessionId)
@@ -110,6 +118,7 @@ class ICanHealthCloudSettings(
                 .putString(KEY_TENANT_ID, result.model.tenantId)
                 .putString(KEY_PASSWORD, encryptedPassword)
                 .putLong(KEY_LAST_SYNC_MS, progress)
+                .putLong(KEY_BACKFILL_PROGRESS_MS, backfillProgress)
                 .apply()
         }
     }
@@ -140,6 +149,7 @@ class ICanHealthCloudSettings(
         private const val KEY_TENANT_ID = "ican_cloud_tenant_id"
         private const val KEY_USER_ID = "ican_cloud_user_id"
         private const val KEY_LAST_SYNC_MS = "ican_cloud_last_sync_ms"
+        private const val KEY_BACKFILL_PROGRESS_MS = "ican_cloud_backfill_progress_ms"
         private const val KEY_PASSWORD = "ican_cloud_password"
     }
 }

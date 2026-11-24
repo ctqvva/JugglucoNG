@@ -31,6 +31,14 @@ class Log:
         with open(path, "r", errors="replace") as f:
             for line in f:
                 self.handle(line.rstrip("\r\n"))
+        for key in list(self.chunks):
+            self.flush(key)
+
+    def flush(self, key):
+        pending = self.chunks.pop(key, None)
+        if pending:
+            _, label, parts, t = pending
+            self.event(t, key[0], key[1], label + "".join(parts))
 
     def handle(self, line):
         m = TT.match(line)
@@ -41,23 +49,24 @@ class Log:
             if not mv:
                 return
             t, pid, tid, msg = mv.group(2), int(mv.group(3)), -1, mv.group(4)
+        key = (pid, tid)
         ls = label_split(msg)
-        if ls is not None:
-            label, n, part = ls
-            key = (pid, tid, label)
-            prev = self.chunks.get(key)
-            if prev is not None and prev[0] == n - 1 and n > 1:
-                parts = prev[1] + [part]
-                self.chunks[key] = (n, parts)
-                # Only emit once the final chunk has arrived.
-                # (We do not know the total count; emit when a gap breaks the run.)
-                return
-            self.chunks[key] = (n, [part])
-            if n != 1:
-                return
-            # Defer emission until the run completes: emit immediately only for single-chunk.
-            return self.event(t, pid, tid, label + part)
-        self.event(t, pid, tid, msg)
+        if ls is None:
+            # A non-chunked line closes any pending run on this thread.
+            self.flush(key)
+            self.event(t, pid, tid, msg)
+            return
+        label, n, part = ls
+        prev = self.chunks.get(key)
+        if prev is not None and (n == 1 or n != prev[0] + 1):
+            self.flush(key)
+            prev = None
+        if prev is None:
+            self.chunks[key] = [n, label, [part], t]
+        else:
+            prev[0] = n
+            prev[2].append(part)
+            prev[3] = t
 
     def event(self, t, pid, tid, msg):
         if msg.startswith("CIPHER-INIT "):
@@ -146,37 +155,64 @@ def mask_key(value, label):
     return "<redacted %s len=%d>" % (label, len(value))
 
 
-def sanitize_report(out):
-    """Redact raw key material so reports are safe to share by default.
+PRIVATE_PARTS = {
+    "id", "userid", "user", "useuserid", "account", "accountid", "phone", "phonenum",
+    "mobile", "email", "sn", "serial", "devicesn", "apparatussn", "mac", "macaddr",
+    "apparatusmacaddr", "token", "accesstoken", "refreshtoken", "secret", "password",
+    "passwd", "authorization", "auth", "sign", "signature", "credential", "key",
+    "secretkey", "devicekey", "firstname", "lastname", "name", "deviceid",
+    "phonenumber", "recordid", "cgmrecordid", "follower", "reader", "nickname",
+}
+PRIVATE_PARTS = {p.lower() for p in PRIVATE_PARTS}
+ENCODED_FIELDS = {
+    "hex", "head", "hex0", "in_hex", "out_hex", "keyhex", "key", "iv", "b64",
+    "rsa_hex", "data_hex", "cipher", "ciphertext", "payload", "wrapped", "data",
+}
+INLINE_PRIVATE = re.compile(
+    r'("(?:[A-Za-z0-9_]*(?:user|account|phone|mobile|email|serial|sn|mac|token|'
+    r'secret|password|authorization|auth|sign|key|name|id)[A-Za-z0-9_]*)"'
+    r'\s*:\s*")[^"]*(")', re.I)
+URL_PRIVATE = re.compile(
+    r"([?&])(key|data|phone_num|phone|account|email|token|sign|userId|sn|password)=[^&]*", re.I)
 
-    Plaintext payloads (requests[].aes.in_hex, responses[].plain, gson JSON) are the
-    analysis target and are kept; key material, IVs and RSA-wrapped keys are not.
+
+def is_private_key(key):
+    key = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", str(key)).lower()
+    return any(p in PRIVATE_PARTS for p in re.split(r"[^a-z0-9]+", key))
+
+
+def sanitize_report(out):
+    """Redact private fields and raw key material so reports are safe to share by default.
+
+    Structure, timestamps and protocol fields are kept; accounts, serials, tokens,
+    key material and encoded payloads are masked in both decoded and encoded copies.
+    Use --raw for the full local report.
     """
-    for r in out.get("requests", []):
-        w = r.get("wrapped")
-        if w:
-            for f, label in (("in_hex", "aes key"), ("out_hex", "rsa ciphertext")):
-                if f in w:
-                    w[f] = mask_key(w[f], label)
-        a = r.get("aes")
-        if a:
-            for f, label in (("iv", "iv"), ("keyHex", "aes key")):
-                if f in a:
-                    a[f] = mask_key(a[f], label)
-        url = r.get("url")
-        if url:
-            r["url"] = re.sub(r"([?&])key=[^&]*", r"\1key=<redacted>", url)
-    for r in out.get("responses", []):
-        for f, label in (("iv", "iv"), ("keyHex", "aes key")):
-            if f in r:
-                r[f] = mask_key(r[f], label)
-        if "out_hex" in r:
-            r["out_hex"] = mask_key(r["out_hex"], "plaintext")
-    for r in out.get("license", []) + out.get("constant_ops", []):
-        for f in ("in_hex", "out_hex", "iv", "keyHex"):
-            if f in r:
-                r[f] = mask_key(r[f], f)
-    return out
+    def clean(value, key=None):
+        if isinstance(value, dict):
+            return {k: clean(v, k) for k, v in value.items()}
+        if isinstance(value, list):
+            return [clean(v, key) for v in value]
+        if isinstance(value, str):
+            stripped = value.lstrip()
+            if stripped.startswith(("{", "[")):
+                try:
+                    return clean(json.loads(value))
+                except Exception:
+                    pass
+            value = URL_PRIVATE.sub(r"\1\2=<redacted>", value)
+            value = INLINE_PRIVATE.sub(r"\1<redacted>\2", value)
+            label = str(key).lower() if key is not None else ""
+            if key is not None and (is_private_key(key) or label in ENCODED_FIELDS):
+                return mask_key(value, str(key))
+            if re.search(r"Bearer\s+\S+", value):
+                return re.sub(r"Bearer\s+\S+", "Bearer <redacted>", value)
+            return value
+        if key is not None and is_private_key(key):
+            return "<redacted>"
+        return value
+
+    return clean(out)
 
 
 def main():
@@ -203,8 +239,8 @@ def main():
             heads = [(x["len"], x["head"]) for x in grp if x["kind"] == "OUT" and x.get("head")]
             lens = [x["len"] for x in grp if x["kind"] == "OUT"]
             alg, mode, key, iv = e.get("alg") or "", e["mode"], e.get("keyHex"), e.get("iv")
-            rec = {"t": e["t"], "pid": e["pid"], "alg": alg, "mode": mode, "iv": iv, "out_hex": outs,
-                   "in_hex": ins, "out_len": lens[0] if lens else None}
+            rec = {"t": e["t"], "pid": e["pid"], "alg": alg, "mode": mode, "key": key, "iv": iv,
+                   "out_hex": outs, "in_hex": ins, "out_len": lens[0] if lens else None}
             if heads:
                 rec["head_len"], rec["head"] = heads[0]
             if alg.startswith("RSA") and mode == "ENC":

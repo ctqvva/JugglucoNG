@@ -234,6 +234,29 @@ class ICanHealthCloudClientTests {
     }
 
     @Test
+    fun uploadUndecryptableEnvelopeIsNotAcknowledged() {
+        val foreignKey = ICanHealthCloudJson.getRandomString()
+        val envelope = JSONObject()
+            .put("code", 200)
+            .put("data", ICanHealthCloudJson.aesEncrypt(foreignKey, """{"code":0}"""))
+            .toString()
+        val transport = FakeTransport { _ -> HttpResult(200, envelope) }
+        val result = ICanHealthCloudClient(transport).uploadGlucose(
+            "tok", "SN1", listOf(EgvUpload("SN1", 1L, 100, 1)),
+        )
+        assertTrue(result is UploadResult.Failed)
+        assertEquals(ICanHealthCloudError.Kind.TRANSIENT, (result as UploadResult.Failed).kind)
+    }
+
+    @Test
+    fun followerListTransportFailureIsNotAnEmptyList() {
+        val transport = FakeTransport { _ -> HttpResult(503, "unavailable") }
+        assertThrows(Exception::class.java) {
+            ICanHealthCloudClient(transport).followerList("tok")
+        }
+    }
+
+    @Test
     fun uploadPlaintextWithoutExplicitCodeIsNotAcknowledged() {
         val transport = FakeTransport { _ -> HttpResult(200, """{"data":"invalid-encrypted-payload"}""") }
         val result = ICanHealthCloudClient(transport).uploadGlucose(

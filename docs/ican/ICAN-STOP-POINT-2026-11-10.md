@@ -26,7 +26,7 @@
 4. Protocol open items: AES IV, upload schema (MAC), heartbeat — require real server.
 
 ## APK
-- Installed on Redmi (4HU4QKA6FMFIUC89): JugglucoNG-1.2.8-Alpha-debug.
+- Installed on Redmi (`<device serial>`): JugglucoNG-1.2.8-Alpha-debug.
 
 ## Key files
 - Common/src/main/java/tk/glucodata/share/ican/ICanHealthCloud*.kt

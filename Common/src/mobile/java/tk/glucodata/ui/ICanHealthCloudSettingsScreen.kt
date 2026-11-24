@@ -49,11 +49,14 @@ import androidx.navigation.NavController
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
+import tk.glucodata.data.icanBackfillTrendIndex
 import tk.glucodata.share.ican.ICanHealthCloudClient
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
@@ -72,6 +75,40 @@ internal fun passwordFieldLocked(
     storedAccount: String,
     password: String,
 ): Boolean = hasSession && password.isNotBlank() && account.trim() == storedAccount.trim()
+
+private val backfillScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+private fun startIcanBackfill(context: android.content.Context, expectedAccountKey: String?) {
+    backfillScope.launch {
+        runCatching {
+            val settings = ICanHealthCloudSettings(context)
+            if (!settings.enabled || settings.token.isBlank()) return@runCatching
+            val since = settings.backfillProgressMs.takeIf { it > 0L }
+                ?: settings.lastSyncMs.takeIf { it > 0L }
+                ?: System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
+            val serial = tk.glucodata.SensorIdentity.resolveMainSensor() ?: return@runCatching
+            val roomSerial = tk.glucodata.SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+            val readings = tk.glucodata.data.HistoryRepository(context)
+                .storedReadingsByMinuteForSensor(roomSerial, since).values
+            val rows = readings.map {
+                tk.glucodata.XdripBackfill.Row(
+                    it.timestamp, it.value, it.rawValue, it.rate, it.firstStoredAt,
+                )
+            }
+            val rateByTime = rows.associateBy({ it.timeMs }, { it.rate })
+            val displayed = tk.glucodata.XdripBackfill.displayedRows(roomSerial, rows)
+            ICanHealthCloudUploader.onHistoryStored(
+                roomSerial,
+                displayed.map {
+                    ICanHealthCloudUploader.Row(
+                        roomSerial, it.timeMs, it.mgdl, icanBackfillTrendIndex(rateByTime[it.timeMs]),
+                    )
+                },
+                expectedAccountKey = expectedAccountKey,
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,36 +163,9 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                         hasSession = true
                         storedAccount = loginAccount
                         s.enabled = enabled
-                        val loginAccountKey = s.accountKey
                         status = s.lastSyncMs
                         testMessage = context.getString(R.string.ican_health_logged_in)
-                        val since = if (s.lastSyncMs > 0L) s.lastSyncMs else
-                            System.currentTimeMillis() - 7L * 24L * 60L * 60L * 1000L
-                        coroutineScope.launch(Dispatchers.IO) {
-                            runCatching {
-                                val serial = tk.glucodata.SensorIdentity.resolveMainSensor() ?: return@runCatching
-                                val roomSerial = tk.glucodata.SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
-                                val repo = tk.glucodata.data.HistoryRepository(context)
-                                val readings = repo.storedReadingsByMinuteForSensor(roomSerial, since).values
-                                val rows = readings.map {
-                                    tk.glucodata.XdripBackfill.Row(
-                                        it.timestamp,
-                                        it.value,
-                                        it.rawValue,
-                                        it.rate,
-                                        it.firstStoredAt,
-                                    )
-                                }
-                                val displayed = tk.glucodata.XdripBackfill.displayedRows(roomSerial, rows)
-                                ICanHealthCloudUploader.onHistoryStored(
-                                    roomSerial,
-                                    displayed.map {
-                                        ICanHealthCloudUploader.Row(roomSerial, it.timeMs, it.mgdl, 0)
-                                    },
-                                    expectedAccountKey = loginAccountKey,
-                                )
-                            }
-                        }
+                        startIcanBackfill(context, s.accountKey)
                     }
                     is ICanHealthCloudClient.LoginResult.Failed -> {
                         testMessage = context.getString(R.string.ican_health_login_failed, result.message.ifBlank { result.kind.name })
@@ -203,6 +213,13 @@ fun ICanHealthCloudSettingsScreen(navController: NavController) {
                 onCheckedChange = {
                     enabled = it
                     save()
+                    if (it) {
+                        val settings = ICanHealthCloudSettings(context)
+                        if (settings.token.isNotBlank()) {
+                            startIcanBackfill(context, settings.accountKey)
+                        }
+                        ICanHealthCloudUploader.resume(context)
+                    }
                     testMessage = null
                 },
                 icon = Symbols.CloudUploadFilled

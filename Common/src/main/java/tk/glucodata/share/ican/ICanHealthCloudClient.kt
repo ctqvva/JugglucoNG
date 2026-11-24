@@ -180,9 +180,17 @@ class ICanHealthCloudClient(
             }
             return UploadResult.Ok
         }
-        if (bodyCode != null) return UploadResult.Ok
-        // Neither plaintext JSON nor a decryptable envelope: do not acknowledge the batch.
+        if (bodyCode != null && !hasEncryptedDataField(response.body)) return UploadResult.Ok
+        // An undecodable envelope is not an acknowledgement: keep the batch queued.
         return UploadResult.Failed(ICanHealthCloudError.Kind.TRANSIENT, 0, "unreadable response")
+    }
+
+    private fun hasEncryptedDataField(body: String): Boolean {
+        val trimmed = body.trim()
+        if (!trimmed.startsWith("{")) return false
+        val json = runCatching { JSONObject(trimmed) }.getOrNull() ?: return false
+        val data = json.opt("data")
+        return data is String && data.isNotBlank()
     }
 
     private fun plainBodyCode(body: String): Int? {
@@ -197,9 +205,11 @@ class ICanHealthCloudClient(
         return json.optInt("code", Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
     }
 
+    class FollowerLoadFailed(message: String = "follower list unavailable") : RuntimeException(message)
+
     fun followerList(token: String): List<FollowerFriends> {
-        val json = encryptedGet(token, "sino-ican/v1/follower/list") ?: return emptyList()
-        val array = json.optJSONArray("data") ?: return emptyList()
+        val json = encryptedGet(token, "sino-ican/v1/follower/list") ?: throw FollowerLoadFailed()
+        val array = json.optJSONArray("data") ?: throw FollowerLoadFailed()
         return (0 until array.length()).map { index ->
             FollowerFriends.fromJson(array.optJSONObject(index))
         }

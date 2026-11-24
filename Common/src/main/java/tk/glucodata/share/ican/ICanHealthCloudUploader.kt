@@ -178,7 +178,7 @@ class ICanHealthCloudUploader(
                 val context = tk.glucodata.Applic.app ?: return
                 if (!ICanHealthCloudSettings.isEnabled(context)) return
                 val current = stateFor(context)
-                val accepted = synchronized(ICanHealthCloudSettings.sessionLock) {
+                synchronized(ICanHealthCloudSettings.sessionLock) {
                     if (!current.settings.enabled || (expectedAccountKey != null &&
                         current.settings.accountKey != expectedAccountKey)) return
                     current.queue.enqueueAll(
@@ -187,7 +187,10 @@ class ICanHealthCloudUploader(
                         },
                     )
                 }
-                if (accepted > 0) {
+                if (current.queue.hasUnpersistedRows()) {
+                    executor.execute { runCatching { current.queue.persistNow() } }
+                }
+                if (current.queue.size() > 0) {
                     requestFlush(context)
                 }
             } catch (error: Throwable) {
@@ -222,11 +225,25 @@ class ICanHealthCloudUploader(
             }
         }
 
+        @JvmStatic
+        fun resume(context: Context) {
+            try {
+                val appContext = context.applicationContext
+                if (!ICanHealthCloudSettings.isEnabled(appContext)) return
+                val current = stateFor(appContext)
+                if (current.settings.token.isBlank()) return
+                current.queue.persistNow()
+                if (current.queue.size() > 0) requestFlush(appContext)
+            } catch (error: Throwable) {
+                tk.glucodata.Log.stack(LOG_ID, "resume", error)
+            }
+        }
+
         private fun stateFor(context: Context): State {
             synchronized(lock) {
                 state?.let { return it }
                 val settings = ICanHealthCloudSettings(context.applicationContext)
-                val queue = ICanHealthCloudQueue(context.applicationContext)
+                val queue = ICanHealthCloudQueue.shared(context.applicationContext)
                 val client = ICanHealthCloudClient()
                 val created = State(queue, client, settings)
                 state = created
