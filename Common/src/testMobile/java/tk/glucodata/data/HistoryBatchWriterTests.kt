@@ -589,6 +589,27 @@ class HistoryBatchWriterTests {
     }
 
     @Test
+    fun whatIsStoredLeavesTheJournalEvenWithoutRoomForASecondCopy() {
+        val scope = newScope()
+        val writer = writer(scope, store = { sensor, readings ->
+            if (sensor != serial) HistoryBatchWriter.Stored(BucketReplaceOutcome.FAILED)
+            else repository.writeBuckets(sensor, readings, 60_000L)
+        })
+        // Where the new copy would be staged: writing it fails.
+        assertTrue(File(journalFile.path + ".new/occupied").mkdirs())
+        writer.submit("X-STUCK", listOf(reading(0, sensor = "X-STUCK")))
+        writer.submit(serial, listOf(reading(0, 111f)))
+        eventually("stored") { writer.pendingCount(serial) == 0 }
+        runBlocking { writer.exclusive { repository.writeBuckets(serial, listOf(reading(0, 222f)), 60_000L) } }
+        assertEquals(1, journalFile.readLines().size)
+        scope.cancel()
+
+        writer().resume()
+        eventually("the stuck one is stored") { rows("X-STUCK").isNotEmpty() }
+        assertEquals(mapOf(0 to 222f), rows())
+    }
+
+    @Test
     fun aLineCutShortDoesNotSwallowTheNextBatch() {
         databaseBroken = true
         val first = newScope()

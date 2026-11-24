@@ -66,15 +66,19 @@ internal class HistoryBatchJournal(private val file: File) {
         }
     }
 
-    /** Makes the file hold exactly [readings]. */
+    /**
+     * Makes the file hold exactly [readings]. False when some of them are not in it; what is
+     * no longer pending is gone either way, unless the file cannot even be deleted.
+     */
     fun replaceWith(readings: List<HistoryReading>): Boolean {
+        val lines = encode(readings)
+        val staged = File(file.path + ".new")
         return try {
             if (readings.isEmpty()) {
                 if (file.exists() && !file.delete()) throw IOException("could not delete $file")
             } else {
                 file.parentFile?.mkdirs()
-                val staged = File(file.path + ".new")
-                staged.writeBytes(encode(readings))
+                staged.writeBytes(lines)
                 if (!staged.renameTo(file)) throw IOException("could not replace $file")
             }
             tornTail = false
@@ -82,6 +86,28 @@ internal class HistoryBatchJournal(private val file: File) {
             true
         } catch (e: IOException) {
             Log.stack(TAG, "replaceWith", e)
+            staged.delete()
+            replaceInPlace(lines, readings.size)
+        }
+    }
+
+    /**
+     * No room for a second copy. Readings that were stored meanwhile must not stay in the file,
+     * a restart would write them over what replaced them since; so the old file goes first, and
+     * its space usually takes the new lines.
+     */
+    private fun replaceInPlace(lines: ByteArray, count: Int): Boolean {
+        if (file.exists() && !file.delete()) return false
+        lineCount = 0
+        tornTail = false
+        if (count == 0) return true
+        return try {
+            file.writeBytes(lines)
+            lineCount = count
+            true
+        } catch (e: IOException) {
+            Log.stack(TAG, "replaceInPlace", e)
+            tornTail = file.length() > 0L
             false
         }
     }
