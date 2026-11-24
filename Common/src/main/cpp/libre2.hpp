@@ -79,8 +79,10 @@ struct scanresult_t {
 	const ScanData *scan;
     } ;
 string serial;
-// Set when a scan rebuilt a missing or unusable saved state of a known sensor.
-bool stateRebuilt=false;
+// Set when a scan rebuilt the missing saved state of a known sensor: no BLE stream could be created
+// for it. A state that loads but does not fit has a running stream, which loads the rebuilt state on
+// its next frame (libre2stream::processTooth), so its link is left alone.
+bool missingStateRebuilt=false;
 int sensorindex=sensors->sensorindex(serial.data());
 SensorGlucoseData *hist=sensorindex<0?nullptr:sensors->getSensorData(sensorindex);
 

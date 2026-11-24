@@ -31,7 +31,8 @@ touches either Libre 3 path.
 - The open backend reads the algorithm state the vendor library saved, when its layout and
   wear length match. Streaming continues without a scan.
 - A state it cannot use is rebuilt at the next NFC scan from the sensor memory and the saved
-  start time. BLE frames wait for that scan. When the state was missing altogether no BLE
+  start time. BLE frames wait for that scan, and a running stream then reads its next frame from
+  the rebuilt state without a restart. When the state was missing altogether no BLE
   stream existed, so the scan that saves the rebuilt state also restarts Bluetooth with the
   saved login record, also when it shows no glucose (warm-up or a reading error).
 - A saved state whose offsets point outside the file is treated as missing.
@@ -85,7 +86,9 @@ previous one; further smoothing is the app's.
 A BLE frame without a current value still keeps the history it carries and the state it
 advances. "Sensor error" shows once three received frames in a row had no value, not on a single
 gap; a frame that never arrived does not count. "Replace sensor?" still follows after ten minutes.
-Frames during the warm-up never count toward either.
+Frames during the warm-up never count toward either. A frame the backend refuses (no usable saved
+state, or a failed checksum, time or wear check) says nothing about the sensor: it does not count
+and does not end an error. The log names the reason.
 
 History points take the sample of their own quarter hour. The native code numbered the points by
 position, so a new point computed in the first two minutes of a quarter hour got the sample of

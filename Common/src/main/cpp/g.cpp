@@ -324,7 +324,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
             backup->resensordata(ab.sensorindex);
             return 8 << 16 | gluval;
           }
-          if (ab.stateRebuilt) {
+          if (ab.missingStateRebuilt) {
             // Without a usable state no BLE stream was created for this sensor; restart it
             // with the saved provisioning now that the scan rebuilt the state.
             LOGAR("state rebuilt, reset BLE");
@@ -347,7 +347,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
           ret = 5 << 16 | (60 - min) << 24;
           if (enablestreaming)
             ret |= (0x80 << 16);
-          else if (ab.stateRebuilt)
+          else if (ab.missingStateRebuilt)
             ret |= restartBleFlag;
           return ret;
         } else {
@@ -371,7 +371,7 @@ extern "C" JNIEXPORT jint JNICALL fromjava(nfcdata)(JNIEnv *env, jclass thiz,
 
           } else {
             ret = 6 << 16;
-            if (ab.stateRebuilt)
+            if (ab.missingStateRebuilt)
               ret |= restartBleFlag;
           }
           if (senso->finished) {
@@ -2608,7 +2608,8 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     }
   } else
     delete newstate;
-  sdata->hist->setSensorError(nu);
+  // A refused frame (no usable state, checksum, time or wear check) says nothing about the sensor.
+  // processTooth counts the sensor's own errors, after the warm-up.
   return 0LL;
 }
 

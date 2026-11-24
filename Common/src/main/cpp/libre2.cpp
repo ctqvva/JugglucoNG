@@ -198,7 +198,7 @@ Abbott::scanresult_t Abbott::ProcessOne(scandata *data) {
         }
     if(hist&&hist->getstarttime()>basesecs) {
         const auto res=callAbbottAlg(data);
-        stateRebuilt=!hadState&&state&&state->good();
+        missingStateRebuilt=!hadState&&state&&state->good();
         return res;
         }
     if(!state||!state->good()) {
