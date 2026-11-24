@@ -44,6 +44,22 @@ class InstaraTransportTests {
     }
 
     @Test
+    fun staleDisconnectClearsTheGattReferenceSoResumeCanConnect() {
+        val body = source.substringAfter("if (!acceptConnectionAttemptCallback")
+            .substringBefore("super.onConnectionStateChange")
+        assertTrue(body.contains("mBluetoothGatt = null"))
+    }
+
+    @Test
+    fun historyCursorIsStoredOnlyAfterBlockingWriteSucceeds() {
+        val body = source.substringAfter("override fun history(").substringBefore("private fun mirror(")
+        assertTrue(body.contains("storeSensorHistoryBatchBlocking"))
+        val stored = body.indexOf("storeSensorHistoryBatchBlocking")
+        val cursor = body.indexOf("setLastSequenceId")
+        assertTrue("cursor must be saved after the blocking write", cursor > stored)
+    }
+
+    @Test
     fun stateChangeRejectsRetiredGattBeforeDelegating() {
         assertTrue(source.contains("acceptConnectionAttemptCallback(gatt, newState)"))
     }

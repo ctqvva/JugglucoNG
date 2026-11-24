@@ -19,7 +19,7 @@ object InstaraRegistry {
         val previous = InstaraPersistence.getSerialNumber(context)
         if (previous.isNotBlank() && !previous.equals(sensorId, ignoreCase = true)) {
             InstaraPersistence.setLastBtAddress(context, "")
-            InstaraPersistence.setLastSequenceId(context, 0)
+            // The history cursor is keyed by sensor id, so no shared cursor needs resetting.
             if (activationMs == null) InstaraPersistence.setSensorStartMs(context, 0L)
             runCatching { Natives.finishSensorById(previous) }
                 .onFailure { Log.stack(TAG, "addSensor(finishSensorById)", it) }

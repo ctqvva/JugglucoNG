@@ -9,7 +9,7 @@ object InstaraPersistence {
     private const val KEY_SN = "instara_sn"
     private const val KEY_BT_ADDRESS = "instara_bt_address"
     private const val KEY_SENSOR_START_MS = "instara_sensor_start_ms"
-    private const val KEY_LAST_SEQUENCE_ID = "instara_last_sequence_id"
+    private const val KEY_LAST_SEQUENCE_ID_PREFIX = "instara_last_sequence_id_"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -39,10 +39,14 @@ object InstaraPersistence {
         prefs(context).edit().putLong(KEY_SENSOR_START_MS, startMs).apply()
     }
 
-    fun getLastSequenceId(context: Context): Int = prefs(context).getInt(KEY_LAST_SEQUENCE_ID, 0)
+    /** Cursor is per sensor id: replacing a sensor can never inherit another sensor's history. */
+    private fun sequenceKey(sensorId: String): String = KEY_LAST_SEQUENCE_ID_PREFIX + sensorId
 
-    fun setLastSequenceId(context: Context, sequenceId: Int) {
-        prefs(context).edit().putInt(KEY_LAST_SEQUENCE_ID, sequenceId).apply()
+    fun getLastSequenceId(context: Context, sensorId: String): Int =
+        prefs(context).getInt(sequenceKey(sensorId), 0)
+
+    fun setLastSequenceId(context: Context, sensorId: String, sequenceId: Int) {
+        prefs(context).edit().putInt(sequenceKey(sensorId), sequenceId).apply()
     }
 
     fun clear(context: Context) {

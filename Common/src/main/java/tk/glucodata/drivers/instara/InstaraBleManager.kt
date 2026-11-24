@@ -113,7 +113,12 @@ class InstaraBleManager(
         noteFirstGattCallback("onConnectionStateChange", gatt)
         if (!acceptConnectionAttemptCallback(gatt, newState)) {
             if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
-            if (newState == BluetoothProfile.STATE_DISCONNECTED) runCatching { gatt.close() }
+            if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                runCatching { gatt.close() }
+                // setPause(true) makes the base class reject this callback; without clearing the
+                // reference Resume would call disconnect() on the closed GATT and never reconnect.
+                if (mBluetoothGatt === gatt) mBluetoothGatt = null
+            }
             return
         }
         super.onConnectionStateChange(gatt, status, newState)
@@ -202,7 +207,7 @@ class InstaraBleManager(
             val ctx = Applic.app
             val startMs = ctx?.let { InstaraPersistence.getSensorStartMs(it) } ?: 0L
             val intervalMs = 5L * 60L * 1000L
-            val cursor = ctx?.let { InstaraPersistence.getLastSequenceId(it) } ?: 0
+            val cursor = ctx?.let { InstaraPersistence.getLastSequenceId(it, SerialNumber) } ?: 0
             session = InstaraSession(SerialNumber, startMs, intervalMs, cursor).also { it.onConnected() }
             connectionStatus = "Waiting for sensor"
             UiRefreshBus.requestStatusRefresh()
@@ -328,15 +333,17 @@ class InstaraBleManager(
             if (stop) return
             val timestamps = LongArray(readings.size) { readings[it].timestampMs }
             val valuesMgdl = FloatArray(readings.size) { InstaraSession.mmolToMgdl(readings[it].raw) }
-            HistorySyncAccess.storeSensorHistoryBatchAsync(
+            val stored = HistorySyncAccess.storeSensorHistoryBatchBlocking(
                 SerialNumber,
                 timestamps,
                 valuesMgdl,
                 FloatArray(readings.size),
             )
-            mirror(readings)
-            val maxSequence = readings.maxOf { it.sequenceId }
-            Applic.app?.let { InstaraPersistence.setLastSequenceId(it, maxSequence) }
+            if (stored) {
+                mirror(readings)
+                val maxSequence = readings.maxOf { it.sequenceId }
+                Applic.app?.let { InstaraPersistence.setLastSequenceId(it, SerialNumber, maxSequence) }
+            }
         }
         UiRefreshBus.requestDataRefresh()
     }
@@ -370,8 +377,10 @@ class InstaraBleManager(
         deviceRejected = false
         failedAttempts = 0
         resetTransport()
-        mBluetoothGatt?.let { runCatching { it.disconnect() } }
-            ?: connectDevice(0L)
+        mBluetoothGatt?.let { runCatching { it.close() } }
+        mBluetoothGatt = null
+        mActiveBluetoothDevice = null
+        connectDevice(0L)
         UiRefreshBus.requestStatusRefresh()
     }
 
