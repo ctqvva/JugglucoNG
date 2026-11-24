@@ -338,7 +338,13 @@ private fun SensorCard(
     val id = sensorId
         ?: runCatching { Natives.lastsensorname() }.getOrNull().takeUnless { it.isNullOrEmpty() }
         ?: return
-    val sensor = remember(id, revision, now / 60_000L) { loadWearSensorPresentation(id, now) }
+    val sensor = remember(id, now / 60_000L) { loadWearSensorPresentation(id, now) }
+    // Keep the 30-day history lookup inside loadWearSensorPresentation on its
+    // 1-minute cadence, while refreshing the label immediately when WearPrefsSync
+    // or a live BLE name update bumps UiRefreshBus.revision.
+    val displayName = remember(id, revision, sensor.displayName) {
+        tk.glucodata.SensorDisplayName.resolve(id)
+    }
     val progressColor = when {
         (sensor.lifecycleProgress ?: 0f) >= 0.95f -> MaterialTheme.colorScheme.error
         (sensor.lifecycleProgress ?: 0f) >= 0.80f -> MaterialTheme.colorScheme.tertiary
@@ -370,7 +376,7 @@ private fun SensorCard(
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                sensor.displayName,
+                displayName,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
