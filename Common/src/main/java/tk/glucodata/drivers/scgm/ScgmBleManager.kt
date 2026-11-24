@@ -481,9 +481,8 @@ class ScgmBleManager(
         val context = Applic.app
         if (!deviceCodeMatches(info.deviceCode)) {
             Log.w(TAG, "SCGM terminal info device code mismatch; rejecting sensor")
-            phase = Phase.ERROR
             deviceVerified = false
-            runCatching { closeGattTransport() }
+            resetFailedSession()
             return
         }
         deviceVerified = true
@@ -654,6 +653,8 @@ class ScgmBleManager(
     override fun onBluetoothAdapterUnavailable() {
         phase = Phase.IDLE
         connectScheduled = false
+        nextConnectAllowedAtMs = 0L
+        silentConnectAttempts = 0
         mainHandler.removeCallbacks(reconnectRunnable)
         mainHandler.removeCallbacks(scanTimeoutRunnable)
         synchronized(stateLock) {

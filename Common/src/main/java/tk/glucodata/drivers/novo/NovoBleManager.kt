@@ -497,6 +497,8 @@ class NovoBleManager(
     override fun onBluetoothAdapterUnavailable() {
         phase = Phase.IDLE
         connectScheduled = false
+        nextConnectAllowedAtMs = 0L
+        silentConnectAttempts = 0
         mainHandler.removeCallbacks(reconnectRunnable)
         mainHandler.removeCallbacks(scanTimeoutRunnable)
         synchronized(stateLock) {

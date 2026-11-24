@@ -262,6 +262,9 @@ class BioeBleManager(
                     }
                 }
             }
+            nextConnectAtMs = System.currentTimeMillis() + CONNECT_RETRY_DELAY_MS
+            mainHandler.removeCallbacks(reconnectRunnable)
+            mainHandler.postDelayed(reconnectRunnable, CONNECT_RETRY_DELAY_MS + 500L)
         }
         if (mBluetoothGatt === gatt) {
             closeGattTransport()
