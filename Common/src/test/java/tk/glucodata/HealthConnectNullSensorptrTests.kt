@@ -61,7 +61,7 @@ class HealthConnectNullSensorptrTests {
             1,
             Regex("[.]writeAll[(]").findAll(callback).count(),
         )
-        val export = callback.substring(callback.indexOf("private void exportToHealthConnect()"))
+        val export = callback.substring(callback.indexOf("protected final void exportToHealthConnect()"))
             .substringBefore("protected void handleGlucoseResult(")
         val check = export.indexOf("sensorptr == 0L")
         val claim = export.indexOf("dohealth(this)")
@@ -80,8 +80,8 @@ class HealthConnectNullSensorptrTests {
         val health = flattened("Common/src/mobile/java/tk/glucodata/HealthConnection.kt")
         val entry = health.substring(health.indexOf("private fun writeAllIns(")).substringBefore("scope.launch")
         val check = entry.indexOf("sensorptr == 0L")
-        val claim = entry.indexOf("active.getAndSet(true)")
-        assertTrue("writeAllIns must check sensorptr and take the active flag", check >= 0 && claim >= 0)
-        assertTrue("a 0 sensorptr must not take the active flag or start a coroutine", check < claim)
+        val queue = entry.indexOf("pendingExports[sensorptr] = sensorName")
+        assertTrue("writeAllIns must check sensorptr before queueing an export", check >= 0 && queue >= 0)
+        assertTrue("a 0 sensorptr must not enter the export queue", check < queue)
     }
 }
