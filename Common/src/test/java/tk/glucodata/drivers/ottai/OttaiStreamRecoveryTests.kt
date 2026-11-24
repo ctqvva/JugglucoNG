@@ -449,21 +449,20 @@ class OttaiStreamRecoveryTests {
         assertTrue(holes().isEmpty())
     }
 
-    private fun finishFrame(vararg dataNos: Int) {
+    private fun finishFrame(window: OttaiBleManager.HistoryWindowProgress?, vararg dataNos: Int) {
         set("streamStartTimeMs", oldStart)
         val batch = dataNos.map(::reading)
         val emitted = batch.mapIndexed { i, r -> invoke("emitReading", r, false, r.monitorTimeMs, batch, i, false)!! }
         val states = OttaiBleManager::class.java.declaredClasses.single { it.simpleName == "HistoryFrameStates" }
-            .declaredConstructors.first { it.parameterCount == 2 }.apply { isAccessible = true }
-            .newInstance(dataNos.toList(), dataNos.toList())
+            .declaredConstructors.first { it.parameterCount == 3 }.apply { isAccessible = true }
+            .newInstance(window, dataNos.toList(), dataNos.toList())
         invoke("finishHistoryFrame", emitted, states, System.currentTimeMillis())
     }
 
     @Test
     fun aWindowClosesOverTheRecordsTheStoreTook() {
         holes() += OttaiBleManager.HistoryHole(100, 102, 0)
-        inFlight(100, 102)
-        finishFrame(100, 101)
+        finishFrame(inFlight(100, 102), 100, 101)
         assertNull(get("historyWindow"))
         assertTrue(holes().isEmpty())
     }
@@ -472,10 +471,41 @@ class OttaiStreamRecoveryTests {
     fun aWindowDoesNotCloseOverRecordsTheStoreRefused() {
         submission = HistoryWriteOutcome.FAILED
         holes() += OttaiBleManager.HistoryHole(100, 102, 0)
-        inFlight(100, 102)
-        finishFrame(100, 101)
+        finishFrame(inFlight(100, 102), 100, 101)
         assertNull(get("historyWindow"))
         assertEquals(listOf(OttaiBleManager.HistoryHole(100, 102, 1)), holes())
+    }
+
+    @Test
+    fun aFrameOfAReplacedRequestIsStoredButLeavesTheNewRequestAlone() {
+        val old = inFlight(100, 102)
+        // The live path restarts the chain over an overlapping range before the frame is settled.
+        val current = inFlight(95, 102)
+        holes() += OttaiBleManager.HistoryHole(95, 102, 0)
+
+        finishFrame(old, 100, 101)
+
+        assertEquals(listOf(2), submitted.map { it.size })
+        assertSame(current, get("historyWindow"))
+        assertEquals(-1, current.bestDataNo)
+        assertTrue(current.states.all { it == 0.toByte() })
+        assertEquals(listOf(OttaiBleManager.HistoryHole(95, 102, 0)), holes())
+    }
+
+    @Test
+    fun aFrameThatAnsweredNoRequestLeavesALaterOneAlone() {
+        val current = inFlight(95, 102)
+        finishFrame(null, 100, 101)
+        assertSame(current, get("historyWindow"))
+        assertEquals(-1, current.bestDataNo)
+    }
+
+    @Test
+    fun aFrameStillQueuedWhenTheSensorIsStoppedStoresNothing() {
+        val window = inFlight(100, 102)
+        SuperGattCallback::class.java.getDeclaredField("stop").apply { isAccessible = true }.setBoolean(manager, true)
+        finishFrame(window, 100, 101)
+        assertTrue(submitted.isEmpty())
     }
 
     private fun liveEmission(r: OttaiReading, arrival: Long): Triple<Long, Boolean, Boolean> {

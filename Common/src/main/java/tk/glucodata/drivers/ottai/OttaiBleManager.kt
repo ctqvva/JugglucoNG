@@ -3392,8 +3392,8 @@ class OttaiBleManager(
      * chunk. Record the miss first: a detected-gap window stays on the hole ledger until its data
      * arrives or the attempt cap retires it (truly-empty overshoot ranges).
      */
-    private fun abandonHistoryWindow() {
-        val window = historyWindow ?: return
+    private fun abandonHistoryWindow(window: HistoryWindowProgress?) {
+        window ?: return
         // After the frames that arrived before this one; see finishHistoryFrame.
         handler.post {
             synchronized(historyChainLock) {
@@ -3411,6 +3411,7 @@ class OttaiBleManager(
      * callback must not wait for.
      */
     private fun finishHistoryFrame(readings: List<EmittedReading>, frame: HistoryFrameStates, receivedAtMs: Long) {
+        if (stop) return
         if (readings.isEmpty()) {
             continueHistoryAfterPayload(frame)
             return
@@ -3419,7 +3420,7 @@ class OttaiBleManager(
         if (!storeDecodedReadings(readings, live = false)) {
             // Not safely taken by the store: the window must not close over these as delivered.
             val refused = readings.mapTo(HashSet()) { it.dataNo }
-            settled = HistoryFrameStates(frame.arrived, frame.settled.filterNot { it in refused })
+            settled = HistoryFrameStates(frame.window, frame.arrived, frame.settled.filterNot { it in refused })
         }
         readings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
         if (!continueHistoryAfterPayload(settled)) {
@@ -3442,6 +3443,9 @@ class OttaiBleManager(
             handleEndedLiveBuffer(cipher, source)
             return
         }
+        // The request this frame answers. Its books are done later, on the handler, and the live
+        // path may have replaced the request by then.
+        val requestedWindow = if (live) null else historyWindow
         val activeMs = effectiveActiveTimeMs()
         val receivedAtMs = System.currentTimeMillis()
         val kind = if (live) "live" else "history"
@@ -3460,7 +3464,7 @@ class OttaiBleManager(
             if (live) {
                 handler.postDelayed({ requestRecentHistory("empty-live") }, 1_800L)
             } else {
-                abandonHistoryWindow()
+                abandonHistoryWindow(requestedWindow)
             }
             return
         }
@@ -3486,7 +3490,7 @@ class OttaiBleManager(
                 SerialNumber?.let { id -> Applic.app?.let { OttaiRegistry.saveRecordSize(it, id, widthBeforeFrame) } }
                 Log.w(TAG, "record size restored=$widthBeforeFrame after a discarded frame")
             }
-            abandonHistoryWindow()
+            abandonHistoryWindow(requestedWindow)
             return
         }
         val previousDataNo = lastDataNo
@@ -3532,7 +3536,9 @@ class OttaiBleManager(
             if (emitted != null || refused) settledDataNos?.add(r.record.dataNo)
         }
         // Every plausible record that is not settled arrived and is deferred; see RECORD_DEFERRED.
-        val historyStates = settledDataNos?.let { HistoryFrameStates(plausible.map { r -> r.record.dataNo }, it) }
+        val historyStates = settledDataNos?.let {
+            HistoryFrameStates(requestedWindow, plausible.map { r -> r.record.dataNo }, it)
+        }
         if (historyStates != null) {
             handler.post { finishHistoryFrame(emittedReadings, historyStates, receivedAtMs) }
             return
@@ -4970,11 +4976,18 @@ class OttaiBleManager(
         return true
     }
 
-    /** The plausible records of one history frame, and which of them settled. */
-    private class HistoryFrameStates(val arrived: List<Int>, val settled: List<Int>)
+    /** The window a history frame answers, its plausible records, and which of them settled. */
+    private class HistoryFrameStates(
+        val window: HistoryWindowProgress?,
+        val arrived: List<Int>,
+        val settled: List<Int>,
+    )
 
     private fun continueHistoryAfterPayload(frame: HistoryFrameStates): Boolean = synchronized(historyChainLock) {
-        val window = historyWindow ?: return pendingHistoryReason != null
+        // Closed or replaced since the frame arrived: whoever did that moved the chain on, and
+        // this frame must not mark, re-arm or complete a request it does not answer.
+        if (historyWindow !== frame.window) return true
+        val window = frame.window ?: return pendingHistoryReason != null
         // Callers pass the ceiling-filtered plausible records: only plausible progress resets the
         // stall budget or completes the window, so a corrupt frame can neither starve the
         // watchdog bound nor mark the chunk done. "Progress" means further than this chunk has

@@ -155,13 +155,31 @@ class OttaiRecordWidthTests {
         assertEquals(listOf(OttaiBleManager.HistoryHole(5335, 5352, 0)), get("historyHoles"))
     }
 
+    @Test
+    fun aFrameIsSettledAgainstTheRequestInFlightWhenItArrived() {
+        set("learnedRecordSize", 9)
+        set("historyWindow", OttaiBleManager.HistoryWindowProgress(5335, 5352))
+        val replacement = OttaiBleManager.HistoryWindowProgress(5335, 5352)
+        deliver(lowCurrentPage, live = false, source = "notify") { set("historyWindow", replacement) }
+        assertSame(replacement, get("historyWindow"))
+        assertEquals(-1, replacement.bestDataNo)
+        // An undecodable answer to the old request must not give up the new one either.
+        set("historyWindow", OttaiBleManager.HistoryWindowProgress(5335, 5352))
+        deliver(ByteArray(8), live = false, source = "notify") { set("historyWindow", replacement) }
+        assertSame(replacement, get("historyWindow"))
+    }
+
     private fun hex(s: String) = s.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-    private fun deliver(payload: ByteArray, live: Boolean, source: String) {
+    private fun deliver(payload: ByteArray, live: Boolean, source: String, beforeHandler: () -> Unit = {}) {
+        // A history frame is stored and settled on the driver's handler, held here until it is due.
+        val looper = org.robolectric.Shadows.shadowOf((get("handler") as android.os.Handler).looper)
+        looper.pause()
         OttaiBleManager::class.java.getDeclaredMethod("handleGlucosePayload", ByteArray::class.java,
             Boolean::class.javaPrimitiveType, String::class.java).apply { isAccessible = true }
             .invoke(manager, OttaiCrypto.encryptPayload(payload, key)!!, live, source)
-        // A history frame is stored and settled on the driver's handler.
-        org.robolectric.Shadows.shadowOf((get("handler") as android.os.Handler).looper).idle()
+        beforeHandler()
+        looper.idle()
+        looper.unPause()
     }
     private fun notify(payload: ByteArray) = notifyCipher(OttaiCrypto.encryptPayload(payload, key)!!)
     private fun notifyCipher(cipher: ByteArray) {
