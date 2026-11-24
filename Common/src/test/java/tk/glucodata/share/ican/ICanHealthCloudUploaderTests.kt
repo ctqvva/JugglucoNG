@@ -2,6 +2,7 @@ package tk.glucodata.share.ican
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -48,6 +49,39 @@ class ICanHealthCloudUploaderTests {
         val result = uploader.flush()
         assertTrue(result is ICanHealthCloudUploader.FlushResult.Success || result is ICanHealthCloudUploader.FlushResult.Ok)
         assertEquals(0, queue.size())
+    }
+
+    @Test
+    fun duplicateBackfillRowsStillAdvanceTheCursor() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.enabled = true
+        settings.token = "tok"
+        settings.userId = "patient-a"
+        val accountKey = settings.accountKey
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        val rows = listOf(EgvUpload("SN1", 1L, 100, 1), EgvUpload("SN1", 2L, 110, 1))
+        queue.enqueueAll(rows)
+        settings.backfillProgressMs = 0L
+        assertTrue(ICanHealthCloudUploader.durableBackfillRows(queue, settings, rows, accountKey))
+        assertEquals(2L, settings.backfillProgressMs)
+    }
+
+    @Test
+    fun backfillCursorIsNotWrittenForAnotherAccount() {
+        val context = RuntimeEnvironment.getApplication()
+        val settings = ICanHealthCloudSettings(context)
+        settings.enabled = true
+        settings.token = "tok"
+        settings.userId = "patient-a"
+        val oldKey = settings.accountKey
+        val queue = ICanHealthCloudQueue(context)
+        queue.remove(queue.peek())
+        settings.userId = "patient-b"
+        val rows = listOf(EgvUpload("SN1", 1L, 100, 1))
+        assertFalse(ICanHealthCloudUploader.durableBackfillRows(queue, settings, rows, oldKey))
+        assertEquals(0L, settings.backfillProgressMs)
     }
 
     @Test

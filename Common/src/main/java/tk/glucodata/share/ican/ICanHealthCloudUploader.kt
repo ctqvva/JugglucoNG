@@ -174,6 +174,35 @@ class ICanHealthCloudUploader(
             val settings: ICanHealthCloudSettings,
         )
 
+        /**
+         * A batch is safe once every requested row is in the durable queue, even when
+         * enqueueAll() added no new rows (duplicate replay). The cursor write is fenced
+         * by the same session lock and account key as the enqueue, so a concurrent
+         * login switch cannot publish the previous account's progress.
+         */
+        internal fun durableBackfillRows(
+            queue: ICanHealthCloudQueue,
+            settings: ICanHealthCloudSettings,
+            rows: List<EgvUpload>,
+            expectedAccountKey: String?,
+        ): Boolean = synchronized(ICanHealthCloudSettings.sessionLock) {
+            if (!settings.enabled || settings.token.isBlank() ||
+                (expectedAccountKey != null && settings.accountKey != expectedAccountKey)
+            ) return false
+            if (!queue.hasUnpersistedRows() && rows.all { row ->
+                    queue.peek().any { it.serial == row.serial && it.timeMs == row.timeMs }
+                }
+            ) {
+                if (rows.isNotEmpty()) {
+                    settings.backfillProgressMs = maxOf(
+                        settings.backfillProgressMs, rows.maxOf { it.timeMs },
+                    )
+                }
+                return true
+            }
+            false
+        }
+
         @JvmStatic
         fun onHistoryStored(
             sensorSerial: String,

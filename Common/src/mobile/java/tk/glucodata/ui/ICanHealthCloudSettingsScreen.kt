@@ -57,8 +57,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tk.glucodata.R
 import tk.glucodata.data.icanBackfillTrendIndex
+import tk.glucodata.share.ican.EgvUpload
 import tk.glucodata.share.ican.ICanHealthCloudBackfill
 import tk.glucodata.share.ican.ICanHealthCloudClient
+import tk.glucodata.share.ican.ICanHealthCloudQueue
 import tk.glucodata.share.ican.ICanHealthCloudSettings
 import tk.glucodata.share.ican.ICanHealthCloudUploader
 import tk.glucodata.ui.components.AppTopBar
@@ -96,7 +98,12 @@ private fun startIcanBackfill(context: android.content.Context, expectedAccountK
             }
             val rateByTime = rows.associateBy({ it.timeMs }, { it.rate })
             val displayed = tk.glucodata.XdripBackfill.displayedRows(roomSerial, rows)
-            val queued = ICanHealthCloudUploader.onHistoryStored(
+            val uploads = displayed.map {
+                EgvUpload(
+                    roomSerial, it.timeMs, it.mgdl, icanBackfillTrendIndex(rateByTime[it.timeMs]),
+                )
+            }
+            ICanHealthCloudUploader.onHistoryStored(
                 roomSerial,
                 displayed.map {
                     ICanHealthCloudUploader.Row(
@@ -105,9 +112,9 @@ private fun startIcanBackfill(context: android.content.Context, expectedAccountK
                 },
                 expectedAccountKey = expectedAccountKey,
             )
-            if (queued && displayed.isNotEmpty()) {
-                settings.backfillProgressMs = maxOf(settings.backfillProgressMs, displayed.maxOf { it.timeMs })
-            }
+            ICanHealthCloudUploader.durableBackfillRows(
+                ICanHealthCloudQueue.shared(context), settings, uploads, expectedAccountKey,
+            )
         }
     }
 }
