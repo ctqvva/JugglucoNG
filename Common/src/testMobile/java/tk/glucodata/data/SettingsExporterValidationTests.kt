@@ -10,6 +10,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -240,6 +243,88 @@ class SettingsExporterValidationTests {
                     )
                 }
             },
+            "boolean food detail referenceGrams" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("referenceGrams", true))
+                    )
+                }
+            },
+            "non-positive food detail referenceGrams" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("referenceGrams", 0))
+                    )
+                }
+            },
+            "string food detail fiberGrams" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("fiberGrams", "5"))
+                    )
+                }
+            },
+            "boolean food detail kcal" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("kcal", false))
+                    )
+                }
+            },
+            "string food detail isLiquid" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("isLiquid", "yes"))
+                    )
+                }
+            },
+            "string food detail useCount" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("useCount", "2"))
+                    )
+                }
+            },
+            "string food detail lastPortionIndex" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("lastPortionIndex", "0"))
+                    )
+                }
+            },
+            "numeric food detail brand" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("brand", 42))
+                    )
+                }
+            },
+            "numeric food detail portions" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(JSONObject().put("foodId", 20).put("portions", 123))
+                    )
+                }
+            },
+            "malformed food detail portions json" to {
+                validV4Payload().apply {
+                    getJSONObject("journalData").put(
+                        "foodDetails",
+                        JSONArray().put(
+                            JSONObject().put("foodId", 20).put("portions", """[{"kind":"invalid","grams":10}]""")
+                        )
+                    )
+                }
+            },
             "wrong cloneTombstones type" to {
                 validV4Payload().apply {
                     getJSONObject("journalData").put("cloneTombstones", JSONObject())
@@ -349,21 +434,35 @@ class SettingsExporterValidationTests {
         assertExistingStatePreserved()
         assertNoTempFilesLeft()
 
-        // 2. Failure during commit after settings.dat was already replaced rolls back settings.dat.
+        // 2. Failure during commit after settings.dat was written in-place rolls back settings.dat
+        //    on the same inode so live native mmaps remain valid.
+        val settingsFile = File(context.filesDir, "settings.dat")
+        val settingsInodeBefore = fileKey(settingsFile)
         val commitFailure = SettingsExporter.importPayloadForTest(
             context = context,
             payload = replacement,
-            replaceNativeFile = { staged, target, bytes ->
-                if (target.name == "backup.dat") throw IOException("simulated rename failure")
-                if (!staged.renameTo(target)) {
+            replaceNativeFile = { staged, target, bytes, existedBefore ->
+                if (target.name == "backup.dat") throw IOException("simulated replace failure")
+                if (existedBefore) {
+                    RandomAccessFile(target, "rw").use { raf ->
+                        raf.seek(0L)
+                        raf.write(bytes)
+                        raf.setLength(bytes.size.toLong())
+                    }
+                    staged.delete()
+                } else if (!staged.renameTo(target)) {
                     target.writeBytes(bytes)
                     staged.delete()
                 }
             }
         )
         assertTrue(commitFailure.isFailure)
-        assertExistingStatePreserved()
+        assertExistingPreferencesAndNativeFilesPreserved()
+        assertEquals(settingsInodeBefore, fileKey(settingsFile))
         assertNoTempFilesLeft()
+
+        // Reseed journal before checking directory conflict so full state matches.
+        seedExistingState()
 
         // 3. Failure when a target path is not a regular file (directory) preserves other state.
         val orBackupDir = File(context.filesDir, "orbackup.dat").apply { mkdirs() }
@@ -384,7 +483,9 @@ class SettingsExporterValidationTests {
     }
 
     @Test
-    fun journalFailureAfterSettingsWritesRollsBackPreferencesAndNativeFiles() = runBlocking {
+    fun journalFailureAfterSettingsWritesRollsBackPreferencesAndKeepsMappedNativeInode() = runBlocking {
+        val settingsFile = File(context.filesDir, "settings.dat")
+        val settingsInodeBefore = fileKey(settingsFile)
         history.openHelper.writableDatabase.execSQL(
             """
             CREATE TRIGGER fail_journal_insert BEFORE INSERT ON journal_entries WHEN NEW.id = 99
@@ -405,14 +506,15 @@ class SettingsExporterValidationTests {
             .put(
                 "nativeSettingsFiles",
                 JSONObject()
-                    .put("settings.dat", nativeFileEntry("new-settings-should-rollback"))
-                    .put("orbackup.dat", nativeFileEntry("created-file-should-be-removed"))
+                    .put("settings.dat", nativeFileEntry("new-settings-should-not-touch-live"))
+                    .put("orbackup.dat", nativeFileEntry("created-file-should-not-exist"))
             )
 
         val result = SettingsExporter.importPayload(context, backup)
 
         assertTrue(result.isFailure)
         assertExistingPreferencesAndNativeFilesPreserved()
+        assertEquals(settingsInodeBefore, fileKey(settingsFile))
         assertFalse(File(context.filesDir, "orbackup.dat").exists())
         assertNoTempFilesLeft()
     }
@@ -601,6 +703,9 @@ class SettingsExporterValidationTests {
         }.orEmpty()
         assertTrue("Unexpected leftover temp files: ${leftover.map { it.name }}", leftover.isEmpty())
     }
+
+    private fun fileKey(file: File): Any? =
+        Files.readAttributes(file.toPath(), BasicFileAttributes::class.java).fileKey()
 
     private suspend fun importJsonText(text: String): Result<SettingsExporter.ImportSummary> =
         importBytes(text.toByteArray(Charsets.UTF_8), ".json")

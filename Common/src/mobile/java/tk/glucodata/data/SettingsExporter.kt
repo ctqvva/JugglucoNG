@@ -21,11 +21,13 @@ import tk.glucodata.data.food.FoodDetailsBackup
 import tk.glucodata.data.food.FoodDetailsEntity
 import tk.glucodata.data.food.FoodLibrary
 import tk.glucodata.data.food.FoodLibraryDatabase
+import tk.glucodata.data.food.FoodPortions
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
+import java.io.RandomAccessFile
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 
@@ -159,7 +161,7 @@ object SettingsExporter {
         payload: JSONObject,
         requireJournalData: Boolean = true,
         writeNativeFile: (File, ByteArray) -> Unit = ::defaultWriteNativeFile,
-        replaceNativeFile: (File, File, ByteArray) -> Unit = ::defaultReplaceNativeFile
+        replaceNativeFile: (File, File, ByteArray, Boolean) -> Unit = ::defaultReplaceNativeFile
     ): Result<ImportSummary> = importSettings(
         context = context,
         requireJournalData = requireJournalData,
@@ -171,7 +173,7 @@ object SettingsExporter {
         context: Context,
         requireJournalData: Boolean,
         writeNativeFile: (File, ByteArray) -> Unit = ::defaultWriteNativeFile,
-        replaceNativeFile: (File, File, ByteArray) -> Unit = ::defaultReplaceNativeFile,
+        replaceNativeFile: (File, File, ByteArray, Boolean) -> Unit = ::defaultReplaceNativeFile,
         read: (Context) -> JSONObject
     ): Result<ImportSummary> {
         val appContext = context.applicationContext
@@ -345,24 +347,65 @@ object SettingsExporter {
 
     private fun parseFoodDetails(array: JSONArray?): List<FoodDetailsEntity> {
         if (array == null) return emptyList()
-        for (index in 0 until array.length()) {
-            val item = array.opt(index) as? JSONObject
-                ?: throw IllegalArgumentException("Invalid food detail record at index $index")
-            val foodId = item.strictLong("foodId")
-            require(foodId != null && foodId > 0L) { "Invalid food detail ID at index $index" }
+        return buildList(array.length()) {
+            for (index in 0 until array.length()) {
+                val item = array.opt(index) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid food detail record at index $index")
+                val foodId = item.strictLong("foodId")
+                require(foodId != null && foodId > 0L) { "Invalid food detail ID at index $index" }
+                val referenceGrams = if (item.isNull("referenceGrams")) {
+                    null
+                } else {
+                    val value = item.strictFloat("referenceGrams")
+                    require(value != null && value > 0f) {
+                        "Invalid food detail referenceGrams at index $index"
+                    }
+                    value
+                }
+                val rawPortions = item.strictNullableString("portions")?.trim().orEmpty()
+                val encodedPortions = if (rawPortions.isEmpty()) {
+                    ""
+                } else {
+                    val expectedCount = if (rawPortions.startsWith("[")) {
+                        JSONArray(rawPortions).length()
+                    } else {
+                        rawPortions.split(',').size
+                    }
+                    val decoded = FoodPortions.decode(rawPortions)
+                    require(decoded.size == expectedCount) {
+                        "Invalid food detail portions at index $index"
+                    }
+                    FoodPortions.encode(decoded)
+                }
+                val kept = item.strictBooleanOrDefault("kept", true)
+                add(
+                    FoodDetailsEntity(
+                        foodId = foodId,
+                        referenceGrams = referenceGrams,
+                        portions = encodedPortions,
+                        fiberGrams = item.strictNullableFloat("fiberGrams"),
+                        kcal = item.strictNullableFloat("kcal"),
+                        brand = item.strictNullableString("brand")?.takeIf { it.isNotEmpty() },
+                        barcode = item.strictNullableString("barcode")?.takeIf { it.isNotEmpty() },
+                        sourceKey = item.strictNullableString("sourceKey")?.takeIf { it.isNotEmpty() },
+                        isLiquid = item.strictBooleanOrDefault("isLiquid", false),
+                        kept = kept,
+                        useCount = item.strictIntOrDefault("useCount", 0),
+                        lastUsedAt = item.strictLongOrDefault("lastUsedAt", 0L),
+                        lastQuantity = item.strictNullableFloat("lastQuantity"),
+                        lastPortionIndex = item.strictNullableInt("lastPortionIndex"),
+                        hasOwnAbsorption = item.strictBooleanOrDefault("hasOwnAbsorption", kept)
+                    )
+                )
+            }
         }
-        val parsed = FoodDetailsBackup.fromJson(array)
-        require(parsed.size == array.length()) {
-            "settings food details contains ${array.length() - parsed.size} invalid record(s)"
-        }
-        return parsed
     }
 
     private suspend fun restoreSettings(
         context: Context,
         replacement: ValidatedImport,
         writeNativeFile: (File, ByteArray) -> Unit,
-        replaceNativeFile: (File, File, ByteArray) -> Unit
+        replaceNativeFile: (File, File, ByteArray, Boolean) -> Unit
     ): ImportSummary {
         val nativeTx = NativeFilesTransaction(
             filesDir = context.filesDir,
@@ -370,12 +413,15 @@ object SettingsExporter {
             writeFile = writeNativeFile,
             replaceFile = replaceNativeFile
         )
-        val nativeFileCount = nativeTx.commit()
         var prefsRollback: SharedPreferencesRollback? = null
         try {
+            // Stage native files to temp files before mutating any live state, then commit them
+            // last so failed preference or journal writes never touch live mmap'd native files.
+            nativeTx.stage()
             val (preferencesSummary, rollback) = applySharedPreferences(context, replacement.preferences)
             prefsRollback = rollback
             val journalSummary = importJournalData(context, replacement.journal)
+            val nativeFileCount = nativeTx.commit()
             return ImportSummary(
                 sharedPreferenceFiles = preferencesSummary.first,
                 preferenceValues = preferencesSummary.second,
@@ -386,16 +432,18 @@ object SettingsExporter {
             )
         } catch (failure: Throwable) {
             try {
-                prefsRollback?.rollback()
-            } catch (rollbackFailure: Throwable) {
-                failure.addSuppressed(rollbackFailure)
-            }
-            try {
                 nativeTx.rollback()
             } catch (rollbackFailure: Throwable) {
                 failure.addSuppressed(rollbackFailure)
             }
+            try {
+                prefsRollback?.rollback()
+            } catch (rollbackFailure: Throwable) {
+                failure.addSuppressed(rollbackFailure)
+            }
             throw failure
+        } finally {
+            nativeTx.cleanupStagedFiles()
         }
     }
 
@@ -751,8 +799,27 @@ object SettingsExporter {
         }
     }
 
-    private fun defaultReplaceNativeFile(staged: File, target: File, bytes: ByteArray) {
-        if (!staged.renameTo(target)) {
+    private fun writeFileInPlace(target: File, bytes: ByteArray) {
+        RandomAccessFile(target, "rw").use { raf ->
+            raf.seek(0L)
+            raf.write(bytes)
+            raf.setLength(bytes.size.toLong())
+            raf.fd.sync()
+        }
+    }
+
+    private fun defaultReplaceNativeFile(
+        staged: File,
+        target: File,
+        bytes: ByteArray,
+        existedBefore: Boolean
+    ) {
+        if (existedBefore) {
+            // Native code keeps settings.dat/backup.dat mmap'd in the live process; overwrite
+            // in-place so rollback or subsequent writes keep using the mapped inode.
+            writeFileInPlace(target, bytes)
+            staged.delete()
+        } else if (!staged.renameTo(target)) {
             defaultWriteNativeFile(target, bytes)
             staged.delete()
         }
@@ -762,14 +829,14 @@ object SettingsExporter {
         private val filesDir: File,
         private val files: List<ValidatedNativeFile>,
         private val writeFile: (File, ByteArray) -> Unit,
-        private val replaceFile: (File, File, ByteArray) -> Unit
+        private val replaceFile: (File, File, ByteArray, Boolean) -> Unit
     ) {
         private val originals = LinkedHashMap<String, ByteArray?>()
         private val stagedFiles = LinkedHashMap<String, File>()
         private val committedNames = mutableListOf<String>()
 
-        fun commit(): Int {
-            if (files.isEmpty()) return 0
+        fun stage() {
+            if (files.isEmpty()) return
             if (!filesDir.exists() && !filesDir.mkdirs()) {
                 throw IOException("Could not create native settings directory")
             }
@@ -777,38 +844,30 @@ object SettingsExporter {
                 throw IOException("Native settings path is not a directory")
             }
 
-            try {
-                files.forEach { file ->
-                    val target = File(filesDir, file.name)
-                    if (target.exists() && !target.isFile) {
-                        throw IOException("Native settings target is not a regular file: ${file.name}")
-                    }
-                    originals[file.name] = if (target.isFile) target.readBytes() else null
-                    val staged = File(filesDir, ".${file.name}.restore.tmp")
-                    if (staged.exists() && !staged.delete()) {
-                        throw IOException("Could not clear staged native settings file: ${file.name}")
-                    }
-                    stagedFiles[file.name] = staged
-                    writeFile(staged, file.bytes)
+            files.forEach { file ->
+                val target = File(filesDir, file.name)
+                if (target.exists() && !target.isFile) {
+                    throw IOException("Native settings target is not a regular file: ${file.name}")
                 }
-
-                files.forEach { file ->
-                    val staged = stagedFiles.getValue(file.name)
-                    val target = File(filesDir, file.name)
-                    committedNames += file.name
-                    replaceFile(staged, target, file.bytes)
+                originals[file.name] = if (target.isFile) target.readBytes() else null
+                val staged = File(filesDir, ".${file.name}.restore.tmp")
+                if (staged.exists() && !staged.delete()) {
+                    throw IOException("Could not clear staged native settings file: ${file.name}")
                 }
-                return files.size
-            } catch (failure: Throwable) {
-                try {
-                    rollback()
-                } catch (rollbackFailure: Throwable) {
-                    failure.addSuppressed(rollbackFailure)
-                }
-                throw failure
-            } finally {
-                cleanupStagedFiles()
+                stagedFiles[file.name] = staged
+                writeFile(staged, file.bytes)
             }
+        }
+
+        fun commit(): Int {
+            if (files.isEmpty()) return 0
+            files.forEach { file ->
+                val staged = stagedFiles.getValue(file.name)
+                val target = File(filesDir, file.name)
+                committedNames += file.name
+                replaceFile(staged, target, file.bytes, originals[file.name] != null)
+            }
+            return files.size
         }
 
         fun rollback() {
@@ -823,13 +882,8 @@ object SettingsExporter {
                             throw IOException("Could not remove partially restored native settings file: $name")
                         }
                     } else {
-                        val restoreTmp = File(filesDir, ".$name.rollback.tmp")
-                        try {
-                            defaultWriteNativeFile(restoreTmp, original)
-                            defaultReplaceNativeFile(restoreTmp, target, original)
-                        } finally {
-                            if (restoreTmp.exists()) restoreTmp.delete()
-                        }
+                        // Restore in-place on the original inode so live native mmaps remain valid.
+                        writeFileInPlace(target, original)
                     }
                 }.onFailure { error ->
                     val existing = firstFailure
@@ -841,7 +895,7 @@ object SettingsExporter {
             firstFailure?.let { throw it }
         }
 
-        private fun cleanupStagedFiles() {
+        fun cleanupStagedFiles() {
             stagedFiles.values.forEach { staged ->
                 if (staged.exists()) staged.delete()
             }
