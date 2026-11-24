@@ -1,7 +1,7 @@
 import importlib.util
 from io import BytesIO
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import subprocess
 import sys
 import tempfile
@@ -62,6 +62,30 @@ class Lifecycle(unittest.TestCase):
         vendor.regenerate(self.old_apk)
         self.assertEqual(before, self.inventory_path.read_bytes())
         vendor.audit_and_restore(self.old_apk)
+
+    def test_input_check_handles_windows_relative_paths(self):
+        retired = 'Common/src/main/jniLibs/arm64-v8a/libretired.so'
+        extra = retired.replace('/main/', '/mobile/')
+        data = dist.inventory()
+        data['removedFiles'] = [retired]
+        self.inventory_path.write_text(json.dumps(data))
+
+        relative_to = type(self.root).relative_to
+
+        def windows_relative_to(path, root):
+            return PureWindowsPath(*relative_to(path, root).parts)
+
+        with patch.object(type(self.root), 'relative_to', windows_relative_to):
+            dist.inputs_check()
+            for path, hint in [(retired, '. Remove this retired file.'), (extra, '')]:
+                with self.subTest(path=path):
+                    library = self.root / path
+                    library.parent.mkdir(parents=True, exist_ok=True)
+                    library.write_bytes(b'uninventoried')
+                    with self.assertRaises(ValueError) as error:
+                        dist.inputs_check()
+                    self.assertEqual(str(error.exception), f'Uninventoried distribution input: {path}{hint}')
+                    library.unlink()
 
     def test_add_replace_bootstrap_then_release_then_clean_restore(self):
         changed = dict(self.initial)
