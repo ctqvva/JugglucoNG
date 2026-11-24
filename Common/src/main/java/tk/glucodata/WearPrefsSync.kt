@@ -71,7 +71,27 @@ object WearPrefsSync {
      * than resetting them.
      */
     @JvmStatic
-    fun apply(context: Context?, data: ByteArray?): Int {
+    fun apply(context: Context?, data: ByteArray?): Int =
+        applyToPrefs(context, data) { sensorSelectionChanged, sensorColorsChanged, sensorDisplayNamesChanged ->
+            if (sensorColorsChanged) SensorVisuals.invalidateOverrides()
+            if (sensorDisplayNamesChanged) {
+                SensorDisplayName.invalidateCache()
+                if (Applic.isWearable) runCatching { Applic.updatescreen() }
+            }
+            if (sensorSelectionChanged) {
+                MultiSensorSelection.notifyStoredChanged()
+                // The native "current sensor" slot is what the complications and
+                // the watch face resolve through; keep it on the phone's primary.
+                if (Applic.isWearable) WearSensorSelectionSync.alignCurrentSensor()
+            }
+            UiRefreshBus.requestDataRefresh()
+        }
+
+    internal fun applyToPrefs(
+        context: Context?,
+        data: ByteArray?,
+        onApplied: (sensorSelectionChanged: Boolean, sensorColorsChanged: Boolean, sensorDisplayNamesChanged: Boolean) -> Unit,
+    ): Int {
         if (context == null || data == null || data.isEmpty()) return 0
         val text = try {
             data.toString(Charsets.UTF_8)
@@ -136,15 +156,7 @@ object WearPrefsSync {
         }
         if (written == 0) return 0
         editor.apply()
-        if (sensorColorsChanged) SensorVisuals.invalidateOverrides()
-        if (sensorDisplayNamesChanged) SensorDisplayName.invalidateCache()
-        if (sensorSelectionChanged) {
-            MultiSensorSelection.notifyStoredChanged()
-            // The native "current sensor" slot is what the complications and
-            // the watch face resolve through; keep it on the phone's primary.
-            if (Applic.isWearable) WearSensorSelectionSync.alignCurrentSensor()
-        }
-        UiRefreshBus.requestDataRefresh()
+        onApplied(sensorSelectionChanged, sensorColorsChanged, sensorDisplayNamesChanged)
         return written
     }
 

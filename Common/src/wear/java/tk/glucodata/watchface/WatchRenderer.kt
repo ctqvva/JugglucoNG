@@ -503,16 +503,24 @@ internal fun fitWatchFaceSensorLabel(
         return trimmed
     }
     val ellipsis = "…"
+    fun safePrefix(endIndex: Int): String {
+        var cut = endIndex
+        if (cut > 0 && cut < trimmed.length && Character.isHighSurrogate(trimmed[cut - 1])) {
+            cut -= 1
+        }
+        return trimmed.substring(0, cut).trimEnd()
+    }
     var low = 0
     var high = trimmed.length
     while (low < high) {
         val mid = (low + high + 1) / 2
-        val candidate = trimmed.substring(0, mid).trimEnd() + ellipsis
+        val candidate = safePrefix(mid) + ellipsis
         if (measureText(candidate) <= maxWidthPx) {
             low = mid
         } else {
             high = mid - 1
         }
     }
-    return if (low > 0) trimmed.substring(0, low).trimEnd() + ellipsis else ellipsis
+    val prefix = safePrefix(low)
+    return if (prefix.isNotEmpty()) prefix + ellipsis else ellipsis
 }

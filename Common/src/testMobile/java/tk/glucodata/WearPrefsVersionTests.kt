@@ -41,4 +41,69 @@ class WearPrefsVersionTests {
 
         assertEquals(0, WearPrefsSync.apply(context, onlyVersion))
     }
+
+    @Test
+    fun sensorDisplayNamesApplyAndClearThroughWearPrefsSync() {
+        val prefs = context.getSharedPreferences(
+            tk.glucodata.settings.SettingsRegistry.FILE,
+            Context.MODE_PRIVATE,
+        )
+        val wire = WearPrefsSync.escapeLine(
+            SensorDisplayName.encodeStoredMap(
+                linkedMapOf(
+                    "1111122222333331" to "DXCMAA",
+                    "NSF-3073E464C8CB" to "Nightscout follower",
+                ),
+            ),
+        )
+        val payload = "${WearProtocol.versionLine()}\ns:${tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES}=$wire\n"
+            .toByteArray(Charsets.UTF_8)
+
+        var namesChanged = false
+        assertEquals(
+            1,
+            WearPrefsSync.applyToPrefs(context, payload) { _, _, displayNamesChanged ->
+                namesChanged = displayNamesChanged
+                if (displayNamesChanged) SensorDisplayName.invalidateCache()
+            },
+        )
+        assertTrue("first write flags display-name change", namesChanged)
+        assertEquals(
+            mapOf(
+                "1111122222333331" to "DXCMAA",
+                "NSF-3073E464C8CB" to "Nightscout follower",
+            ),
+            SensorDisplayName.decodeStoredMap(
+                prefs.getString(tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES, "").orEmpty(),
+            ),
+        )
+
+        // Re-applying identical names does not flag a change.
+        namesChanged = true
+        assertEquals(
+            1,
+            WearPrefsSync.applyToPrefs(context, payload) { _, _, displayNamesChanged ->
+                namesChanged = displayNamesChanged
+            },
+        )
+        assertTrue("identical payload does not re-flag change", !namesChanged)
+
+        // Empty value clears stale mirrored names and flags change for cache invalidation.
+        val emptyPayload = "${WearProtocol.versionLine()}\ns:${tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES}=\n"
+            .toByteArray(Charsets.UTF_8)
+        assertEquals(
+            1,
+            WearPrefsSync.applyToPrefs(context, emptyPayload) { _, _, displayNamesChanged ->
+                namesChanged = displayNamesChanged
+                if (displayNamesChanged) SensorDisplayName.invalidateCache()
+            },
+        )
+        assertTrue("empty payload flags display-name change", namesChanged)
+        assertEquals(
+            emptyMap<String, String>(),
+            SensorDisplayName.decodeStoredMap(
+                prefs.getString(tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES, "").orEmpty(),
+            ),
+        )
+    }
 }

@@ -81,11 +81,12 @@ abstract class MultiSensorComplicationBase : SuspendingComplicationDataSourceSer
             GlucoseComplicationData.currentReading(it)
         }
         // A useful two-sensor picker example even before selection/history arrives.
-        val values = if (preview && live.size < 2) previewValues(now) else live
+        val syntheticPreview = preview && live.size < 2
+        val values = if (syntheticPreview) previewValues(now) else live
         val text = multiSensorText(values, showArrows).ifBlank { Applic.app.getString(R.string.novalue) }
         val description = PlainComplicationText.Builder(
             values.joinToString("; ") {
-                val label = if (preview) it.sensorId else tk.glucodata.SensorDisplayName.resolve(it.sensorId)
+                val label = if (syntheticPreview) it.sensorId else tk.glucodata.SensorDisplayName.resolve(it.sensorId)
                 "$label: ${it.text}"
             }.ifBlank { text },
         ).build()

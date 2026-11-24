@@ -20,6 +20,7 @@ internal data class WearReadingPeer(
     val series: WearGlucoseStore.PeerSeries,
     val point: GlucosePoint,
     val velocity: Float,
+    val displayName: String = series.sensorId,
 )
 
 /** The phone's row rule: latest actual reading in the same minute, never carry forward. */
@@ -30,12 +31,15 @@ internal fun readingPeers(
 ): Map<Long, List<WearReadingPeer>> {
     val result = rows.associate { it.timestamp to mutableListOf<WearReadingPeer>() }
     peers.forEach { peer ->
+        val displayName = tk.glucodata.SensorDisplayName.resolve(peer.sensorId)
         val byMinute = peer.readings.associateBy { it.timestamp / 60_000L }
         val matches = rows.mapNotNull { byMinute[it.timestamp / 60_000L] }
         val velocities = rowVelocities(peer.readings, matches, peer.isRawMode, isMmol)
         rows.forEach { row ->
             byMinute[row.timestamp / 60_000L]?.let { point ->
-                result.getValue(row.timestamp).add(WearReadingPeer(peer, point, velocities[point.timestamp] ?: 0f))
+                result.getValue(row.timestamp).add(
+                    WearReadingPeer(peer, point, velocities[point.timestamp] ?: 0f, displayName),
+                )
             }
         }
     }
@@ -56,7 +60,7 @@ internal fun ReadingValues(
         SensorValue(point, viewMode, isMmol, velocity, primaryColorArgb, false)
         peers.forEach { peer ->
             SensorValue(peer.point, peer.series.viewMode, isMmol, peer.velocity, peer.series.colorArgb, true,
-                Modifier.semantics { contentDescription = tk.glucodata.SensorDisplayName.resolve(peer.series.sensorId) })
+                Modifier.semantics { contentDescription = peer.displayName })
         }
     }
 }

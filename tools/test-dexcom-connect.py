@@ -149,6 +149,7 @@ class Natives {
     static int getSensorWarmupMinutes(long ptr){return warmupMinutes;}
     static void dexEndBackfill(long ptr){}
     static String getDeviceAddress(long p,boolean fresh){return fresh?null:stored;}
+    static String dexGetDeviceName(long p){return null;}
     static long lastglucosetime(){return lastGlucose<0?System.currentTimeMillis():lastGlucose;}
     static boolean authenticated=true;
     static boolean isAuthenticated(long p){return authenticated;}static boolean dexbackfill(long p,byte[] v){return false;}

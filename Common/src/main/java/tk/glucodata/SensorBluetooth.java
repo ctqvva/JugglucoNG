@@ -194,8 +194,13 @@ public class SensorBluetooth {
             ;
             String address = device.getAddress();
             for (var cb : gattcallbacks) {
-                if (cb.mActiveDeviceAddress != null && address.equals(cb.mActiveDeviceAddress))
+                if (cb.mActiveDeviceAddress != null && address.equals(cb.mActiveDeviceAddress)) {
+                    if (deviceName != null && !deviceName.equals(cb.mDeviceName)) {
+                        cb.mDeviceName = deviceName;
+                        SensorDisplayName.pushIfChanged();
+                    }
                     return cb;
+                }
             }
 
             if (deviceName != null) {

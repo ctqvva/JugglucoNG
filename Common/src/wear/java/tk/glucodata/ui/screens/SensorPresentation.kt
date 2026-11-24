@@ -20,8 +20,6 @@ internal data class WearSensorPresentation(
 
 private const val DAY_MS = 24L * 60L * 60L * 1000L
 
-internal fun displaySensorName(id: String): String = SensorDisplayName.stripManagedPrefix(id)
-
 internal fun loadWearSensorPresentation(sensorId: String, nowMs: Long): WearSensorPresentation {
     val managed = runCatching { ManagedSensorRuntime.resolveUiSnapshot(sensorId, sensorId) }.getOrNull()
     val nativeStart = if (managed == null) {

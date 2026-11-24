@@ -16,6 +16,7 @@ import org.junit.Test
 class SensorDisplayNameTests {
     private val fullDexcom = "1111122222333331"
     private val shortDexcom = "22222333331"
+    private val watchListingDexcom = "333331"
 
     @Test
     fun managedDisplayNameTakesPrecedenceOverCallbackAndMirrored() {
@@ -27,6 +28,29 @@ class SensorDisplayNameTests {
             matchesId = SensorDisplayName::nativeAliasMatches,
         )
         assertEquals("Sibionics 2 JMV", resolved)
+    }
+
+    @Test
+    fun mirroredNameBeatsPreScanMacFromManagedDriver() {
+        // Anytime/MQ/iCan fall back to callback.mygetDeviceName() -> MAC before first scan.
+        val resolved = SensorDisplayName.resolveName(
+            sensorId = "ANY-123456",
+            managedDisplayName = "AA:BB:CC:DD:EE:FF",
+            callbackDisplayName = "AA:BB:CC:DD:EE:FF",
+            mirroredNames = mapOf("ANY-123456" to "Anytime CT3"),
+            matchesId = SensorDisplayName::nativeAliasMatches,
+        )
+        assertEquals("Anytime CT3", resolved)
+
+        // With no mirrored name, the managed MAC fallback is still preserved like on the phone.
+        val fallback = SensorDisplayName.resolveName(
+            sensorId = "ANY-123456",
+            managedDisplayName = "AA:BB:CC:DD:EE:FF",
+            callbackDisplayName = null,
+            mirroredNames = emptyMap(),
+            matchesId = SensorDisplayName::nativeAliasMatches,
+        )
+        assertEquals("AA:BB:CC:DD:EE:FF", fallback)
     }
 
     @Test
@@ -50,7 +74,6 @@ class SensorDisplayNameTests {
             managedDisplayName = null,
             callbackDisplayName = "AA:BB:CC:DD:EE:FF",
             mirroredNames = mapOf(fullDexcom to "DXCMAA"),
-            matchesId = SensorDisplayName::nativeAliasMatches,
         )
         assertEquals("DXCMAA", resolved)
 
@@ -60,9 +83,46 @@ class SensorDisplayNameTests {
             managedDisplayName = null,
             callbackDisplayName = null,
             mirroredNames = mapOf(shortDexcom to "DXCMAA"),
-            matchesId = SensorDisplayName::nativeAliasMatches,
         )
         assertEquals("DXCMAA", reverse)
+    }
+
+    @Test
+    fun mirroredNameMatchesUnambiguous6CharWatchNativeListing() {
+        assertEquals(
+            "DXCMAA",
+            SensorDisplayName.resolveName(
+                sensorId = watchListingDexcom,
+                managedDisplayName = null,
+                callbackDisplayName = null,
+                mirroredNames = mapOf(fullDexcom to "DXCMAA"),
+                matchesId = SensorDisplayName::nativeAliasMatches,
+            ),
+        )
+        assertEquals(
+            "DXCMAA",
+            SensorDisplayName.resolveName(
+                sensorId = watchListingDexcom,
+                managedDisplayName = null,
+                callbackDisplayName = null,
+                mirroredNames = mapOf(shortDexcom to "DXCMAA"),
+                matchesId = SensorDisplayName::nativeAliasMatches,
+            ),
+        )
+        // Ambiguous 6-char suffix shared by two mirrored sensors must not pick arbitrarily.
+        assertEquals(
+            watchListingDexcom,
+            SensorDisplayName.resolveName(
+                sensorId = watchListingDexcom,
+                managedDisplayName = null,
+                callbackDisplayName = null,
+                mirroredNames = mapOf(
+                    "1111122222333331" to "DXCMAA",
+                    "9999988888333331" to "DXCMBB",
+                ),
+                matchesId = SensorDisplayName::nativeAliasMatches,
+            ),
+        )
     }
 
     @Test
@@ -136,6 +196,20 @@ class SensorDisplayNameTests {
         assertFalse("wire line must stay single-line", wire.contains('\n'))
         val restored = SensorDisplayName.decodeStoredMap(WearPrefsSync.unescapeLine(wire))
         assertEquals(original, restored)
+    }
+
+    @Test
+    fun encodeStoredMapDropsInvalidKeysAndValues() {
+        val encoded = SensorDisplayName.encodeStoredMap(
+            linkedMapOf(
+                "bad|key" to "DXCMAA",
+                "?" to "DXCMBB",
+                "good" to "?",
+                "ok" to "Pipe | Allowed",
+            ),
+        )
+        assertEquals("ok|Pipe | Allowed", encoded)
+        assertEquals(mapOf("ok" to "Pipe | Allowed"), SensorDisplayName.decodeStoredMap(encoded))
     }
 
     @Test
