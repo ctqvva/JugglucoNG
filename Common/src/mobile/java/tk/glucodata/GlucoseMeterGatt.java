@@ -150,6 +150,10 @@ private final MeterLinkPacer pacer=new MeterLinkPacer();
 private boolean pacedWaiting=false;
 // Bumped by every cancel, so an alarm already being delivered sees it is stale.
 private long pacedTicket=0L;
+// GATT whose link we explicitly disconnected before a paced wait. On API <= 26 (useConnect=false),
+// disconnect() also cancels Android's background autoConnect request, so if STATE_DISCONNECTED
+// ends up waiting 0 ms (e.g. pacing changed to Right away mid-disconnect) we must re-arm connect().
+private BluetoothGatt pacedDisconnectGatt=null;
 private synchronized void markLinkAnswered() { linkAnswered=true; }
 private synchronized void markLinkFailed() { linkAnswered=linkFailed=true; }
 private synchronized void markLinkBroughtNew() { linkBroughtNew=true; }
@@ -162,13 +166,41 @@ synchronized void cancelPacedReconnect() {
     pacedWaiting=false;
     MeterRecheckAlarm.cancel(meterIndex);
 }
-private synchronized long pacedReconnectDelay() {
-    final MeterLinkOutcome outcome=linkBroughtNew?MeterLinkOutcome.NEW_READINGS
+private synchronized MeterLinkOutcome currentLinkOutcome() {
+    return linkBroughtNew?MeterLinkOutcome.NEW_READINGS
         :linkFailed?MeterLinkOutcome.FAILED
         :linkAnswered?MeterLinkOutcome.NOTHING_NEW
         :MeterLinkOutcome.UNANSWERED;
+}
+private synchronized long pacedReconnectDelay() {
+    return pacedReconnectDelay(MeterSyncPacing.minutes());
+}
+private synchronized long pacedReconnectDelay(int intervalMinutes) {
+    final MeterLinkOutcome outcome=currentLinkOutcome();
     resetLink();
-    return pacer.linkEnded(outcome,staysOn(),MeterSyncPacing.minutes());
+    return pacer.linkEnded(outcome,staysOn(),intervalMinutes);
+}
+private synchronized boolean shouldDisconnectBeforePacedWait() {
+    return !stop && connected && pacer.wouldWait(currentLinkOutcome(),staysOn(),MeterSyncPacing.minutes());
+}
+// Satellite holds an idle BLE link open for ~30s before dropping it. Once a sync finishes
+// and will enter a paced wait, disconnect cleanly right away instead of keeping the meter's
+// radio active and holding an extra ACL link alongside sensors. Never disconnect early when
+// the recheck interval is 0 (or on new readings), or it would spin every couple of seconds.
+private void disconnectIfPaced(BluetoothGatt gatt) {
+    synchronized(this) {
+        if(gatt==null || gatt!=mBluetoothGatt || gatt==pacedDisconnectGatt || !shouldDisconnectBeforePacedWait())
+            return;
+        pacedDisconnectGatt=gatt;
+        if(doLog) Log.i(LOG_ID,meterIndex+" sync complete, disconnecting before paced wait");
+        gatt.disconnect();
+    }
+}
+private synchronized boolean consumePacedDisconnect(BluetoothGatt gatt) {
+    final boolean matched = !stop && gatt!=null && gatt==pacedDisconnectGatt && gatt==mBluetoothGatt;
+    if(gatt==pacedDisconnectGatt)
+        pacedDisconnectGatt=null;
+    return matched;
 }
 private synchronized void schedulePacedReconnect(long wait) {
     cancelPacedReconnect();
@@ -331,6 +363,7 @@ private void beginSatelliteSession(BluetoothGatt gatt) {
         Applic.argToaster(app, R.string.satellite_meter_code_missing, android.widget.Toast.LENGTH_LONG);
         // A failed link: never redialled and toasted twice a minute; saving a code retries at once.
         markLinkFailed();
+        disconnectIfPaced(gatt);
         return;
     }
     satelliteSession=new SatelliteMeterSession(pin,System.currentTimeMillis());
@@ -399,6 +432,7 @@ private synchronized void processSatelliteResponse(BluetoothGatt gatt, byte[] va
         satelliteSession=null;
         if(update.getError()!=null) markLinkFailed();
         else markLinkAnswered();
+        disconnectIfPaced(gatt);
         return;
     }
     final byte[] command=update.getCommand();
@@ -591,6 +625,7 @@ boolean connected=false;
          // this link drops later.
          autoConnect=true;
          resetLink();
+         consumePacedDisconnect(bluetoothGatt);
          // Connected some other way while a paced reconnect waited.
          cancelPacedReconnect();
         if(stop) {
@@ -634,21 +669,29 @@ boolean connected=false;
                   else {
                      if(autoConnect)  {
                         final boolean paced;
+                        final boolean rearmDisconnect;
                         // One hold of the lock pacingChanged takes, so an interval change
                         // cannot slip between reading the interval and arming the alarm.
                         synchronized(this) {
-                            final long wait=pacedReconnectDelay();
+                            rearmDisconnect=consumePacedDisconnect(bluetoothGatt);
+                            final MeterLinkOutcome outcome=currentLinkOutcome();
+                            final int intervalMinutes=MeterSyncPacing.minutes();
+                            final long wait=pacedReconnectDelay(intervalMinutes);
                             paced=wait>0L;
                             if(paced) {
-                                if(doLog) Log.i(LOG_ID,meterIndex+" stays on, nothing new, reconnect in "+wait/1000+"s");
+                                if(doLog) Log.i(LOG_ID,meterIndex+" stays on, "+outcome+", reconnect in "+wait/1000+"s");
                                 close();
                                 schedulePacedReconnect(wait);
                                 }
+                            else if(staysOn() && doLog) {
+                                Log.i(LOG_ID,meterIndex+" stays on, reconnecting at once (outcome="+outcome+", interval="+intervalMinutes+"m)");
+                                }
                             }
-                        if(!paced && useConnect)
+                        if(!paced && (useConnect || rearmDisconnect))
                             bluetoothGatt.connect();
                         }
                     else {
+                        consumePacedDisconnect(bluetoothGatt);
                         // The one direct attempt a fresh sighting earns did not land.
                         // Fall back to the whitelist connect: retrying directly would
                         // keep the radio dialing for as long as the meter stays silent,
@@ -930,6 +973,7 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
             }
         finally {    
             mBluetoothGatt = null;
+            pacedDisconnectGatt = null;
             }
         }
     else {

@@ -168,7 +168,8 @@ class SuperGattCallback {
     protected long connectionAttemptTimeoutMillis(){return 0L;}
     boolean allowConnectWithoutDataptr(){return false;}
     void armConnectCallbackLatency(){} void noteFirstGattCallback(String s,BluetoothGatt g){}
-    void setpriority(BluetoothGatt g){} void setGattOptions(BluetoothGatt g){}
+    int priorityRequests;
+    void setpriority(BluetoothGatt g){priorityRequests++;} void setGattOptions(BluetoothGatt g){}
     void onDescriptorWrite(BluetoothGatt g,BluetoothGattDescriptor d,int s){}
     void disablenotification(BluetoothGatt g,BluetoothGattCharacteristic c){}
     static void check(boolean b,String message){if(!b)throw new AssertionError(message);}
@@ -206,6 +207,7 @@ java += r'''
         Libre2GattCallback cb=new Libre2GattCallback();cb.connectDevice(0);Applic.scheduler.advance(0);
         check(cb.mActiveBluetoothDevice.calls==1,"initial connect");
         check(!cb.mActiveBluetoothDevice.modes.get(0),"Libre 2 inherited global autoConnect=true");
+        check(cb.priorityRequests==0,"setpriority called before STATE_CONNECTED");
         return cb;
     }
     static void ignoredCallbacks(Libre2GattCallback cb,BluetoothGatt retired){
