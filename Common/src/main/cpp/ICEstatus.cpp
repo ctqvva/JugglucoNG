@@ -95,14 +95,12 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
             boolstr[receiveInGetCom], boolstr[receiveInInterpret],
             receiverShutdown?"shutdown":"");
     }
-    juice_agent *agent=con->agent.load();
-    char localAddr[JUICE_MAX_ADDRESS_STRING_LEN+10];
-    char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN+10];
     out.append(phaseName(con->phase.load()));
-    if(agent) {
+    const auto [localAddr, remoteAddr] = con->selectedAddresses();
+    if(!localAddr.empty()) {
         out.append("<br><b>Local:</b> ");
-        if(int res=juice_get_selected_addresses_inc_type(agent, localAddr, JUICE_MAX_ADDRESS_STRING_LEN, remoteAddr, JUICE_MAX_ADDRESS_STRING_LEN);res == 0) {
-            appendHtmlEscaped(out, localAddr);
+        appendHtmlEscaped(out, localAddr);
+        if(!remoteAddr.empty()) {
             out.append("<br><b>Remote:</b> ");
             appendHtmlEscaped(out, remoteAddr);
           }

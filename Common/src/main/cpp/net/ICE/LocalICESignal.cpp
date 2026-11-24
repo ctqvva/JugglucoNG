@@ -314,14 +314,20 @@ struct LocalICESignalSession::Impl {
     std::string peerGeneration;
     std::string localDescription;
     std::string acceptedRemoteDescription;
+    static constexpr size_t maxPendingRemoteGenerations = 4;
+    static constexpr size_t maxPendingCandidatesPerGeneration = 64;
+    struct PendingRemoteGeneration {
+        std::string generation;
+        std::vector<std::string> candidates;
+        bool gatheringDone{false};
+    };
+
     std::vector<std::string> localCandidates;
     bool localGatheringDone{false};
     std::string acceptedRemoteGeneration;
     std::vector<std::string> appliedRemoteCandidates;
     bool remoteGatheringDoneApplied{false};
-    std::string pendingRemoteGeneration;
-    std::vector<std::string> pendingRemoteCandidates;
-    bool pendingRemoteGatheringDone{false};
+    std::vector<PendingRemoteGeneration> pendingRemoteGenerations;
     std::chrono::steady_clock::time_point nextSnapshot{};
     std::string promotionProbeToken;
     std::atomic_bool promotionProbeActive{false};
@@ -702,22 +708,39 @@ struct LocalICESignalSession::Impl {
             wireHeaderLength, encryptedLength, tagLength);
     }
 
+    PendingRemoteGeneration &pendingForLocked(std::string_view generation) {
+        auto it = std::find_if(
+            pendingRemoteGenerations.begin(), pendingRemoteGenerations.end(),
+            [&](const PendingRemoteGeneration &entry) {
+                return entry.generation == generation;
+            });
+        if (it != pendingRemoteGenerations.end())
+            return *it;
+        if (pendingRemoteGenerations.size() >= maxPendingRemoteGenerations)
+            pendingRemoteGenerations.erase(pendingRemoteGenerations.begin());
+        pendingRemoteGenerations.push_back(
+            PendingRemoteGeneration{std::string(generation), {}, false});
+        return pendingRemoteGenerations.back();
+    }
+
     void applyPendingRemote(std::string_view acceptedGeneration) {
         std::vector<std::string> candidates;
         bool gatheringDone = false;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
             acceptedRemoteGeneration.assign(acceptedGeneration);
-            if (pendingRemoteGeneration == acceptedGeneration) {
-                candidates.swap(pendingRemoteCandidates);
+            auto it = std::find_if(
+                pendingRemoteGenerations.begin(), pendingRemoteGenerations.end(),
+                [&](const PendingRemoteGeneration &entry) {
+                    return entry.generation == acceptedGeneration;
+                });
+            if (it != pendingRemoteGenerations.end()) {
+                candidates.swap(it->candidates);
                 appliedRemoteCandidates = candidates;
-                gatheringDone = std::exchange(pendingRemoteGatheringDone, false);
+                gatheringDone = it->gatheringDone;
                 remoteGatheringDoneApplied = gatheringDone;
-            } else {
-                pendingRemoteCandidates.clear();
-                pendingRemoteGatheringDone = false;
             }
-            pendingRemoteGeneration.clear();
+            pendingRemoteGenerations.clear();
         }
         for (const auto &candidate : candidates)
             applyLocalICECandidate(allindex, agent, agentGeneration, candidate);
@@ -884,15 +907,12 @@ struct LocalICESignalSession::Impl {
                     }
                 } else {
                     const std::lock_guard<std::mutex> lock(stateMutex);
-                    if (pendingRemoteGeneration != generation) {
-                        pendingRemoteGeneration.assign(generation);
-                        pendingRemoteCandidates.clear();
-                        pendingRemoteGatheringDone = false;
-                    }
-                    if (std::find(pendingRemoteCandidates.begin(),
-                                  pendingRemoteCandidates.end(), data) ==
-                        pendingRemoteCandidates.end())
-                        pendingRemoteCandidates.emplace_back(data);
+                    auto &pending = pendingForLocked(generation);
+                    if (pending.candidates.size() < maxPendingCandidatesPerGeneration &&
+                        std::find(pending.candidates.begin(),
+                                  pending.candidates.end(), data) ==
+                            pending.candidates.end())
+                        pending.candidates.emplace_back(data);
                 }
                 break;
             case MessageType::GatheringDone:
@@ -912,12 +932,7 @@ struct LocalICESignalSession::Impl {
                     }
                 } else {
                     const std::lock_guard<std::mutex> lock(stateMutex);
-                    if (pendingRemoteGeneration != generation) {
-                        pendingRemoteGeneration.assign(generation);
-                        pendingRemoteCandidates.clear();
-                        pendingRemoteGatheringDone = false;
-                    }
-                    pendingRemoteGatheringDone = true;
+                    pendingForLocked(generation).gatheringDone = true;
                 }
                 break;
             case MessageType::Hello:

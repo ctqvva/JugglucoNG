@@ -656,7 +656,8 @@ static void candidateRetriesDoNotAccumulateBeforeDescription() {
     std::this_thread::sleep_for(1200ms);
     {
         std::lock_guard lock(link.sessions[1]->impl->stateMutex);
-        require(link.sessions[1]->impl->pendingRemoteCandidates.size() == 1,
+        require(link.sessions[1]->impl->pendingRemoteGenerations.size() == 1 &&
+                    link.sessions[1]->impl->pendingRemoteGenerations.front().candidates.size() == 1,
                 "retries accumulate duplicate candidates while waiting for SDP");
     }
     link.sessions[0]->publishDescription("offer");
@@ -1017,12 +1018,23 @@ static void duplicateAndPostGatheringCandidatesAreIgnored() {
 
     const std::string firstPeerGen(32, 'b');
     const std::string secondPeerGen(32, 'c');
-    // Stale pending candidate from another generation must not leak into the accepted peer.
-    deliver(MessageType::Candidate, "a=candidate:stale", secondPeerGen);
+    // Interleaved candidates from another generation must neither discard the
+    // accepted generation's pending candidates nor leak into the accepted peer.
     deliver(MessageType::Candidate, "a=candidate:1", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:stale", secondPeerGen);
     deliver(MessageType::Description, "answer-1", firstPeerGen);
     require(link.peers[0].winner == 1, "answer description was not accepted");
-    require(link.peers[0].candidates == 1, "buffered candidate for accepted peer was not applied once");
+    require(link.peers[0].candidates == 1, "buffered candidate for accepted peer was lost or leaked");
+    {
+        std::lock_guard lock(link.peers[0].candidateMutex);
+        require(link.peers[0].lastCandidate == "a=candidate:1",
+                "wrong generation's pending candidate was applied");
+    }
+    {
+        std::lock_guard lock(offerer->stateMutex);
+        require(offerer->pendingRemoteGenerations.empty(),
+                "unaccepted pending generations were not cleared after description acceptance");
+    }
 
     // Retransmitted candidate from the same generation is deduplicated.
     deliver(MessageType::Candidate, "a=candidate:1", firstPeerGen);
