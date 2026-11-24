@@ -74,10 +74,7 @@ object WearPrefsSync {
     fun apply(context: Context?, data: ByteArray?): Int =
         applyToPrefs(context, data) { sensorSelectionChanged, sensorColorsChanged, sensorDisplayNamesChanged ->
             if (sensorColorsChanged) SensorVisuals.invalidateOverrides()
-            if (sensorDisplayNamesChanged) {
-                SensorDisplayName.invalidateCache()
-                if (Applic.isWearable) runCatching { Applic.updatescreen() }
-            }
+            if (sensorDisplayNamesChanged) SensorDisplayName.invalidateCache()
             if (sensorSelectionChanged) {
                 MultiSensorSelection.notifyStoredChanged()
                 // The native "current sensor" slot is what the complications and

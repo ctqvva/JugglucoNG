@@ -128,10 +128,10 @@ class SensorDisplayNameTests {
     @Test
     fun mirroredCloudFollowerNameMatchesShortNativeAliasOnWatch() {
         val resolved = SensorDisplayName.resolveName(
-            sensorId = "073E464C8CB",
+            sensorId = "ABBCCDDEEFF",
             managedDisplayName = null,
             callbackDisplayName = null,
-            mirroredNames = mapOf("NSF-3073E464C8CB" to "Nightscout follower"),
+            mirroredNames = mapOf("NSF-AABBCCDDEEFF" to "Nightscout follower"),
             matchesId = SensorDisplayName::nativeAliasMatches,
         )
         assertEquals("Nightscout follower", resolved)
@@ -187,7 +187,7 @@ class SensorDisplayNameTests {
     fun storedMapRoundTripsThroughWearPrefsLineEscaping() {
         val original = linkedMapOf(
             fullDexcom to "DXCMAA",
-            "NSF-3073E464C8CB" to "Nightscout follower",
+            "NSF-AABBCCDDEEFF" to "Nightscout follower",
             "MT-00112233" to "Medtrum TouchCare S9 MD3660",
             "CUSTOM-1" to "Pipe | & \\ Backslash · Датчик",
         )

@@ -52,7 +52,7 @@ class WearPrefsVersionTests {
             SensorDisplayName.encodeStoredMap(
                 linkedMapOf(
                     "1111122222333331" to "DXCMAA",
-                    "NSF-3073E464C8CB" to "Nightscout follower",
+                    "NSF-AABBCCDDEEFF" to "Nightscout follower",
                 ),
             ),
         )
@@ -71,7 +71,7 @@ class WearPrefsVersionTests {
         assertEquals(
             mapOf(
                 "1111122222333331" to "DXCMAA",
-                "NSF-3073E464C8CB" to "Nightscout follower",
+                "NSF-AABBCCDDEEFF" to "Nightscout follower",
             ),
             SensorDisplayName.decodeStoredMap(
                 prefs.getString(tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES, "").orEmpty(),
@@ -104,6 +104,45 @@ class WearPrefsVersionTests {
             SensorDisplayName.decodeStoredMap(
                 prefs.getString(tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES, "").orEmpty(),
             ),
+        )
+    }
+
+    @Test
+    fun mirroredNameCacheDoesNotPoisonWhenPrefsAreUnavailableOrThrow() {
+        val prefs = context.getSharedPreferences(
+            tk.glucodata.settings.SettingsRegistry.FILE,
+            Context.MODE_PRIVATE,
+        )
+        prefs.edit()
+            .putString(tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES, "1111122222333331|DXCMAA")
+            .apply()
+        SensorDisplayName.invalidateCache()
+
+        // Early boot / locked storage: null or throwing provider must not poison the cache.
+        assertEquals(emptyMap<String, String>(), SensorDisplayName.loadMirroredNames { null })
+        assertEquals(
+            emptyMap<String, String>(),
+            SensorDisplayName.loadMirroredNames { throw IllegalStateException("locked") },
+        )
+
+        // Once prefs become available, the next call loads and caches the persisted map.
+        assertEquals(
+            mapOf("1111122222333331" to "DXCMAA"),
+            SensorDisplayName.loadMirroredNames { prefs },
+        )
+
+        // Cached value is served without re-reading until invalidateCache() is called.
+        prefs.edit()
+            .putString(tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES, "1111122222333331|DXCMBB")
+            .apply()
+        assertEquals(
+            mapOf("1111122222333331" to "DXCMAA"),
+            SensorDisplayName.loadMirroredNames { prefs },
+        )
+        SensorDisplayName.invalidateCache()
+        assertEquals(
+            mapOf("1111122222333331" to "DXCMBB"),
+            SensorDisplayName.loadMirroredNames { prefs },
         )
     }
 }

@@ -105,22 +105,25 @@ private int authSlot;
 
     @Override
     public String mygetDeviceName() {
-        if (mDeviceName != null)
-            return mDeviceName;
+        final var liveName = mDeviceName;
+        if (liveName != null && !liveName.trim().isEmpty())
+            return liveName;
         final var device = mActiveBluetoothDevice;
         if (device != null) {
             try {
                 var name = device.getName();
-                if (name != null)
+                if (name != null && !name.trim().isEmpty())
                     return name;
             } catch (SecurityException ignored) {
                 // Fall through to the persisted name when BLUETOOTH_CONNECT is missing.
             }
         }
         final var saved = persistedDeviceName;
-        if (saved != null && !saved.isEmpty())
+        if (saved != null && !saved.trim().isEmpty())
             return saved;
-        return super.mygetDeviceName();
+        if (mActiveDeviceAddress != null)
+            return mActiveDeviceAddress;
+        return "?";
     }
 
     static private byte[] lencode(int which, int code) {
@@ -612,7 +615,7 @@ private void askcertificate(int pha) {
 private void saveDeviceName() {
          final var aname=mDeviceName;
          {if(doLog) {Log.i(LOG_ID,"deviceName ="+aname);};};
-         if(aname!=null) {
+         if(aname!=null && !aname.trim().isEmpty()) {
              Natives.dexSaveDeviceName(dataptr,aname);
              persistedDeviceName = aname;
              this.known=true;

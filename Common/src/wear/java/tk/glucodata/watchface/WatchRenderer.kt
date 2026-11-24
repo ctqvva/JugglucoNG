@@ -55,6 +55,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic
 import tk.glucodata.Applic.removescreenupdater
@@ -166,6 +167,9 @@ override fun onSensorChanged(event: SensorEvent) {
 
         scope.launch {
             currentUserStyleRepository.userStyle.collect { userStyle -> updateWatchFaceData(userStyle) }
+        }
+        scope.launch {
+            tk.glucodata.UiRefreshBus.revision.drop(1).collect { postInvalidate() }
         }
 
    setscreenupdater(updater)

@@ -1,9 +1,9 @@
 package tk.glucodata
 
 import android.content.Context
+import android.content.SharedPreferences
 import java.util.concurrent.atomic.AtomicLong
 import tk.glucodata.drivers.ManagedBluetoothSensorDriver
-import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorUiSnapshot
 import tk.glucodata.settings.KEY_SENSOR_DISPLAY_NAMES
 import tk.glucodata.settings.SettingsRegistry
@@ -61,7 +61,7 @@ object SensorDisplayName {
      * Display name for [sensorId] on this device.
      *
      * Short-circuits lazily to keep UI, watch-face, and complication paths cheap:
-     * skips managed snapshot construction when no local managed driver is present,
+     * skips managed snapshot construction unless a matching local managed driver is present,
      * and skips callback/mirrored lookups once a live non-MAC name is found.
      */
     @JvmStatic
@@ -73,11 +73,7 @@ object SensorDisplayName {
         val raw = sensorId?.trim().orEmpty()
         if (raw.isEmpty()) return ""
         val managedName = usableName(managedSnapshot?.displayName)
-            ?: if (managedSnapshot == null && hasLocalManagedDriver()) {
-                usableName(runCatching { ManagedSensorRuntime.resolveUiSnapshot(raw, raw)?.displayName }.getOrNull())
-            } else {
-                null
-            }
+            ?: if (managedSnapshot == null) localManagedDisplayName(raw) else null
         if (managedName != null && !isMacAddress(managedName)) {
             return managedName
         }
@@ -221,8 +217,10 @@ object SensorDisplayName {
     @JvmStatic
     fun pushIfChanged() {
         if (Applic.isWearable) return
+        if (!runCatching { Applic.useWearos() }.getOrDefault(false)) return
         val task = Runnable {
             synchronized(pushLock) {
+                if (MessageSender.getMessageSender() == null) return@synchronized
                 val wire = effectiveWireValue() ?: return@synchronized
                 if (wire == lastPushedWire) return@synchronized
                 lastPushedWire = wire
@@ -267,30 +265,38 @@ object SensorDisplayName {
     private fun usableName(value: String?): String? =
         value?.trim()?.takeIf { SensorIdentity.isUsableSensorId(it) }
 
-    private fun hasLocalManagedDriver(): Boolean = runCatching {
-        SensorBluetooth.mygatts().any { it is ManagedBluetoothSensorDriver }
-    }.getOrDefault(false)
+    /**
+     * Resolves a local managed driver's display name only for a driver that actually matches
+     * [sensorId], avoiding full snapshot allocation for unrelated local managed drivers.
+     */
+    private fun localManagedDisplayName(sensorId: String): String? = runCatching {
+        for (gatt in SensorBluetooth.gattcallbacks) {
+            val driver = gatt as? ManagedBluetoothSensorDriver ?: continue
+            val serial = gatt.SerialNumber
+            val matches = (!serial.isNullOrBlank() && matchesSensorKey(serial, sensorId)) ||
+                runCatching { driver.matchesManagedSensorId(sensorId) }.getOrDefault(false)
+            if (!matches) continue
+            val snapshot = runCatching { driver.getManagedUiSnapshot(sensorId) }.getOrNull() ?: continue
+            usableName(snapshot.displayName)?.let { return@runCatching it }
+        }
+        null
+    }.getOrNull()
 
     private fun localCallbackDeviceName(sensorId: String): String? = runCatching {
-        SensorBluetooth.mygatts()
-            .firstOrNull { gatt ->
-                val serial = gatt.SerialNumber
-                !serial.isNullOrBlank() && SensorIdentity.matches(serial, sensorId)
+        for (gatt in SensorBluetooth.gattcallbacks) {
+            val serial = gatt.SerialNumber
+            if (!serial.isNullOrBlank() && matchesSensorKey(serial, sensorId)) {
+                return@runCatching runCatching { gatt.mygetDeviceName() }.getOrNull()
             }
-            ?.let { gatt -> runCatching { gatt.mygetDeviceName() }.getOrNull() }
+        }
+        null
     }.getOrNull()
 
     private fun collectPhoneDisplayNames(): Map<String, String> {
         val primary = runCatching { SensorIdentity.resolveMainSensor() }.getOrNull()
-        val candidates = ArrayList<String?>()
-        runCatching { NotificationMultiSensorSource.candidateSensorIds(primary) }
+        val candidates = runCatching { NotificationMultiSensorSource.candidateSensorIds(primary) }
             .getOrDefault(emptyList())
-            .forEach(candidates::add)
-        runCatching { SensorBluetooth.mygatts() }
-            .getOrDefault(emptyList())
-            .forEach { candidates.add(it.SerialNumber) }
         val distinct = SensorIdentity.distinctLogicalSensorIds(candidates)
-        val hasManaged = hasLocalManagedDriver()
         val out = LinkedHashMap<String, String>()
         distinct.forEach { id ->
             val canonical = runCatching { SensorIdentity.canonicalSensorId(id) }.getOrNull()
@@ -298,14 +304,7 @@ object SensorDisplayName {
                 ?: runCatching { SensorIdentity.resolveAppSensorId(id) }.getOrNull()
                     ?.trim()?.takeIf { it.isNotEmpty() }
                 ?: id
-            val managedName = if (hasManaged) {
-                usableName(
-                    runCatching { ManagedSensorRuntime.resolveUiSnapshot(canonical, canonical)?.displayName }
-                        .getOrNull(),
-                )?.takeUnless(::isMacAddress)
-            } else {
-                null
-            }
+            val managedName = localManagedDisplayName(canonical)?.takeUnless(::isMacAddress)
             val displayName = managedName
                 ?: usableName(localCallbackDeviceName(canonical))?.takeUnless(::isMacAddress)
                 ?: return@forEach
@@ -314,17 +313,27 @@ object SensorDisplayName {
         return out
     }
 
-    private fun mirroredNames(): Map<String, String> {
+    private fun mirroredNames(): Map<String, String> = loadMirroredNames {
+        Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    /**
+     * Loads and caches the mirrored map from [prefsProvider].
+     *
+     * If [prefsProvider] returns null (app not yet initialized) or throws (e.g. Direct Boot
+     * before credential-encrypted storage is unlocked), returns an empty map *without*
+     * caching it so subsequent calls retry once storage is ready.
+     */
+    internal fun loadMirroredNames(prefsProvider: () -> SharedPreferences?): Map<String, String> {
         val generation = cacheGeneration.get()
         val existing = cachedMirrored
         if (existing != null && cachedMirroredGeneration == generation) {
             return existing
         }
+        val prefs = runCatching(prefsProvider).getOrNull() ?: return emptyMap()
         val loaded = runCatching {
-            val prefs = Applic.app?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                ?: return@runCatching emptyMap()
             decodeStoredMap(prefs.getString(KEY_SENSOR_DISPLAY_NAMES, "").orEmpty())
-        }.getOrDefault(emptyMap())
+        }.getOrNull() ?: return emptyMap()
         synchronized(cacheLock) {
             if (cacheGeneration.get() == generation) {
                 cachedMirrored = loaded
