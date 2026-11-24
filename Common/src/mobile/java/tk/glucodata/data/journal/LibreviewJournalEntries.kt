@@ -38,7 +38,8 @@ object LibreviewJournalEntries : tk.glucodata.LibreviewJournalEntriesBridge {
         val food: String,
         val insulin: String,
         val generic: String,
-        val ids: List<Long>
+        /** The rows as they were rendered; what the acknowledgment is for. */
+        val entries: List<JournalEntryEntity>
     )
 
     @Volatile
@@ -74,15 +75,18 @@ object LibreviewJournalEntries : tk.glucodata.LibreviewJournalEntriesBridge {
     @Keep
     override fun noteEntries(): String = pending?.generic.orEmpty()
 
-    /** Marks the prepared rows delivered. Called only after LibreView accepted the document. */
+    /**
+     * Marks the prepared rows delivered, where they still say what was sent. Called only after
+     * LibreView accepted the document.
+     */
     @Keep
     override fun commit() {
         val sent = pending ?: return
         pending = null
-        if (sent.ids.isEmpty()) return
+        if (sent.entries.isEmpty()) return
         try {
-            val dao = HistoryDatabase.getInstance(Applic.app).journalDao()
-            runBlocking { dao.markEntriesUploadedToLibreview(sent.ids, System.currentTimeMillis()) }
+            val database = HistoryDatabase.getInstance(Applic.app)
+            runBlocking { database.acknowledgeLibreviewUpload(sent.entries, System.currentTimeMillis()) }
         } catch (th: Throwable) {
             // Losing the mark costs one duplicate send under the same record numbers, which
             // LibreView treats as an update of the entry it already has.
@@ -119,7 +123,7 @@ object LibreviewJournalEntries : tk.glucodata.LibreviewJournalEntriesBridge {
             food = join(built.food),
             insulin = join(built.insulin),
             generic = join(built.generic),
-            ids = candidates.map { it.id }
+            entries = candidates
         )
     }
 

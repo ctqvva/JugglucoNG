@@ -466,4 +466,36 @@ class JournalTreatmentUploaderTests {
         assertFalse(JournalTreatmentUploader.sameServer("", ""))
         assertFalse(JournalTreatmentUploader.sameServer(null, followed))
     }
+
+    // -- what documents are named --------------------------------------------
+
+    @Test
+    fun aDatedNameGivesItsTimeBack() {
+        val dated = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_123L)
+        assertEquals(1_700_000_000_123L, JournalTreatmentUploader.timestampOfDatedIdentifier(dated))
+        val typed = JournalTreatmentUploader.typedIdentifier(dated, "Meal Bolus")
+        assertEquals("$dated-mealbolus", typed)
+        assertEquals(1_700_000_000_123L, JournalTreatmentUploader.timestampOfDatedIdentifier(typed))
+        val local = JournalTreatmentUploader.localIdentifier(423L)
+        assertEquals(null, JournalTreatmentUploader.timestampOfDatedIdentifier(local))
+        assertEquals(423L, JournalTreatmentUploader.entryIdOfLocalIdentifier(local))
+        assertEquals(null, JournalTreatmentUploader.entryIdOfLocalIdentifier(dated))
+        assertEquals(null, JournalTreatmentUploader.entryIdOfLocalIdentifier("5f0c0c0c0c0c0c0c0c0c0c0c"))
+    }
+
+    @Test
+    fun theTypedNameIsOnlyUsedWhereTheServerHasIt() {
+        val dated = JournalTreatmentUploader.datedIdentifier(7L, 1_700_000_000_000L)
+        val typed = JournalTreatmentUploader.typedIdentifier(dated, "Note")
+        assertEquals(dated, JournalTreatmentUploader.v3Identifier(null, dated, "Note"))
+        assertEquals(dated, JournalTreatmentUploader.v3Identifier(dated, dated, "Note"))
+        assertEquals(typed, JournalTreatmentUploader.v3Identifier(typed, dated, "Note"))
+        assertEquals(dated, JournalTreatmentUploader.v3Identifier(typed, dated, "Exercise"))
+    }
+
+    @Test
+    fun onlyARefusalIsKnownToHaveStoredNothing() {
+        for (code in listOf(400, 401, 403, 404)) assertTrue(JournalTreatmentUploader.storedNothing(code))
+        for (code in listOf(-1, 408, 500, 502, 504)) assertFalse(JournalTreatmentUploader.storedNothing(code))
+    }
 }
