@@ -415,6 +415,9 @@ fun DashboardScreen(
     var showAnytimeWizard by remember { mutableStateOf(false) }
     var showOttaiWizard by remember { mutableStateOf(false) }
     var showMedtrumWizard by remember { mutableStateOf(false) }
+    var showBioeWizard by remember { mutableStateOf(false) }
+    var showScgmWizard by remember { mutableStateOf(false) }
+    var showNovoWizard by remember { mutableStateOf(false) }
     // Restricted mode: the empty dashboard offers only the families that may be added, and
     // a setup left open when the session locks again (or its family is dropped) closes.
     val addableSensorTypes = restrictedMode.addableSensorTypes()
@@ -431,6 +434,9 @@ fun DashboardScreen(
         if (tk.glucodata.ui.components.SensorType.ANYTIME !in allowed) showAnytimeWizard = false
         if (tk.glucodata.ui.components.SensorType.OTTAI !in allowed) showOttaiWizard = false
         if (tk.glucodata.ui.components.SensorType.MEDTRUM !in allowed) showMedtrumWizard = false
+        if (tk.glucodata.ui.components.SensorType.BIOE !in allowed) showBioeWizard = false
+        if (tk.glucodata.ui.components.SensorType.SCGM !in allowed) showScgmWizard = false
+        if (tk.glucodata.ui.components.SensorType.NOVO !in allowed) showNovoWizard = false
     }
     var journalEditorRequest by remember { mutableStateOf<JournalEditorRequest?>(null) }
     var journalActionTimestamp by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -899,6 +905,43 @@ fun DashboardScreen(
             onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showMedtrumWizard = false
+                viewModel.refreshData()
+            }
+        )
+        return
+    }
+
+    // Bioecare BioE Setup Wizard
+    if (showBioeWizard) {
+        tk.glucodata.ui.setup.BioeSetupWizard(
+            onDismiss = { showBioeWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showBioeWizard = false
+                viewModel.refreshData()
+            }
+        )
+        return
+    }
+
+    if (showScgmWizard) {
+        tk.glucodata.ui.setup.ScgmSetupWizard(
+            onDismiss = { showScgmWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showScgmWizard = false
+                viewModel.refreshData()
+            }
+        )
+        return
+    }
+
+    if (showNovoWizard) {
+        tk.glucodata.ui.setup.NovoSetupWizard(
+            onDismiss = { showNovoWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
+            onComplete = {
+                showNovoWizard = false
                 viewModel.refreshData()
             }
         )
@@ -1544,6 +1587,9 @@ fun DashboardScreen(
                         tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
                         tk.glucodata.ui.components.SensorType.OTTAI -> showOttaiWizard = true
                         tk.glucodata.ui.components.SensorType.MEDTRUM -> showMedtrumWizard = true
+                        tk.glucodata.ui.components.SensorType.BIOE -> showBioeWizard = true
+                        tk.glucodata.ui.components.SensorType.SCGM -> showScgmWizard = true
+                        tk.glucodata.ui.components.SensorType.NOVO -> showNovoWizard = true
                 }
             },
                 // Importing writes history, which needs full mode like the settings import.

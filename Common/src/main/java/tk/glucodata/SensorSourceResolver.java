@@ -25,6 +25,9 @@ public final class SensorSourceResolver {
     public static final int SENSOR_KIND_OTTAI = MANAGED_KIND_BASE | 5;
     public static final int SENSOR_KIND_NIGHTSCOUT = MANAGED_KIND_BASE | 7;
     public static final int SENSOR_KIND_MEDTRUM = MANAGED_KIND_BASE | 8;
+    public static final int SENSOR_KIND_BIOE = MANAGED_KIND_BASE | 9;
+    public static final int SENSOR_KIND_SCGM = MANAGED_KIND_BASE | 10;
+    public static final int SENSOR_KIND_NOVO = MANAGED_KIND_BASE | 11;
     // A driver with no family of its own (the API source): readings another app
     // pushed in, whose sensor this app cannot vouch for.
     public static final int SENSOR_KIND_EXTERNAL = MANAGED_KIND_BASE;
@@ -61,6 +64,9 @@ public final class SensorSourceResolver {
             case SENSOR_KIND_MQ -> "MQ";
             case SENSOR_KIND_NIGHTSCOUT -> "Nightscout";
             case SENSOR_KIND_MEDTRUM -> "Medtrum";
+            case SENSOR_KIND_BIOE -> "Bioe";
+            case SENSOR_KIND_SCGM -> "Scgm";
+            case SENSOR_KIND_NOVO -> "Novo";
             case SENSOR_KIND_CARESENS_AIR -> "CareSenseAir";
             case SENSOR_KIND_EXTERNAL -> "Unknown";
             // Libre 2, and what is left once every flagged or stamped sensor has
@@ -150,6 +156,9 @@ public final class SensorSourceResolver {
             case OTTAI -> SENSOR_KIND_OTTAI;
             case NIGHTSCOUT -> SENSOR_KIND_NIGHTSCOUT;
             case MEDTRUM -> SENSOR_KIND_MEDTRUM;
+            case BIOE -> SENSOR_KIND_BIOE;
+            case SCGM -> SENSOR_KIND_SCGM;
+            case NOVO -> SENSOR_KIND_NOVO;
             case GENERIC -> SENSOR_KIND_UNKNOWN;
         };
     }
@@ -182,6 +191,9 @@ public final class SensorSourceResolver {
             case SENSOR_KIND_MQ -> "MQ";
             case SENSOR_KIND_NIGHTSCOUT -> "Nightscout";
             case SENSOR_KIND_MEDTRUM -> "Medtrum";
+            case SENSOR_KIND_BIOE -> "Bioecare";
+            case SENSOR_KIND_SCGM -> "Bioecare SCGM";
+            case SENSOR_KIND_NOVO -> "Bioecare NOVO";
             default -> "Unknown";
         };
     }

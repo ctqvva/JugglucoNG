@@ -1,0 +1,315 @@
+package tk.glucodata.ui.setup
+
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import tk.glucodata.Log
+import tk.glucodata.R
+import tk.glucodata.drivers.bioe.BioeApi
+import tk.glucodata.drivers.bioe.BioeApiResult
+import tk.glucodata.drivers.bioe.BioeCalibration
+import tk.glucodata.drivers.bioe.BioeConstants
+import tk.glucodata.drivers.bioe.BioeRegistry
+import tk.glucodata.ui.components.AppTopBar
+
+private const val TAG = "BioeSetupWizard"
+
+private enum class BioeSetupStep { ENTRY, SAVED }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BioeSetupWizard(
+    onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
+    onComplete: () -> Unit,
+) {
+    val ui = rememberWizardUiMetrics()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var step by remember { mutableStateOf(BioeSetupStep.ENTRY) }
+    var deviceCode by remember { mutableStateOf("") }
+    var tokenInput by remember { mutableStateOf(BioeRegistry.getApiToken(context)) }
+    var kInput by remember { mutableStateOf("") }
+    var bInput by remember { mutableStateOf("") }
+    var thresholdInput by remember { mutableStateOf("") }
+    var useAtMs by remember { mutableStateOf(0L) }
+    var serverMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var showError by remember { mutableStateOf(false) }
+    var pendingSave by remember { mutableStateOf<BioeCalibration?>(null) }
+
+    val k = kInput.trim().toDoubleOrNull()
+    val b = bInput.trim().toDoubleOrNull()
+    val threshold = thresholdInput.trim().toDoubleOrNull() ?: BioeConstants.DEFAULT_LOW_CURRENT_NA
+    val thresholdValid = thresholdInput.isBlank() || (threshold.isFinite() && threshold >= 0.0)
+    val valid = BioeRegistry.isValidDeviceCode(deviceCode) &&
+        k != null && k > 0.0 && k.isFinite() && b != null && b.isFinite() && thresholdValid
+
+    fun save(calibration: BioeCalibration) {
+        val sensorId = BioeRegistry.addSensor(
+            context = context,
+            deviceCode = deviceCode.trim(),
+            calibration = calibration,
+            useAtMs = useAtMs,
+        )
+        if (sensorId == null) {
+            showError = true
+            return
+        }
+        if (tokenInput.isNotBlank()) BioeRegistry.setApiToken(context, tokenInput.trim())
+        Log.i(TAG, "Saved Bioecare sensor $sensorId")
+        step = BioeSetupStep.SAVED
+    }
+
+    fun loadFromServer() {
+        if (tokenInput.isBlank()) {
+            serverMessage = context.getString(R.string.bioe_server_load_failed)
+            return
+        }
+        isLoading = true
+        serverMessage = ""
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                BioeApi.fetchDevices(tokenInput.trim())
+            }
+            isLoading = false
+            showError = false
+            when (result) {
+                is BioeApiResult.Success -> {
+                    val device = BioeApi.selectDevice(result.value, deviceCode)
+                    if (device?.calibration == null) {
+                        serverMessage = context.getString(R.string.bioe_server_no_device)
+                    } else {
+                        kInput = device.kRaw
+                        bInput = device.bRaw
+                        thresholdInput = device.thresholdRaw
+                        useAtMs = device.useAtMs
+                        if (deviceCode.isBlank()) deviceCode = device.deviceCode
+                        BioeRegistry.setApiToken(context, tokenInput.trim())
+                        serverMessage = context.getString(R.string.bioe_server_loaded)
+                    }
+                }
+                is BioeApiResult.HttpError -> serverMessage =
+                    context.getString(R.string.bioe_server_load_failed) + " (HTTP ${result.code})"
+                is BioeApiResult.TransportError, is BioeApiResult.ProtocolError ->
+                    serverMessage = context.getString(R.string.bioe_server_load_failed)
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        pendingSave?.let { calibration ->
+            pendingSave = null
+            save(calibration)
+        }
+    }
+
+    fun requestPermissionsAndSave(calibration: BioeCalibration) {
+        if (!hasBleScanPermissions(context)) {
+            val required = requiredBleScanPermissions()
+            if (required.isNotEmpty()) {
+                pendingSave = calibration
+                permissionLauncher.launch(required)
+                return
+            }
+        }
+        save(calibration)
+    }
+
+    BackHandler {
+        if (step == BioeSetupStep.ENTRY) onDismiss() else step = BioeSetupStep.ENTRY
+    }
+
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = stringResource(R.string.bioe_sensor),
+                onNavigateBack = onDismiss,
+                navigationContentDescription = stringResource(R.string.cancel),
+            )
+        }
+    ) { padding ->
+        when (step) {
+            BioeSetupStep.ENTRY -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = ui.horizontalPadding),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top,
+            ) {
+                Spacer(Modifier.height(ui.spacerMedium))
+                tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+                Spacer(Modifier.height(ui.spacerLarge))
+                Text(
+                    text = stringResource(R.string.bioe_sensor_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(ui.spacerMedium))
+                OutlinedTextField(
+                    value = deviceCode,
+                    onValueChange = { input ->
+                        showError = false
+                        deviceCode = input.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.take(40)
+                    },
+                    label = { Text(stringResource(R.string.bioe_device_code_label)) },
+                    singleLine = true,
+                    isError = showError && !BioeRegistry.isValidDeviceCode(deviceCode),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(ui.spacerMedium))
+                OutlinedTextField(
+                    value = tokenInput,
+                    onValueChange = { tokenInput = it; serverMessage = "" },
+                    label = { Text(stringResource(R.string.bioe_token_label)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(ui.spacerMedium))
+                OutlinedButton(
+                    onClick = ::loadFromServer,
+                    enabled = tokenInput.isNotBlank() && !isLoading,
+                    shapes = ButtonDefaults.shapes(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ui.buttonHeight),
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (isLoading) R.string.bioe_server_loading
+                            else R.string.bioe_load_from_server
+                        )
+                    )
+                }
+                Spacer(Modifier.height(ui.spacerMedium))
+                OutlinedTextField(
+                    value = kInput,
+                    onValueChange = { showError = false; kInput = it },
+                    label = { Text(stringResource(R.string.bioe_k_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = showError && (k == null || k <= 0.0 || !k.isFinite()),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(ui.spacerMedium))
+                OutlinedTextField(
+                    value = bInput,
+                    onValueChange = { showError = false; bInput = it },
+                    label = { Text(stringResource(R.string.bioe_b_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = showError && (b == null || !b.isFinite()),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(ui.spacerMedium))
+                OutlinedTextField(
+                    value = thresholdInput,
+                    onValueChange = { showError = false; thresholdInput = it },
+                    label = { Text(stringResource(R.string.bioe_threshold_label)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = showError && !thresholdValid,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (serverMessage.isNotBlank()) {
+                    Spacer(Modifier.height(ui.spacerMedium))
+                    Text(
+                        text = serverMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (showError) {
+                    Spacer(Modifier.height(ui.spacerMedium))
+                    Text(
+                        text = stringResource(R.string.bioe_setup_invalid),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Spacer(Modifier.height(ui.spacerLarge))
+                OutlinedButton(
+                    onClick = {
+                        if (!valid || k == null || b == null) {
+                            showError = true
+                        } else {
+                            requestPermissionsAndSave(BioeCalibration(k, b, threshold))
+                        }
+                    },
+                    enabled = valid,
+                    shapes = ButtonDefaults.shapes(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ui.buttonHeight),
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            }
+            BioeSetupStep.SAVED -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = ui.horizontalPadding),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    SensorSetupConnectingScreen(
+                        ui = ui,
+                        sensorLabel = BioeRegistry.canonicalSensorId(deviceCode),
+                        title = stringResource(R.string.bioe_setup_saved_title),
+                        supportingText = stringResource(R.string.bioe_setup_saved_message),
+                    )
+                }
+                OutlinedButton(
+                    onClick = onComplete,
+                    shapes = ButtonDefaults.shapes(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ui.buttonHeight),
+                ) {
+                    Text(stringResource(R.string.ok))
+                }
+                Spacer(Modifier.height(ui.spacerLarge))
+            }
+        }
+    }
+}

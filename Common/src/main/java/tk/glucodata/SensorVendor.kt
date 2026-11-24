@@ -18,6 +18,7 @@ enum class SensorVendor(
     ISENS(R.string.sensor_vendor_isens),
     NIGHTSCOUT(R.string.sensor_type_nightscout),
     MEDTRUM(R.string.sensor_vendor_medtrum),
+    BIOECARE(R.string.sensor_vendor_bioecare),
     UNKNOWN(R.string.unknown),
     ;
 
@@ -33,6 +34,9 @@ enum class SensorVendor(
             ManagedSensorUiFamily.SIBIONICS -> SIBIONICS
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.MEDTRUM -> MEDTRUM
+            ManagedSensorUiFamily.BIOE -> BIOECARE
+            ManagedSensorUiFamily.SCGM -> BIOECARE
+            ManagedSensorUiFamily.NOVO -> BIOECARE
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 
@@ -94,6 +98,7 @@ fun sensorBadge(
         SensorVendor.ISENS -> SensorBadge("CARE", model)
         SensorVendor.NIGHTSCOUT -> SensorBadge("NIGHT", "SCOUT")
         SensorVendor.MEDTRUM -> SensorBadge("MT", model)
+        SensorVendor.BIOECARE -> SensorBadge("BIOE", model)
         SensorVendor.UNKNOWN -> SensorBadge("", "")
     }
     val brand = vendorBrand.trim().uppercase()
@@ -151,6 +156,9 @@ enum class SensorTypeName(
     OTTAI_CGM(R.string.sensor_type_ottai),
     NIGHTSCOUT(R.string.sensor_type_nightscout),
     MEDTRUM_EASYSENSE(R.string.medtrum_sensor),
+    BIOE_CGM(R.string.bioe_sensor),
+    SCGM_CGM(R.string.scgm_sensor),
+    NOVO_CGM(R.string.novo_sensor),
     UNKNOWN(R.string.unknown),
     ;
 
@@ -173,6 +181,9 @@ enum class SensorTypeName(
             }
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.MEDTRUM -> MEDTRUM_EASYSENSE
+            ManagedSensorUiFamily.BIOE -> BIOE_CGM
+            ManagedSensorUiFamily.SCGM -> SCGM_CGM
+            ManagedSensorUiFamily.NOVO -> NOVO_CGM
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 

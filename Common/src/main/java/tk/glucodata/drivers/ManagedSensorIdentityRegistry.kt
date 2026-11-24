@@ -7,13 +7,16 @@ import tk.glucodata.SensorIdentity
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.drivers.aidex.AiDexManagedSensorIdentityAdapter
 import tk.glucodata.drivers.api.ApiGlucoseSourceIdentityAdapter
+import tk.glucodata.drivers.bioe.BioeIdentityAdapter
 import tk.glucodata.drivers.anytime.AnytimeManagedSensorIdentityAdapter
 import tk.glucodata.drivers.icanhealth.ICanHealthManagedSensorIdentityAdapter
 import tk.glucodata.drivers.medtrum.MedtrumIdentityAdapter
 import tk.glucodata.drivers.mq.MQManagedSensorIdentityAdapter
 import tk.glucodata.drivers.ottai.OttaiManagedSensorIdentityAdapter
 import tk.glucodata.drivers.sibionics.SibionicsManagedSensorIdentityAdapter
+import tk.glucodata.drivers.scgm.ScgmIdentityAdapter
 import tk.glucodata.drivers.nightscout.NightscoutFollowerIdentityAdapter
+import tk.glucodata.drivers.novo.NovoIdentityAdapter
 
 object ManagedSensorIdentityRegistry {
     private const val TAG = "ManagedSensorIdentity"
@@ -21,6 +24,9 @@ object ManagedSensorIdentityRegistry {
     val all: List<ManagedSensorIdentityAdapter> = listOf(
         AiDexManagedSensorIdentityAdapter,
         AnytimeManagedSensorIdentityAdapter,
+        BioeIdentityAdapter,
+        ScgmIdentityAdapter,
+        NovoIdentityAdapter,
         ICanHealthManagedSensorIdentityAdapter,
         MQManagedSensorIdentityAdapter,
         MedtrumIdentityAdapter,

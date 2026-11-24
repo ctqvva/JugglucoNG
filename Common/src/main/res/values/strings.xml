@@ -1103,6 +1103,32 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="medtrum_setup_device_rejected">This device is not a Medtrum transmitter. Make sure the transmitter is in range and try again.</string>
     <string name="medtrum_serial_hint" translatable="false">1B2C3D4E</string>
     <string name="medtrum_serial_echo" translatable="false">SN %1$s = %2$d</string>
+    <string name="bioe_sensor" translatable="false">Bioecare CGM</string>
+    <string name="bioe_sensor_desc">Device code and the k/b coefficients from your sensor</string>
+    <string name="bioe_device_code_label">Device code</string>
+    <string name="bioe_k_label">Coefficient k</string>
+    <string name="bioe_b_label">Coefficient b</string>
+    <string name="bioe_token_label">Bioecare account token</string>
+    <string name="bioe_load_from_server">Load parameters from server</string>
+    <string name="bioe_server_loading">Loading…</string>
+    <string name="bioe_server_loaded">Parameters loaded from server</string>
+    <string name="bioe_server_load_failed">Could not load parameters from server</string>
+    <string name="bioe_server_no_device">No sensor with valid parameters found on the server</string>
+    <string name="bioe_threshold_label">Low-current threshold (nA, optional)</string>
+    <string name="bioe_setup_saved_title">Sensor saved</string>
+    <string name="bioe_setup_saved_message">The sensor is saved. Keep it nearby so the app can connect and read it.</string>
+    <string name="bioe_setup_invalid">Enter a device code and finite k/b values (k must be positive)</string>
+    <string name="scgm_sensor" translatable="false">Bioecare SCGM</string>
+    <string name="scgm_sensor_desc">Device code in hex and the k/b coefficients from your sensor</string>
+    <string name="scgm_device_code_label">Device code (hex, lower case)</string>
+    <string name="scgm_setup_invalid">Enter a hex device code and finite k/b values (k must be positive)</string>
+    <string name="novo_sensor" translatable="false">Bioecare NOVO</string>
+    <string name="novo_sensor_desc">Experimental DN- driver: device code and the k/b coefficients from your sensor</string>
+    <string name="novo_device_code_label">Device code (DN-…)</string>
+    <string name="novo_password_low_label">Password low byte (optional)</string>
+    <string name="novo_password_high_label">Password high byte (optional)</string>
+    <string name="novo_setup_invalid">Enter a device code and finite k/b values (k must be positive)</string>
+    <string name="sensor_vendor_bioecare" translatable="false">Bioecare</string>
     <string name="icanhealth_sensor" translatable="false">Sinocare iCan</string>
     <string name="icanhealth_sensor_desc" translatable="false">i3, i6</string>
     <string name="anytime_sensor" translatable="false">Yuwell Anytime</string>
