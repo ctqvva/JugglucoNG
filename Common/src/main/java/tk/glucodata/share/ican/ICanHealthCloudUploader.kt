@@ -189,10 +189,8 @@ class ICanHealthCloudUploader(
             if (!settings.enabled || settings.token.isBlank() ||
                 (expectedAccountKey != null && settings.accountKey != expectedAccountKey)
             ) return false
-            if (!queue.hasUnpersistedRows() && rows.all { row ->
-                    queue.peek().any { it.serial == row.serial && it.timeMs == row.timeMs }
-                }
-            ) {
+            val queuedKeys = queue.peek().map { it.serial to it.timeMs }.toHashSet()
+            if (!queue.hasUnpersistedRows() && rows.all { (it.serial to it.timeMs) in queuedKeys }) {
                 if (rows.isNotEmpty()) {
                     settings.backfillProgressMs = maxOf(
                         settings.backfillProgressMs, rows.maxOf { it.timeMs },
