@@ -854,7 +854,7 @@ class AiDexBleManager(
 
     // -- SharedPreferences for per-sensor state persistence --
     private val algorithmRuntime by lazy {
-        AiDexAlgorithmRuntime(Applic.app, SerialNumber, { dataptr }, { sensorstartmsec },
+        AiDexAlgorithmRuntime(Applic.app, SerialNumber, { dataptr }, { write -> withNativeData(write) != null }, { sensorstartmsec },
             { historyDownloading }, storeLive = { row, previous -> storeAlgorithmLive(row, previous) },
             publish = { row, live -> publishAlgorithmReading(row, live) },
             requestSourceHistory = { time -> requestOriginalHistoryRecovery(time) })
@@ -6139,7 +6139,13 @@ class AiDexBleManager(
             Log.i(TAG, "History complete: ${calibratedGlucoseCache.size} cached 0x23 entries had no matching 0x24")
             calibratedGlucoseCache.clear()
         }
-        clearHistoryFallback()
+        // 0x24 can run out of rows before the announced end. The rows still ahead of its
+        // cursor need the factory glucose dropped above, and the fallback before them.
+        if (historyNewestOffset > 0 && historyBriefNextIndex <= historyNewestOffset) {
+            rewindRawHistoryCursor()
+        } else {
+            clearHistoryFallback()
+        }
 
         Log.i(TAG, "History download complete. Total entries stored: $historyStoredCount")
 

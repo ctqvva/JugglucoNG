@@ -245,7 +245,7 @@ class AiDexAlgorithmRuntimeTests {
             AiDexAlgorithmReading::class.java, Int::class.javaPrimitiveType).apply { isAccessible = true }
         val publish = AiDexBleManager::class.java.getDeclaredMethod("publishAlgorithmReading", AiDexAlgorithmReading::class.java,
             Boolean::class.javaPrimitiveType).apply { isAccessible = true }
-        runtime = AiDexAlgorithmRuntime(Applic.app, serial, { 0L }, { NativeInputs.start }, { false },
+        runtime = AiDexAlgorithmRuntime(Applic.app, serial, { 0L }, { false }, { NativeInputs.start }, { false },
             storeLive = { row, previous -> store.invoke(driver, row, previous, Natives.AIDEX_TREND_UNKNOWN) as AiDexAlgorithmReading },
             publish = { row, live -> publish.invoke(driver, row, live); Unit }, worker = executor,
             requestSourceHistory = { sourceHistoryRequests += it })
@@ -527,16 +527,7 @@ class AiDexAlgorithmRuntimeTests {
     }
 
     /** Minute 4 has raw data and a 0x23 sentinel, so it is stored with minute 3's factory glucose. */
-    private fun resumeAtTheSentinelRow() {
-        rangeTo(4)
-        assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
-        historyResponse(rawPage(4, 1023))
-        historyResponse(briefRows(4, true))
-        assertEquals(5, historyField("historyBriefNextIndex").getInt(driver))
-        while (executor.pending.isNotEmpty()) executor.runNext()
-        assertEquals(110f, room[historyTime(4)]!!, 0f)
-        driver.dataptr = 0L
-    }
+    private fun resumeAtTheSentinelRow() = resumeAtTheRow(factoryGlucose = 1023, stored = 110f)
 
     private fun failAtTheSentinelRow() {
         NativeInputs.start = System.currentTimeMillis() - 600_000L
@@ -552,8 +543,7 @@ class AiDexAlgorithmRuntimeTests {
 
     @Test fun retriedRowKeepsThePrecedingFactoryGlucoseAfterReconnect() {
         failAtTheSentinelRow()
-        AiDexBleManager::class.java.getDeclaredMethod("resetConnectionRuntimeState", String::class.java, Boolean::class.javaPrimitiveType)
-            .apply { isAccessible = true }.invoke(driver, "disconnect", false)
+        disconnect()
         resumeAtTheSentinelRow()
     }
 
@@ -571,7 +561,9 @@ class AiDexAlgorithmRuntimeTests {
         historyField("historyBriefNextIndex").setInt(driver, 4)
         rangeTo(4)
         assertEquals(110, historyField("lastCalibratedGlucoseFallback").get(driver))
+        historyField("historyBriefNextIndex").setInt(driver, 5) // Caught up.
         AiDexBleManager::class.java.getDeclaredMethod("onHistoryDownloadComplete").apply { isAccessible = true }.invoke(driver)
+        historyField("historyBriefNextIndex").setInt(driver, 4)
         rangeTo(4)
         assertNull(historyField("lastCalibratedGlucoseFallback").get(driver))
         driver.dataptr = 0L
@@ -594,13 +586,57 @@ class AiDexAlgorithmRuntimeTests {
         driver.dataptr = 0L
     }
 
-    @Test fun allZeroRowsAtTheAnnouncedEndStayPending() {
+    /** Minutes 2 and 3 are stored; minute 4, the newest, has no raw data yet. */
+    private fun endAtAnAllZeroRow(factoryGlucose: Int?) {
+        NativeInputs.start = System.currentTimeMillis() - 600_000L
         prepareHistoryPage()
-        historyField("historyNewestOffset").setInt(driver, 3)
-        historyResponse(briefRows(2, false, false))
+        historyField("historyRawNextIndex").setInt(driver, 5)
+        @Suppress("UNCHECKED_CAST")
+        if (factoryGlucose != null) (historyField("calibratedGlucoseCache").get(driver) as MutableMap<Int, Int>)[4] = factoryGlucose
+        historyResponse(briefPage())
+        historyResponse(briefRows(4, false))
         assertFalse(historyField("historyDownloading").getBoolean(driver))
-        assertEquals(2, historyField("historyBriefNextIndex").getInt(driver))
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        while (executor.pending.isNotEmpty()) executor.runNext()
+        assertEquals(setOf(historyTime(2), historyTime(3)), room.keys.toSet())
+    }
+
+    private fun resumeAtTheRow(factoryGlucose: Int, stored: Float) {
+        rangeTo(4)
+        assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
+        historyResponse(rawPage(4, factoryGlucose))
+        historyResponse(briefRows(4, true))
+        assertEquals(5, historyField("historyBriefNextIndex").getInt(driver))
+        while (executor.pending.isNotEmpty()) executor.runNext()
+        assertEquals(stored, room[historyTime(4)]!!, 0f)
         driver.dataptr = 0L
+    }
+
+    private fun disconnect() = AiDexBleManager::class.java
+        .getDeclaredMethod("resetConnectionRuntimeState", String::class.java, Boolean::class.javaPrimitiveType)
+        .apply { isAccessible = true }.invoke(driver, "disconnect", false)
+
+    @Test fun rowThatWasAllZeroAtTheEndIsStoredOnTheNextDownload() {
+        endAtAnAllZeroRow(factoryGlucose = 115)
+        resumeAtTheRow(factoryGlucose = 115, stored = 115f)
+    }
+
+    @Test fun rowThatWasAllZeroAtTheEndIsStoredAfterReconnect() {
+        endAtAnAllZeroRow(factoryGlucose = 115)
+        disconnect()
+        resumeAtTheRow(factoryGlucose = 115, stored = 115f)
+    }
+
+    @Test fun rowThatWasAllZeroAtTheEndKeepsItsFallbackAfterReconnect() {
+        endAtAnAllZeroRow(factoryGlucose = null)
+        disconnect()
+        resumeAtTheRow(factoryGlucose = 1023, stored = 110f)
+    }
+
+    @Test fun rowThatWasAllZeroAtTheEndKeepsItsFallbackAfterRestart() {
+        endAtAnAllZeroRow(factoryGlucose = null)
+        reconnectWithRecreatedDriver()
+        resumeAtTheRow(factoryGlucose = 1023, stored = 110f)
     }
 
     @Test fun rawPageWithoutRowsEndsTheDownloadWhereItIs() {
@@ -608,12 +644,13 @@ class AiDexAlgorithmRuntimeTests {
         historyResponse(byteArrayOf(AiDexOpcodes.GET_HISTORIES.toByte(), 0, 2, 0, 0))
         assertFalse(historyField("historyDownloading").getBoolean(driver))
         assertEquals(2, historyField("historyBriefNextIndex").getInt(driver))
+        assertEquals(2, historyField("historyRawNextIndex").getInt(driver))
         driver.dataptr = 0L
     }
 
-    @Test fun teardownWaitsForTheHistoryPageBeingWritten() {
-        prepareHistoryPage()
-        val free = SuperGattCallback::class.java.getDeclaredMethod("free").apply { isAccessible = true }
+    private val free = SuperGattCallback::class.java.getDeclaredMethod("free").apply { isAccessible = true }
+
+    private fun tearDownDuringTheFirstHistoryWrite(): Thread {
         val teardown = Thread { free.invoke(driver) }
         NativeInputs.duringHistoryWrite = {
             if (teardown.state == Thread.State.NEW) {
@@ -623,12 +660,59 @@ class AiDexAlgorithmRuntimeTests {
                 while (teardown.state != Thread.State.BLOCKED && teardown.isAlive && System.nanoTime() < deadline) Thread.sleep(1)
             }
         }
-        historyResponse(briefPage())
+        return teardown
+    }
+
+    private fun assertFreedAfterTwoHistoryWrites(teardown: Thread) {
         teardown.join(10_000L)
         assertFalse(teardown.isAlive)
         assertEquals(2, NativeInputs.historyWrites)
         assertEquals(2, NativeInputs.historyWritesWhenFreed)
         assertEquals(0L, driver.dataptr)
+    }
+
+    @Test fun teardownWaitsForTheHistoryPageBeingWritten() {
+        prepareHistoryPage()
+        val teardown = tearDownDuringTheFirstHistoryWrite()
+        historyResponse(briefPage())
+        assertFreedAfterTwoHistoryWrites(teardown)
+    }
+
+    /** The runtime as the manager itself builds it, native access and worker thread included. */
+    private fun useTheManagersOwnRuntime() {
+        runtime.close()
+        driver = AiDexBleManager(serial, 1L, 4)
+        SensorBluetooth.gattcallbacks.clear()
+        SensorBluetooth.gattcallbacks.add(driver)
+        @Suppress("UNCHECKED_CAST")
+        runtime = (historyField("algorithmRuntime\$delegate").get(driver) as Lazy<AiDexAlgorithmRuntime>).value
+        awaitReplay()
+        runtime.record(listOf(sample(1), sample(2)))
+    }
+
+    private fun awaitReplay() {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
+        while (runtime.isRebuilding() && System.nanoTime() < deadline) Thread.sleep(1)
+        assertFalse(runtime.isRebuilding())
+    }
+
+    @Test fun teardownWaitsForTheReplayBeingMirrored() {
+        useTheManagersOwnRuntime()
+        val teardown = tearDownDuringTheFirstHistoryWrite()
+        assertTrue(runtime.select(8))
+        awaitReplay()
+        assertFreedAfterTwoHistoryWrites(teardown)
+        assertFalse(runtime.failed)
+    }
+
+    @Test fun replayDoesNotMirrorIntoAWrapperFreedSinceItStarted() {
+        useTheManagersOwnRuntime()
+        beforeRoomWrite = { free.invoke(driver) }
+        assertTrue(runtime.select(8))
+        awaitReplay()
+        assertEquals(2, room.size)
+        assertEquals(0, NativeInputs.historyWrites)
+        assertTrue(runtime.failed) // The mirror is owed, not done.
     }
 
     @Test fun discardedHistoryRowsAdvanceWithoutAnyStore() {

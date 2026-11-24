@@ -21,7 +21,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class AiDexAlgorithmRuntime(
     private val context: Context,
     private val serial: String,
+    /** Identity only. The wrapper behind it may be freed at any time; write through [withNativeData]. */
     private val nativePointer: () -> Long,
+    /** Runs the write on a live wrapper, or returns false when there is none. */
+    private val withNativeData: ((Long) -> Unit) -> Boolean,
     private val sensorStart: () -> Long,
     private val historyActive: () -> Boolean,
     private val storeLive: (AiDexAlgorithmReading, AiDexAlgorithmReading?) -> AiDexAlgorithmReading,
@@ -423,12 +426,14 @@ internal class AiDexAlgorithmRuntime(
                                             Log.e("AiDexAlgorithm", "Cannot determine retained history for $serial")
                                         }
                                 } else null
-                                val pointer = nativePointer()
-                                if (pointer != 0L) {
-                                    runCatching { output.filter { row -> row.source.timestampMs >= sensorStart() &&
-                                        (retained == null || row.source.minute in retained) }.forEach { row ->
-                                        Natives.aidexStoreHistoryData(pointer, row.source.timestampMs, row.glucoseMgDl, row.source.rawMgDl.takeIf { it.isFinite() } ?: 0f)
-                                    } }.onFailure { error ->
+                                if (expectedPointer != 0L) {
+                                    runCatching {
+                                        val mirrored = output.filter { row -> row.source.timestampMs >= sensorStart() &&
+                                            (retained == null || row.source.minute in retained) }
+                                        check(withNativeData { pointer -> mirrored.forEach { row ->
+                                            Natives.aidexStoreHistoryData(pointer, row.source.timestampMs, row.glucoseMgDl, row.source.rawMgDl.takeIf { it.isFinite() } ?: 0f)
+                                        } }) { "native shell released" }
+                                    }.onFailure { error ->
                                         // Room already committed. Retain its matching calibration
                                         // ownership rather than reverting the flag around new values.
                                         Log.stack("AiDexAlgorithm", "native history mirror", error)
