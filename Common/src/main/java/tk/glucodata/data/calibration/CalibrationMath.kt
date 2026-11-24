@@ -80,7 +80,9 @@ internal object CalibrationMath {
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
     private const val ENSEMBLE_DISPERSION_FRACTION = 0.05
     private const val ENSEMBLE_NEAREST_TIME_HOURS = 6.0
-    private const val ENSEMBLE_SCALE_FLOOR_FRACTION = 0.02
+    private const val SCALE_FLOOR_FRACTION = 0.02
+    private const val ROBUST_MAD_FLOOR_FRACTION = 0.0005
+    private const val ROBUST_CONFIDENCE_MAD_FRACTION = 0.008
 
     /**
      * A raw value that is safe to store beside a calibration, or zero when the source has none.
@@ -208,6 +210,13 @@ internal object CalibrationMath {
         }
     }
 
+    private fun referenceScale(points: List<CalPoint>, targetValue: Double): Double =
+        maxOf(
+            median(points.map { abs(it.x - targetValue) }),
+            abs(targetValue) * SCALE_FLOOR_FRACTION,
+            1e-9,
+        )
+
     private fun temporalWeight(
         pointTimestamp: Long,
         targetTimestamp: Long,
@@ -298,12 +307,13 @@ internal object CalibrationMath {
         val fallback = targetValue + weightedOffset(points, weights)
         val regression = model?.predict(targetValue) ?: fallback
 
+        val scale = referenceScale(points, targetValue)
         val nearest = points.minByOrNull {
-            abs(it.x - targetValue) + abs(it.timestamp - targetTimestamp) / HOUR_MS
+            abs(it.x - targetValue) / scale + abs(it.timestamp - targetTimestamp) / HOUR_MS
         }
 
         if (nearest != null) {
-            val dx = abs(nearest.x - targetValue)
+            val dx = abs(nearest.x - targetValue) / scale
             val dtHours = abs(nearest.timestamp - targetTimestamp) / HOUR_MS
             val snap = (1.0 / (1.0 + dx * 2.5)) * (1.0 / (1.0 + dtHours / 8.0)) * 0.25
             val anchor = targetValue + (nearest.y - nearest.x)
@@ -423,13 +433,14 @@ internal object CalibrationMath {
                 )
             }
 
-        var finalMad = 0.05
+        val madFloor = max(abs(targetValue) * ROBUST_MAD_FLOOR_FRACTION, 1e-9)
+        var finalMad = madFloor
 
         repeat(4) {
             val residuals = points.map { p -> p.y - model.predict(p.x) }
-            val mad = median(residuals.map { abs(it) }).coerceAtLeast(0.05)
+            val mad = median(residuals.map { abs(it) }).coerceAtLeast(madFloor)
             finalMad = mad
-            val scale = (mad * 1.4826).coerceAtLeast(0.05)
+            val scale = (mad * 1.4826).coerceAtLeast(madFloor)
 
             weights = baseWeights.indices.map { idx ->
                 val u = residuals[idx] / (1.5 * scale)
@@ -444,7 +455,9 @@ internal object CalibrationMath {
         val offsetFallback = targetValue + weightedOffset(points, weights)
         return if (regression.isFinite()) {
             val prediction = regression * 0.85 + offsetFallback * 0.15
-            val confidence = (1.0 / (1.0 + finalMad)).coerceIn(0.20, 1.0)
+            val relativeMad = finalMad / max(abs(targetValue), 1e-9)
+            val confidence = (1.0 / (1.0 + relativeMad / ROBUST_CONFIDENCE_MAD_FRACTION))
+                .coerceIn(0.20, 1.0)
             AlgorithmComputation(
                 prediction = prediction,
                 slope = model.slope,
@@ -471,7 +484,7 @@ internal object CalibrationMath {
         points: List<CalPoint>,
         tuning: CalibrationTuning
     ): AlgorithmComputation {
-        val scale = median(points.map { abs(it.x - targetValue) }).coerceAtLeast(0.5)
+        val scale = referenceScale(points, targetValue)
 
         val localWeights = points.map { p ->
             val timeWeight = temporalWeight(
@@ -497,7 +510,7 @@ internal object CalibrationMath {
 
         val nearestByValue = points.minByOrNull { abs(it.x - targetValue) }
         if (nearestByValue != null) {
-            val dx = abs(nearestByValue.x - targetValue)
+            val dx = abs(nearestByValue.x - targetValue) / scale
             val snap = (1.0 / (1.0 + dx * 3.0)) * 0.20
             snapApplied = snap
             val anchor = targetValue + (nearestByValue.y - nearestByValue.x)
@@ -542,11 +555,7 @@ internal object CalibrationMath {
         val harmony = (1.0 / (1.0 + relativeDispersion / ENSEMBLE_DISPERSION_FRACTION))
             .coerceIn(0.20, 1.00)
 
-        val scale = maxOf(
-            median(points.map { abs(it.x - targetValue) }),
-            abs(targetValue) * ENSEMBLE_SCALE_FLOOR_FRACTION,
-            1e-9,
-        )
+        val scale = referenceScale(points, targetValue)
         val localWeights = points.map { p ->
             val timeWeight = temporalWeight(
                 pointTimestamp = p.timestamp,

@@ -8,8 +8,8 @@ class AdaptiveEnsembleUnitTests {
     private val hour = 3_600_000L
     private val now = 1_700_000_000_000L
     private val mgdlPerMmol = 18.0182
-    private val componentLeakConfidence = 0.05
-    private val componentLeakPredictionFraction = 0.02
+    private val unitInvarianceTolerance = 1e-6
+    private val predictionToleranceMgdl = 1e-4
 
     private val tuning = CalibrationTuning.DEFAULT.copy(algorithm = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE)
 
@@ -42,7 +42,7 @@ class AdaptiveEnsembleUnitTests {
         val mgdl = resultIn(points, 130.0, 1.0)
         val mmol = resultIn(points, 130.0, 1.0 / mgdlPerMmol)
 
-        assertEquals(mgdl.confidence!!, mmol.confidence!!, componentLeakConfidence)
+        assertEquals(mgdl.confidence!!, mmol.confidence!!, unitInvarianceTolerance)
     }
 
     @Test
@@ -53,7 +53,7 @@ class AdaptiveEnsembleUnitTests {
         assertEquals(
             mgdl.prediction,
             mmol.prediction * mgdlPerMmol,
-            mgdl.prediction * componentLeakPredictionFraction,
+            predictionToleranceMgdl,
         )
     }
 
@@ -69,11 +69,11 @@ class AdaptiveEnsembleUnitTests {
         assertTrue(mgdl.confidence!! < 0.50)
         assertTrue(mmol.confidence!! < 0.50)
         assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
-        assertEquals(mgdl.confidence!!, mmol.confidence!!, componentLeakConfidence)
+        assertEquals(mgdl.confidence!!, mmol.confidence!!, unitInvarianceTolerance)
         assertEquals(
             mgdl.prediction,
             mmol.prediction * mgdlPerMmol,
-            mgdl.prediction * componentLeakPredictionFraction,
+            predictionToleranceMgdl,
         )
     }
 
@@ -90,7 +90,7 @@ class AdaptiveEnsembleUnitTests {
         assertEquals(
             mgdl.prediction,
             mmol.prediction * mgdlPerMmol,
-            mgdl.prediction * componentLeakPredictionFraction,
+            predictionToleranceMgdl,
         )
     }
 
@@ -105,6 +105,6 @@ class AdaptiveEnsembleUnitTests {
 
         assertEquals(mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
         assertEquals(mgdl.confidence!!, mmol.confidence!!, 1e-9)
-        assertEquals(mgdl.prediction, mmol.prediction * mgdlPerMmol, 1e-6)
+        assertEquals(mgdl.prediction, mmol.prediction * mgdlPerMmol, predictionToleranceMgdl)
     }
 }
