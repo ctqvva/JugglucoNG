@@ -943,7 +943,6 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         previousglucosereading = reading;
         previousglucosevalue = gl;
         previousglucosesensorid = SerialNumber;
-        Applic.app.sendBroadcast(new Intent("tk.glucodata.action.AOD_IMMEDIATE_REFRESH"));
         final var fview = Floating.floatview;
         // MainActivity.showmessage=null;
         final boolean alarmSpeechStarted = glucoseAlertStarted && !DontTalk && Natives.speakalarms();

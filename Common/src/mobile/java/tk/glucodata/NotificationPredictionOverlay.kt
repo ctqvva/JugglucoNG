@@ -45,9 +45,11 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
     private const val FOOD_MACROS_KEY = "dashboard_journal_food_macros_enabled"
     private const val JOURNAL_LOOKBACK_MS = 36L * 60L * 60L * 1000L
     private const val CACHE_MAX_AGE_MS = 30_000L
+    private const val MAIN_THREAD_CACHE_MAX_AGE_MS = 10L * 60L * 1000L
 
     private data class JournalSnapshot(
         val loadedAt: Long,
+        val revision: Long,
         val startMillis: Long,
         val endMillis: Long,
         val entries: List<JournalEntry>,
@@ -89,13 +91,7 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
         val journalSnapshot = if (prefs.getBoolean(JOURNAL_KEY, true)) {
             loadJournalSnapshot(baselineTime, horizonMinutes)
         } else {
-            JournalSnapshot(
-                loadedAt = System.currentTimeMillis(),
-                startMillis = 0L,
-                endMillis = 0L,
-                entries = emptyList(),
-                presetsById = emptyMap()
-            )
+            emptyJournalSnapshot(System.currentTimeMillis(), 0L, 0L)
         }
 
         val predictionSeries = buildPredictionSeriesForChart(
@@ -141,12 +137,22 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
         val start = baselineTime - JOURNAL_LOOKBACK_MS
         val end = baselineTime + horizonMinutes * 60_000L
         val now = System.currentTimeMillis()
+        val revision = JournalSnapshotAccess.revision
         cachedJournalSnapshot?.let { snapshot ->
-            if (now - snapshot.loadedAt <= CACHE_MAX_AGE_MS && snapshot.startMillis <= start && snapshot.endMillis >= end) {
+            if (snapshot.revision == revision && now - snapshot.loadedAt <= CACHE_MAX_AGE_MS &&
+                snapshot.startMillis <= start && snapshot.endMillis >= end) {
                 return snapshot
             }
         }
         if (Looper.myLooper() == Looper.getMainLooper()) {
+            // The always-on overlay draws here and must not wait for Room. An older load still
+            // holds every entry while the journal has not changed; without it the overlay
+            // forecast ignored insulin and carbs that the notification's includes.
+            cachedJournalSnapshot?.let { snapshot ->
+                if (snapshot.revision == revision && now - snapshot.loadedAt in 0..MAIN_THREAD_CACHE_MAX_AGE_MS) {
+                    return snapshot
+                }
+            }
             BatteryTrace.bump("notify.prediction.main_thread_journal_skip", 20L)
             return emptyJournalSnapshot(now, start, end)
         }
@@ -158,6 +164,7 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
                 val presets = repository.getInsulinPresetsSnapshot().associateBy { it.id }
                 JournalSnapshot(
                     loadedAt = now,
+                    revision = revision,
                     startMillis = start,
                     endMillis = end,
                     entries = entries,
@@ -165,7 +172,7 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
                 )
             }
         }.getOrElse {
-            emptyJournalSnapshot(now, start, end)
+            emptyJournalSnapshot(now, start, end).copy(revision = -1L)
         }.also { snapshot ->
             cachedJournalSnapshot = snapshot
         }
@@ -174,6 +181,7 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
     private fun emptyJournalSnapshot(now: Long, start: Long, end: Long): JournalSnapshot {
         return JournalSnapshot(
             loadedAt = now,
+            revision = JournalSnapshotAccess.revision,
             startMillis = start,
             endMillis = end,
             entries = emptyList(),

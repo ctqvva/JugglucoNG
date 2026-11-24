@@ -504,7 +504,7 @@ class NotificationStartupRestoreTests {
         val service = newService(h)
         foregroundno(h, service)
         val visual = newNotification(h)
-        invokePrivate(h, "publishVisualNotification", visualGeneration(), service, visual, null, 0L)
+        invokePrivate(h, "publishVisualNotification", visualGeneration(), service, visual, null, 0L, 0L)
         assertTrue(drainOne(h))
         assertSame("restore cannot overwrite the newer visual", visual, getNested(service, "last"))
         assertEquals("visual update never rebroadcasts a reading", 0, get(h, "broadcastSends"))
@@ -519,7 +519,7 @@ class NotificationStartupRestoreTests {
         val oldGeneration = visualGeneration()
         assertTrue(drainOne(h))
         val restored = getNested(service, "last")
-        invokePrivate(h, "publishVisualNotification", oldGeneration, service, newNotification(h), null, 0L)
+        invokePrivate(h, "publishVisualNotification", oldGeneration, service, newNotification(h), null, 0L, 0L)
         assertSame(restored, getNested(service, "last"))
     }
 
@@ -534,7 +534,7 @@ class NotificationStartupRestoreTests {
         assertEquals(generation, visualGeneration())
         invokePrivate(h, "cancelOngoingNotificationRefreshes", replacement)
         assertTrue(visualGeneration() > generation)
-        invokePrivate(h, "publishVisualNotification", generation, replacement, newNotification(h), null, 0L)
+        invokePrivate(h, "publishVisualNotification", generation, replacement, newNotification(h), null, 0L, 0L)
         assertNull(getNested(replacement, "last"))
         assertEquals(0, call(h, "queuedCount"))
     }
@@ -663,6 +663,73 @@ class NotificationStartupRestoreTests {
         call(h, "setCurrentService", service)
         refresh(h)
         assertEquals(listOf("fg:81431"), serviceCalls(service))
+    }
+
+    @Test fun dataRefreshWithUnchangedInputsIsNotDrawn() {
+        val h = reuseHarness()
+        dataRefresh(h)
+        assertEquals(1, get(h, "renderCalls"))
+        dataRefresh(h)
+        assertEquals("nothing changed: not drawn", 1, get(h, "renderCalls"))
+        assertEquals(1, get(h, "reusedRenders"))
+        assertEquals("not reposted either", 1, (getNested(get(h, "notificationManager")!!, "calls") as List<*>).size)
+        set(h, "renderInputs", 6L)
+        set(h, "renderFingerprint", 10L)
+        dataRefresh(h)
+        assertEquals("a changed reading is drawn", 2, get(h, "renderCalls"))
+        assertEquals(2, (getNested(get(h, "notificationManager")!!, "calls") as List<*>).size)
+    }
+
+    @Test fun unchangedInputsAreDrawnAgainOnceTheChartAged() {
+        val h = reuseHarness()
+        dataRefresh(h)
+        set(h, "uptime", (get(h, "uptime") as Long) + 60_000L)
+        set(h, "renderFingerprint", 10L)
+        dataRefresh(h)
+        assertEquals(2, get(h, "renderCalls"))
+    }
+
+    @Test fun explicitRefreshAlwaysDrawsEvenMergedWithADataRefresh() {
+        val h = reuseHarness()
+        dataRefresh(h)
+        refresh(h)
+        assertEquals(2, get(h, "renderCalls"))
+        // A data event and a settings change coalesced into one render.
+        drainAll(h)
+        invokePrivate(h, "scheduleDataChangedNotificationRefresh")
+        assertTrue(drainOne(h))
+        invokePrivate(h, "scheduleVisualNotificationRefresh")
+        assertTrue(drainOne(h))
+        assertEquals(3, get(h, "renderCalls"))
+        assertEquals(0, get(h, "reusedRenders"))
+    }
+
+    @Test fun reuseThatLostItsPublicationDrawsForReal() {
+        val h = reuseHarness()
+        dataRefresh(h)
+        // The shown notification is cancelled between the decision and its confirmation.
+        set(h, "afterReuseDecision", Runnable { invokePrivate(h, "forgetPublishedContentLocked") })
+        dataRefresh(h)
+        assertEquals(1, get(h, "reusedRenders"))
+        assertEquals(1, get(h, "renderCalls"))
+        set(h, "afterReuseDecision", null)
+        assertTrue(drainOne(h))
+        assertEquals("drawn for real", 2, get(h, "renderCalls"))
+    }
+
+    private fun reuseHarness(): Any = harness().also { h ->
+        set(h, "cannedSnapshot", snapshotAt(System.currentTimeMillis() - 1000L, 123f))
+        set(h, "renderFingerprint", 9L)
+        set(h, "renderInputs", 5L)
+    }
+
+    /** A data event: its debounce, then the render it asks for. */
+    private fun dataRefresh(h: Any) {
+        drainAll(h)
+        invokePrivate(h, "scheduleDataChangedNotificationRefresh")
+        assertTrue(drainOne(h))
+        // The render queued last; a freshness deadline may be queued before it.
+        assertTrue(drainOne(h))
     }
 
     /** One deferred refresh, run on its own: earlier queued deadlines are dropped first. */
@@ -838,7 +905,9 @@ class NotificationStartupRestoreTests {
                     public boolean hasvalue;
                     public long lastForegroundGlucoseTimeMs, pendingDataRefreshAtUptimeMs, pendingStatusRefreshAtUptimeMs;
                     public float lastForegroundGlucoseValue, lastForegroundGlucoseRate;
-                    public boolean visualRefreshPending;
+                    public boolean visualRefreshPending, pendingVisualReusable;
+                    public long renderInputs;
+                    public int reusedRenders;
                     public long pendingVisualGeneration, publicationRetryGeneration;
                     public Service pendingVisualService, publicationRetryService, freshnessDeadlineService;
                     public long freshnessDeadlineGeneration;
@@ -852,6 +921,7 @@ class NotificationStartupRestoreTests {
                     public long uptime = 10_000L;
                     public static class android { public static class os { public static class SystemClock {
                         public static long uptimeMillis() { return onenot.uptime; }
+                        public static long elapsedRealtime() { return onenot.uptime; }
                     } } }
                     public int queuedCount() { return glucoseRefreshHandler.queued(); }
                     public void setMmol(boolean value) { Applic.unit = value ? 1 : 0; }
@@ -1124,7 +1194,7 @@ class NotificationStartupRestoreTests {
                     }
                     static class GlucoseNotificationContent {
                         Notification notification; CurrentDisplaySource.Snapshot snapshot; long fingerprint;
-                        long announcedReadingMillis;
+                        long announcedReadingMillis, inputsFingerprint;
                         GlucoseNotificationContent(Notification n, CurrentDisplaySource.Snapshot s) { notification = n; snapshot = s; }
                     }
                     GlucoseNotificationContent renderGlucoseNotification(int kind, float value, String message,
@@ -1136,6 +1206,24 @@ class NotificationStartupRestoreTests {
                         content.fingerprint = renderFingerprint;
                         return content;
                     }
+                    GlucoseNotificationContent renderGlucoseNotification(int kind, float value, String message,
+                            notGlucose glucose, String type, boolean once,
+                            CurrentDisplaySource.Snapshot snapshot, boolean alreadyResolved, boolean reusable) {
+                        if (reusable && NotificationRefreshPolicy.mayReusePublication(renderInputs,
+                                publishedInputsFingerprint, keeprunning.theservice, publishedContentOwner,
+                                uptime - publishedInputsAtElapsed)) {
+                            reusedRenders++;
+                            GlucoseNotificationContent same = new GlucoseNotificationContent(null, snapshot);
+                            same.inputsFingerprint = renderInputs;
+                            if (afterReuseDecision != null) afterReuseDecision.run();
+                            return same;
+                        }
+                        GlucoseNotificationContent content = renderGlucoseNotification(
+                                kind, value, message, glucose, type, once, snapshot, alreadyResolved);
+                        content.inputsFingerprint = renderInputs;
+                        return content;
+                    }
+                    public Runnable afterReuseDecision;
                     Notification makeStaleReadingNotification(CurrentDisplaySource.Snapshot snapshot) {
                         Notification n = new Notification();
                         n.title = staleMessage(snapshot.getTimeMillis());

@@ -65,6 +65,20 @@ final class NotificationRefreshPolicy {
         return fingerprint != 0L && fingerprint == publishedFingerprint && owner == publishedOwner;
     }
 
+    /** A chart drawn this long ago has moved on by a visible step: draw it again. */
+    static final long MAX_REUSE_AGE_MS = 60_000L;
+
+    /**
+     * A refresh may skip drawing when its inputs are the ones the same owner already shows,
+     * drawn recently enough that the chart's time axis is still right. Two readings a minute
+     * used to cost about four full renders, each inflated again by System UI.
+     */
+    static boolean mayReusePublication(long inputs, long publishedInputs,
+            Object owner, Object publishedOwner, long ageMs) {
+        return isUnchangedPublication(inputs, publishedInputs, owner, publishedOwner)
+                && ageMs >= 0L && ageMs < MAX_REUSE_AGE_MS;
+    }
+
     /**
      * The interactive follow-up only exists to catch the live reading's Room write. A
      * data-changed refresh already queued renders the same newest state moments later,

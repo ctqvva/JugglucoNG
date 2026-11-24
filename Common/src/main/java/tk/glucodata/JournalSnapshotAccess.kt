@@ -30,6 +30,17 @@ object JournalSnapshotAccess {
     @JvmStatic
     fun isRegistered(): Boolean = bridge != null
 
+    private val revisionCounter = java.util.concurrent.atomic.AtomicLong()
+
+    /** Grows with every journal change, so a drawn forecast can tell it is out of date. */
+    @JvmStatic
+    val revision: Long get() = revisionCounter.get()
+
+    @JvmStatic
+    fun noteJournalChanged() {
+        revisionCounter.incrementAndGet()
+    }
+
     /** Empty when there is no journal to serve, or the snapshot failed. */
     @JvmStatic
     fun snapshotJson(timeMillis: Long): String =
