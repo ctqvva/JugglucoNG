@@ -20,7 +20,7 @@ import org.robolectric.annotation.ConscryptMode
  * migration that drops a column or a table fails here.
  *
  * The starting points are the released schemas recovered in H2: v11
- * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v32 is the current version. The row tests
+ * (1.1.2-Alpha) and v12 (1.1.3-Alpha). The row tests
  * matter most: Room migrations are the one place a bug permanently destroys
  * user history.
  */

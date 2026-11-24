@@ -342,7 +342,7 @@ object ExportPackageExporter {
                     val aidex = prepareAiDexImport(appContext, uri, imported, drivers)
 
                     val settingsResult = payload.optJSONObject("settings")?.let { settings ->
-                        SettingsExporter.importPayload(appContext, settings).getOrThrow()
+                        SettingsExporter.importPayload(appContext, settings, requireJournalData = false).getOrThrow()
                             .also { aidex.settingsImported() }
                     }
                     val historySummary = payload.optJSONObject("history")?.let { history ->
