@@ -73,10 +73,14 @@ class AiDexAlgorithmRuntimeTests {
         companion object {
             var start = 0L
             var historyWrites = 0
+            var failHistoryWriteAt = 0
             @JvmStatic @Implementation fun getDeviceAddress(pointer: Long, fresh: Boolean): String? = null
             @JvmStatic @Implementation fun getSensorStartmsec(pointer: Long): Long = start
             @JvmStatic @Implementation fun getSensorUiSnapshot(serial: String): LongArray? = null
-            @JvmStatic @Implementation fun aidexStoreHistoryData(pointer: Long, time: Long, glucose: Float, raw: Float) { historyWrites++ }
+            @JvmStatic @Implementation fun aidexStoreHistoryData(pointer: Long, time: Long, glucose: Float, raw: Float) {
+                historyWrites++
+                check(historyWrites != failHistoryWriteAt) { "native history write failed" }
+            }
         }
     }
 
@@ -137,6 +141,7 @@ class AiDexAlgorithmRuntimeTests {
     private var completionNotifications = 0
     private var roomWrites = 0
     private var roomAttempts = 0
+    private var roomAccepts = true
     private var lastRoomBatch = LongArray(0)
     private var seriesTransform: ((FloatArray, LongArray) -> FloatArray)? = null
     private val sourceHistoryRequests = ArrayList<Long?>()
@@ -162,6 +167,8 @@ class AiDexAlgorithmRuntimeTests {
         AiDexSourceJournalBackup.file(Applic.app.filesDir, serial).parentFile!!.deleteRecursively()
         NativeInputs.start = System.currentTimeMillis() - 180_000L
         NativeInputs.historyWrites = 0
+        NativeInputs.failHistoryWriteAt = 0
+        roomAccepts = true
         RefreshSink.statusRefreshes = 0
         SensorBluetooth.gattcallbacks.clear()
         ManagedCurrentSensor.clear()
@@ -188,6 +195,7 @@ class AiDexAlgorithmRuntimeTests {
                 "storeHistoryBatchBlocking" -> {
                     roomAttempts++
                     beforeRoomWrite()
+                    if (!roomAccepts) return@newProxyInstance false
                     val times = args!![1] as LongArray
                     val values = args[2] as FloatArray
                     lastRoomBatch = times.copyOf()
@@ -326,9 +334,164 @@ class AiDexAlgorithmRuntimeTests {
         assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
         assertTrue(historyField("historyDownloading").getBoolean(driver))
         assertEquals(2, NativeInputs.historyWrites)
+        // No journal can refill an interrupted download's buffer, so Room has the rows already.
+        assertEquals(105f, room[historyTime(2)]!!, 0f)
+        assertEquals(110f, room[historyTime(3)]!!, 0f)
+        driver.dataptr = 0L
+    }
+
+    @Test fun stockPageNeitherJournaledNorInRoomStaysPending() {
+        val journal = AiDexSourceJournalBackup.file(Applic.app.filesDir, serial)
+        assertTrue(journal.parentFile!!.mkdirs() || journal.parentFile!!.isDirectory)
+        assertTrue(journal.mkdir())
+        roomAccepts = false
+        prepareHistoryPage()
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertPageKept()
+        assertTrue(room.isEmpty())
+        driver.dataptr = 0L
+    }
+
+    private fun historyTime(offset: Int) = NativeInputs.start + offset * 60_000L
+    private fun setSensorStart(start: Long) =
+        SuperGattCallback::class.java.getDeclaredField("sensorstartmsec").apply { isAccessible = true }.setLong(driver, start)
+
+    private fun assertPageKept() {
+        assertFalse(historyField("historyDownloading").getBoolean(driver))
+        assertEquals(2, historyField("historyBriefNextIndex").getInt(driver))
+        assertEquals(2, historyField("historyRawNextIndex").getInt(driver))
+    }
+
+    /** A new driver has only the persisted cursors, and none of the factory cache. */
+    private fun reconnectWithRecreatedDriver() {
+        runtime.close()
+        driver.dataptr = 0L
+        driver = AiDexBleManager(serial, 0L, 4)
+        SensorBluetooth.gattcallbacks.clear()
+        SensorBluetooth.gattcallbacks.add(driver)
+        installRuntime()
+        while (executor.pending.isNotEmpty()) executor.runNext()
+        driver.dataptr = 1L
+        setSensorStart(NativeInputs.start)
+        historyField("hasAuthoritativeSessionStart").setBoolean(driver, true)
+    }
+
+    private fun downloadRowsTwoAndThree() {
+        historyResponse("handleHistoryRangeResponse", byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 3, 0))
+        assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
+        historyResponse("handleHistoryRawResponse", byteArrayOf(AiDexOpcodes.GET_HISTORIES_RAW.toByte(), 0, 2, 0, 105, 0, 110, 0))
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        while (executor.pending.isNotEmpty()) executor.runNext()
+        assertEquals(105f, room[historyTime(2)]!!, 0f)
+        assertEquals(110f, room[historyTime(3)]!!, 0f)
+        driver.dataptr = 0L
+    }
+
+    @Test fun historyPageWaitsForAMissingSensorStart() {
+        prepareHistoryPage()
+        historyField("historyNewestOffset").setInt(driver, 3)
+        historyField("hasAuthoritativeSessionStart").setBoolean(driver, false)
+        setSensorStart(0L)
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertPageKept()
+        assertEquals(0, NativeInputs.historyWrites)
+        assertTrue(runtime.controller.journal.snapshot().isEmpty())
+
+        // Same connection: the start arrives, and the next download stores the page.
+        historyField("hasAuthoritativeSessionStart").setBoolean(driver, true)
+        setSensorStart(NativeInputs.start)
+        downloadRowsTwoAndThree()
+    }
+
+    @Test fun historyPageWaitsForAMissingNativePointerAcrossReconnect() {
+        prepareHistoryPage()
+        historyField("historyNewestOffset").setInt(driver, 3)
+        driver.dataptr = 0L
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertPageKept()
+        assertTrue(room.isEmpty())
+        assertTrue(runtime.controller.journal.snapshot().isEmpty())
+
+        reconnectWithRecreatedDriver()
+        assertEquals(2, historyField("historyBriefNextIndex").getInt(driver))
+        downloadRowsTwoAndThree()
+        assertEquals(2, NativeInputs.historyWrites)
+    }
+
+    @Test fun partlyWrittenHistoryPageIsFetchedAgainAfterReconnect() {
+        prepareHistoryPage()
+        historyField("historyNewestOffset").setInt(driver, 3)
+        NativeInputs.failHistoryWriteAt = 2
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertPageKept()
+        assertEquals(2, NativeInputs.historyWrites)
+
+        NativeInputs.failHistoryWriteAt = 0
+        reconnectWithRecreatedDriver()
+        downloadRowsTwoAndThree()
+        assertEquals(4, NativeInputs.historyWrites) // The whole page, the written row included.
+    }
+
+    @Test fun pageStoredBeforeAFailedOneStillReachesRoom() {
+        prepareHistoryPage()
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        assertTrue(room.isEmpty()) // Buffered for the end of the download.
         @Suppress("UNCHECKED_CAST")
-        val pending = historyField("pendingRoomHistoryValues").get(driver) as List<Float>
-        assertEquals(listOf(105f, 110f), pending)
+        (historyField("calibratedGlucoseCache").get(driver) as MutableMap<Int, Int>)[4] = 115
+        driver.dataptr = 0L
+        historyResponse("handleHistoryBriefResponse", byteArrayOf(AiDexOpcodes.GET_HISTORIES.toByte(), 0, 4, 0, 0xE8.toByte(), 3, 0, 0, 1))
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        while (executor.pending.isNotEmpty()) executor.runNext()
+        assertEquals(setOf(historyTime(2), historyTime(3)), room.keys.toSet())
+        assertFalse(runtime.failed)
+    }
+
+    @Test fun disconnectDuringADownloadKeepsStoredRowsAndRefetchesTheLostFactoryCache() {
+        prepareHistoryPage()
+        historyField("historyRawNextIndex").setInt(driver, 5)
+        @Suppress("UNCHECKED_CAST")
+        (historyField("calibratedGlucoseCache").get(driver) as MutableMap<Int, Int>)[4] = 115
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        AiDexBleManager::class.java.getDeclaredMethod("resetConnectionRuntimeState", String::class.java, Boolean::class.javaPrimitiveType)
+            .apply { isAccessible = true }.invoke(driver, "disconnect", false)
+        while (executor.pending.isNotEmpty()) executor.runNext()
+        assertEquals(setOf(historyTime(2), historyTime(3)), room.keys.toSet())
+        // Reconnecting within the same minute: 0x23 is refetched rather than skipped as caught up.
+        assertEquals(4, historyField("historyRawNextIndex").getInt(driver))
+        historyResponse("handleHistoryRangeResponse", byteArrayOf(AiDexOpcodes.GET_HISTORY_RANGE.toByte(), 0, 1, 0, 1, 0, 4, 0))
+        assertEquals("DOWNLOADING_CALIBRATED", historyField("historyPhase").get(driver).toString())
+        driver.dataptr = 0L
+    }
+
+    @Test fun discardedHistoryRowsAdvanceWithoutAnyStore() {
+        prepareHistoryPage()
+        driver.dataptr = 0L
+        @Suppress("UNCHECKED_CAST")
+        (historyField("calibratedGlucoseCache").get(driver) as MutableMap<Int, Int>).clear() // 0x23 held sentinels only.
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(4, historyField("historyBriefNextIndex").getInt(driver))
+        assertTrue(historyField("historyDownloading").getBoolean(driver))
+        assertTrue(room.isEmpty())
+    }
+
+    @Test fun aRowPastTheAnnouncedRangeStaysAheadOfBothCursors() {
+        prepareHistoryPage()
+        historyField("historyNewestOffset").setInt(driver, 2)
+        historyResponse("handleHistoryRawResponse", byteArrayOf(AiDexOpcodes.GET_HISTORIES_RAW.toByte(), 0, 2, 0, 105, 0, 110, 0))
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(3, historyField("historyRawNextIndex").getInt(driver))
+        assertEquals(3, historyField("historyBriefNextIndex").getInt(driver))
+        assertEquals(1, NativeInputs.historyWrites)
+        driver.dataptr = 0L
+    }
+
+    @Test fun aClosedSensorNeverMovesItsCursor() {
+        prepareHistoryPage()
+        runtime.close()
+        historyResponse("handleHistoryBriefResponse", briefPage())
+        assertEquals(2, historyField("historyBriefNextIndex").getInt(driver))
         driver.dataptr = 0L
     }
 

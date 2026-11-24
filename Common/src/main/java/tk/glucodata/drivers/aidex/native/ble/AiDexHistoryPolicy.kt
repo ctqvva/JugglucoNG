@@ -39,9 +39,10 @@ internal object AiDexHistoryPolicy {
         val repair = sourceRepairOffset?.takeIf { it >= maxOf(1, rawStart, briefStart) && it <= newest }
         val rawCursor = repair?.let { minOf(it, persistedRawNextIndex) } ?: persistedRawNextIndex
         val briefCursor = repair?.let { minOf(it, persistedBriefNextIndex) } ?: persistedBriefNextIndex
+        // 0x23 glucose is held in memory until 0x24 stores it. That includes a first
+        // download that ended before any 0x24 page (brief cursor still 0).
         val effectiveRawNextIndex = if (
             rawCursor <= newest &&
-            briefCursor > 0 &&
             rawCursor > briefCursor
         ) {
             briefCursor
@@ -82,6 +83,15 @@ internal object AiDexHistoryPolicy {
                 action = InitialAction.COMPLETE_ALREADY_CAUGHT_UP,
             )
         }
+    }
+
+    /**
+     * Cursor after a page. Rows past the newest offset the sensor announced are not
+     * stored, so they stay ahead of the cursor for the next download.
+     */
+    fun nextPageIndex(lastOffsetMinutes: Int, newest: Int): Int {
+        val next = lastOffsetMinutes + 1
+        return if (newest > 0) minOf(next, newest + 1) else next
     }
 
     /** Match Room/journal wall-clock minutes, including activation's seconds. */
