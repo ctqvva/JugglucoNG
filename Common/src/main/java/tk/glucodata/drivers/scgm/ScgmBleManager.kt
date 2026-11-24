@@ -75,6 +75,7 @@ class ScgmBleManager(
     @Volatile private var nextConnectAllowedAtMs = 0L
     @Volatile private var connectScheduled = false
     @Volatile private var scanWaitDeadlineMs = 0L
+    private val rejectedAddresses = HashSet<String>()
 
     private val reconnectRunnable = Runnable {
         nextConnectAllowedAtMs = 0L
@@ -136,13 +137,28 @@ class ScgmBleManager(
 
     override fun getService(): UUID? = null
 
+    private fun isAddressRejected(address: String?): Boolean {
+        if (address.isNullOrBlank()) return false
+        return synchronized(stateLock) { rejectedAddresses.contains(address.trim().lowercase(Locale.ROOT)) }
+    }
+
+    private fun rejectAddress(address: String?) {
+        if (address.isNullOrBlank()) return
+        synchronized(stateLock) {
+            if (rejectedAddresses.size >= 16) rejectedAddresses.clear()
+            rejectedAddresses.add(address.trim().lowercase(Locale.ROOT))
+        }
+    }
+
     override fun matchDeviceName(deviceName: String?, address: String?): Boolean {
+        if (isAddressRejected(address)) return false
         val known = mActiveDeviceAddress?.takeIf { it.isNotBlank() }
         if (known != null && address != null && address.equals(known, ignoreCase = true)) return true
         return isScgmName(deviceName)
     }
 
     override fun matchScanResult(result: ScanResult): Boolean {
+        if (isAddressRejected(result.device?.address)) return false
         val name = result.device?.name ?: result.scanRecord?.deviceName
         if (!isScgmName(name)) return false
         val code = readAdvertisedDeviceCode(result) ?: return false
@@ -481,6 +497,15 @@ class ScgmBleManager(
         val context = Applic.app
         if (!deviceCodeMatches(info.deviceCode)) {
             Log.w(TAG, "SCGM terminal info device code mismatch; rejecting sensor")
+            val rejected = mActiveBluetoothDevice?.address ?: mActiveDeviceAddress
+            rejectAddress(rejected)
+            mActiveBluetoothDevice = null
+            mActiveDeviceAddress = null
+            if (!rejected.isNullOrBlank()) {
+                if (context != null && ScgmRegistry.getLastBtAddress(context).equals(rejected, ignoreCase = true)) {
+                    ScgmRegistry.setLastBtAddress(context, "")
+                }
+            }
             deviceVerified = false
             resetFailedSession()
             return
