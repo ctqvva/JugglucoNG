@@ -457,12 +457,9 @@ class SettingsExporterValidationTests {
             }
         )
         assertTrue(commitFailure.isFailure)
-        assertExistingPreferencesAndNativeFilesPreserved()
+        assertExistingStatePreserved()
         assertEquals(settingsInodeBefore, fileKey(settingsFile))
         assertNoTempFilesLeft()
-
-        // Reseed journal before checking directory conflict so full state matches.
-        seedExistingState()
 
         // 3. Failure when a target path is not a regular file (directory) preserves other state.
         val orBackupDir = File(context.filesDir, "orbackup.dat").apply { mkdirs() }
@@ -513,7 +510,7 @@ class SettingsExporterValidationTests {
         val result = SettingsExporter.importPayload(context, backup)
 
         assertTrue(result.isFailure)
-        assertExistingPreferencesAndNativeFilesPreserved()
+        assertExistingStatePreserved()
         assertEquals(settingsInodeBefore, fileKey(settingsFile))
         assertFalse(File(context.filesDir, "orbackup.dat").exists())
         assertNoTempFilesLeft()
@@ -681,6 +678,8 @@ class SettingsExporterValidationTests {
         assertEquals(listOf(10L), history.journalDao().getEntries().map { it.id })
         assertEquals(listOf(10L), history.journalDao().getInsulinPresets().map { it.id })
         assertEquals(listOf(10L), history.journalDao().getFoods().map { it.id })
+        assertEquals(listOf(10L), foods.foodDetailsDao().getAll().map { it.foodId })
+        assertEquals(listOf(110L), history.journalDao().getCloneJournalTombstones().map { it.entryId })
     }
 
     private fun assertExistingPreferencesAndNativeFilesPreserved() {

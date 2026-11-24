@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -416,12 +417,16 @@ object SettingsExporter {
         var prefsRollback: SharedPreferencesRollback? = null
         try {
             // Stage native files to temp files before mutating any live state, then commit them
-            // last so failed preference or journal writes never touch live mmap'd native files.
+            // inside the journal transaction so failed preference, journal, or native writes roll
+            // back all three stores while preserving live mmap'd native inodes.
             nativeTx.stage()
             val (preferencesSummary, rollback) = applySharedPreferences(context, replacement.preferences)
             prefsRollback = rollback
-            val journalSummary = importJournalData(context, replacement.journal)
-            val nativeFileCount = nativeTx.commit()
+            val (journalSummary, nativeFileCount) = commitJournalAndNativeFiles(
+                context = context,
+                journalData = replacement.journal,
+                commitNativeFiles = nativeTx::commit
+            )
             return ImportSummary(
                 sharedPreferenceFiles = preferencesSummary.first,
                 preferenceValues = preferencesSummary.second,
@@ -956,35 +961,85 @@ object SettingsExporter {
             )
     }
 
-    private suspend fun importJournalData(
+    private suspend fun commitJournalAndNativeFiles(
         context: Context,
-        journalData: ValidatedJournalData?
-    ): JournalImportSummary {
-        if (journalData == null) return JournalImportSummary()
-        val journalDao = HistoryDatabase.getInstance(context).journalDao()
+        journalData: ValidatedJournalData?,
+        commitNativeFiles: () -> Int
+    ): Pair<JournalImportSummary, Int> {
+        if (journalData == null) {
+            return JournalImportSummary() to commitNativeFiles()
+        }
+        val historyDatabase = HistoryDatabase.getInstance(context)
+        val journalDao = historyDatabase.journalDao()
+        val foodDatabase = if (journalData.hasFoods) FoodLibraryDatabase.getInstance(context) else null
+        val foodDetailsDao = foodDatabase?.foodDetailsDao()
+        val foodLibrary = foodDetailsDao?.let { FoodLibrary(journalDao, it) }
+        val restoredFoodIds = journalData.foods.mapTo(HashSet()) { it.id }
+        val detailsToStore = journalData.foodDetails.filter { it.foodId in restoredFoodIds }
 
-        journalDao.deleteAllEntries()
-        journalDao.deleteAllInsulinPresets()
-        journalDao.deleteAllCloneJournalTombstones()
-        if (journalData.hasFoods) {
-            FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
-                journalData.foods, journalData.foodDetails, replaceAll = true
-            )
+        suspend fun runInsideFoodLock(): Pair<JournalImportSummary, Int> {
+            val previousFoodDetails = foodDetailsDao?.getAll()
+            var foodDetailsMutated = false
+            try {
+                val nativeFileCount = historyDatabase.withTransaction {
+                    journalDao.deleteAllEntries()
+                    journalDao.deleteAllInsulinPresets()
+                    journalDao.deleteAllCloneJournalTombstones()
+                    if (journalData.hasFoods) {
+                        journalDao.deleteAllFoods()
+                        if (journalData.foods.isNotEmpty()) {
+                            journalDao.insertFoods(journalData.foods.sortedBy { it.id == 0L })
+                        }
+                    }
+                    if (journalData.insulinPresets.isNotEmpty()) {
+                        journalDao.insertInsulinPresets(journalData.insulinPresets.sortedBy { it.id == 0L })
+                    }
+                    if (journalData.entries.isNotEmpty()) {
+                        journalDao.upsertEntries(journalData.entries.sortedBy { it.id == 0L })
+                    }
+                    if (journalData.cloneTombstones.isNotEmpty()) {
+                        journalDao.upsertCloneJournalTombstones(journalData.cloneTombstones)
+                    }
+                    if (foodDatabase != null && foodDetailsDao != null) {
+                        foodDetailsMutated = true
+                        foodDatabase.withTransaction {
+                            foodDetailsDao.deleteAll()
+                            if (detailsToStore.isNotEmpty()) {
+                                foodDetailsDao.upsertAll(detailsToStore)
+                            }
+                        }
+                    }
+                    // Commit staged native files before releasing the Room transaction so any
+                    // native write/sync failure automatically rolls back all journal tables.
+                    commitNativeFiles()
+                }
+                return JournalImportSummary(
+                    entries = journalData.entries.size,
+                    insulinPresets = journalData.insulinPresets.size,
+                    foods = if (journalData.hasFoods) journalData.foods.size else 0
+                ) to nativeFileCount
+            } catch (failure: Throwable) {
+                if (foodDetailsMutated && foodDatabase != null && foodDetailsDao != null && previousFoodDetails != null) {
+                    try {
+                        foodDatabase.withTransaction {
+                            foodDetailsDao.deleteAll()
+                            if (previousFoodDetails.isNotEmpty()) {
+                                foodDetailsDao.upsertAll(previousFoodDetails)
+                            }
+                        }
+                    } catch (rollbackFailure: Throwable) {
+                        failure.addSuppressed(rollbackFailure)
+                    }
+                }
+                throw failure
+            }
         }
-        if (journalData.insulinPresets.isNotEmpty()) {
-            journalDao.insertInsulinPresets(journalData.insulinPresets)
+
+        return if (foodLibrary != null) {
+            foodLibrary.withWrites { runInsideFoodLock() }
+        } else {
+            runInsideFoodLock()
         }
-        if (journalData.entries.isNotEmpty()) {
-            journalDao.upsertEntries(journalData.entries)
-        }
-        if (journalData.cloneTombstones.isNotEmpty()) {
-            journalDao.upsertCloneJournalTombstones(journalData.cloneTombstones)
-        }
-        return JournalImportSummary(
-            entries = journalData.entries.size,
-            insulinPresets = journalData.insulinPresets.size,
-            foods = if (journalData.hasFoods) journalData.foods.size else 0
-        )
     }
 
     private fun JournalEntryEntity.toJson(): JSONObject {
