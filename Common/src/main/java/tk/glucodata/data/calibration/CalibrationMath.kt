@@ -78,6 +78,12 @@ internal object CalibrationMath {
 
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
+    private const val ENSEMBLE_DISPERSION_FRACTION = 0.05
+    private const val NEAREST_TIME_HOURS = 6.0
+    private const val FIT_DENOMINATOR_EPSILON = 1e-14
+    private const val SCALE_FLOOR_FRACTION = 0.02
+    private const val ROBUST_MAD_FLOOR_FRACTION = 0.0005
+    private const val ROBUST_CONFIDENCE_MAD_FRACTION = 0.008
 
     /**
      * A raw value that is safe to store beside a calibration, or zero when the source has none.
@@ -205,6 +211,31 @@ internal object CalibrationMath {
         }
     }
 
+    private fun referenceScale(points: List<CalPoint>, targetValue: Double): Double =
+        maxOf(
+            median(points.map { abs(it.x - targetValue) }),
+            abs(targetValue) * SCALE_FLOOR_FRACTION,
+            1e-9,
+        )
+
+    private fun blendedAnchorOffset(
+        points: List<CalPoint>,
+        targetValue: Double,
+        targetTimestamp: Long,
+        scale: Double,
+    ): Double? {
+        if (points.isEmpty()) return null
+        val influences = points.map { p ->
+            1.0 / (1.0 + abs(p.x - targetValue) / scale +
+                abs(p.timestamp - targetTimestamp) / (NEAREST_TIME_HOURS * HOUR_MS))
+        }
+        val total = influences.sum()
+        if (total <= 1e-9) return null
+        return points.indices.sumOf { idx ->
+            influences[idx] * (points[idx].y - points[idx].x)
+        } / total
+    }
+
     private fun temporalWeight(
         pointTimestamp: Long,
         targetTimestamp: Long,
@@ -246,27 +277,31 @@ internal object CalibrationMath {
         var sumW = 0.0
         var sumWX = 0.0
         var sumWY = 0.0
-        var sumWXY = 0.0
-        var sumWX2 = 0.0
 
         points.indices.forEach { idx ->
             val w = weights[idx].coerceAtLeast(0.0)
-            val x = points[idx].x
-            val y = points[idx].y
             sumW += w
-            sumWX += w * x
-            sumWY += w * y
-            sumWXY += w * x * y
-            sumWX2 += w * x * x
+            sumWX += w * points[idx].x
+            sumWY += w * points[idx].y
         }
 
         if (sumW <= 1e-9) return null
-        val denominator = sumW * sumWX2 - sumWX * sumWX
-        if (abs(denominator) <= 1e-9) return null
+        val meanX = sumWX / sumW
+        val meanY = sumWY / sumW
 
-        var slope = (sumW * sumWXY - sumWX * sumWY) / denominator
-        slope = slope.coerceIn(slopeMin, slopeMax)
-        val intercept = (sumWY - slope * sumWX) / sumW
+        var sxx = 0.0
+        var sxy = 0.0
+        points.indices.forEach { idx ->
+            val w = weights[idx].coerceAtLeast(0.0)
+            val dx = points[idx].x - meanX
+            sxx += w * dx * dx
+            sxy += w * dx * (points[idx].y - meanY)
+        }
+
+        if (sxx <= FIT_DENOMINATOR_EPSILON * sumW * meanX * meanX) return null
+
+        var slope = (sxy / sxx).coerceIn(slopeMin, slopeMax)
+        val intercept = meanY - slope * meanX
 
         if (!slope.isFinite() || !intercept.isFinite()) return null
         return LinearModel(slope = slope, intercept = intercept)
@@ -295,15 +330,14 @@ internal object CalibrationMath {
         val fallback = targetValue + weightedOffset(points, weights)
         val regression = model?.predict(targetValue) ?: fallback
 
-        val nearest = points.minByOrNull {
-            abs(it.x - targetValue) + abs(it.timestamp - targetTimestamp) / HOUR_MS
-        }
+        val scale = referenceScale(points, targetValue)
+        val offset = blendedAnchorOffset(points, targetValue, targetTimestamp, scale)
 
-        if (nearest != null) {
-            val dx = abs(nearest.x - targetValue)
-            val dtHours = abs(nearest.timestamp - targetTimestamp) / HOUR_MS
+        if (offset != null) {
+            val dx = points.minOf { abs(it.x - targetValue) / scale }
+            val dtHours = points.minOf { abs(it.timestamp - targetTimestamp) / HOUR_MS }
             val snap = (1.0 / (1.0 + dx * 2.5)) * (1.0 / (1.0 + dtHours / 8.0)) * 0.25
-            val anchor = targetValue + (nearest.y - nearest.x)
+            val anchor = targetValue + offset
             val blended = regression * (1.0 - snap) + anchor * snap
             val confidence = ((weights.maxOrNull() ?: 0.0) / weights.sum().coerceAtLeast(1e-6)).coerceIn(0.15, 1.0)
             return AlgorithmComputation(
@@ -420,13 +454,14 @@ internal object CalibrationMath {
                 )
             }
 
-        var finalMad = 0.05
+        val madFloor = max(abs(targetValue) * ROBUST_MAD_FLOOR_FRACTION, 1e-9)
+        var finalMad = madFloor
 
         repeat(4) {
             val residuals = points.map { p -> p.y - model.predict(p.x) }
-            val mad = median(residuals.map { abs(it) }).coerceAtLeast(0.05)
+            val mad = median(residuals.map { abs(it) }).coerceAtLeast(madFloor)
             finalMad = mad
-            val scale = (mad * 1.4826).coerceAtLeast(0.05)
+            val scale = (mad * 1.4826).coerceAtLeast(madFloor)
 
             weights = baseWeights.indices.map { idx ->
                 val u = residuals[idx] / (1.5 * scale)
@@ -441,7 +476,9 @@ internal object CalibrationMath {
         val offsetFallback = targetValue + weightedOffset(points, weights)
         return if (regression.isFinite()) {
             val prediction = regression * 0.85 + offsetFallback * 0.15
-            val confidence = (1.0 / (1.0 + finalMad)).coerceIn(0.20, 1.0)
+            val relativeMad = finalMad / max(abs(targetValue), 1e-9)
+            val confidence = (1.0 / (1.0 + relativeMad / ROBUST_CONFIDENCE_MAD_FRACTION))
+                .coerceIn(0.20, 1.0)
             AlgorithmComputation(
                 prediction = prediction,
                 slope = model.slope,
@@ -468,7 +505,7 @@ internal object CalibrationMath {
         points: List<CalPoint>,
         tuning: CalibrationTuning
     ): AlgorithmComputation {
-        val scale = median(points.map { abs(it.x - targetValue) }).coerceAtLeast(0.5)
+        val scale = referenceScale(points, targetValue)
 
         val localWeights = points.map { p ->
             val timeWeight = temporalWeight(
@@ -492,12 +529,12 @@ internal object CalibrationMath {
         var blended = localPrediction * alpha + globalPrediction * (1.0 - alpha)
         var snapApplied = 0.0
 
-        val nearestByValue = points.minByOrNull { abs(it.x - targetValue) }
-        if (nearestByValue != null) {
-            val dx = abs(nearestByValue.x - targetValue)
+        val offset = blendedAnchorOffset(points, targetValue, targetTimestamp, scale)
+        if (offset != null) {
+            val dx = points.minOf { abs(it.x - targetValue) / scale }
             val snap = (1.0 / (1.0 + dx * 3.0)) * 0.20
             snapApplied = snap
-            val anchor = targetValue + (nearestByValue.y - nearestByValue.x)
+            val anchor = targetValue + offset
             blended = blended * (1.0 - snap) + anchor * snap
         }
 
@@ -530,10 +567,16 @@ internal object CalibrationMath {
 
         val predictions = listOf(pSane, pXdrip, pRobust, pElastic)
         val center = median(predictions)
-        val dispersion = predictions.map { abs(it - center) }.average().coerceAtLeast(0.01)
-        val harmony = (1.0 / (1.0 + dispersion)).coerceIn(0.20, 1.00)
+        val dispersion = predictions.map { abs(it - center) }.average()
+        val relativeDispersion = if (center.isFinite() && center != 0.0) {
+            (dispersion / abs(center)).coerceAtLeast(1e-6)
+        } else {
+            1.0
+        }
+        val harmony = (1.0 / (1.0 + relativeDispersion / ENSEMBLE_DISPERSION_FRACTION))
+            .coerceIn(0.20, 1.00)
 
-        val scale = median(points.map { abs(it.x - targetValue) }).coerceAtLeast(0.5)
+        val scale = referenceScale(points, targetValue)
         val localWeights = points.map { p ->
             val timeWeight = temporalWeight(
                 pointTimestamp = p.timestamp,
@@ -567,15 +610,14 @@ internal object CalibrationMath {
             ) / sumW
         var snapApplied = 0.0
 
-        val nearest = points.minByOrNull {
-            abs(it.x - targetValue) + abs(it.timestamp - targetTimestamp) / HOUR_MS
-        }
-        if (nearest != null) {
-            val dx = abs(nearest.x - targetValue)
-            val dtHours = abs(nearest.timestamp - targetTimestamp) / HOUR_MS
-            val snap = (1.0 / (1.0 + dx * 2.0)) * (1.0 / (1.0 + dtHours / 6.0)) * 0.35
+        val offset = blendedAnchorOffset(points, targetValue, targetTimestamp, scale)
+        if (offset != null) {
+            val dx = points.minOf { abs(it.x - targetValue) / scale }
+            val dtHours = points.minOf { abs(it.timestamp - targetTimestamp) / HOUR_MS }
+            val snap = (1.0 / (1.0 + dx * 2.0)) *
+                (1.0 / (1.0 + dtHours / NEAREST_TIME_HOURS)) * 0.35
             snapApplied = snap
-            val anchor = targetValue + (nearest.y - nearest.x)
+            val anchor = targetValue + offset
             blended = blended * (1.0 - snap) + anchor * snap
         }
 
