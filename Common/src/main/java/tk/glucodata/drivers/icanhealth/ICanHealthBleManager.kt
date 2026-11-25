@@ -28,6 +28,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
 import java.util.ArrayDeque
+import java.util.BitSet
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -212,6 +213,7 @@ class ICanHealthBleManager(
     @Volatile private var receivedGlucoseThisConnection = false
     @Volatile private var lastGlucoseReceiptRealtimeMs = 0L
     @Volatile private var noDataDeadlineElapsedMs = 0L
+    private val decodedHistorySequences = BitSet()
     @Volatile private var lastHistoryProgressElapsedMs = 0L
 
     private data class MissingHistoryEdge(val sequence: Int, val timestampMs: Long)
@@ -712,6 +714,7 @@ class ICanHealthBleManager(
     private fun clearSoftDisconnectState() {
         cancelScheduledReconnect()
         resetNoDataWatchdog()
+        resetHistoryTransferProgress()
         missingHistoryEdge = null
         handler.removeCallbacks(foregroundNotificationRefreshRunnable)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
@@ -2218,7 +2221,10 @@ class ICanHealthBleManager(
             ICanHealthConstants.matchesCanonicalOrKnownNativeAlias(canonicalSerial, previousId)
         // History being written goes by SerialNumber from start to end, so it must not change meanwhile.
         historyImport.changeSensor(isSameSensor) {
-            if (!isSameSensor) missingHistoryEdge = null
+            if (!isSameSensor) {
+                missingHistoryEdge = null
+                resetHistoryTransferProgress()
+            }
             SerialNumber = canonicalSerial
         }
         ensureNativeDataptr(canonicalSerial)
@@ -2315,6 +2321,7 @@ class ICanHealthBleManager(
         val liveSequence = !targetedRecovery && !(glucoseTransfer && canUseHistoryPastEndedStatusCap()) &&
             isLiveSequence(reading.sequenceNumber, historySampleTimeMs ?: nowMs, nowMs, anchoredCurrentSequence)
         if (glucoseTransfer && !liveSequence) {
+            trackHistoryTransferProgress(reading.sequenceNumber)
             if (historySampleTimeMs == null) {
                 logSkippedUnanchoredHistory(reading.sequenceNumber, "2AA7 glucose")
             } else if (!shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
@@ -2402,6 +2409,7 @@ class ICanHealthBleManager(
             warmupMinutes = warmupMinutes(),
         ) ?: return false
 
+        trackHistoryTransferProgress(record.sequenceNumber)
         return when (record.subtype) {
             ICanHealthConstants.SN_HISTORY_SUBTYPE_GLUCOSE -> {
                 val glucoseMgdl = record.glucoseMgdl ?: return false
@@ -2491,6 +2499,7 @@ class ICanHealthBleManager(
                 var skippedUnanchoredCount = 0
                 var skippedCoveredCount = 0
                 for (record in batch.records) {
+                    trackHistoryTransferProgress(record.sequenceNumber)
                     val glucoseMgdl = record.glucoseMgdl
                     if (glucoseMgdl == null ||
                         glucoseMgdl !in ICanHealthConstants.MIN_VALID_GLUCOSE_MGDL..ICanHealthConstants.MAX_VALID_GLUCOSE_MGDL) {
@@ -2537,6 +2546,7 @@ class ICanHealthBleManager(
                 var importedCount = 0
                 var skippedUnanchoredCount = 0
                 for (record in batch.records) {
+                    trackHistoryTransferProgress(record.sequenceNumber)
                     val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
                     if (sampleTimeMs == null) {
                         skippedUnanchoredCount++
@@ -3505,7 +3515,7 @@ class ICanHealthBleManager(
 
             HistoryBackfillPhase.NONE -> return false
         }
-        lastHistoryProgressElapsedMs = 0L
+        resetHistoryTransferProgress()
         historyBackfillRequested = true
         historyBackfillPhase = phase
         sawUnsupportedSnHistoryBatch = false
@@ -3948,9 +3958,7 @@ class ICanHealthBleManager(
         if (SerialNumber.isBlank() || sequenceNumber < 0) {
             return
         }
-        if (historyImport.record(sequenceNumber, sampleTimeMs, glucoseMgdl, rawCurrent, temperatureC)) {
-            lastHistoryProgressElapsedMs = SystemClock.elapsedRealtime()
-        }
+        historyImport.record(sequenceNumber, sampleTimeMs, glucoseMgdl, rawCurrent, temperatureC)
     }
 
     private fun storeHistoryBatch(
@@ -5358,6 +5366,7 @@ class ICanHealthBleManager(
         gattOpInFlight = null
         gattWriteInFlight = null
         resetNoDataWatchdog()
+        resetHistoryTransferProgress()
         missingHistoryEdge = null
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
@@ -5506,6 +5515,21 @@ class ICanHealthBleManager(
             maxOf(noDataDeadlineElapsedMs, historyProgress + NO_DATA_WATCHDOG_MS)
         } else {
             noDataDeadlineElapsedMs
+        }
+    }
+
+    private fun trackHistoryTransferProgress(sequenceNumber: Int) {
+        synchronized(decodedHistorySequences) {
+            if (!historyBackfillRequested || sequenceNumber < 0 || decodedHistorySequences[sequenceNumber]) return
+            decodedHistorySequences.set(sequenceNumber)
+            lastHistoryProgressElapsedMs = SystemClock.elapsedRealtime()
+        }
+    }
+
+    private fun resetHistoryTransferProgress() {
+        synchronized(decodedHistorySequences) {
+            decodedHistorySequences.clear()
+            lastHistoryProgressElapsedMs = 0L
         }
     }
 

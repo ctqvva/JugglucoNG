@@ -307,18 +307,31 @@ class ICanHealthHistoryPersistenceTests {
         assertEquals(1, radio.disconnects)
     }
 
-    @Test fun historyProgressLetsATransferContinueWithoutRefreshingLiveGlucose() {
+    @Test fun distinctCoveredHistoryKeepsTheTransferAliveButRepeatsDoNot() {
+        val timestamp = seedFrozenEdge()
+        rows[timestamp] = 100f
         set("phase", ICanHealthBleManager.Phase.POST_AUTH_SETUP)
         call("maybeHandleQueueDrained")
         begin()
         val radio = Shadow.extract<ICanHistoryGatt>(gatt)
+        val first = runningSequence - 9
+        val second = runningSequence - 12
+
         shadowOf(handler.looper).idleFor(Duration.ofSeconds(180))
-        receive(0L, 3)
+        deliverMeasurement(first)
         shadowOf(handler.looper).idleFor(Duration.ofSeconds(30))
         assertEquals(0, radio.disconnects)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(150))
+        deliverMeasurement(second)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(30))
+        assertEquals(0, radio.disconnects)
+        assertEquals(0, (get("historyImport") as ICanHealthHistoryImport).incomingCount)
         assertEquals(0L, get("lastGlucoseReceiptRealtimeMs"))
-        receive(0L, 3)
-        shadowOf(handler.looper).idleFor(Duration.ofSeconds(179))
+
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(110))
+        deliverMeasurement(first)
+        deliverMeasurement(second)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(69))
         assertEquals(0, radio.disconnects)
         shadowOf(handler.looper).idleFor(Duration.ofSeconds(1))
         assertEquals(1, radio.disconnects)

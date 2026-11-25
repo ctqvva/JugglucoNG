@@ -58,7 +58,6 @@ internal class ICanHealthHistoryImport {
     @Synchronized
     fun hasUnsaved(): Boolean = unsaved.isNotEmpty()
 
-    /** Returns true when the transfer supplied a new storable record. */
     @Synchronized
     fun record(
         sequenceNumber: Int,
@@ -66,16 +65,14 @@ internal class ICanHealthHistoryImport {
         glucoseMgdl: Float,
         rawCurrent: Float,
         temperatureC: Float,
-    ): Boolean {
+    ) {
         val known = incoming[sequenceNumber] ?: ICanHealthHistoryReading(sequenceNumber)
-        val reading = known.copy(
+        incoming[sequenceNumber] = known.copy(
             timestampMs = if (known.timestampMs > 0L) known.timestampMs else sampleTimeMs,
             glucoseMgdl = glucoseMgdl.takeIf { it.isFinite() && it > 0f } ?: known.glucoseMgdl,
             rawCurrent = rawCurrent.takeIf { it.isFinite() && it > 0f } ?: known.rawCurrent,
             temperatureC = temperatureC.takeIf { it.isFinite() && it > 0f } ?: known.temperatureC,
         )
-        incoming[sequenceNumber] = reading
-        return !known.isStorable && reading.isStorable
     }
 
     @Synchronized
