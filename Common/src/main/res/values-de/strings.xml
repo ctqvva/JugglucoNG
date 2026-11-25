@@ -3566,6 +3566,15 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="voice_bt_speak_alarms_desc">Glukosealarme auch vorlesen, wenn „Alarme vorlesen“ aus ist</string>
     <string name="voice_bt_announce_connect_title">Beim Verbinden ansagen</string>
     <string name="voice_bt_announce_connect_desc">Aktuellen Wert kurz nach dem Verbinden vorlesen</string>
+    <string name="talker_media_sound_desc">Medienlautstärke statt Benachrichtigungslautstärke für Ansagen am Telefon verwenden</string>
+    <string name="secondsbetween_desc">Mindestabstand zwischen neuen Sensorwerten</string>
+    <string name="voice_volume_title">Lautstärke</string>
+    <string name="voice_volume_softer">Leiser</string>
+    <string name="voice_volume_normal">Normal</string>
+    <string name="voice_volume_louder">Lauter</string>
+    <string name="voice_volume_max">Max.</string>
+    <string name="voice_bt_announce_delay_title">Verzögerung nach Verbindung</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Über Medienaudio ausgeben</string>
     <string name="voice_bt_media_stream_desc">Über den Medienkanal des Autoradios ausgeben, damit stummgeschaltete Benachrichtigungen es nicht unterdrücken</string>
 </resources>

@@ -57,6 +57,7 @@ object VoiceAudioTrigger {
     private const val KEY_INTERVAL_SECONDS = "voice_bt_audio_interval_sec"
     private const val KEY_SPEAK_ALARMS = "voice_bt_audio_speak_alarms"
     private const val KEY_ANNOUNCE_CONNECT = "voice_bt_audio_announce_connect"
+    private const val KEY_ANNOUNCE_CONNECT_DELAY_SECONDS = "voice_bt_audio_announce_delay_sec"
     private const val KEY_MEDIA_STREAM = "voice_bt_audio_media_stream"
 
     /** AndroidX CarConnection content provider & update broadcast for Android Auto (Android 12+). */
@@ -219,6 +220,9 @@ object VoiceAudioTrigger {
             intervalSeconds = p.getInt(KEY_INTERVAL_SECONDS, 0).coerceAtLeast(0),
             speakAlarms = p.getBoolean(KEY_SPEAK_ALARMS, true),
             announceOnConnect = p.getBoolean(KEY_ANNOUNCE_CONNECT, true),
+            connectAnnounceDelaySeconds = VoiceAudioPolicy.normalizeConnectDelaySeconds(
+                p.getInt(KEY_ANNOUNCE_CONNECT_DELAY_SECONDS, VoiceAudioPolicy.DEFAULT_CONNECT_ANNOUNCE_DELAY_SECONDS)
+            ),
             useMediaStream = p.getBoolean(KEY_MEDIA_STREAM, true),
         )
     }
@@ -283,6 +287,14 @@ object VoiceAudioTrigger {
             synchronized(lock) { connectGeneration++ }
             cancelPendingConnectAnnouncement()
         }
+        refreshState(app)
+    }
+
+    fun setAnnounceConnectDelaySeconds(context: Context, seconds: Int) {
+        if (!isSupported()) return
+        val app = context.applicationContext
+        val normalized = VoiceAudioPolicy.normalizeConnectDelaySeconds(seconds)
+        prefs(app).edit().putInt(KEY_ANNOUNCE_CONNECT_DELAY_SECONDS, normalized).apply()
         refreshState(app)
     }
 
@@ -611,13 +623,16 @@ object VoiceAudioTrigger {
         return VoiceAudioPolicy.evaluateMatch(config, connected, inCarMode).matched
     }
 
-    private fun scheduleConnectAnnouncement(app: Context, expectedGeneration: Long, isRetry: Boolean) {
-        cancelPendingConnectAnnouncement()
-        val delayMs = if (isRetry) {
+    internal fun connectAnnouncementDelayMs(app: Context, isRetry: Boolean): Long =
+        if (isRetry) {
             VoiceAudioPolicy.CONNECT_TTS_RETRY_DELAY_MS
         } else {
-            VoiceAudioPolicy.CONNECT_SETTLE_DELAY_MS
+            loadConfig(app).connectAnnounceDelaySeconds * 1_000L
         }
+
+    private fun scheduleConnectAnnouncement(app: Context, expectedGeneration: Long, isRetry: Boolean) {
+        cancelPendingConnectAnnouncement()
+        val delayMs = connectAnnouncementDelayMs(app, isRetry)
         try {
             val future = Applic.scheduler.schedule({
                 runConnectAnnouncement(app, expectedGeneration, isRetry)

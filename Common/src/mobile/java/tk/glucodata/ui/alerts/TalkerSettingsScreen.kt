@@ -92,6 +92,7 @@ import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
+import tk.glucodata.VoiceAudioBoost
 import tk.glucodata.VoiceAudioPolicy
 import tk.glucodata.VoiceAudioTrigger
 import tk.glucodata.VoiceReadings
@@ -148,6 +149,8 @@ fun TalkerSettingsScreen(navController: NavController) {
     var showEndPicker by remember { mutableStateOf(false) }
     var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
     var speakTwice by remember { mutableStateOf(Talker.getSpeakTwice(activity)) }
+    var voiceVolumeLevel by remember { mutableStateOf(VoiceAudioBoost.getLevel(activity)) }
+    var voiceVolumeSlider by remember { mutableFloatStateOf(voiceVolumeLevel.toFloat()) }
     var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
     var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
     val btAudioState by VoiceAudioTrigger.state.collectAsStateWithLifecycle()
@@ -411,6 +414,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 
                 SettingsSwitchItem(
                     title = stringResource(R.string.talker_media_sound),
+                    subtitle = stringResource(R.string.talker_media_sound_desc),
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.talker_media_sound),
                     checked = uiState.mediaSound,
                     onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
@@ -433,6 +437,7 @@ fun TalkerSettingsScreen(navController: NavController) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 NumericInputCard(
                     title = stringResource(R.string.secondsbetween),
+                    subtitle = stringResource(R.string.secondsbetween_desc),
                     value = separationText,
                     icon = Symbols.ScheduleFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
@@ -469,9 +474,30 @@ fun TalkerSettingsScreen(navController: NavController) {
                     sliderValue = talkerRatioToSliderProgress(uiState.pitch),
                     icon = Symbols.TuneFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.MIDDLE,
                     onValueChange = { uiState = uiState.copy(pitch = talkerSliderProgressToRatio(it)) },
                     onValueChangeFinished = { persist(uiState) }
+                )
+
+                val selectedVolumeLevel = VoiceAudioBoost.normalizeLevel(voiceVolumeSlider.roundToInt())
+                SliderCard(
+                    title = stringResource(R.string.voice_volume_title),
+                    valueLabel = formatVoiceVolumeLabel(context, selectedVolumeLevel),
+                    sliderValue = voiceVolumeSlider,
+                    icon = Symbols.VolumeUpFilled,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.BOTTOM,
+                    valueRange = VoiceAudioBoost.LEVEL_SOFTER.toFloat()..VoiceAudioBoost.LEVEL_MAX.toFloat(),
+                    steps = (VoiceAudioBoost.LEVEL_PRESETS.size - 2).coerceAtLeast(0),
+                    onValueChange = { voiceVolumeSlider = it },
+                    onValueChangeFinished = {
+                        val nextLevel = VoiceAudioBoost.normalizeLevel(voiceVolumeSlider.roundToInt())
+                        voiceVolumeSlider = nextLevel.toFloat()
+                        if (nextLevel != voiceVolumeLevel) {
+                            voiceVolumeLevel = nextLevel
+                            VoiceAudioBoost.setLevel(activity, nextLevel)
+                        }
+                    }
                 )
             }
 //
@@ -545,6 +571,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                 onIntervalChange = { VoiceAudioTrigger.setIntervalSeconds(activity, it) },
                 onSpeakAlarmsChange = { VoiceAudioTrigger.setSpeakAlarms(activity, it) },
                 onAnnounceOnConnectChange = { VoiceAudioTrigger.setAnnounceOnConnect(activity, it) },
+                onAnnounceDelayChange = { VoiceAudioTrigger.setAnnounceConnectDelaySeconds(activity, it) },
                 onUseMediaStreamChange = { VoiceAudioTrigger.setUseMediaStream(activity, it) },
             )
 
@@ -716,6 +743,7 @@ private fun DropdownSettingsCard(
 @Composable
 private fun NumericInputCard(
     title: String,
+    subtitle: String? = null,
     value: String,
     icon: ImageVector,
     iconTint: Color,
@@ -740,6 +768,14 @@ private fun NumericInputCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = value,
@@ -765,6 +801,8 @@ private fun SliderCard(
     icon: ImageVector,
     iconTint: Color,
     position: CardPosition,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..TALKER_SLIDER_MAX,
+    steps: Int = 0,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
@@ -795,10 +833,18 @@ private fun SliderCard(
                 value = sliderValue,
                 onValueChange = onValueChange,
                 onValueChangeFinished = onValueChangeFinished,
-                valueRange = 0f..TALKER_SLIDER_MAX
+                valueRange = valueRange,
+                steps = steps,
             )
         }
     }
+}
+
+private fun formatVoiceVolumeLabel(context: Context, level: Int): String = when (VoiceAudioBoost.normalizeLevel(level)) {
+    VoiceAudioBoost.LEVEL_SOFTER -> context.getString(R.string.voice_volume_softer)
+    VoiceAudioBoost.LEVEL_LOUDER -> context.getString(R.string.voice_volume_louder)
+    VoiceAudioBoost.LEVEL_MAX -> context.getString(R.string.voice_volume_max)
+    else -> context.getString(R.string.voice_volume_normal)
 }
 
 private fun loadTalkerUiState(context: Context): TalkerUiState {
@@ -856,6 +902,7 @@ private fun VoiceBluetoothAudioCard(
     onIntervalChange: (Int) -> Unit,
     onSpeakAlarmsChange: (Boolean) -> Unit,
     onAnnounceOnConnectChange: (Boolean) -> Unit,
+    onAnnounceDelayChange: (Int) -> Unit,
     onUseMediaStreamChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
@@ -1035,6 +1082,47 @@ private fun VoiceBluetoothAudioCard(
                     position = CardPosition.MIDDLE,
                     containerColor = subordinateSurface,
                 )
+
+                AnimatedVisibility(
+                    visible = config.announceOnConnect,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    val delayPresets = VoiceAudioPolicy.CONNECT_ANNOUNCE_DELAY_PRESETS_SECONDS
+                    val currentDelayIndex = delayPresets.indexOf(config.connectAnnounceDelaySeconds)
+                        .takeIf { it >= 0 }
+                        ?: delayPresets.indices.minByOrNull {
+                            kotlin.math.abs(delayPresets[it] - config.connectAnnounceDelaySeconds)
+                        }
+                        ?: 0
+                    var delaySliderIndex by rememberSaveable(config.connectAnnounceDelaySeconds) {
+                        mutableFloatStateOf(currentDelayIndex.toFloat())
+                    }
+                    val selectedDelaySeconds = delayPresets[
+                        delaySliderIndex.roundToInt().coerceIn(0, delayPresets.lastIndex)
+                    ]
+                    SettingsControlsCard(
+                        position = CardPosition.MIDDLE,
+                        containerColor = subordinateSurface,
+                    ) {
+                        SettingsSlider(
+                            title = stringResource(R.string.voice_bt_announce_delay_title),
+                            valueText = stringResource(R.string.voice_bt_announce_delay_value, selectedDelaySeconds),
+                            value = delaySliderIndex,
+                            onValueChange = { delaySliderIndex = it },
+                            onValueChangeFinished = {
+                                val nextDelay = delayPresets[
+                                    delaySliderIndex.roundToInt().coerceIn(0, delayPresets.lastIndex)
+                                ]
+                                if (nextDelay != config.connectAnnounceDelaySeconds) {
+                                    onAnnounceDelayChange(nextDelay)
+                                }
+                            },
+                            range = 0f..delayPresets.lastIndex.toFloat(),
+                            steps = (delayPresets.size - 2).coerceAtLeast(0),
+                        )
+                    }
+                }
 
                 SettingsSwitchItem(
                     title = stringResource(R.string.voice_bt_media_stream_title),

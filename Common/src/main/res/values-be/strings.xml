@@ -3545,6 +3545,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">Агучваць сігналы глюкозы, нават калі агучванне сігналаў выключана</string>
     <string name="voice_bt_announce_connect_title">Агучваць пры падключэнні</string>
     <string name="voice_bt_announce_connect_desc">Агучыць бягучы паказчык неўзабаве пасля падключэння</string>
+    <string name="talker_media_sound_desc">Выкарыстоўваць гучнасць медыя замест гучнасці апавяшчэнняў для агучвання на тэлефоне</string>
+    <string name="secondsbetween_desc">Мінімальны інтэрвал паміж новымі паказаннямі сэнсара</string>
+    <string name="voice_volume_title">Гучнасць</string>
+    <string name="voice_volume_softer">Цішэй</string>
+    <string name="voice_volume_normal">Звычайная</string>
+    <string name="voice_volume_louder">Гучней</string>
+    <string name="voice_volume_max">Макс.</string>
+    <string name="voice_bt_announce_delay_title">Затрымка пасля падключэння</string>
+    <string name="voice_bt_announce_delay_value">%1$d с</string>
     <string name="voice_bt_media_stream_title">Выводзіць праз медыяпаток</string>
     <string name="voice_bt_media_stream_desc">Прайграваць праз медыяаўдыё аўто, каб бязгучныя апавяшчэнні не блакіравалі голас</string>
 </resources>

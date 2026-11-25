@@ -3454,6 +3454,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">Meddela glukoslarm även när uppläsning av larm är avstängd</string>
     <string name="voice_bt_announce_connect_title">Läs upp vid anslutning</string>
     <string name="voice_bt_announce_connect_desc">Läs upp aktuellt värde strax efter anslutning</string>
+    <string name="talker_media_sound_desc">Använd mediavolym i stället för aviseringsvolym för röstuppläsning på telefonen</string>
+    <string name="secondsbetween_desc">Minsta intervall mellan nya sensormätningar</string>
+    <string name="voice_volume_title">Volym</string>
+    <string name="voice_volume_softer">Lägre</string>
+    <string name="voice_volume_normal">Normal</string>
+    <string name="voice_volume_louder">Högre</string>
+    <string name="voice_volume_max">Max</string>
+    <string name="voice_bt_announce_delay_title">Fördröjning vid anslutning</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Spela via medialjud</string>
     <string name="voice_bt_media_stream_desc">Spela via bilstereons medialjud så att tystade aviseringar inte tystar rösten</string>
 </resources>

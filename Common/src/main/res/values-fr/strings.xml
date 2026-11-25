@@ -3461,6 +3461,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">Annoncer les alarmes de glycémie même si « Annoncer les alarmes » est désactivé</string>
     <string name="voice_bt_announce_connect_title">Annoncer à la connexion</string>
     <string name="voice_bt_announce_connect_desc">Annoncer la valeur actuelle peu après la connexion</string>
+    <string name="talker_media_sound_desc">Utiliser le volume multimédia au lieu du volume des notifications sur le téléphone</string>
+    <string name="secondsbetween_desc">Délai minimal entre deux nouvelles mesures du capteur</string>
+    <string name="voice_volume_title">Volume</string>
+    <string name="voice_volume_softer">Plus faible</string>
+    <string name="voice_volume_normal">Normal</string>
+    <string name="voice_volume_louder">Plus fort</string>
+    <string name="voice_volume_max">Max</string>
+    <string name="voice_bt_announce_delay_title">Délai à la connexion</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Passer par le flux multimédia</string>
     <string name="voice_bt_media_stream_desc">Diffuser via l\'audio multimédia de la voiture afin que les notifications silencieuses ne le coupent pas</string>
 </resources>

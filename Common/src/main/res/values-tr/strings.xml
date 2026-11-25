@@ -3482,6 +3482,15 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="voice_bt_speak_alarms_desc">Alarmları seslendir kapalı olsa bile glukoz alarmlarını duyur</string>
     <string name="voice_bt_announce_connect_title">Bağlandığında duyur</string>
     <string name="voice_bt_announce_connect_desc">Bağlandıktan kısa süre sonra mevcut değeri seslendir</string>
+    <string name="talker_media_sound_desc">Telefon sesli okumaları için bildirim yerine medya ses düzeyini kullan</string>
+    <string name="secondsbetween_desc">Yeni sensör ölçümleri arasındaki en kısa süre</string>
+    <string name="voice_volume_title">Ses düzeyi</string>
+    <string name="voice_volume_softer">Daha kısık</string>
+    <string name="voice_volume_normal">Normal</string>
+    <string name="voice_volume_louder">Daha yüksek</string>
+    <string name="voice_volume_max">Maks.</string>
+    <string name="voice_bt_announce_delay_title">Bağlantı gecikmesi</string>
+    <string name="voice_bt_announce_delay_value">%1$d sn</string>
     <string name="voice_bt_media_stream_title">Medya sesi üzerinden çal</string>
     <string name="voice_bt_media_stream_desc">Sessize alınan bildirimlerin engellememesi için araç medya kanalından çal</string>
 </resources>

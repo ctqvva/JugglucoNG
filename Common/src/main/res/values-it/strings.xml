@@ -3445,6 +3445,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">Annuncia gli allarmi glicemici anche se la lettura allarmi è disattivata</string>
     <string name="voice_bt_announce_connect_title">Annuncia alla connessione</string>
     <string name="voice_bt_announce_connect_desc">Leggi il valore attuale subito dopo la connessione</string>
+    <string name="talker_media_sound_desc">Usa il volume multimediale invece di quello delle notifiche per gli annunci sul telefono</string>
+    <string name="secondsbetween_desc">Intervallo minimo tra nuove letture del sensore</string>
+    <string name="voice_volume_title">Volume</string>
+    <string name="voice_volume_softer">Più basso</string>
+    <string name="voice_volume_normal">Normale</string>
+    <string name="voice_volume_louder">Più alto</string>
+    <string name="voice_volume_max">Max</string>
+    <string name="voice_bt_announce_delay_title">Ritardo alla connessione</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Usa audio multimediale</string>
     <string name="voice_bt_media_stream_desc">Riproduci tramite l\'audio multimediale dell\'auto così le notifiche silenziose non lo bloccano</string>
 </resources>

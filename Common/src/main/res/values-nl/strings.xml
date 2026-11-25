@@ -3497,6 +3497,15 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="voice_bt_speak_alarms_desc">Glucose-alarmen ook voorlezen wanneer alarmspraak uit staat</string>
     <string name="voice_bt_announce_connect_title">Melden bij verbinden</string>
     <string name="voice_bt_announce_connect_desc">Huidige waarde kort na verbinden voorlezen</string>
+    <string name="talker_media_sound_desc">Mediavolume gebruiken in plaats van meldingsvolume voor spraak op de telefoon</string>
+    <string name="secondsbetween_desc">Minimale tijd tussen nieuwe sensormetingen</string>
+    <string name="voice_volume_title">Volume</string>
+    <string name="voice_volume_softer">Zachter</string>
+    <string name="voice_volume_normal">Normaal</string>
+    <string name="voice_volume_louder">Luider</string>
+    <string name="voice_volume_max">Max</string>
+    <string name="voice_bt_announce_delay_title">Vertraging bij verbinden</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Via media-audio afspelen</string>
     <string name="voice_bt_media_stream_desc">Afspelen via media-audio van de autoradio zodat gedempte meldingen het niet blokkeren</string>
 </resources>

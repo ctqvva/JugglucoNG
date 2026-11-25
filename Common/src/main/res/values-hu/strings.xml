@@ -3522,6 +3522,15 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="voice_bt_speak_alarms_desc">Vércukor-riasztások bemondása akkor is, ha a riasztások felolvasása ki van kapcsolva</string>
     <string name="voice_bt_announce_connect_title">Bemondás csatlakozáskor</string>
     <string name="voice_bt_announce_connect_desc">Aktuális érték felolvasása röviddel a csatlakozás után</string>
+    <string name="talker_media_sound_desc">Média hangerő használata az értesítési hangerő helyett telefonos felolvasáshoz</string>
+    <string name="secondsbetween_desc">Minimális időköz az új szenzormérések között</string>
+    <string name="voice_volume_title">Hangerő</string>
+    <string name="voice_volume_softer">Halkabb</string>
+    <string name="voice_volume_normal">Normál</string>
+    <string name="voice_volume_louder">Hangosabb</string>
+    <string name="voice_volume_max">Max.</string>
+    <string name="voice_bt_announce_delay_title">Csatlakozási késleltetés</string>
+    <string name="voice_bt_announce_delay_value">%1$d mp</string>
     <string name="voice_bt_media_stream_title">Médiahang csatorna használata</string>
     <string name="voice_bt_media_stream_desc">Lejátszás az autó médiahangján, hogy a némított értesítések ne hallgattassák el</string>
 </resources>

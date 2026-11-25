@@ -3550,6 +3550,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">Озвучувати тривоги глюкози, навіть якщо озвучування тривог вимкнено</string>
     <string name="voice_bt_announce_connect_title">Озвучувати при підключенні</string>
     <string name="voice_bt_announce_connect_desc">Озвучити поточний показник одразу після підключення</string>
+    <string name="talker_media_sound_desc">Використовувати гучність медіа замість сповіщень для озвучення на телефоні</string>
+    <string name="secondsbetween_desc">Мінімальний інтервал між новими показами сенсора</string>
+    <string name="voice_volume_title">Гучність</string>
+    <string name="voice_volume_softer">Тихіше</string>
+    <string name="voice_volume_normal">Звичайна</string>
+    <string name="voice_volume_louder">Гучніше</string>
+    <string name="voice_volume_max">Макс.</string>
+    <string name="voice_bt_announce_delay_title">Затримка після підключення</string>
+    <string name="voice_bt_announce_delay_value">%1$d с</string>
     <string name="voice_bt_media_stream_title">Виводити через медіапотік</string>
     <string name="voice_bt_media_stream_desc">Відтворювати через медіааудіо авто, щоб вимкнені сповіщення не блокували голос</string>
 </resources>

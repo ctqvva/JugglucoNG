@@ -3516,6 +3516,15 @@
     <string name="voice_bt_speak_alarms_desc">Ogłaszaj alarmy glukozy nawet wtedy, gdy czytanie alarmów jest wyłączone</string>
     <string name="voice_bt_announce_connect_title">Ogłoś po połączeniu</string>
     <string name="voice_bt_announce_connect_desc">Odczytaj bieżący wynik krótko po połączeniu</string>
+    <string name="talker_media_sound_desc">Używaj głośności multimediów zamiast powiadomień dla komunikatów na telefonie</string>
+    <string name="secondsbetween_desc">Minimalny odstęp między nowymi odczytami sensora</string>
+    <string name="voice_volume_title">Głośność</string>
+    <string name="voice_volume_softer">Ciszej</string>
+    <string name="voice_volume_normal">Normalna</string>
+    <string name="voice_volume_louder">Głośniej</string>
+    <string name="voice_volume_max">Maks.</string>
+    <string name="voice_bt_announce_delay_title">Opóźnienie po połączeniu</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Kieruj na dźwięk multimediów</string>
     <string name="voice_bt_media_stream_desc">Odtwarzaj przez kanał multimedialny radia, aby wyciszone powiadomienia nie blokowały mowy</string>
 </resources>

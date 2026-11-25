@@ -3721,6 +3721,15 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="voice_bt_speak_alarms_desc">Anunciar alarmas de glucosa aunque «Leer alarmas» esté desactivado</string>
     <string name="voice_bt_announce_connect_title">Anunciar al conectar</string>
     <string name="voice_bt_announce_connect_desc">Leer el valor actual poco después de conectar</string>
+    <string name="talker_media_sound_desc">Usar el volumen multimedia en lugar del de notificaciones para anuncios en el teléfono</string>
+    <string name="secondsbetween_desc">Intervalo mínimo entre nuevas lecturas del sensor</string>
+    <string name="voice_volume_title">Volumen</string>
+    <string name="voice_volume_softer">Más bajo</string>
+    <string name="voice_volume_normal">Normal</string>
+    <string name="voice_volume_louder">Más alto</string>
+    <string name="voice_volume_max">Máx.</string>
+    <string name="voice_bt_announce_delay_title">Retraso al conectar</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Usar canal multimedia</string>
     <string name="voice_bt_media_stream_desc">Reproducir por el audio multimedia del coche para que las notificaciones silenciadas no lo bloqueen</string>
 </resources>

@@ -3716,6 +3716,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">Announce glucose alarms even when Speak alarms is off</string>
     <string name="voice_bt_announce_connect_title">Announce on connect</string>
     <string name="voice_bt_announce_connect_desc">Speak the current reading shortly after connecting</string>
+    <string name="talker_media_sound_desc">Use media volume instead of notification volume for phone announcements</string>
+    <string name="secondsbetween_desc">Minimum gap between new sensor readings</string>
+    <string name="voice_volume_title">Volume</string>
+    <string name="voice_volume_softer">Softer</string>
+    <string name="voice_volume_normal">Normal</string>
+    <string name="voice_volume_louder">Louder</string>
+    <string name="voice_volume_max">Max</string>
+    <string name="voice_bt_announce_delay_title">Connect delay</string>
+    <string name="voice_bt_announce_delay_value">%1$d s</string>
     <string name="voice_bt_media_stream_title">Route through media audio</string>
     <string name="voice_bt_media_stream_desc">Play over car stereo media audio so muted notifications do not silence it</string>
     <!-- food catalogue -->

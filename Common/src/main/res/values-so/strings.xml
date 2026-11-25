@@ -3638,6 +3638,15 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="voice_bt_speak_alarms_desc">Ku dhawaaq digniinaha sonkorta xitaa marka akhriska digniinuhu dansan yahay</string>
     <string name="voice_bt_announce_connect_title">Ku dhawaaq marka la xiro</string>
     <string name="voice_bt_announce_connect_desc">Akhri cabbirka hadda jira wax yar ka dib xiriirka</string>
+    <string name="talker_media_sound_desc">U isticmaal codka warbaahinta halkii aad ka isticmaali lahayd codka ogeysiisyada</string>
+    <string name="secondsbetween_desc">Farqiga ugu yar ee u dhexeeya akhrisyada cusub ee dareemaha</string>
+    <string name="voice_volume_title">Codka</string>
+    <string name="voice_volume_softer">Dabacsan</string>
+    <string name="voice_volume_normal">Caadi</string>
+    <string name="voice_volume_louder">Dheer</string>
+    <string name="voice_volume_max">Ugu sarreeya</string>
+    <string name="voice_bt_announce_delay_title">Dib-u-dhaca xiriirinta</string>
+    <string name="voice_bt_announce_delay_value">%1$d ilb</string>
     <string name="voice_bt_media_stream_title">U mari codka warbaahinta</string>
     <string name="voice_bt_media_stream_desc">Ka ciyaar codka warbaahinta baabuurka si ogeysiisyada aamusan aanay u joojin</string>
 </resources>

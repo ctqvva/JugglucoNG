@@ -3460,6 +3460,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="voice_bt_speak_alarms_desc">即使关闭了“播报报警”，连接时也语音播报血糖报警</string>
     <string name="voice_bt_announce_connect_title">连接时播报当前值</string>
     <string name="voice_bt_announce_connect_desc">连接后稍候即播报当前血糖读数</string>
+    <string name="talker_media_sound_desc">在手机上播报时使用媒体音量而非通知音量</string>
+    <string name="secondsbetween_desc">相邻两次新传感器读数之间的最短间隔</string>
+    <string name="voice_volume_title">音量</string>
+    <string name="voice_volume_softer">较轻</string>
+    <string name="voice_volume_normal">标准</string>
+    <string name="voice_volume_louder">较大</string>
+    <string name="voice_volume_max">最大</string>
+    <string name="voice_bt_announce_delay_title">连接后延迟</string>
+    <string name="voice_bt_announce_delay_value">%1$d 秒</string>
     <string name="voice_bt_media_stream_title">通过媒体音频播放</string>
     <string name="voice_bt_media_stream_desc">使用车载媒体声道播放，避免通知静音导致听不到播报</string>
 </resources>

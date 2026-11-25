@@ -3554,6 +3554,15 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="voice_bt_speak_alarms_desc">Дохио унших унтраалттай байсан ч глюкозын дохиог хэлнэ</string>
     <string name="voice_bt_announce_connect_title">Холбогдоход хэлэх</string>
     <string name="voice_bt_announce_connect_desc">Холбогдсоны дараа удалгүй одоогийн утгыг хэлэх</string>
+    <string name="talker_media_sound_desc">Утсан дээрх зарлалд мэдэгдлийн дууны оронд медиа дууны түвшинг ашиглах</string>
+    <string name="secondsbetween_desc">Шинэ мэдрэгчийн хэмжилт хоорондын хамгийн бага зай</string>
+    <string name="voice_volume_title">Дууны түвшин</string>
+    <string name="voice_volume_softer">Нам</string>
+    <string name="voice_volume_normal">Энгийн</string>
+    <string name="voice_volume_louder">Чанга</string>
+    <string name="voice_volume_max">Дээд</string>
+    <string name="voice_bt_announce_delay_title">Холбогдсоны хоцрогдол</string>
+    <string name="voice_bt_announce_delay_value">%1$d сек</string>
     <string name="voice_bt_media_stream_title">Медиа аудиогоор гаргах</string>
     <string name="voice_bt_media_stream_desc">Мэдэгдэл дуугүй үед ч сонсогдохын тулд машины медиа сувгаар тоглуулах</string>
 </resources>

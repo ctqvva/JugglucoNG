@@ -63,6 +63,8 @@ object VoiceAudioPolicy {
         val intervalSeconds: Int = 0,
         val speakAlarms: Boolean = true,
         val announceOnConnect: Boolean = true,
+        /** Seconds to wait after connecting before speaking the connect announcement. */
+        val connectAnnounceDelaySeconds: Int = DEFAULT_CONNECT_ANNOUNCE_DELAY_SECONDS,
         val useMediaStream: Boolean = true,
     )
 
@@ -110,8 +112,17 @@ object VoiceAudioPolicy {
         1800,
     )
 
+    /** Default seconds to wait after BT audio connects so car stereos finish opening A2DP. */
+    const val DEFAULT_CONNECT_ANNOUNCE_DELAY_SECONDS: Int = 4
+
+    /** Preset connect-announcement delays offered when Announce on connect is enabled. */
+    val CONNECT_ANNOUNCE_DELAY_PRESETS_SECONDS: List<Int> = listOf(4, 8, 10, 15, 20)
+
+    fun normalizeConnectDelaySeconds(seconds: Int): Int =
+        if (seconds <= 0) DEFAULT_CONNECT_ANNOUNCE_DELAY_SECONDS else seconds.coerceIn(1, 60)
+
     /** Wait briefly after BT audio connects so car stereos finish opening A2DP before TTS starts. */
-    const val CONNECT_SETTLE_DELAY_MS: Long = 4_000L
+    const val CONNECT_SETTLE_DELAY_MS: Long = DEFAULT_CONNECT_ANNOUNCE_DELAY_SECONDS * 1_000L
 
     /** Single retry delay if the TTS engine is still binding when the settle window finishes. */
     const val CONNECT_TTS_RETRY_DELAY_MS: Long = 3_000L

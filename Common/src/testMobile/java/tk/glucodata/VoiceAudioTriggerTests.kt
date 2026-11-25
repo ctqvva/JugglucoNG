@@ -747,6 +747,77 @@ class VoiceAudioTriggerTests {
     }
 
     @Test
+    fun customConnectAnnounceDelay_persistsAndDrivesSchedulingDelay() {
+        assertEquals(4, VoiceAudioTrigger.loadConfig(app).connectAnnounceDelaySeconds)
+        assertEquals(4_000L, VoiceAudioTrigger.connectAnnouncementDelayMs(app, isRetry = false))
+        assertEquals(VoiceAudioPolicy.CONNECT_TTS_RETRY_DELAY_MS, VoiceAudioTrigger.connectAnnouncementDelayMs(app, isRetry = true))
+
+        VoiceAudioTrigger.setAnnounceConnectDelaySeconds(app, 15)
+        assertEquals(15, VoiceAudioTrigger.loadConfig(app).connectAnnounceDelaySeconds)
+        assertEquals(15_000L, VoiceAudioTrigger.connectAnnouncementDelayMs(app, isRetry = false))
+        assertEquals(VoiceAudioPolicy.CONNECT_TTS_RETRY_DELAY_MS, VoiceAudioTrigger.connectAnnouncementDelayMs(app, isRetry = true))
+
+        VoiceAudioTrigger.setAnnounceConnectDelaySeconds(app, 0)
+        assertEquals(4, VoiceAudioTrigger.loadConfig(app).connectAnnounceDelaySeconds)
+    }
+
+    @Test
+    fun resolveTestAudioAttributes_respectsMediaSwitchWhenNotificationAudibleAndFallsBackWhenMuted() {
+        // Media OFF, Override silent OFF, Notification audible -> uses notification stream.
+        VoiceTriggerTestNatives.soundTypeVal = AudioAttributes.USAGE_NOTIFICATION
+        Notify.makenotification_audio()
+        audio.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 5, 0)
+        assertEquals(AudioAttributes.USAGE_NOTIFICATION, Talker.resolveTestAudioAttributes(app).usage)
+
+        // Notification muted (0) -> falls back to media so Test stays audible.
+        audio.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0)
+        assertEquals(AudioAttributes.USAGE_MEDIA, Talker.resolveTestAudioAttributes(app).usage)
+
+        // Global Media ON -> uses media stream.
+        audio.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 5, 0)
+        VoiceTriggerTestNatives.soundTypeVal = AudioAttributes.USAGE_MEDIA
+        Notify.makenotification_audio()
+        assertEquals(AudioAttributes.USAGE_MEDIA, Talker.resolveTestAudioAttributes(app).usage)
+
+        // Global Media OFF, but BT car connected with Route through media audio ON -> uses media stream.
+        VoiceTriggerTestNatives.soundTypeVal = AudioAttributes.USAGE_NOTIFICATION
+        Notify.makenotification_audio()
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO)
+        VoiceAudioTrigger.setUseMediaStream(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("AA:BB:CC:DD:EE:90", "Mazda Connect")))
+        VoiceAudioTrigger.refreshState(app)
+        assertEquals(AudioAttributes.USAGE_MEDIA, Talker.resolveTestAudioAttributes(app).usage)
+    }
+
+    @Test
+    fun softerVoiceVolume_passesReducedVolumeBundleToTts() {
+        VoiceAudioBoost.setLevel(app, VoiceAudioBoost.LEVEL_SOFTER)
+        assertEquals(VoiceAudioBoost.LEVEL_SOFTER, VoiceAudioBoost.getLevel(app))
+
+        VoiceTriggerTestNatives.voiceActiveVal = true
+        SuperGattCallback.dotalk = true
+        SuperGattCallback.newtalker(app)
+        val talker = SuperGattCallback.talker!!
+        talker.engineReady = true
+        Talker.nexttime = 0L
+        VoiceTriggerTestEngine.reset()
+
+        talker.selspeak("6.2, stable", 10_000L)
+        assertEquals(1, VoiceTriggerTestEngine.speakCount)
+        assertEquals(0.55f, VoiceTriggerTestEngine.lastParams?.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME) ?: -1f, 0.01f)
+
+        // Restoring Normal passes null params (direct untouched TTS path).
+        VoiceAudioBoost.setLevel(app, VoiceAudioBoost.LEVEL_NORMAL)
+        Talker.nexttime = 0L
+        VoiceTriggerTestEngine.reset()
+        talker.selspeak("6.3, stable", 20_000L)
+        assertEquals(1, VoiceTriggerTestEngine.speakCount)
+        assertNull(VoiceTriggerTestEngine.lastParams)
+    }
+
+    @Test
     fun scheduledHeadphonesOutsideSchedule_isActiveMatchesDashboardSoNotificationCanPause() {
         val nowCal = java.util.Calendar.getInstance()
         val nowMins = nowCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCal.get(java.util.Calendar.MINUTE)
@@ -852,6 +923,7 @@ class VoiceTriggerTestEngine : ShadowTextToSpeech() {
         utteranceId: String?,
     ): Int {
         attributesAtSpeak = currentAttributes
+        lastParams = params
         speakCount++
         return super.speak(text, queueMode, params, utteranceId)
     }
@@ -859,11 +931,13 @@ class VoiceTriggerTestEngine : ShadowTextToSpeech() {
     companion object {
         var currentAttributes: AudioAttributes? = null
         var attributesAtSpeak: AudioAttributes? = null
+        var lastParams: Bundle? = null
         var speakCount: Int = 0
 
         fun reset() {
             currentAttributes = null
             attributesAtSpeak = null
+            lastParams = null
             speakCount = 0
         }
     }
