@@ -74,9 +74,11 @@ object NotificationChartModelSource {
             )
         }
 
+        val calibrated = HashMap<Pair<Boolean, String>, Boolean>()
         val calibration = HistoryChartModelBuilder.Calibration { base, timestamp, isRaw, sensorId ->
             if (!allowCalibration) return@Calibration null
-            if (!CalibrationAccess.hasActiveCalibration(isRaw, sensorId)) return@Calibration null
+            val active = calibrated.getOrPut(isRaw to sensorId) { CalibrationAccess.hasActiveCalibration(isRaw, sensorId) }
+            if (!active) return@Calibration null
             CalibrationAccess.getCalibratedValue(base, timestamp, isRaw, false, sensorId)
         }
         return HistoryChartModelBuilder.build(

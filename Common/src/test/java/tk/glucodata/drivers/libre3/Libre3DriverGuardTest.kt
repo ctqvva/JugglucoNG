@@ -36,9 +36,10 @@ class Libre3DriverGuardTest {
         assertTrue(exporter.contains("importedNames.filterNot { it in DEVICE_LOCAL_PREFERENCES }"))
     }
 
-    @Test fun deterministicDeviceRejectionStopsReconnects() {
+    @Test fun certificateRejectionStopsReconnects() {
         val m = manager
-        assertTrue(m.contains("deviceRejected = true\n                dropLink(\"missing characteristics"))
+        // An incomplete discovery is not one (Libre3GattSessionSimulationTest).
+        assertTrue(m.contains("incompleteDiscoveries++"))
         assertTrue(m.contains("if (stop || ended || identityRejected || missingIdentity || deviceRejected)"))
     }
 

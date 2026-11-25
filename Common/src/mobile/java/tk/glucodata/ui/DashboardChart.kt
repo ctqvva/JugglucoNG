@@ -275,16 +275,15 @@ private fun buildDashboardChartModel(
     // timeline, and answering each from scratch is what made a rebuild cost
     // seconds once the store outgrew the per-value cache. Same numbers as
     // getCalibratedValue — see SeriesCalibrator.
-    val calibrators = HashMap<Pair<Boolean, String>, tk.glucodata.data.calibration.SeriesCalibrator?>()
+    val calibrators = tk.glucodata.chart.LookupOnce<Pair<Boolean, String>, tk.glucodata.data.calibration.SeriesCalibrator> { (isRaw, sensorId) ->
+        if (tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRaw, sensorId)) {
+            tk.glucodata.data.calibration.CalibrationManager.seriesCalibrator(isRaw, sensorId)
+        } else {
+            null
+        }
+    }
     val calibration = tk.glucodata.chart.HistoryChartModelBuilder.Calibration { base, timestamp, isRaw, sensorId ->
-        val calibrator = calibrators.getOrPut(isRaw to sensorId) {
-            if (tk.glucodata.data.calibration.CalibrationManager.hasActiveCalibration(isRaw, sensorId)) {
-                tk.glucodata.data.calibration.CalibrationManager.seriesCalibrator(isRaw, sensorId)
-            } else {
-                null
-            }
-        } ?: return@Calibration null
-        calibrator.calibrate(base, timestamp)
+        calibrators[isRaw to sensorId]?.calibrate(base, timestamp)
     }
     return tk.glucodata.chart.HistoryChartModelBuilder.build(
         inputs, ownership, calibration,

@@ -403,6 +403,9 @@ object Libre3Persistence {
         return if (key.size == 16) key to label else null
     }
 
+    /** Whether a kAuth is stored, without the Keystore round trip [loadCachedAuth] costs. */
+    fun hasCachedAuth(context: Context, sensorId: String): Boolean = prefs(context).contains("$sensorId.kauth")
+
     @Synchronized
     fun saveCachedAuth(context: Context, sensorId: String, kAuth: ByteArray, identityLabel: String, expectedRevision: Long): Boolean {
         if (expectedRevision != credentialRevision(context) || !hasIdentities(context)) return false

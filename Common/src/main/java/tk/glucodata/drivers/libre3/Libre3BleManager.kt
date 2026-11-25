@@ -57,6 +57,9 @@ class Libre3BleManager(sensorId: String) :
         const val LOG_LABEL = "Libre3"
 
         private const val RECONNECT_DELAY_MS = 3_000L
+        /** Incomplete discoveries in a row before retries slow down and the status says so. */
+        private const val INCOMPLETE_DISCOVERIES_SHOWN = 3
+        private const val INCOMPLETE_DISCOVERY_RETRY_MAX_MS = 5 * 60_000L
         private const val DISCOVERY_DELAY_MS = 250L
         /** Discovery, CCCDs and the handshake together; a link that has not streamed by then is retried. */
         private const val SETUP_TIMEOUT_MS = 60_000L
@@ -186,8 +189,10 @@ class Libre3BleManager(sensorId: String) :
     private var identityRejections = 0
     @Volatile private var identityRejected = false
     @Volatile private var missingIdentity = false
-    /** Connected device lacks the Libre 3 services: retrying the same address cannot help. */
+    /** The sensor's certificate is not one this driver can trust: retrying cannot help. */
     @Volatile private var deviceRejected = false
+    /** Discoveries in a row that did not list every Libre 3 characteristic. */
+    @Volatile private var incompleteDiscoveries = 0
 
     // ---- UI-facing snapshot (any thread) ----
 
@@ -232,6 +237,7 @@ class Libre3BleManager(sensorId: String) :
             missingIdentity -> text(tk.glucodata.R.string.libre3_status_identity_missing)
             identityRejected -> text(tk.glucodata.R.string.libre3_status_identity_rejected)
             deviceRejected -> lastNote.ifBlank { text(tk.glucodata.R.string.libre3_status_device_rejected) }
+            incompleteDiscoveries >= INCOMPLETE_DISCOVERIES_SHOWN -> text(tk.glucodata.R.string.libre3_status_device_rejected)
             mActiveBluetoothDevice == null -> "Searching"
             else -> "Idle"
         }
@@ -285,7 +291,8 @@ class Libre3BleManager(sensorId: String) :
             isActive = activeSensorId?.let { Libre3IdentityAdapter.sameSensor(it, sensorId) } ?: false,
             rssi = readrssi,
             viewMode = viewMode,
-            isVendorPaired = Applic.app?.let { Libre3Persistence.loadCachedAuth(it, sensorId) } != null,
+            // Built per glucose point on UI paths: nothing here may decrypt through the Keystore.
+            isVendorPaired = Applic.app?.let { Libre3Persistence.hasCachedAuth(it, sensorId) } == true,
             isVendorConnected = isConnected(),
             isSensorExpired = ended || (end > 0L && now >= end),
             sensorRemainingHours = if (end > 0L) ((end - now).coerceAtLeast(0L) / 3_600_000L).toInt() else -1,
@@ -357,6 +364,7 @@ class Libre3BleManager(sensorId: String) :
         identityRejections = 0
         missingIdentity = false
         deviceRejected = false
+        incompleteDiscoveries = 0
         mActiveDeviceAddress = record?.bleAddress
         mActiveBluetoothDevice = knownDevice()
         sensorstartmsec = activationTimeMs()
@@ -495,12 +503,14 @@ class Libre3BleManager(sensorId: String) :
             val required = Libre3Gatt.SECURITY_NOTIFY_ORDER + Libre3Gatt.DATA_NOTIFY_ORDER
             val missing = required.filterNot { characteristics.containsKey(it) }
             if (missing.isNotEmpty()) {
-                // Deterministic: the same address will be missing them again. Stop until a new NFC
-                // scan (which may report a different address) or an explicit user reconnect.
-                deviceRejected = true
+                // Not proof of a wrong device: a link that outlived a killed process answers with an
+                // empty table, and the next connection is fine. Drop what the stack cached, retry.
+                incompleteDiscoveries++
+                runCatching { BluetoothGatt::class.java.getMethod("refresh").invoke(gatt) }
                 dropLink("missing characteristics ${missing.joinToString { it.toString().take(8) }}")
                 return@post
             }
+            incompleteDiscoveries = 0
             phase = Phase.SUBSCRIBING
             UiRefreshBus.requestStatusRefresh()
             Libre3Gatt.SECURITY_NOTIFY_ORDER.forEach { enqueue(GattOp.Notify(it)) }
@@ -1203,7 +1213,13 @@ class Libre3BleManager(sensorId: String) :
             return
         }
         handler.removeCallbacks(reconnectRunnable)
-        handler.postDelayed(reconnectRunnable, RECONNECT_DELAY_MS)
+        handler.postDelayed(reconnectRunnable, reconnectDelayMs())
+    }
+
+    private fun reconnectDelayMs(): Long {
+        val slowed = incompleteDiscoveries - INCOMPLETE_DISCOVERIES_SHOWN
+        if (slowed <= 0) return RECONNECT_DELAY_MS
+        return minOf(RECONNECT_DELAY_MS shl minOf(slowed, 8), INCOMPLETE_DISCOVERY_RETRY_MAX_MS)
     }
 
     private fun failSetup(note: String, stopUntilUser: Boolean) {
@@ -1263,6 +1279,7 @@ class Libre3BleManager(sensorId: String) :
             identityRejections = 0
             missingIdentity = false
             deviceRejected = false
+            incompleteDiscoveries = 0
             handler.removeCallbacks(reconnectRunnable)
             closeGattTransport()
             endLink()

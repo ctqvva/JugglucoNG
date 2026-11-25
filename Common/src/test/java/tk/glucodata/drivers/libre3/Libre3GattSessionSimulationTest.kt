@@ -225,6 +225,67 @@ class Libre3GattSessionSimulationTest {
         }
     }
 
+    /**
+     * From a tester's trace: the chart asks for every point of a sensor no driver owns (the record
+     * the removed driver left), each answer built this snapshot, and each snapshot decrypted the
+     * cached kAuth through the Keystore. Thousands of those on the main thread were the ANRs.
+     */
+    @Test fun askingForTheUiSnapshotNeverTouchesTheKeystore() {
+        connect()
+        tk.glucodata.SensorBluetooth.gattcallbacks.add(manager)
+        try {
+            FakeAndroidKeyStore.reads.set(0)
+            assertTrue(manager.getManagedUiSnapshot(sensorId)!!.isVendorPaired)
+            repeat(3_000) {
+                tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(
+                    Libre3IdentityAdapter.legacyNativeName(sensorId), false)
+            }
+            assertEquals(0, FakeAndroidKeyStore.reads.get())
+            Libre3Persistence.clearCachedAuth(context, sensorId)
+            assertFalse(manager.getManagedUiSnapshot(sensorId)!!.isVendorPaired)
+        } finally {
+            tk.glucodata.SensorBluetooth.gattcallbacks.remove(manager)
+        }
+    }
+
+    /**
+     * From the same trace: a link the killed process left up answered service discovery with an
+     * empty table, and the driver waited for an NFC scan although the next connection was fine.
+     */
+    @Test fun anIncompleteServiceDiscoveryIsRetried() {
+        sim.emptyDiscoveries = 1
+        connect()
+        assertTrue(sim.commands.isEmpty())
+        assertTrue("the driver reconnects by itself", reconnectScheduled())
+        assertTrue("the stale service table is dropped", sim.refreshes > 0)
+
+        connect()
+        assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
+    }
+
+    @Test fun repeatedIncompleteDiscoveriesBackOffAndSayWhyButNeverStop() {
+        val rejected = context.getString(tk.glucodata.R.string.libre3_status_device_rejected)
+        sim.emptyDiscoveries = Int.MAX_VALUE
+        val delays = (1..14).map { attempt ->
+            connect()
+            assertTrue("attempt $attempt", reconnectScheduled())
+            assertEquals(attempt >= 3, manager.getDetailedBleStatus() == rejected)
+            reconnectDelay()
+        }
+        assertEquals(listOf(3_000L, 3_000L, 3_000L, 6_000L), delays.take(4))
+        assertEquals(300_000L, delays.last())
+
+        sim.emptyDiscoveries = 0
+        connect()
+        assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
+        assertEquals(3_000L, reconnectDelay())
+    }
+
+    private val reconnectRunnable get() = field("reconnectRunnable").get(manager) as Runnable
+    private fun reconnectScheduled() = (field("liveHandler").get(manager) as Handler).hasCallbacks(reconnectRunnable)
+    private fun reconnectDelay() = Libre3BleManager::class.java.getDeclaredMethod("reconnectDelayMs")
+        .apply { isAccessible = true }.invoke(manager) as Long
+
     /** The background download started by the waiting driver; removed credentials end it at once. */
     private fun awaitCredentialWorker() {
         val busy = Libre3Registry::class.java.getDeclaredField("provisioning").apply { isAccessible = true }
@@ -265,6 +326,13 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
     private val certWrites = mutableListOf<ByteArray>()
     private val challengeWrites = mutableListOf<ByteArray>()
     private var inbound = 1
+
+    /** Discoveries that still find none of the sensor's services. */
+    var emptyDiscoveries = 0
+    var refreshes = 0
+    fun discover() { hidden = emptyDiscoveries > 0; if (hidden) emptyDiscoveries-- }
+    private var hidden = false
+    fun service(id: UUID): BluetoothGattService? = services[id].takeUnless { hidden }
 
     val services: Map<UUID, BluetoothGattService> = mapOf(
         Libre3Gatt.DATA_SERVICE to service(Libre3Gatt.DATA_SERVICE, Libre3Gatt.DATA_NOTIFY_ORDER),
@@ -420,12 +488,14 @@ class Libre3SimGattShadow {
 
     @RealObject private lateinit var real: BluetoothGatt
 
-    @Implementation fun getService(uuid: UUID): BluetoothGattService? = sim?.services?.get(uuid)
+    @Implementation fun getService(uuid: UUID): BluetoothGattService? = sim?.service(uuid)
     @Implementation fun discoverServices(): Boolean {
         val s = sim ?: return false
+        s.discover()
         s.events += { s.driver.onServicesDiscovered(real, BluetoothGatt.GATT_SUCCESS) }
         return true
     }
+    @Implementation fun refresh(): Boolean { sim?.let { it.refreshes++ }; return true }
     @Implementation fun setCharacteristicNotification(c: BluetoothGattCharacteristic, enable: Boolean): Boolean = true
     @Implementation fun writeDescriptor(d: BluetoothGattDescriptor): Boolean {
         sim?.onCccd(d.characteristic.uuid, d) ?: return false
@@ -447,9 +517,10 @@ class Libre3SimGattShadow {
 /** Robolectric has no AndroidKeyStore; this stands in for it with ordinary in-memory AES keys. */
 object FakeAndroidKeyStore {
     val keys = ConcurrentHashMap<String, Key>()
+    val reads = java.util.concurrent.atomic.AtomicInteger()
 
     class Store : KeyStoreSpi() {
-        override fun engineGetKey(alias: String, password: CharArray?): Key? = keys[alias]
+        override fun engineGetKey(alias: String, password: CharArray?): Key? = keys[alias].also { reads.incrementAndGet() }
         override fun engineGetCertificateChain(alias: String?): Array<Certificate>? = null
         override fun engineGetCertificate(alias: String?): Certificate? = null
         override fun engineGetCreationDate(alias: String?): Date? = null
