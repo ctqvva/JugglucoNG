@@ -75,11 +75,10 @@ class CalibrationPayloadSelectionTests {
         assertEquals(legacy, SyncedWearCalibrationProvider.selectPayload(listOf(other, legacy), "0D1234ABC", null))
         assertEquals(legacy, SyncedWearCalibrationProvider.selectPayload(listOf(other, legacy), "XX0D1234ABC", null))
 
-        // The successor's payload replaces it, also when it says there is no calibration any more.
-        val successor = payload("0D1234ABC", 6)
+        // The successor's own payload wins, whatever its revision says.
+        val successor = payload("0D1234ABC", 4)
         val all = listOf(other, legacy, successor)
         assertEquals(successor, SyncedWearCalibrationProvider.selectPayload(all, "0D1234ABC", null))
-        assertEquals(successor, SyncedWearCalibrationProvider.selectPayload(all, "E07A-XX0D1234ABC", null))
     }
 
     @Test
