@@ -23,6 +23,14 @@ interface HistoryRepositoryBridge {
         sensorSerial: String,
     )
 
+    fun storeCurrentReadingBlocking(
+        timestamp: Long,
+        valueMgdl: Float,
+        rawValueMgdl: Float,
+        rate: Float,
+        sensorSerial: String,
+    ): Boolean
+
     fun storeCurrentReadingWithSourceAsync(
         timestamp: Long,
         valueMgdl: Float,

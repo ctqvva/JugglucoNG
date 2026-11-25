@@ -41,6 +41,43 @@ class SibionicsSessionRestartPersistenceTest {
     }
 
     @Test
+    fun gs3CheckpointRestoresTheLiveIndexAndRejectsItsReplayAfterRestart() {
+        val prefs = FakePreferences()
+        val context = PrefsContext(prefs)
+        val anchor = 1_790_200_000_000L
+        val time = anchor + 20 * SibionicsGs3Protocol.RECORD_INTERVAL_MS
+        val trend = SibionicsProtocol.Trend.NOT_DETERMINED
+        val reading = SibionicsGs3Reading(20, time, 108f, trend)
+        // The cursor tracks the page's first index, which can be behind the live index.
+        assertTrue(SibionicsRegistry.saveGs3Page(context, sensor, 17, anchor, reading))
+        assertEquals(1, prefs.commits)
+
+        val restoredContext = PrefsContext(prefs)
+        val restoredAnchor = SibionicsRegistry.loadStartTimeMs(restoredContext, sensor)
+        val (restoredTime, restoredGlucose, _) = SibionicsRegistry.loadLastReading(restoredContext, sensor)
+        val savedIndex = SibionicsRegistry.loadGs3LastLiveIndex(restoredContext, sensor)
+        assertEquals(17, SibionicsRegistry.loadLastIndex(restoredContext, sensor))
+        assertEquals(time, restoredTime)
+        assertEquals(108f, restoredGlucose, 0f)
+        assertEquals(20, savedIndex)
+
+        val replay = SibionicsGs3Protocol.Record(20, 60, trend, 0, byteArrayOf())
+        val now = time + 5 * SibionicsGs3Protocol.RECORD_INTERVAL_MS
+        // Also cover the timestamp fallback for preferences written by early test builds.
+        for (index in listOf(savedIndex, -1)) {
+            val restoredIndex = SibionicsGs3ReadingTime.restoreLastLiveIndex(index, restoredAnchor, restoredTime)
+            assertEquals(20, restoredIndex)
+            assertFalse(SibionicsGs3ReadingTime.isNewLiveRecord(replay, restoredIndex))
+            assertEquals(anchor, SibionicsGs3ReadingTime.anchor(restoredAnchor, replay, restoredIndex, now))
+
+            val fresh = replay.copy(index = 21)
+            assertTrue(SibionicsGs3ReadingTime.isNewLiveRecord(fresh, restoredIndex))
+            val shifted = SibionicsGs3ReadingTime.anchor(restoredAnchor, fresh, restoredIndex, now)
+            assertEquals(now, shifted + fresh.index * SibionicsGs3Protocol.RECORD_INTERVAL_MS)
+        }
+    }
+
+    @Test
     fun theAutoResetBackoffIsCommittedAndClearedByTheRestartItWaitedFor() {
         val prefs = FakePreferences()
         val context = PrefsContext(prefs)

@@ -69,7 +69,7 @@ internal class SibionicsGs3Session(
     var authAttempt: AuthAttempt? = null
         private set
 
-    /** First record index of the newest page seen; the next request starts after it. */
+    /** First record index of the newest stored page; the next request starts after it. */
     var cursor: Int = initialCursor.coerceIn(0, 0xFFFF)
         private set
     var lastReplyCipher: FrameCipher? = null
@@ -123,6 +123,14 @@ internal class SibionicsGs3Session(
     fun requestNextPage(): Action.Send? {
         if (state != State.STREAMING) return null
         return getDataRequest()
+    }
+
+    fun storePage(page: Message.GlucosePage, store: (nextCursor: Int) -> Boolean): Boolean {
+        if (page.records.isEmpty()) return true
+        val nextCursor = maxOf(cursor, page.startIndex.coerceIn(0, 0xFFFF))
+        if (!store(nextCursor)) return false
+        cursor = nextCursor
+        return true
     }
 
     // ---- auth ----
@@ -189,7 +197,7 @@ internal class SibionicsGs3Session(
     // ---- after auth ----
 
     private fun onAuthenticated(message: Message): List<Action> {
-        if (message is Message.GlucosePage) return onPage(message)
+        if (message is Message.GlucosePage) return listOf(Action.Page(message))
         when (state) {
             State.WAITING_BIND_IN -> if (message.isAckFor(SibionicsGs3Protocol.CMD_BIND_IN) ||
                 message.isAckFor(SibionicsGs3Protocol.CMD_BIND_IN_ALT)
@@ -258,11 +266,6 @@ internal class SibionicsGs3Session(
         } else {
             fail("IdBind rejected result=${ack.result} arg=${ack.arg}")
         }
-    }
-
-    private fun onPage(page: Message.GlucosePage): List<Action> {
-        if (page.records.isNotEmpty()) cursor = maxOf(cursor, page.startIndex.coerceIn(0, 0xFFFF))
-        return listOf(Action.Page(page))
     }
 
     private fun getDataRequest(): Action.Send {

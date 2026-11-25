@@ -16,6 +16,7 @@ import java.util.ArrayDeque
 import java.util.UUID
 import kotlin.math.abs
 import tk.glucodata.Applic
+import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.Natives
@@ -57,13 +58,6 @@ class SibionicsGs3BleManager(
         ERROR,
     }
 
-    private data class Reading(
-        val index: Int,
-        val sampleMs: Long,
-        val glucoseMgdl: Float,
-        val trend: SibionicsProtocol.Trend,
-    )
-
     companion object {
         private const val TAG = "SibionicsGs3"
         private const val RECONNECT_DELAY_MS = 8_000L
@@ -97,8 +91,6 @@ class SibionicsGs3BleManager(
         private const val CURRENT_FRESH_MS = 3L * 60L * 1000L
         private const val MAX_FUTURE_DRIFT_MS = 2L * 60L * 1000L
 
-        /** Index anchor tolerance before the session start is re-derived (sensor clock drift). */
-        private const val ANCHOR_TOLERANCE_MS = 3L * 60L * 1000L
         private const val NATIVE_STREAM_CAPACITY_MINUTES = 21 * 24 * 60
     }
 
@@ -180,6 +172,9 @@ class SibionicsGs3BleManager(
         startTimeMs = SibionicsRegistry.loadStartTimeMs(context, SerialNumber)
         identityMac = SibionicsGs3Identity.parse(SibionicsRegistry.loadGs3IdentityMac(context, SerialNumber))
         val (time, glucose, _) = SibionicsRegistry.loadLastReading(context, SerialNumber)
+        lastLiveIndex = SibionicsGs3ReadingTime.restoreLastLiveIndex(
+            SibionicsRegistry.loadGs3LastLiveIndex(context, SerialNumber), startTimeMs, time,
+        )
         latestReadingTimeMs = time
         latestGlucoseMgdl = glucose
         Log.i(
@@ -658,7 +653,19 @@ class SibionicsGs3BleManager(
         for (action in actions) {
             when (action) {
                 is SibionicsGs3Session.Action.Send -> enqueueWrite(action)
-                is SibionicsGs3Session.Action.Page -> processPage(action.page)
+                is SibionicsGs3Session.Action.Page -> {
+                    if (current == null) return
+                    lastPageMs = System.currentTimeMillis()
+                    val stored = current.storePage(action.page) { nextCursor ->
+                        processPage(current, action.page, nextCursor)
+                    }
+                    if (!stored) {
+                        if (current === session) {
+                            reconnectNow("GS3 page storage failed", FAILED_RECONNECT_DELAY_MS)
+                        }
+                        return
+                    }
+                }
                 is SibionicsGs3Session.Action.Note -> Log.i(TAG, "${action.text} serial=$SerialNumber")
                 is SibionicsGs3Session.Action.Failed -> {
                     onSessionFailed(action.reason)
@@ -884,81 +891,87 @@ class SibionicsGs3BleManager(
 
     // ---- data ----
 
-    private fun processPage(page: SibionicsGs3Protocol.Message.GlucosePage) {
-        val now = System.currentTimeMillis()
-        lastPageMs = now
+    private fun processPage(
+        current: SibionicsGs3Session,
+        page: SibionicsGs3Protocol.Message.GlucosePage,
+        nextCursor: Int,
+    ): Boolean {
+        val now = lastPageMs
         Log.i(
             TAG,
             "page cmd=0x%02X start=%d count=%d trailer=%d cursor=%d".format(
-                page.cmd, page.startIndex, page.records.size, page.trailer, session?.cursor ?: cursor,
+                page.cmd, page.startIndex, page.records.size, page.trailer, cursor,
             ),
         )
-        session?.cursor?.let { next ->
-            if (next != cursor) {
-                cursor = next
-                Applic.app?.let { SibionicsRegistry.saveLastIndex(it, SerialNumber, next) }
-            }
-        }
         val plausible = page.records.filter { it.isPlausible }
         if (plausible.size != page.records.size) {
             Log.w(TAG, "dropped ${page.records.size - plausible.size} implausible record(s) serial=$SerialNumber")
         }
-        if (plausible.isEmpty()) return
-        anchorSession(plausible.minBy { it.ageRecords }, now)
+        val previousStart = startTimeMs
+        val reference = plausible.minByOrNull { it.ageRecords }
+        val anchor = reference?.let { SibionicsGs3ReadingTime.anchor(previousStart, it, lastLiveIndex, now) }
+            ?: previousStart
         val readings = plausible.mapNotNull { rec ->
-            val sampleMs = startTimeMs + rec.index * SibionicsGs3Protocol.RECORD_INTERVAL_MS
+            val sampleMs = anchor + rec.index * SibionicsGs3Protocol.RECORD_INTERVAL_MS
             if (sampleMs <= 0L || sampleMs > now + MAX_FUTURE_DRIFT_MS) null
-            else Reading(rec.index, sampleMs, rec.mgdl, rec.trend)
+            else SibionicsGs3Reading(rec.index, sampleMs, rec.mgdl, rec.trend)
         }.sortedBy { it.index }
-        if (readings.isEmpty()) return
-        val newest = readings.last()
-        val newestRecord = plausible.first { it.index == newest.index }
-        val live = newest.takeIf {
-            newestRecord.ageRecords == 0 && it.index > lastLiveIndex && abs(now - it.sampleMs) <= CURRENT_FRESH_MS
+        val live = readings.lastOrNull()?.takeIf {
+            val record = plausible.first { rec -> rec.index == it.index }
+            SibionicsGs3ReadingTime.isNewLiveRecord(record, lastLiveIndex) &&
+                abs(now - it.sampleMs) <= CURRENT_FRESH_MS
         }
-        val history = if (live != null) readings.dropLast(1) else readings
-        if (history.isNotEmpty()) storeHistory(history)
-        live?.let(::publishLiveReading)
-        UiRefreshBus.requestDataRefresh()
+        val rate = if (live != null && latestReadingTimeMs > 0L && latestGlucoseMgdl.isFinite() &&
+            live.sampleMs > latestReadingTimeMs
+        ) {
+            (live.glucoseMgdl - latestGlucoseMgdl) / ((live.sampleMs - latestReadingTimeMs) / 60_000f)
+        } else {
+            Float.NaN
+        }
+        // Keep the resume checkpoint behind both stores. Wear has no Room history bridge.
+        if (stop || current !== session) return false
+        if (readings.isNotEmpty() && !mirrorIntoNative(readings, anchor)) return false
+        if (HistoryRepositoryAccess.isRegistered()) {
+            if (stop || current !== session) return false
+            val history = if (live != null) readings.dropLast(1) else readings
+            if (!storeHistory(history)) return false
+            if (stop || current !== session) return false
+            if (live != null && !HistoryRepositoryAccess.storeCurrentReadingBlocking(
+                    live.sampleMs, live.glucoseMgdl, live.glucoseMgdl, rate.takeIf { it.isFinite() } ?: 0f,
+                    SerialNumber,
+                )
+            ) return false
+        }
+
+        synchronized(this) {
+            if (stop || current !== session) return false
+            if (nextCursor != cursor || anchor != previousStart || live != null) {
+                val context = Applic.app ?: return false
+                if (!SibionicsRegistry.saveGs3Page(context, SerialNumber, nextCursor, anchor, live)) return false
+            }
+            cursor = nextCursor
+            startTimeMs = anchor
+            if (live != null) lastLiveIndex = live.index
+        }
+        if (anchor != previousStart) {
+            Log.i(TAG, "session anchor start=$anchor previous=$previousStart ref idx=${reference?.index} age=${reference?.ageRecords}")
+        }
+        if (live != null && !stop && current === session) publishLiveReading(live, rate)
+        if (readings.isNotEmpty()) UiRefreshBus.requestDataRefresh()
+        return true
     }
 
-    /**
-     * Timestamps come from the record index, so a page fetched twice (the cursor deliberately
-     * overlaps) lands on the same minutes. The anchor (time of index 0) is taken from the
-     * newest record's age and only moved when the sensor clock has drifted past tolerance.
-     */
-    private fun anchorSession(reference: SibionicsGs3Protocol.Record, now: Long) {
-        val candidate = now -
-            reference.ageRecords.toLong() * SibionicsGs3Protocol.RECORD_INTERVAL_MS -
-            reference.index.toLong() * SibionicsGs3Protocol.RECORD_INTERVAL_MS
-        val previous = startTimeMs
-        if (previous > 0L && abs(candidate - previous) <= ANCHOR_TOLERANCE_MS) return
-        if (previous > 0L && reference.ageRecords != 0) {
-            // Only a current record re-anchors an established session: its time is "now",
-            // whereas an older record's time rests on the page's age arithmetic.
-            Log.w(TAG, "page implies start=$candidate, keeping start=$previous (ref idx=${reference.index} age=${reference.ageRecords})")
-            return
-        }
-        startTimeMs = candidate
-        Applic.app?.let { SibionicsRegistry.saveStartTimeMs(it, SerialNumber, candidate) }
-        Log.i(TAG, "session anchor start=$candidate previous=$previous ref idx=${reference.index} age=${reference.ageRecords}")
-        // The native window is deliberately left where it is. rebaseDirectStreamWindow clears
-        // every stored sample, and the cursor has moved past the pages that wrote them, so they
-        // would never come back. The window only sets the origin of minute slots; records keep
-        // their absolute times, so later readings still land in the right minutes.
-    }
-
-    private fun storeHistory(readings: List<Reading>) {
+    private fun storeHistory(readings: List<SibionicsGs3Reading>): Boolean {
+        if (readings.isEmpty()) return true
         val timestamps = LongArray(readings.size) { readings[it].sampleMs }
         val values = FloatArray(readings.size) { readings[it].glucoseMgdl }
-        HistorySyncAccess.storeSensorHistoryBatchAsync(SerialNumber, timestamps, values, values.copyOf())
-        mirrorIntoNative(readings)
+        return HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, values)
     }
 
-    private fun mirrorIntoNative(readings: List<Reading>): Boolean = synchronized(mirrorLock) {
+    private fun mirrorIntoNative(readings: List<SibionicsGs3Reading>, anchor: Long): Boolean = synchronized(mirrorLock) {
         val name = SerialNumber ?: return false
         runCatching {
-            val startSec = (startTimeMs / 1000L).takeIf { it > 0L }
+            val startSec = (anchor / 1000L).takeIf { it > 0L }
                 ?: (readings.first().sampleMs / 1000L - 3600L).coerceAtLeast(1L)
             if (nativeShellStartSec == 0L) {
                 if (Natives.ensureSensorShellWithCapacity(name, startSec, NATIVE_STREAM_CAPACITY_MINUTES) == 0L) {
@@ -976,41 +989,21 @@ class SibionicsGs3BleManager(
             val values = FloatArray(readings.size) { readings[it].glucoseMgdl / 10f }
             val raws = FloatArray(readings.size) { readings[it].glucoseMgdl }
             val temperatures = FloatArray(readings.size)
-            Natives.addGlucoseStreamBatchWithRawTemp(times, values, raws, temperatures, name) > 0
+            Natives.addGlucoseStreamBatchWithRawTemp(times, values, raws, temperatures, name) == readings.size
         }.onFailure {
             Log.stack(TAG, "mirrorIntoNative", it)
         }.getOrDefault(false)
     }
 
-    private fun publishLiveReading(reading: Reading) {
+    private fun publishLiveReading(reading: SibionicsGs3Reading, rateMgdlPerMin: Float) {
         settleConnectionPriority()
-        val previousTime = latestReadingTimeMs
-        val previousValue = latestGlucoseMgdl
         latestReadingTimeMs = reading.sampleMs
         latestGlucoseMgdl = reading.glucoseMgdl
         latestTrend = reading.trend
-        lastLiveIndex = reading.index
-        latestRateMgdlPerMin =
-            if (previousTime > 0L && previousValue.isFinite() && reading.sampleMs > previousTime) {
-                (reading.glucoseMgdl - previousValue) / ((reading.sampleMs - previousTime) / 60_000f)
-            } else {
-                Float.NaN
-            }
-        Applic.app?.let {
-            SibionicsRegistry.saveLastReading(it, SerialNumber, reading.sampleMs, reading.glucoseMgdl, reading.glucoseMgdl)
-        }
-        if (mirrorIntoNative(listOf(reading))) {
-            NightscoutUploadWake.afterLiveNativeWrite("sibionics-gs3", reading.sampleMs)
-        }
+        latestRateMgdlPerMin = rateMgdlPerMin
+        NightscoutUploadWake.afterLiveNativeWrite("sibionics-gs3", reading.sampleMs)
         markLocalReadingAccepted(reading.sampleMs)
-        val rate = latestRateMgdlPerMin.takeIf { it.isFinite() } ?: 0f
-        HistorySyncAccess.storeCurrentReadingAsync(
-            reading.sampleMs,
-            reading.glucoseMgdl,
-            reading.glucoseMgdl,
-            rate,
-            SerialNumber,
-        )
+        val rate = rateMgdlPerMin.takeIf { it.isFinite() } ?: 0f
         val display = toDisplay(reading.glucoseMgdl)
         val displayRate = if (Applic.unit == 1) rate / SibionicsConstants.MGDL_PER_MMOLL else rate
         SuperGattCallback.processExternalCurrentReading(

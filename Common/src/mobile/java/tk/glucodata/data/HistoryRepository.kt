@@ -690,9 +690,9 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         rate: Float,
         sensorSerial: String? = null,
         source: String = GlucoseReadingSource.SENSOR,
-    ) {
+    ): Boolean {
         // Don't store invalid readings
-        if (value <= 0 && rawValue <= 0) return
+        if (value <= 0 && rawValue <= 0) return false
         
         val rawSerial = sensorSerial
             ?: SensorIdentity.resolveMainSensor()
@@ -712,11 +712,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             source = source,
         )
         reportIfFutureTimestamp(serial, timestamp, writer = "storeReading")
-        withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             try {
                 if (dao.isReadingDeleted(serial, timestamp) > 0) {
                     Log.d(TAG, "Skipped tombstoned reading for $serial at $timestamp")
-                    return@withContext
+                    return@withContext true
                 }
                 database.withTransaction {
                     val bucketStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
@@ -745,8 +745,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         )
                     )
                 }
+                true
             } catch (e: Exception) {
                 Log.e(TAG, "Error storing reading", e)
+                false
             }
         }
     }

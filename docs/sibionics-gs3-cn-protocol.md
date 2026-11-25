@@ -147,14 +147,15 @@ family's interval).
 
 **Timestamps.** A record's time is `start time + index × 60 s`. The start time is derived from the
 newest record in a page (`now − age × 60 s − index × 60 s`), persisted, and moved only by a current
-(age 0) record that disagrees by more than 3 minutes. The native stream window is **not** rebased
+(age 0) record newer than the last published index that disagrees by more than 3 minutes. The last
+published index survives restart. The native stream window is **not** rebased
 when that happens: `rebaseDirectStreamWindow` clears every stored native sample, and the cursor has
 already moved past the pages that wrote them. The window only sets the origin of the minute slots;
 records keep their absolute times. (Only readings from before the first anchor's index 0, i.e. the
 first minutes of wear, could fall outside it; Room keeps them regardless.)
 Index-anchored times make the deliberately overlapping re-requests land on the same minutes
 instead of creating near-duplicates. The newest record of a page is published live when its age is
-0 and it is within 3 minutes of now; this does not depend on the `0x32`/`0x39` distinction, whose
+0, its index has advanced and it is within 3 minutes of now; this does not depend on the `0x32`/`0x39` distinction, whose
 vendor-side `isLive` flag could not be read reliably.
 
 ## 5. Timers
@@ -186,10 +187,12 @@ otherwise complete whichever write went out next and release later commands earl
 
 ## 6. Storage
 
-Same paths as the other managed drivers: `HistorySyncAccess.storeSensorHistoryBatchAsync` for
-history, `storeCurrentReadingAsync` + `processExternalCurrentReading` for live, and the native
-mirror through `Natives.ensureSensorShellWithCapacity` (21 days),
-`setSensorManagedFamily(SIBIONICS)` and `addGlucoseStreamBatchWithRawTemp`. The sensor reports
+The native mirror uses `Natives.ensureSensorShellWithCapacity` (21 days),
+`setSensorManagedFamily(SIBIONICS)` and `addGlucoseStreamBatchWithRawTemp`. On phones, the driver
+also waits for Room to confirm the history batch and the live reading. The anchor, last live
+reading and resume cursor are checkpointed after those writes, before live publication through
+`processExternalCurrentReading`. If a write fails, reconnect requests data from the last stored
+cursor. The sensor reports
 finished values, so the raw lane carries the same value and no local algorithm, calibration
 integration, journal or reset is offered. The UI reports the model as "Sibionics GS3" so the GS3
 badge applies.

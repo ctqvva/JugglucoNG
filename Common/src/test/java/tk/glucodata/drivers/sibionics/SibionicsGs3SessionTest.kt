@@ -153,6 +153,8 @@ class SibionicsGs3SessionTest {
         val pageActions = s.onNotification(reply(s, page(0x32, start = 5, trailer = 0, glucoseX10 = listOf(64))))
         val received = pageActions.filterIsInstance<Action.Page>().single().page
         assertEquals(64, received.records.single().glucoseX10)
+        assertEquals(0, s.cursor)
+        assertTrue(s.storePage(received) { true })
         assertEquals(5, s.cursor)
     }
 
@@ -192,15 +194,33 @@ class SibionicsGs3SessionTest {
     }
 
     @Test
-    fun `pages move the cursor to their first index and never back`() {
+    fun `stored pages move the cursor to their first index and never back`() {
         val s = streamingV3(cursor = 10)
-        s.onNotification(reply(s, page(0x39, start = 20, trailer = 0, glucoseX10 = listOf(50, 51))))
+        fun receive(start: Int, trailer: Int, values: List<Int>) =
+            s.onNotification(reply(s, page(0x39, start, trailer, values))).filterIsInstance<Action.Page>().single().page
+
+        assertTrue(s.storePage(receive(20, 0, listOf(50, 51))) { true })
         assertEquals(20, s.cursor)
-        s.onNotification(reply(s, page(0x39, start = 12, trailer = 9, glucoseX10 = listOf(50))))
+        assertTrue(s.storePage(receive(12, 9, listOf(50))) { true })
         assertEquals(20, s.cursor)
         // An empty page carries no index to resume from.
-        s.onNotification(reply(s, page(0x39, start = 90, trailer = 0, glucoseX10 = emptyList())))
+        assertTrue(s.storePage(receive(90, 0, emptyList())) { error("empty page must not write") })
         assertEquals(20, s.cursor)
+        assertArrayEquals(SibionicsGs3Protocol.buildGetDataV3(21), s.requestNextPage()!!.plain)
+    }
+
+    @Test
+    fun `failed storage leaves the request on the previous cursor until retry succeeds`() {
+        val s = streamingV3(cursor = 10)
+        val wire = reply(s, page(0x39, start = 20, trailer = 0, glucoseX10 = listOf(50, 51)))
+        val received = s.onNotification(wire).filterIsInstance<Action.Page>().single().page
+        assertFalse(s.storePage(received) { nextCursor ->
+            assertEquals(20, nextCursor)
+            assertEquals(10, s.cursor)
+            false
+        })
+        assertArrayEquals(SibionicsGs3Protocol.buildGetDataV3(11), s.requestNextPage()!!.plain)
+        assertTrue(s.storePage(received) { true })
         assertArrayEquals(SibionicsGs3Protocol.buildGetDataV3(21), s.requestNextPage()!!.plain)
     }
 
