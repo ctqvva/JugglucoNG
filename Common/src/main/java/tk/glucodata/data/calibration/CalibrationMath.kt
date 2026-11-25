@@ -79,7 +79,8 @@ internal object CalibrationMath {
     private const val HOUR_MS = 3_600_000.0
     private const val PAST_BLEND_WINDOW_MS = 30L * 60L * 1000L
     private const val ENSEMBLE_DISPERSION_FRACTION = 0.05
-    private const val ENSEMBLE_NEAREST_TIME_HOURS = 6.0
+    private const val NEAREST_TIME_HOURS = 6.0
+    private const val FIT_DENOMINATOR_EPSILON = 1e-14
     private const val SCALE_FLOOR_FRACTION = 0.02
     private const val ROBUST_MAD_FLOOR_FRACTION = 0.0005
     private const val ROBUST_CONFIDENCE_MAD_FRACTION = 0.008
@@ -274,7 +275,7 @@ internal object CalibrationMath {
 
         if (sumW <= 1e-9) return null
         val denominator = sumW * sumWX2 - sumWX * sumWX
-        if (abs(denominator) <= 1e-9) return null
+        if (abs(denominator) <= FIT_DENOMINATOR_EPSILON * sumW * sumWX2) return null
 
         var slope = (sumW * sumWXY - sumWX * sumWY) / denominator
         slope = slope.coerceIn(slopeMin, slopeMax)
@@ -309,7 +310,8 @@ internal object CalibrationMath {
 
         val scale = referenceScale(points, targetValue)
         val nearest = points.minByOrNull {
-            abs(it.x - targetValue) / scale + abs(it.timestamp - targetTimestamp) / HOUR_MS
+            abs(it.x - targetValue) / scale +
+                abs(it.timestamp - targetTimestamp) / (NEAREST_TIME_HOURS * HOUR_MS)
         }
 
         if (nearest != null) {
@@ -591,13 +593,13 @@ internal object CalibrationMath {
 
         val nearest = points.minByOrNull {
             abs(it.x - targetValue) / scale +
-                abs(it.timestamp - targetTimestamp) / (ENSEMBLE_NEAREST_TIME_HOURS * HOUR_MS)
+                abs(it.timestamp - targetTimestamp) / (NEAREST_TIME_HOURS * HOUR_MS)
         }
         if (nearest != null) {
             val dx = abs(nearest.x - targetValue) / scale
             val dtHours = abs(nearest.timestamp - targetTimestamp) / HOUR_MS
             val snap = (1.0 / (1.0 + dx * 2.0)) *
-                (1.0 / (1.0 + dtHours / ENSEMBLE_NEAREST_TIME_HOURS)) * 0.35
+                (1.0 / (1.0 + dtHours / NEAREST_TIME_HOURS)) * 0.35
             snapApplied = snap
             val anchor = targetValue + (nearest.y - nearest.x)
             blended = blended * (1.0 - snap) + anchor * snap

@@ -1,8 +1,10 @@
 package tk.glucodata.data.calibration
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 class AdaptiveEnsembleUnitTests {
     private val hour = 3_600_000L
@@ -25,12 +27,13 @@ class AdaptiveEnsembleUnitTests {
         targetMgdl: Double,
         factor: Double,
         algorithm: String = CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+        tuningOverride: CalibrationTuning = tuning,
     ) = CalibrationMath.computeAlgorithm(
         algorithm = algorithm,
         targetValue = targetMgdl * factor,
         targetTimestamp = now,
         points = points.map { it.copy(x = it.x * factor, y = it.y * factor) },
-        tuning = tuning,
+        tuning = tuningOverride,
     )
 
     @Test
@@ -167,6 +170,91 @@ class AdaptiveEnsembleUnitTests {
                     mmol.prediction * mgdlPerMmol,
                     predictionToleranceMgdl,
                 )
+            }
+        }
+    }
+
+    @Test
+    fun nearlyCoincidentAnchorsChooseTheSameFitInBothUnits() {
+        val close = listOf(
+            CalPoint(x = 100.0, y = 110.0, timestamp = now - 3 * hour),
+            CalPoint(x = 100.0001, y = 110.0001, timestamp = now - hour),
+        )
+        val mgdl = resultIn(close, 130.0, 1.0, CalibrationMath.ALG_SANE_WEIGHTED_OLS)
+        val mmol = resultIn(close, 130.0, 1.0 / mgdlPerMmol, CalibrationMath.ALG_SANE_WEIGHTED_OLS)
+
+        assertNotNull(mgdl.slope)
+        assertNotNull(mmol.slope)
+        assertEquals(mgdl.slope!!, mmol.slope!!, 1e-3)
+    }
+
+    @Test
+    fun predictionStaysContinuousAcrossNearestAnchorTransitions() {
+        val conflicting = listOf(
+            CalPoint(x = 100.0, y = 130.0, timestamp = now - 3 * hour),
+            CalPoint(x = 160.0, y = 100.0, timestamp = now - hour),
+        )
+        val values = (0..120).map { step ->
+            resultIn(conflicting, 100.0 + step * 0.5, 1.0, CalibrationMath.ALG_SANE_WEIGHTED_OLS).prediction
+        }
+        val maxStep = values.zipWithNext().maxOf { abs(it.second - it.first) }
+
+        assertTrue("max step $maxStep mg/dL", maxStep < 6.0)
+    }
+
+    @Test
+    fun everyAlgorithmAndWeightModeIsUnitInvariantForOldAndCloseAnchors() {
+        val scenarios = listOf(
+            listOf(
+                CalPoint(x = 100.0, y = 115.0, timestamp = now - 48 * hour),
+                CalPoint(x = 160.0, y = 150.0, timestamp = now - 24 * hour),
+            ),
+            listOf(
+                CalPoint(x = 128.0, y = 130.0, timestamp = now - 2 * hour),
+                CalPoint(x = 132.0, y = 135.0, timestamp = now - hour),
+            ),
+        )
+        val algorithms = listOf(
+            CalibrationMath.ALG_SANE_WEIGHTED_OLS,
+            CalibrationMath.ALG_XDRIP_MEDIAN_SLOPE,
+            CalibrationMath.ALG_TIME_WEIGHTED_ROBUST_REGRESSION,
+            CalibrationMath.ALG_ELASTIC_TIME_WEIGHTED_INTERPOLATION,
+            CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+        )
+        val modes = listOf(
+            CalibrationMath.WEIGHT_FRESH,
+            CalibrationMath.WEIGHT_BALANCED,
+            CalibrationMath.WEIGHT_STABLE,
+        )
+
+        scenarios.forEach { scenario ->
+            algorithms.forEach { algorithm ->
+                modes.forEach { mode ->
+                    val modeTuning = tuning.copy(algorithm = algorithm, weightMode = mode)
+                    val mgdl = resultIn(scenario, 130.0, 1.0, algorithm, modeTuning)
+                    val mmol = resultIn(scenario, 130.0, 1.0 / mgdlPerMmol, algorithm, modeTuning)
+
+                    assertEquals("$algorithm/$mode anchorInfluence", mgdl.anchorInfluence!!, mmol.anchorInfluence!!, 1e-9)
+                    assertEquals("$algorithm/$mode confidence", mgdl.confidence!!, mmol.confidence!!, unitInvarianceTolerance)
+                    assertEquals(
+                        "$algorithm/$mode prediction",
+                        mgdl.prediction,
+                        mmol.prediction * mgdlPerMmol,
+                        predictionToleranceMgdl,
+                    )
+
+                    val sanitizedMgdl = CalibrationMath.sanitizeCalibratedValue(mgdl.prediction, 130f)
+                    val sanitizedMmol = CalibrationMath.sanitizeCalibratedValue(
+                        mmol.prediction,
+                        (130.0 / mgdlPerMmol).toFloat(),
+                    )
+                    assertEquals(
+                        "$algorithm/$mode sanitized",
+                        sanitizedMgdl.toDouble(),
+                        sanitizedMmol.toDouble() * mgdlPerMmol,
+                        predictionToleranceMgdl,
+                    )
+                }
             }
         }
     }
