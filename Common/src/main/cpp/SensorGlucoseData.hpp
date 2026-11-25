@@ -889,11 +889,20 @@ public:
   int getmininterval() const { return getinterval() / 60; }
 
   const int perhour() const { return 60 / getmininterval(); }
+  // Whether a direct-stream driver stored this sensor's own wear
+  // (setSensorWearDays, aidexSetWearDays). Its shell is a Libre 2 by
+  // elimination and keeps a default wear of 14 days beside it. Until the driver
+  // writes one, wearduration2 still holds ident.len, which it shares storage
+  // with, so anything under a day is not a wear.
+  bool hasNegotiatedWear() const {
+    return isDriverShell() && getinfo()->wearduration2 >= 24 * 60;
+  }
   int getweardurationMIN() const {
     auto *info = getinfo();
     if (!info)
       return 14 * 24 * 60;
-    const int wear = (isLibre2() || isDexcom() || isAccuChek() || isAir())
+    const int wear = (!hasNegotiatedWear() &&
+                      (isLibre2() || isDexcom() || isAccuChek() || isAir()))
                          ? info->wearduration
                          : info->wearduration2;
     if (isAiDex()) {
@@ -1432,6 +1441,9 @@ static int getgeneration(const char *info) {
     }
     return false;
   }
+  // A record a managed driver, a follower or a mirror writes, rather than one
+  // of the sensors native decodes itself.
+  bool isDriverShell() const { return isLibre2() && !hasLibrePatchInfo(); }
   // The plain record a watch builds for a phone's sensor from mirrored
   // readings alone: no driver of its own and nothing but polls. Anything with
   // a driver flag, patch info, scans or history belongs to a sensor this
@@ -3508,15 +3520,16 @@ public:
                   }
             else
             */
-        {
+        if (!isDriverShell()) {
           return false;
         }
       }
     }
-    const uint32_t diff = nu - lastused();
-    const bool res = diff < youngsensorsecs;
-    LOGGER("hasData nu=%d lastused=%d diff=%d return=%d\n", nu, lastused(),
-           diff, res);
+    // A driver's shell is stored past the rated wear as long as it sends
+    // (extended wear, a follower); a reading can be stamped slightly ahead.
+    const uint32_t last = lastused();
+    const bool res = last + youngsensorsecs > nu;
+    LOGGER("hasData nu=%u lastused=%u return=%d\n", nu, last, res);
     return res;
   }
   //         return

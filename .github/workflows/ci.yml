@@ -54,6 +54,8 @@ jobs:
           python3 tools/test-mirror-calibration-return.py
       - name: Test persisted native glucose representation and legacy history
         run: python3 tools/test-resolved-glucose.py
+      - name: Test how long native treats every sensor family as running
+        run: python3 tools/test-sensor-lifetime.py
       - name: Test glucose meter record and clock decoding
         run: python3 tools/test-meter-records.py
       - name: Test Nightscout upload gives way to live readings without losing history

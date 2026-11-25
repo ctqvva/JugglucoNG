@@ -96,6 +96,10 @@ struct sensor {
       return maxSIhours * 60 * 60;
     return (halfdays ? halfdays : 29) * 12 * 60 * 60;
   }
+  // What the list alone knows, 14.5 days for anything that never stored its
+  // lifetime here: every managed driver's shell. halfdays also marks a
+  // Sibionics, so no other sensor's lifetime may be written to it. Ask
+  // Sensoren::maxtime(), which prefers the record.
   uint32_t maxtime() const { return starttime + wearduration(); }
   uint32_t officialendTime() const { return starttime + wearduration(); }
   uint32_t largemaxtime() const { return maxtime() + 60 * 60 * 24; }
@@ -355,6 +359,24 @@ private:
   }
 
 public:
+  // The end of this sensor's life. The record knows it (and its storage); the
+  // list's own value only stands in for a record that cannot be opened. Opens
+  // the record, so compare the list's value first where that is enough.
+  uint32_t maxtime(const int ind) {
+    const auto &entry = sensorlist()[ind];
+    const SensorGlucoseData *data = getSensorData(ind);
+    if (!data || data->error())
+      return entry.maxtime();
+    return std::max(entry.maxtime(), data->getmaxtime());
+  }
+  // Whether Clone's live stream still walks this sensor.
+  bool sendsLive(const int ind, const uint32_t now) {
+    if (sensorlist()[ind].finished)
+      return false;
+    SensorGlucoseData *data = getSensorData(ind);
+    return data && !data->error() &&
+           (maxtime(ind) >= now || data->hasData(now));
+  }
   // True when the slot is populated but its per-sensor directory is gone. A
   // mapping opened before the removal keeps hist[ind] looking healthy, so
   // getSensorData() never reaches its self-heal; callers that list active
@@ -438,6 +460,25 @@ public:
     LOGGER("add sensor %.16s starttime=%d %s", name.data(), tim, ctime(&tim));
 #endif
     return lastpos;
+  }
+  // The wear duration a direct-stream driver negotiated (setSensorWearDays).
+  // Deliberately not info->days: that is the shell's storage geometry, and
+  // data.dat/polls.dat/current.dat are all sized from it in the
+  // SensorGlucoseData constructor's initializer list, while maxpos() and
+  // maxstreampos() recompute from it on every call. Raising it mid-session
+  // would leave those bounds describing twice the region that is actually
+  // mapped. getmaxtime() consults wearduration2 instead, so the lifetime the
+  // sensor negotiated is honoured without touching files already open.
+  void setWearDays(const string_view name, const int days) {
+    SensorGlucoseData *data = ensureDirectStreamShell(name);
+    if (!data || data->error())
+      return;
+    auto *info = data->getinfo();
+    if (!info)
+      return;
+    info->wearduration2 = static_cast<uint16_t>(days * 24 * 60);
+    LOGGER("setSensorWearDays: %.*s days=%d wear=%u\n", (int)name.size(),
+           name.data(), days, info->wearduration2);
   }
   SensorGlucoseData *ensureDirectStreamShell(
       const string_view name, uint32_t starttime = 0,
@@ -1140,9 +1181,8 @@ public:
           continue;
         }
 
-        if (sensor.maxtime() <= oldsecs) {
-          LOGGER("sensorsInPeriod %s old %u\n", showsensorname(i),
-                 sensor.maxtime());
+        if (sensor.maxtime() <= oldsecs && maxtime(i) <= oldsecs) {
+          LOGGER("sensorsInPeriod %s old %u\n", showsensorname(i), maxtime(i));
           break;
         }
 
@@ -1184,7 +1224,7 @@ public:
     const uint32_t startsensor = sensor.starttime;
     if (startsensor >= endtime)
       return false;
-    if (sensor.maxtime() <= starttime)
+    if (sensor.maxtime() <= starttime && maxtime(i) <= starttime)
       return false;
     const auto oneend = sensor.endtime;
     if (sensor.finished && oneend && oneend < starttime) {
@@ -1685,7 +1725,7 @@ public:
         sensor *sens = getsensor(i);
         if (sens->next == 0 && sens->prev == 0)
           setindices();
-        if (sens->maxtime() < lasttime)
+        if (sens->maxtime() < lasttime && maxtime(i) < lasttime)
           break;
         if (const SensorGlucoseData *hist = getSensorData(i)) {
           if (const uint32_t tim = (hist->*proc)(); tim > lasttime) {
@@ -2029,20 +2069,15 @@ public:
     uint32_t now = time(NULL);
     int did = 2;
     for (int i = last(); i >= firstsensor; i--) {
-      auto &sensor = sensorlist()[i];
-      if (sensor.maxtime() < now)
-        break;
-      if (!sensor.finished) {
-        if (SensorGlucoseData *hist = getSensorData(i)) {
-          alignMirrorRemoteBase(hist, i);
-          if (hist->error())
-            continue;
-          int subdid = (hist->*proc)(pass, connect, ind, i, otheralso);
-          if (!subdid)
-            return 0;
-          did |= subdid;
-        }
-      }
+      // A shorter sensor that ended must not hide an older one still running.
+      if (!sendsLive(i, now))
+        continue;
+      SensorGlucoseData *hist = getSensorData(i);
+      alignMirrorRemoteBase(hist, i);
+      int subdid = (hist->*proc)(pass, connect, ind, i, otheralso);
+      if (!subdid)
+        return 0;
+      did |= subdid;
     }
     return did;
   }
