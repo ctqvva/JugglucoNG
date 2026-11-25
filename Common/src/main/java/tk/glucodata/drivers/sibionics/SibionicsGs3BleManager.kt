@@ -732,7 +732,12 @@ class SibionicsGs3BleManager(
         val address = knownBleAddress()
         prepareForReconnect()
         recoveryPurpose = RecoveryPurpose.IDENTITY
-        if (address != null && advertisementRecovery.start(address, ADVERTISEMENT_RECOVERY_TIMEOUT_MS)) {
+        if (address != null && advertisementRecovery.start(
+                address = address,
+                advertisedName = record?.bleName,
+                timeoutMs = ADVERTISEMENT_RECOVERY_TIMEOUT_MS,
+            )
+        ) {
             Log.i(TAG, "scanning advertisements for the GS3 identity serial=$SerialNumber")
         } else {
             scheduleReconnect("identity unavailable", FAILED_RECONNECT_DELAY_MS)
@@ -761,7 +766,11 @@ class SibionicsGs3BleManager(
         setStatus(connectingStatus())
         recoveryPurpose = RecoveryPurpose.CONNECT
         Log.i(TAG, "scan for saved sensor after $reason serial=$SerialNumber")
-        return advertisementRecovery.start(address!!, ADVERTISEMENT_RECOVERY_TIMEOUT_MS)
+        return advertisementRecovery.start(
+            address = address!!,
+            advertisedName = record?.bleName,
+            timeoutMs = ADVERTISEMENT_RECOVERY_TIMEOUT_MS,
+        )
     }
 
     private fun finishAdvertisementRecovery(advertisement: SibionicsAdvertisement?) {
