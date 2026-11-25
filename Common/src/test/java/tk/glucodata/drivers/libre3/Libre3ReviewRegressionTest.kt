@@ -761,6 +761,13 @@ class Libre3ReviewRegressionTest {
         assertEquals(14, Libre3ReviewNatives.wearDays)
         assertEquals(1, Libre3ReviewNatives.libreviewWakes)
         assertEquals("Lingo", manager.getManagedUiSnapshot(sensor)!!.displayName)
+
+        // An hour in, the sensor gives no trend yet. Once it does, LibreView gets that one.
+        assertTrue(Libre3ReviewNatives.nativeTrends.isEmpty())
+        Libre3Bytes.putU16le(frame, 0, 64)
+        frame[29] = (0x08 or 4).toByte()
+        invoke("onRealtime", Libre3Lingo.parseRealtime(frame))
+        assertEquals(listOf(stored + 60L to 4), Libre3ReviewNatives.nativeTrends)
     }
 
     private fun failedPreferenceWrites(file: String, shouldFail: () -> Boolean): Context = object : ContextWrapper(context) {
