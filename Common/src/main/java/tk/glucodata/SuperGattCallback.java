@@ -1495,9 +1495,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         ;
         close();
+        releaseNativeData();
+        // sensorbluetooth=null;
+    }
+
+    /** Free the native wrapper. A driver that writes to it from another thread guards this. */
+    protected void releaseNativeData() {
         Natives.freedataptr(dataptr);
         dataptr = 0L;
-        // sensorbluetooth=null;
     }
 
     public boolean streamingEnabled() {// TODO: libre3?

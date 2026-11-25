@@ -82,6 +82,14 @@ class AiDexHistoryPolicyTests {
     }
 
     @Test
+    fun nextPageIndex_neverPassesTheAnnouncedRange() {
+        assertEquals(121, AiDexHistoryPolicy.nextPageIndex(lastOffsetMinutes = 120, newest = 400))
+        assertEquals(401, AiDexHistoryPolicy.nextPageIndex(lastOffsetMinutes = 400, newest = 400))
+        assertEquals(401, AiDexHistoryPolicy.nextPageIndex(lastOffsetMinutes = 402, newest = 400))
+        assertEquals(121, AiDexHistoryPolicy.nextPageIndex(lastOffsetMinutes = 120, newest = 0))
+    }
+
+    @Test
     fun planInitialDownload_keepsExpiredRawCursorCaughtUpWhenBriefLags() {
         val plan = AiDexHistoryPolicy.planInitialDownload(
             briefStart = 1,

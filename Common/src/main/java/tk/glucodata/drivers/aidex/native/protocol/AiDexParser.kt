@@ -195,6 +195,15 @@ object AiDexParser {
         }
     }
 
+    /**
+     * The offset after the last row of a 0x24 page. Counts the all-zero rows
+     * [parseBriefHistoryResponse] drops; null when the page has no rows at all.
+     */
+    fun briefHistoryPageEnd(data: ByteArray): Int? {
+        val rowCount = (data.size - 2) / AiDexOpcodes.HISTORY_BRIEF_ROW_SIZE
+        return if (rowCount > 0) u16LE(data, 0) + rowCount else null
+    }
+
     // -- Calibration Parsing (0x27) --
 
     /**
