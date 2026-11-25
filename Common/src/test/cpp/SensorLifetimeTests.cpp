@@ -168,6 +168,21 @@ int main(int, char **argv) {
     CHECK(records.all.lastpolltime().first == ottai->sensorIndex);
   }
   {
+    const std::string what = "a newer sensor last read yesterday, an ended one, and an older one still sending";
+    Records records(root, number++);
+    auto *ottai = records.shell("OTTAI0001", now - 26 * day, 40);
+    records.all.setWearDays("OTTAI0001", 28);
+    reading(ottai, now - minute);
+    auto *dexcom = records.shell("DEXCOM01", now - 20 * day, 40);
+    dexcom->getinfo()->dexcom = 1;
+    dexcom->getinfo()->days = 12;
+    records.all.getsensor(dexcom->sensorIndex)->halfdays = 24;
+    reading(dexcom, now - 9 * day);
+    auto *newer = records.shell("ANY0001", now - 3 * day, 40);
+    reading(newer, now - day);
+    CHECK((records.all.lastpolltime() == std::pair<int, uint32_t>{ottai->sensorIndex, now - minute}));
+  }
+  {
     const std::string what = "removed by the user";
     Records records(root, number++);
     auto *data = records.shell("OTTAI0001", now - 5 * day);

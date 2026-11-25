@@ -1725,8 +1725,8 @@ public:
         sensor *sens = getsensor(i);
         if (sens->next == 0 && sens->prev == 0)
           setindices();
-        if (sens->maxtime() < lasttime && maxtime(i) < lasttime)
-          break;
+        // No early stop: the list is in start order, which says nothing about
+        // which sensor ended, or was read, last.
         if (const SensorGlucoseData *hist = getSensorData(i)) {
           if (const uint32_t tim = (hist->*proc)(); tim > lasttime) {
             lasttime = tim;
