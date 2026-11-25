@@ -200,7 +200,7 @@ class AdaptiveEnsembleUnitTests {
         }
         val maxStep = values.zipWithNext().maxOf { abs(it.second - it.first) }
 
-        assertTrue("max step $maxStep mg/dL", maxStep < 6.0)
+        assertTrue("max step $maxStep mg/dL", maxStep < 1.0)
     }
 
     @Test
@@ -213,6 +213,23 @@ class AdaptiveEnsembleUnitTests {
         val after = resultIn(anchors, 127.5001, 1.0, CalibrationMath.ALG_SANE_WEIGHTED_OLS).prediction
 
         assertTrue("jump ${abs(after - before)} mg/dL", abs(after - before) < 0.01)
+    }
+
+    @Test
+    fun elasticAndEnsembleDoNotJumpAtAnchorMidpoint() {
+        val anchors = listOf(
+            CalPoint(x = 100.0, y = 120.0, timestamp = now - 2 * hour),
+            CalPoint(x = 160.0, y = 140.0, timestamp = now - hour),
+        )
+        listOf(
+            CalibrationMath.ALG_ELASTIC_TIME_WEIGHTED_INTERPOLATION,
+            CalibrationMath.ALG_ADAPTIVE_ENSEMBLE,
+        ).forEach { algorithm ->
+            val before = resultIn(anchors, 129.9999, 1.0, algorithm).prediction
+            val after = resultIn(anchors, 130.0001, 1.0, algorithm).prediction
+
+            assertTrue("$algorithm jump ${abs(after - before)} mg/dL", abs(after - before) < 0.5)
+        }
     }
 
     @Test

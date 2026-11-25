@@ -529,12 +529,12 @@ internal object CalibrationMath {
         var blended = localPrediction * alpha + globalPrediction * (1.0 - alpha)
         var snapApplied = 0.0
 
-        val nearestByValue = points.minByOrNull { abs(it.x - targetValue) }
-        if (nearestByValue != null) {
-            val dx = abs(nearestByValue.x - targetValue) / scale
+        val offset = blendedAnchorOffset(points, targetValue, targetTimestamp, scale)
+        if (offset != null) {
+            val dx = points.minOf { abs(it.x - targetValue) / scale }
             val snap = (1.0 / (1.0 + dx * 3.0)) * 0.20
             snapApplied = snap
-            val anchor = targetValue + (nearestByValue.y - nearestByValue.x)
+            val anchor = targetValue + offset
             blended = blended * (1.0 - snap) + anchor * snap
         }
 
