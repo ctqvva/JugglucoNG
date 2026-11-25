@@ -255,7 +255,8 @@ void tobluetooth(int hostnr,bool sender,int *sockin, int *sockother,std::binary_
         sender    
     #endif
     ;
-     int maxbuf= sysconf(_SC_PAGESIZE)*20;
+     //One message to the watch: the Wear message client refuses much over 100 KB.
+     constexpr int maxbuf=20*4096;
     uint8_t *buf =reinterpret_cast<uint8_t *>(mmap(NULL, maxbuf, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS , -1, 0));
     if(buf==MAP_FAILED) {
         lerror("tobluetooth: mmap failed");

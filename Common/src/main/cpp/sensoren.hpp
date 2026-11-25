@@ -225,19 +225,19 @@ public:
   }
   static bool create(string_view inbasedir) {
     pathconcat file{inbasedir, "sensors.dat"};
-    const int pagesize = SensorGlucoseData::blocksize;
+    constexpr int startsize = SensorGlucoseData::blocksize;
     {
       struct stat st;
       if (!stat(file, &st) && ((st.st_mode & S_IFMT) == S_IFREG) &&
-          st.st_size >= pagesize)
+          st.st_size >= startsize)
         return true;
     }
 
     mkdir(inbasedir.data(), 0700);
     //   constexpr int cap=2;
 
-    const int cap = pagesize / sizeof(struct sensor);
-    LOGGER("map(%s,%d) getpagesize=%d\n", file.data(), cap, pagesize);
+    const int cap = startsize / sizeof(struct sensor);
+    LOGGER("map(%s,%d)\n", file.data(), cap);
     MapType map(file, cap);
     auto dat = reinterpret_cast<infoblock *>(map.data());
     if (!dat)
