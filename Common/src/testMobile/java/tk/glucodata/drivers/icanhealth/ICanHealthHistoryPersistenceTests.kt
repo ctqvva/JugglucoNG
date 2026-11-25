@@ -12,6 +12,7 @@ import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -37,6 +38,7 @@ import tk.glucodata.SuperGattCallback
     shadows = [ICanRebindNatives::class, ICanHistoryGatt::class])
 class ICanHealthHistoryPersistenceTests {
     private val sensor = "7BF00099C663AABB"
+    private val runningSequence = 480
     private val startMs = System.currentTimeMillis() - 60L * 60_000L
     private lateinit var context: Applic
     private lateinit var manager: ICanHealthBleManager
@@ -50,6 +52,8 @@ class ICanHealthHistoryPersistenceTests {
     private var writes = 0
     private var replacements = 0
     private var nativeMerges = 0
+    private var roomReadable = true
+    private var deletedByUser = false
     private val rows = sortedMapOf<Long, Float>()
     private val writtenTo = ArrayList<Any?>()
     private var duringWrite: () -> Unit = {}
@@ -92,6 +96,10 @@ class ICanHealthHistoryPersistenceTests {
                 }
                 "getHistoryForNotificationForSensor" -> emptyList<tk.glucodata.GlucosePoint>()
                 "getLatestTimestampForSensorBlocking" -> rows.keys.lastOrNull() ?: 0L
+                "getHistoryTimestampsForSensorBlocking" -> if (roomReadable) {
+                    rows.keys.filter { it in (args[1] as Long)..(args[2] as Long) }.toLongArray()
+                } else null
+                "isMinuteDeletedByUserBlocking" -> deletedByUser
                 else -> null
             }
         })
@@ -231,6 +239,91 @@ class ICanHealthHistoryPersistenceTests {
         assertFalse(get("historyTzRepairPending") as Boolean)
     }
 
+    @Test fun aMissingFrozenEdgeIsRequestedAndStoredWithItsOriginalTime() {
+        roomFails = false
+        val timestamp = seedFrozenEdge()
+        assertEquals(runningSequence, call("resolveAutomaticGlucoseHistoryStartSequence"))
+        begin()
+        deliverMeasurement(runningSequence)
+        assertEquals(0L, get("lastGlucoseReceiptRealtimeMs"))
+        assertEquals(0L, get("latestDriverReadingTimestampMs"))
+        complete()
+
+        assertEquals(listOf(timestamp), rows.keys.toList())
+        assertNull(call("resolveAutomaticGlucoseHistoryStartSequence"))
+    }
+
+    @Test fun aStoredDeletedOrUnreadableFrozenEdgeDoesNotReopenCoverage() {
+        val timestamp = seedFrozenEdge()
+        rows[timestamp - 100] = 100f
+        assertNull(call("resolveAutomaticGlucoseHistoryStartSequence"))
+        rows.clear()
+        deletedByUser = true
+        assertNull(call("resolveAutomaticGlucoseHistoryStartSequence"))
+        deletedByUser = false
+        roomReadable = false
+        assertNull(call("resolveAutomaticGlucoseHistoryStartSequence"))
+    }
+
+    @Test fun aRunningConnectionWithNoFirstReadingTimesOut() {
+        set("phase", ICanHealthBleManager.Phase.POST_AUTH_SETUP)
+        call("maybeHandleQueueDrained")
+        val radio = Shadow.extract<ICanHistoryGatt>(gatt)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(209))
+        assertEquals(0, radio.disconnects)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(1))
+        assertEquals(1, radio.disconnects)
+    }
+
+    @Test fun repeatedFrozenReadingsNeitherRefreshNorRestampTheStream() {
+        val timestamp = seedFrozenEdge()
+        rows[timestamp] = 100f
+        set("phase", ICanHealthBleManager.Phase.POST_AUTH_SETUP)
+        call("maybeHandleQueueDrained")
+        val radio = Shadow.extract<ICanHistoryGatt>(gatt)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(180))
+        deliverMeasurement(runningSequence)
+        deliverMeasurement(runningSequence)
+        assertEquals(0, radio.disconnects)
+        assertEquals(0L, get("lastGlucoseReceiptRealtimeMs"))
+        assertEquals(timestamp, get("persistedCoveredTimestampMs"))
+        assertEquals(0L, get("latestDriverReadingTimestampMs"))
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(30))
+        assertEquals(1, radio.disconnects)
+    }
+
+    @Test fun anAdvancingLiveReadingStartsANewWatchdogWindow() {
+        set("currentSequenceNumber", runningSequence)
+        set("sessionStartEpochMs", System.currentTimeMillis() - runningSequence * 60_000L)
+        set("phase", ICanHealthBleManager.Phase.POST_AUTH_SETUP)
+        call("maybeHandleQueueDrained")
+        val radio = Shadow.extract<ICanHistoryGatt>(gatt)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(180))
+        deliverMeasurement(runningSequence + 3)
+        assertTrue((get("lastGlucoseReceiptRealtimeMs") as Long) > 0L)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(209))
+        assertEquals(0, radio.disconnects)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(1))
+        assertEquals(1, radio.disconnects)
+    }
+
+    @Test fun historyProgressLetsATransferContinueWithoutRefreshingLiveGlucose() {
+        set("phase", ICanHealthBleManager.Phase.POST_AUTH_SETUP)
+        call("maybeHandleQueueDrained")
+        begin()
+        val radio = Shadow.extract<ICanHistoryGatt>(gatt)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(180))
+        receive(0L, 3)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(30))
+        assertEquals(0, radio.disconnects)
+        assertEquals(0L, get("lastGlucoseReceiptRealtimeMs"))
+        receive(0L, 3)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(179))
+        assertEquals(0, radio.disconnects)
+        shadowOf(handler.looper).idleFor(Duration.ofSeconds(1))
+        assertEquals(1, radio.disconnects)
+    }
+
     @Test fun aRetryRunningWhileAnotherSensorConnectsFinishesForItsOwnSensorFirst() {
         val other = "7BF00099C663CCDD"
         prefs().edit().putInt(ICanHealthConstants.PREF_HISTORY_TZ_REPAIR_PREFIX + other,
@@ -286,6 +379,43 @@ class ICanHealthHistoryPersistenceTests {
         val deadline = System.nanoTime() + 5_000_000_000L
         while (state != Thread.State.WAITING && System.nanoTime() < deadline) Thread.sleep(1L)
         assertEquals(Thread.State.WAITING, state)
+    }
+
+    private fun seedFrozenEdge(): Long {
+        val timestamp = ((System.currentTimeMillis() - 12 * 60_000L) / 60_000L) * 60_000L + 30_000L
+        prefs().edit()
+            .putInt(ICanHealthConstants.PREF_HISTORY_EDGE_SEQUENCE_PREFIX + sensor, runningSequence)
+            .putLong(ICanHealthConstants.PREF_HISTORY_EDGE_TIMESTAMP_PREFIX + sensor, timestamp)
+            .commit()
+        manager.javaClass.getDeclaredMethod("loadPersistedCoveredEdge", Boolean::class.javaPrimitiveType)
+            .apply { isAccessible = true }.invoke(manager, true)
+        set("currentSequenceNumber", runningSequence)
+        set("sessionStartEpochMs", timestamp - runningSequence * 60_000L)
+        set("currentSequenceObservedAtMs", System.currentTimeMillis())
+        return timestamp
+    }
+
+    @Suppress("DEPRECATION")
+    private fun deliverMeasurement(sequence: Int) {
+        val challenge = byteArrayOf(0x21, 0x33, 0x45, 0x57)
+        val iv = ByteArray(16).apply {
+            this[1] = challenge[0]
+            this[6] = challenge[1]
+            this[10] = challenge[2]
+            this[15] = challenge[3]
+        }
+        val key = ICanHealthCrypto.keyFromASCII(ICanHealthConstants.DEFAULT_NEW_GLUCOSE_AES_KEY_ASCII)!!
+        val low = sequence.toByte()
+        val high = (sequence ushr 8).toByte()
+        val plaintext = byteArrayOf(0x0D, 0x80.toByte(), 0xE4.toByte(), 0x01, low, high, 0x01, 0, 0, 0, 0, 0, 0)
+        set("aesKey", key)
+        set("lastAuthChallenge", challenge)
+        val characteristic = BluetoothGattCharacteristic(
+            ICanHealthConstants.CGM_MEASUREMENT, BluetoothGattCharacteristic.PROPERTY_NOTIFY, 0,
+        )
+        characteristic.value = byteArrayOf(low, high, ICanHealthConstants.MEASUREMENT_TYPE_BYTE) +
+            ICanHealthCrypto.encryptCbcPkcs7(plaintext, key, iv)!!
+        manager.onCharacteristicChanged(gatt, characteristic)
     }
 
     private fun transfer(vararg sequences: Int) {
@@ -360,8 +490,9 @@ class ICanHealthHistoryPersistenceTests {
 @Implements(value = BluetoothGatt::class, callThroughByDefault = false)
 class ICanHistoryGatt {
     var service: BluetoothGattService? = null
+    var disconnects = 0
     @Implementation fun getDevice(): BluetoothDevice? = null
     @Implementation fun getService(uuid: java.util.UUID): BluetoothGattService? = service
-    @Implementation fun disconnect() {}
+    @Implementation fun disconnect() { disconnects++ }
     @Implementation fun close() {}
 }

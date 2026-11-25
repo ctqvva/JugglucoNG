@@ -211,6 +211,12 @@ class ICanHealthBleManager(
     @Volatile private var lastConnectionStartedAtMs = 0L
     @Volatile private var receivedGlucoseThisConnection = false
     @Volatile private var lastGlucoseReceiptRealtimeMs = 0L
+    @Volatile private var noDataDeadlineElapsedMs = 0L
+    @Volatile private var lastHistoryProgressElapsedMs = 0L
+
+    private data class MissingHistoryEdge(val sequence: Int, val timestampMs: Long)
+
+    @Volatile private var missingHistoryEdge: MissingHistoryEdge? = null
     // Survives transport resets; a timeout-free interval expires the failure streak.
     private var lastGattTimeoutElapsedMs: Long? = null
     private var gattTimeoutRetryFloorMs = 0L
@@ -348,21 +354,21 @@ class ICanHealthBleManager(
     }
 
     private val noDataWatchdog: Runnable = Runnable {
-        if (phase == Phase.STREAMING && lastGlucoseReceiptRealtimeMs > 0L) {
-            val elapsed = System.currentTimeMillis() - lastGlucoseReceiptRealtimeMs
-            if (elapsed > NO_DATA_WATCHDOG_MS) {
-                Log.w(TAG, "No glucose data for ${elapsed / 1000}s — triggering reconnect")
-                setUiStatus(UiStatusKind.NO_DATA_TIMEOUT)
-                try {
-                    mBluetoothGatt?.disconnect()
-                } catch (_: Throwable) {
-                }
-            } else {
-                handler.postDelayed(
-                    noDataWatchdog,
-                    (NO_DATA_WATCHDOG_MS - elapsed).coerceAtLeast(1_000L)
-                )
+        val gatt = mBluetoothGatt ?: return@Runnable
+        if (noDataDeadlineElapsedMs <= 0L || !expectsLiveGlucose()) return@Runnable
+        val deadline = currentNoDataDeadline()
+        val remainingMs = deadline - SystemClock.elapsedRealtime()
+        if (remainingMs > 0L) {
+            handler.postDelayed(noDataWatchdog, remainingMs)
+        } else if (gatt === mBluetoothGatt) {
+            if (deadline != currentNoDataDeadline()) {
+                scheduleNoDataWatchdogIfNeeded()
+                return@Runnable
             }
+            Log.w(TAG, "No advancing live glucose for ${NO_DATA_WATCHDOG_MS / 1000}s; triggering reconnect")
+            setUiStatus(UiStatusKind.NO_DATA_TIMEOUT)
+            runCatching { gatt.disconnect() }
+                .onFailure { Log.stack(TAG, "noDataWatchdog(disconnect)", it) }
         }
     }
 
@@ -705,7 +711,8 @@ class ICanHealthBleManager(
 
     private fun clearSoftDisconnectState() {
         cancelScheduledReconnect()
-        handler.removeCallbacks(noDataWatchdog)
+        resetNoDataWatchdog()
+        missingHistoryEdge = null
         handler.removeCallbacks(foregroundNotificationRefreshRunnable)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
@@ -1190,6 +1197,7 @@ class ICanHealthBleManager(
     }
 
     private fun shouldSkipHistoryOverlap(sequenceNumber: Int, sampleTimeMs: Long): Boolean {
+        if (historyBackfillRequested && missingHistoryEdge?.sequence == sequenceNumber) return false
         loadPersistedCoveredEdge()
         val coveredTimestampMs = maxOf(persistedHistoryTailTimestampMs, persistedCoveredTimestampMs)
         return ICanHealthHistoryPolicy.shouldSkipHistoryOverlap(
@@ -1935,6 +1943,7 @@ class ICanHealthBleManager(
                     trackCounterProgress(observedSequence)
                     repairState.statusProbeRequested(SystemClock.elapsedRealtime())
                     maybeRepairUnresponsiveProvisioning()
+                    if (phase == Phase.STREAMING) scheduleNoDataWatchdogIfNeeded()
                 }
                 if (awaitingFreshStatusForHistoryBackfill) {
                     continuePendingHistoryBackfill("after fresh status read")
@@ -2205,11 +2214,11 @@ class ICanHealthBleManager(
         if (provisionalSensorIdForAdoption == null && ICanHealthConstants.isProvisionalSensorId(previousId)) {
             provisionalSensorIdForAdoption = previousId
         }
+        val isSameSensor = ICanHealthConstants.isProvisionalSensorId(previousId) ||
+            ICanHealthConstants.matchesCanonicalOrKnownNativeAlias(canonicalSerial, previousId)
         // History being written goes by SerialNumber from start to end, so it must not change meanwhile.
-        historyImport.changeSensor(
-            isSameSensor = ICanHealthConstants.isProvisionalSensorId(previousId) ||
-                ICanHealthConstants.matchesCanonicalOrKnownNativeAlias(canonicalSerial, previousId)
-        ) {
+        historyImport.changeSensor(isSameSensor) {
+            if (!isSameSensor) missingHistoryEdge = null
             SerialNumber = canonicalSerial
         }
         ensureNativeDataptr(canonicalSerial)
@@ -2300,15 +2309,12 @@ class ICanHealthBleManager(
 
         val nowMs = System.currentTimeMillis()
         val anchoredCurrentSequence = currentSequenceNumber
-        val sampleTimeMs = resolveSampleTimestampMs(reading.sequenceNumber, nowMs)
         val historySampleTimeMs = resolveHistoryTimestampMs(reading.sequenceNumber, nowMs)
-        val cappedHistoryTransfer =
-            historyBackfillRequested &&
-                historyBackfillPhase == HistoryBackfillPhase.GLUCOSE &&
-                canUseHistoryPastEndedStatusCap()
-        val liveSequence = !cappedHistoryTransfer &&
-            isLiveSequence(reading.sequenceNumber, sampleTimeMs, nowMs, anchoredCurrentSequence)
-        if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE && !liveSequence) {
+        val glucoseTransfer = historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE
+        val targetedRecovery = glucoseTransfer && missingHistoryEdge?.sequence == reading.sequenceNumber
+        val liveSequence = !targetedRecovery && !(glucoseTransfer && canUseHistoryPastEndedStatusCap()) &&
+            isLiveSequence(reading.sequenceNumber, historySampleTimeMs ?: nowMs, nowMs, anchoredCurrentSequence)
+        if (glucoseTransfer && !liveSequence) {
             if (historySampleTimeMs == null) {
                 logSkippedUnanchoredHistory(reading.sequenceNumber, "2AA7 glucose")
             } else if (!shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
@@ -2322,11 +2328,13 @@ class ICanHealthBleManager(
             }
         }
         if (liveSequence) {
+            // Check for replay before resolving a live timestamp. Live timestamp recovery can
+            // invalidate an old edge and stamp a reading with the current time.
+            val duplicate = reading.sequenceNumber <= lastHandledLiveSequence
+            val covered = shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs ?: 0L)
+            val sampleTimeMs = if (duplicate || covered) null else resolveSampleTimestampMs(reading.sequenceNumber, nowMs)
             receivedGlucoseThisConnection = true
-            lastGlucoseReceiptRealtimeMs = nowMs
             forceSessionMetadataRefresh = false
-            latestCurrentRaw = reading.currentValue
-            latestTemperatureC = reading.temperatureC
             if (reading.sequenceNumber >= 0 &&
                 (anchoredCurrentSequence < 0 || reading.sequenceNumber >= anchoredCurrentSequence)
             ) {
@@ -2334,27 +2342,20 @@ class ICanHealthBleManager(
                 currentSequenceObservedAtMs = nowMs
             }
             trackCounterProgress(reading.sequenceNumber)
-            if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE) {
-                logd(TAG) {
-                    "Delivering live seq=${reading.sequenceNumber} while iCan history backfill continues"
+            if (sampleTimeMs == null) {
+                if (!duplicate && covered) {
+                    lastHandledLiveSequence = reading.sequenceNumber
+                    lastHandledLiveTimestampMs = maxOf(historySampleTimeMs ?: 0L, persistedCoveredTimestampMs)
                 }
-            }
-            val historyCoveredLiveEdge = historySampleTimeMs?.let {
-                shouldSkipHistoryOverlap(reading.sequenceNumber, it)
-            } ?: false
-            if (reading.sequenceNumber == lastHandledLiveSequence) {
                 phase = Phase.STREAMING
                 setUiStatus(UiStatusKind.CONNECTED)
-                scheduleNoDataWatchdog()
+                scheduleNoDataWatchdogIfNeeded()
                 return
             }
-            if (historyCoveredLiveEdge) {
-                phase = Phase.STREAMING
-                setUiStatus(UiStatusKind.CONNECTED)
-                lastHandledLiveSequence = reading.sequenceNumber
-                lastHandledLiveTimestampMs = maxOf(sampleTimeMs, persistedCoveredTimestampMs)
-                scheduleNoDataWatchdog()
-                return
+            latestCurrentRaw = reading.currentValue
+            latestTemperatureC = reading.temperatureC
+            if (glucoseTransfer) {
+                logd(TAG) { "Delivering live seq=${reading.sequenceNumber} while iCan history backfill continues" }
             }
             rememberDriverCurrentReading(reading.glucoseMgdl, sampleTimeMs)
             storeMeasurement(reading.glucoseMgdl, sampleTimeMs)
@@ -2362,6 +2363,9 @@ class ICanHealthBleManager(
             setUiStatus(UiStatusKind.CONNECTED)
             val packed = packGlucoseResult(reading.glucoseMgdl)
             handleGlucoseResult(packed, sampleTimeMs, resolveRawLaneValue(reading.currentValue, reading.glucoseMgdl))
+            lastGlucoseReceiptRealtimeMs = nowMs
+            noDataDeadlineElapsedMs = SystemClock.elapsedRealtime() + NO_DATA_WATCHDOG_MS
+            scheduleNoDataWatchdogIfNeeded()
             val previousLiveSequence = lastHandledLiveSequence
             lastHandledLiveSequence = reading.sequenceNumber
             lastHandledLiveTimestampMs = sampleTimeMs
@@ -2376,7 +2380,6 @@ class ICanHealthBleManager(
             if (isAuthenticated && shouldRequestAuthenticatedHistoryBackfill && !historyBackfillRequested) {
                 requestHistoryBackfill()
             }
-            scheduleNoDataWatchdog()
             if (!isAuthenticated) {
                 handler.removeCallbacks(postMeasurementDisconnectRunnable)
                 handler.postDelayed(postMeasurementDisconnectRunnable, POST_MEASUREMENT_DISCONNECT_DELAY_MS)
@@ -2413,7 +2416,6 @@ class ICanHealthBleManager(
                     return true
                 }
                 receivedGlucoseThisConnection = true
-                lastGlucoseReceiptRealtimeMs = nowMs
                 if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) {
                     Log.d(TAG, "Skipping overlapping encrypted history record seq=${record.sequenceNumber}")
                     return true
@@ -2652,6 +2654,9 @@ class ICanHealthBleManager(
     private fun resolveHistoryTimestampMs(sequenceNumber: Int, fallbackNowMs: Long): Long? {
         if (sequenceNumber < 0) {
             return null
+        }
+        if (historyBackfillRequested) {
+            missingHistoryEdge?.takeIf { it.sequence == sequenceNumber }?.let { return it.timestampMs }
         }
         return resolveSequenceTimelineTimestampMs(
             sequenceNumber = sequenceNumber,
@@ -3336,26 +3341,30 @@ class ICanHealthBleManager(
     private fun resolveAutomaticGlucoseHistoryStartSequence(): Int? {
         val nowMs = System.currentTimeMillis()
         val readingInterval = readingIntervalMinutes()
+        missingHistoryEdge = null
         if (canUseHistoryPastEndedStatusCap()) {
             // Ended sessions keep their own capped windowing; the repair is not worth
             // second-guessing a sequence cap on a sensor that has stopped producing data.
             return resolveCappedEndedHistoryStartSequence(nowMs, readingInterval)
         }
+        val anchorTimeMs = resolveSequenceAnchorTimeMs(nowMs)
+        missingHistoryEdge = findMissingPersistedHistoryEdge(anchorTimeMs, readingInterval)
         if (!Applic.isWearable && historyTimezoneRepairPending()) {
             // Ask for the whole session: the stored tail cannot be trusted to mark real coverage
             // while skew-era records are still mixed into it.
             Log.i(TAG, "Requesting full iCan glucose history from first slot for timezone repair")
             return readingInterval
         }
-        val anchorTimeMs = resolveSequenceAnchorTimeMs(nowMs)
         val persistedTailSequence = estimatePersistedTailSequence(anchorTimeMs)
         val latestKnownSequence = maxOf(lastHandledLiveSequence, persistedTailSequence ?: -1)
-        val startSequence = ICanHealthHistoryPolicy.automaticGlucoseHistoryStartSequence(
+        val normalStart = ICanHealthHistoryPolicy.automaticGlucoseHistoryStartSequence(
             readingIntervalMinutes = readingInterval,
             currentSequence = currentSequenceNumber,
             latestKnownSequence = latestKnownSequence,
             pendingLiveGap = pendingLiveHistoryGap,
         )
+        val recoveryStart = missingHistoryEdge?.sequence
+        val startSequence = if (recoveryStart == null) normalStart else minOf(recoveryStart, normalStart ?: recoveryStart)
         if (startSequence == null) {
             Log.i(
                 TAG,
@@ -3371,6 +3380,26 @@ class ICanHealthBleManager(
             )
         }
         return startSequence
+    }
+
+    private fun findMissingPersistedHistoryEdge(anchorTimeMs: Long, readingInterval: Int): MissingHistoryEdge? {
+        val sequence = persistedCoveredSequence
+        val timestamp = persistedCoveredTimestampMs
+        if (Applic.isWearable || sequence !in readingInterval..currentSequenceNumber ||
+            !isPlausibleHistoryAnchor(timestamp, anchorTimeMs)
+        ) return null
+
+        // Room retains one row per sensor minute. A user deletion or an unavailable query is
+        // insufficient evidence of missing data and must leave the normal overlap rules in place.
+        val minuteStart = (timestamp / SEQUENCE_UNIT_MS) * SEQUENCE_UNIT_MS
+        val stored = HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
+            SerialNumber, minuteStart, minuteStart + SEQUENCE_UNIT_MS - 1,
+        )
+        if (stored?.isEmpty() != true) return null
+        if (HistoryRepositoryAccess.isMinuteDeletedByUserOrNull(SerialNumber, timestamp) != false) return null
+
+        Log.w(TAG, "Re-requesting unstored iCan covered edge seq=$sequence at its original timestamp $timestamp")
+        return MissingHistoryEdge(sequence, timestamp)
     }
 
     private fun resolveCappedEndedHistoryStartSequence(nowMs: Long, readingInterval: Int): Int? {
@@ -3476,6 +3505,7 @@ class ICanHealthBleManager(
 
             HistoryBackfillPhase.NONE -> return false
         }
+        lastHistoryProgressElapsedMs = 0L
         historyBackfillRequested = true
         historyBackfillPhase = phase
         sawUnsupportedSnHistoryBatch = false
@@ -3518,11 +3548,10 @@ class ICanHealthBleManager(
             suppressAutomaticHistoryBackfill = false
             shouldRequestAuthenticatedHistoryBackfill = cappedHistoryPolling || liveGapStillPending
             receivedGlucoseThisConnection = true
-            lastGlucoseReceiptRealtimeMs = System.currentTimeMillis()
             phase = Phase.STREAMING
             setUiStatus(UiStatusKind.CONNECTED)
             scheduleForegroundNotificationRefresh()
-            scheduleNoDataWatchdog()
+            scheduleNoDataWatchdogIfNeeded()
             Log.i(
                 TAG,
                 "Authenticated glucose-history cycle completed with $importedGlucoseHistory imported records" +
@@ -3919,7 +3948,9 @@ class ICanHealthBleManager(
         if (SerialNumber.isBlank() || sequenceNumber < 0) {
             return
         }
-        historyImport.record(sequenceNumber, sampleTimeMs, glucoseMgdl, rawCurrent, temperatureC)
+        if (historyImport.record(sequenceNumber, sampleTimeMs, glucoseMgdl, rawCurrent, temperatureC)) {
+            lastHistoryProgressElapsedMs = SystemClock.elapsedRealtime()
+        }
     }
 
     private fun storeHistoryBatch(
@@ -5326,7 +5357,8 @@ class ICanHealthBleManager(
         gattOpActive = false
         gattOpInFlight = null
         gattWriteInFlight = null
-        handler.removeCallbacks(noDataWatchdog)
+        resetNoDataWatchdog()
+        missingHistoryEdge = null
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
@@ -5459,17 +5491,38 @@ class ICanHealthBleManager(
         return service?.getCharacteristic(uuid)
     }
 
-    private fun scheduleNoDataWatchdog() {
-        handler.removeCallbacks(noDataWatchdog)
-        handler.postDelayed(noDataWatchdog, NO_DATA_WATCHDOG_MS)
+    private fun expectsLiveGlucose(): Boolean =
+        phase == Phase.STREAMING && !stop && !uiPaused &&
+            launcherState != ICanHealthConstants.LAUNCHER_STATE_WARMUP &&
+            (launcherState != ICanHealthConstants.LAUNCHER_STATE_ENDED ||
+                (canUseHistoryPastEndedStatusCap() && hasRecentOperationalData())) &&
+            hasConfirmedLiveSession()
+
+    private fun currentNoDataDeadline(): Long {
+        // An active RACP transfer can legitimately keep live notifications quiet. Give it
+        // time while new records arrive, without treating the transfer as live glucose.
+        val historyProgress = lastHistoryProgressElapsedMs
+        return if (historyBackfillRequested && historyProgress > 0L) {
+            maxOf(noDataDeadlineElapsedMs, historyProgress + NO_DATA_WATCHDOG_MS)
+        } else {
+            noDataDeadlineElapsedMs
+        }
     }
 
     private fun scheduleNoDataWatchdogIfNeeded() {
-        if (hasConfirmedLiveSession()) {
-            scheduleNoDataWatchdog()
-        } else {
-            handler.removeCallbacks(noDataWatchdog)
+        if (!expectsLiveGlucose()) {
+            resetNoDataWatchdog()
+            return
         }
+        val now = SystemClock.elapsedRealtime()
+        if (noDataDeadlineElapsedMs == 0L) noDataDeadlineElapsedMs = now + NO_DATA_WATCHDOG_MS
+        handler.removeCallbacks(noDataWatchdog)
+        handler.postDelayed(noDataWatchdog, (currentNoDataDeadline() - now).coerceAtLeast(0L))
+    }
+
+    private fun resetNoDataWatchdog() {
+        handler.removeCallbacks(noDataWatchdog)
+        noDataDeadlineElapsedMs = 0L
     }
 
     fun destroy() {
