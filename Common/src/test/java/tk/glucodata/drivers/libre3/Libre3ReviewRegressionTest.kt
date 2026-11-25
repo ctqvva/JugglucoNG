@@ -737,6 +737,32 @@ class Libre3ReviewRegressionTest {
         assertFalse(Libre3Persistence.loadSensor(context, sensor)!!.isLingo)
     }
 
+    /**
+     * LibreView upload is the user's setting and covers a Lingo like any other sensor: the record
+     * native sends from has the sensor's own minutes, origin and rated wear, so record numbers are
+     * its life counts, and each live reading wakes the upload.
+     */
+    @Test fun aLingoReadingReachesTheLibreViewRecordOnItsOwnLifeCounts() {
+        val start = (System.currentTimeMillis() / 1000L - 63 * 60L) * 1000L
+        Libre3Persistence.saveSensor(context, pairing().copy(
+            startTimeMs = start, wearMinutes = 14 * 24 * 60, receiverId = Libre3Lingo.RECEIVER_ID,
+            securityVersion = Libre3Lingo.SECURITY_VERSION, productType = Libre3Lingo.PRODUCT_TYPE))
+        set("record", Libre3Persistence.loadSensor(context, sensor))
+        set("anchorStartMs", start)
+        set("nativeWindowChecked", false)
+        // The captured frame of Libre3LingoTest: life 63, 208 mg/dL uncapped.
+        val frame = Libre3Bytes.parseHex(
+            "3f002d00008000800000ffff00800800800080c94000800000ffff008008d0000080100000b90c70000109e14ced0e00000000")!!
+        invoke("onRealtime", Libre3Lingo.parseRealtime(frame))
+
+        val stored = Libre3ReviewNatives.nativeSeconds.single()
+        assertEquals(start / 1000L, Libre3ReviewNatives.activationSec)
+        assertEquals("record number", 63L, (stored - Libre3ReviewNatives.activationSec + 30L) / 60L)
+        assertEquals(14, Libre3ReviewNatives.wearDays)
+        assertEquals(1, Libre3ReviewNatives.libreviewWakes)
+        assertEquals("Lingo", manager.getManagedUiSnapshot(sensor)!!.displayName)
+    }
+
     private fun failedPreferenceWrites(file: String, shouldFail: () -> Boolean): Context = object : ContextWrapper(context) {
         override fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
             val original = super.getSharedPreferences(name, mode)

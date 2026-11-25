@@ -2992,6 +2992,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="sensor_vendor_isens" translatable="false">i-SENS</string>
      <string name="sensor_type_libre_2">Libre 2</string>
      <string name="sensor_type_libre_3">Libre 3</string>
+     <string name="sensor_type_lingo">Lingo</string>
      <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
      <string name="sensor_type_sibionics_2">Sibionics 2</string>
      <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
