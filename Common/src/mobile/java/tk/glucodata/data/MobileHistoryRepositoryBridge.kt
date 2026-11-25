@@ -1,6 +1,7 @@
 package tk.glucodata.data
 
 import tk.glucodata.GlucosePoint
+import tk.glucodata.HistoryReplaceOutcome
 import tk.glucodata.HistoryRepositoryBridge
 import tk.glucodata.chart.MainSensorOwnership
 
@@ -67,6 +68,20 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         source,
     )
 
+    override fun replaceHistoryIntervalsBlocking(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        replacedIntervalsMs: List<LongRange>,
+    ): HistoryReplaceOutcome = HistoryRepository.replaceHistoryIntervalsBlocking(
+        sensorSerial,
+        timestamps,
+        valuesMgdl,
+        rawValuesMgdl,
+        replacedIntervalsMs,
+    )
+
     override fun getLatestTimestampForSensorBlocking(sensorSerial: String): Long =
         HistoryRepository.getLatestTimestampForSensorBlocking(sensorSerial)
 
@@ -75,6 +90,9 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         startTime: Long,
         endTime: Long,
     ): LongArray? = HistoryRepository.getHistoryTimestampsForSensorBlocking(sensorSerial, startTime, endTime)
+
+    override fun isMinuteDeletedByUserBlocking(sensorSerial: String, timestamp: Long): Boolean? =
+        HistoryRepository.isMinuteDeletedByUserBlocking(sensorSerial, timestamp)
 
     override fun deleteReadingsForSensorAfterBlocking(
         sensorSerial: String,

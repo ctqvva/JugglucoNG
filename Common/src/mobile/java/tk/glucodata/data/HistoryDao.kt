@@ -265,6 +265,13 @@ interface HistoryDao {
     suspend fun getReadingsAtTimestamp(serials: List<String>, timestamp: Long): List<HistoryReading>
 
     @Query("""
+        SELECT COUNT(*) FROM history_deleted_readings
+        WHERE sensorSerial IN (:serials)
+        AND timestamp >= :startTimeInclusive AND timestamp < :endTimeExclusive
+    """)
+    suspend fun countDeletedReadings(serials: List<String>, startTimeInclusive: Long, endTimeExclusive: Long): Int
+
+    @Query("""
         SELECT sensorSerial FROM history_deleted_readings
         WHERE sensorSerial IN (:serials) AND timestamp = :timestamp
     """)

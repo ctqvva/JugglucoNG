@@ -116,6 +116,25 @@ object HistoryRepositoryAccess {
             .getOrNull() ?: false
 
     @JvmStatic
+    fun replaceHistoryIntervalsBlocking(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        replacedIntervalsMs: List<LongRange>,
+    ): HistoryReplaceOutcome =
+        runCatching {
+            bridge?.replaceHistoryIntervalsBlocking(
+                sensorSerial,
+                timestamps,
+                valuesMgdl,
+                rawValuesMgdl,
+                replacedIntervalsMs,
+            )
+        }.onFailure { Log.stack(TAG, "replaceHistoryIntervalsBlocking failed", it) }
+            .getOrNull() ?: HistoryReplaceOutcome.FAILED
+
+    @JvmStatic
     fun getLatestTimestampForSensorBlocking(sensorSerial: String): Long =
         runCatching { bridge?.getLatestTimestampForSensorBlocking(sensorSerial) }
             .onFailure { Log.stack(TAG, "getLatestTimestampForSensorBlocking failed", it) }
@@ -143,6 +162,12 @@ object HistoryRepositoryAccess {
         startTime: Long,
         endTime: Long,
     ): LongArray = getHistoryTimestampsForSensorOrNull(sensorSerial, startTime, endTime) ?: LongArray(0)
+
+    @JvmStatic
+    fun isMinuteDeletedByUserOrNull(sensorSerial: String, timestamp: Long): Boolean? =
+        runCatching { bridge?.isMinuteDeletedByUserBlocking(sensorSerial, timestamp) }
+            .onFailure { Log.stack(TAG, "isMinuteDeletedByUserOrNull failed", it) }
+            .getOrNull()
 
     @JvmStatic
     fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int =

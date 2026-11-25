@@ -1,5 +1,8 @@
 package tk.glucodata
 
+/** NOTHING_TO_STORE: every reading of the batch is one the user deleted. */
+enum class HistoryReplaceOutcome { REPLACED, NOTHING_TO_STORE, FAILED }
+
 /**
  * The mobile-only Room history repository, as the shared code needs it
  * (plan P1/Q1).
@@ -51,6 +54,20 @@ interface HistoryRepositoryBridge {
         source: String,
     ): Boolean
 
+    /**
+     * Stores the batch and, in the same transaction, drops every other row the
+     * sensor holds inside [replacedIntervalsMs] (inclusive). Rows outside them
+     * stay. Anything but REPLACED means nothing changed: neither the delete nor
+     * the write.
+     */
+    fun replaceHistoryIntervalsBlocking(
+        sensorSerial: String,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        replacedIntervalsMs: List<LongRange>,
+    ): HistoryReplaceOutcome
+
     fun getLatestTimestampForSensorBlocking(sensorSerial: String): Long
 
     /**
@@ -63,6 +80,9 @@ interface HistoryRepositoryBridge {
         startTime: Long,
         endTime: Long,
     ): LongArray?
+
+    /** Whether the user deleted a reading of this sensor in the minute of [timestamp]; null when unknown. */
+    fun isMinuteDeletedByUserBlocking(sensorSerial: String, timestamp: Long): Boolean?
 
     fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int
 
