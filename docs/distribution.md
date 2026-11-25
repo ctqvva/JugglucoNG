@@ -226,6 +226,32 @@ replies plus `actions: read`, and has no signing secrets or `contents: write`.
 The Actions App token needs the PR scope even though timeline comments use the
 `issues/.../comments` API. Signing jobs retain read-only repository permissions.
 
+### PR test builds of new JNI inputs (supplementary sources)
+
+A PR that adds a vendor library leaves the inventory in bootstrap state: the
+pinned release APK cannot supply the new bytes, so ordinary restore refuses it
+and, without help, no signed PR test build is possible before a local release.
+
+For owner-approved PR builds only, the trusted-main controller keeps
+`SUPPLEMENTARY_SOURCES` in `scripts/dist/pr-build.py`: other published APKs,
+each pinned by SHA-256, with the exact path, size and SHA-256 of every file it
+may supply. `pr-build.py restore` then takes the files the pinned release has
+from it as usual, and each missing file only from an approved source whose entry
+matches the PR inventory exactly. Anything else fails before writing a file:
+an unlisted file, a different hash, a changed source APK or a tampered entry.
+The verifier still checks every inventoried byte in the built APK.
+
+Releases, nightlies, main dev builds and `scripts/restore-build-inputs.sh` never
+read this table, and a PR cannot change it (the controller is main's copy).
+Adding an entry is an owner decision about redistribution: the test APK contains
+those files, so `DISTRIBUTION_LICENSE_APPROVED` must cover them too. Remove the
+entry once a published release supplies the files and the inventory has been
+rebaselined.
+
+Current entry: upstream Juggluco 11.5.6 (`Juggluco-11.5.6.apk`, from the
+SourceForge download linked on juggluco.nl), for `liblibre_receiver_skb.so`
+(arm64-v8a and armeabi-v7a), the Dexcom Clarity provider of PR #833.
+
 ## Automated nightlies
 
 **Nightly prerelease** runs daily at **00:23 UTC / 05:23 Asia/Yekaterinburg**.
