@@ -82,7 +82,7 @@ class Libre3ProvisioningTest {
     }
     @Test fun compressedMirrorsDecodeBeforeDigestValidation() {
         val compressed = java.io.ByteArrayOutputStream().also { out ->
-            org.tukaani.xz.XZOutputStream(out, org.tukaani.xz.LZMA2Options()).use { it.write(bytes) }
+            org.tukaani.xz.XZOutputStream(out, org.tukaani.xz.LZMA2Options(0)).use { it.write(bytes) }
         }.toByteArray()
         val source = Libre3IdentitySource("compressed-test", Libre3IdentityProvisioning.sha256Hex(bytes), listOf("https://example.test/bundle"))
         assertEquals("test", Libre3IdentityProvisioning.validate(Libre3IdentityProvisioning.fetch(source) { compressed }, source.sha256).single().label)
@@ -91,7 +91,7 @@ class Libre3ProvisioningTest {
 
     @Test fun compressedOutputLimitIsEnforced() {
         val large = java.io.ByteArrayOutputStream().also { out ->
-            org.tukaani.xz.XZOutputStream(out, org.tukaani.xz.LZMA2Options()).use { it.write(ByteArray(Libre3IdentityProvisioning.MAX_FILE_BYTES + 1)) }
+            org.tukaani.xz.XZOutputStream(out, org.tukaani.xz.LZMA2Options(0)).use { it.write(ByteArray(Libre3IdentityProvisioning.MAX_FILE_BYTES + 1)) }
         }.toByteArray()
         assertTrue(runCatching { Libre3IdentityProvisioning.decodeDownload(large) }.isFailure)
     }
