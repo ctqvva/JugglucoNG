@@ -3544,7 +3544,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libre3_managed_identity_imported">%1$d App-Identitäten importiert</string>
     <string name="libre3_managed_identity_import_failed">Verbindungsdaten konnten nicht geladen werden: %1$s</string>
     <string name="libre3_managed_identity_missing">Verbindungsdaten fehlen. Einstellungen → Libre 3 öffnen, Internetverbindung prüfen und Download wiederholen. Der Sensor wurde nicht verändert.</string>
-    <string name="libre3_status_device_rejected">Gerät ist kein Libre 3 (Dienste fehlen); Sensor erneut scannen</string>
+    <string name="libre3_status_services_missing">Sensordienste fehlen; neuer Versuch</string>
     <string name="libre3_status_certificate_rejected">Sensorzertifikat nicht erkannt; Sensor erneut scannen</string>
     <string name="libre3_status_identity_missing">Keine Libre-3-App-Identität importiert</string>
     <string name="libre3_status_identity_rejected">Sensor hat die App-Identität nicht akzeptiert</string>

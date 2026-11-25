@@ -3432,7 +3432,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_imported">%1$d appidentiteter importerade</string>
     <string name="libre3_managed_identity_import_failed">Kunde inte läsa in anslutningsuppgifter: %1$s</string>
     <string name="libre3_managed_identity_missing">Anslutningsuppgifter saknas. Öppna Inställningar → Libre 3, kontrollera internet och försök hämta igen. Sensorn har inte ändrats.</string>
-    <string name="libre3_status_device_rejected">Enheten är inte en Libre 3 (tjänster saknas); skanna sensorn igen</string>
+    <string name="libre3_status_services_missing">Sensorns tjänster saknas; försöker igen</string>
     <string name="libre3_status_certificate_rejected">Sensorcertifikatet känns inte igen; skanna sensorn igen</string>
     <string name="libre3_status_identity_missing">Ingen Libre 3-appidentitet importerad</string>
     <string name="libre3_status_identity_rejected">Sensorn accepterade inte appidentiteten</string>

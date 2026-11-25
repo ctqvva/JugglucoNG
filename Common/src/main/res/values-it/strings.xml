@@ -3423,7 +3423,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_imported">Importate %1$d identità</string>
     <string name="libre3_managed_identity_import_failed">Impossibile caricare le credenziali: %1$s</string>
     <string name="libre3_managed_identity_missing">Credenziali non disponibili. Apri Impostazioni → Libre 3, controlla Internet e riprova il download. Il sensore non è stato modificato.</string>
-    <string name="libre3_status_device_rejected">Il dispositivo non è Libre 3 (servizi mancanti); scansiona di nuovo il sensore</string>
+    <string name="libre3_status_services_missing">Servizi del sensore mancanti; nuovo tentativo in corso</string>
     <string name="libre3_status_certificate_rejected">Certificato del sensore non riconosciuto; scansiona di nuovo il sensore</string>
     <string name="libre3_status_identity_missing">Nessuna identità Libre 3 importata</string>
     <string name="libre3_status_identity_rejected">Il sensore non ha accettato l’identità dell’app</string>

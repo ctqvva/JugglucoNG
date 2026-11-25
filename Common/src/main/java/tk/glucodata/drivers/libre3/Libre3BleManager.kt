@@ -236,8 +236,8 @@ class Libre3BleManager(sensorId: String) :
         Phase.IDLE -> when {
             missingIdentity -> text(tk.glucodata.R.string.libre3_status_identity_missing)
             identityRejected -> text(tk.glucodata.R.string.libre3_status_identity_rejected)
-            deviceRejected -> lastNote.ifBlank { text(tk.glucodata.R.string.libre3_status_device_rejected) }
-            incompleteDiscoveries >= INCOMPLETE_DISCOVERIES_SHOWN -> text(tk.glucodata.R.string.libre3_status_device_rejected)
+            deviceRejected -> lastNote.ifBlank { text(tk.glucodata.R.string.libre3_status_certificate_rejected) }
+            incompleteDiscoveries >= INCOMPLETE_DISCOVERIES_SHOWN -> text(tk.glucodata.R.string.libre3_status_services_missing)
             mActiveBluetoothDevice == null -> "Searching"
             else -> "Idle"
         }
@@ -834,7 +834,12 @@ class Libre3BleManager(sensorId: String) :
                 LOG_LABEL,
                 ManagedSensorUiFamily.LIBRE3,
             )
-            if (mirrored > 0) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite(LOG_LABEL, timeMs)
+            if (mirrored > 0) {
+                tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite(LOG_LABEL, timeMs)
+                // The legacy native save woke these for every reading.
+                runCatching { Natives.wakeLibreviewForLiveReading() }.onFailure { Log.stack(TAG, "LibreView wake", it) }
+                runCatching { Natives.wakestreamonly() }.onFailure { Log.stack(TAG, "Clone wake", it) }
+            }
             val display = if (Applic.unit == 1) mgdl / MGDL_PER_MMOL else mgdl
             // Stock lane: the sensor's own value, before this app's optional software calibration.
             SuperGattCallback.processExternalCurrentReading(

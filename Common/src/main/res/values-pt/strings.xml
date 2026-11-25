@@ -3434,7 +3434,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_imported">%1$d identidades importadas</string>
     <string name="libre3_managed_identity_import_failed">Não foi possível carregar os dados de ligação: %1$s</string>
     <string name="libre3_managed_identity_missing">Dados de ligação indisponíveis. Abra Definições → Libre 3, verifique a Internet e tente transferir novamente. O sensor não foi alterado.</string>
-    <string name="libre3_status_device_rejected">O dispositivo não é Libre 3 (faltam serviços); leia o sensor novamente</string>
+    <string name="libre3_status_services_missing">Faltam serviços do sensor; a tentar novamente</string>
     <string name="libre3_status_certificate_rejected">Certificado do sensor não reconhecido; leia o sensor novamente</string>
     <string name="libre3_status_identity_missing">Nenhuma identidade de aplicação Libre 3 importada</string>
     <string name="libre3_status_identity_rejected">O sensor não aceitou a identidade da aplicação</string>

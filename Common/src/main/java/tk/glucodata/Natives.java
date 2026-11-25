@@ -864,6 +864,8 @@ public class Natives {
         public static native void clearlibreFromMSec(long from);
 
         public static native void wakelibreview(int min);
+        /** A new Libre 3 reading is stored natively; sends it when LibreView is set to send each one. */
+        public static native void wakeLibreviewForLiveReading();
 
         public static native void setlibrebaseurl(boolean l3, String baseurl);
 

@@ -2627,8 +2627,7 @@ extern void wakeuploader();
 
 extern void wakestreamuploader();
 extern void wakelibrecurrent();
-void wakewithcurrent() {
-  wakestreamuploader();
+static void wakelibreviewwithcurrent() {
 #if !defined(WEAROS) && !defined(TESTMENU)
   if (settings->data()->LibreCurrentOnly) {
     LOGAR("wakelibrecurrent()");
@@ -2637,6 +2636,15 @@ void wakewithcurrent() {
     LOGAR("!LibreCurrentOnly");
   }
 #endif
+}
+void wakewithcurrent() {
+  wakestreamuploader();
+  wakelibreviewwithcurrent();
+}
+// A managed driver's live reading, for LibreView's "send each current reading".
+extern "C" JNIEXPORT void JNICALL
+fromjava(wakeLibreviewForLiveReading)(JNIEnv *env, jclass cl) {
+  wakelibreviewwithcurrent();
 }
 extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(
     JNIEnv *envin, jclass cl, jlong dataptr, jbyteArray bluetoothdata) {

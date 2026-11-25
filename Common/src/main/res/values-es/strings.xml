@@ -3699,7 +3699,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="libre3_managed_identity_imported">Se han importado %1$d identidades de la aplicación</string>
     <string name="libre3_managed_identity_import_failed">No se han podido cargar las credenciales de conexión: %1$s</string>
     <string name="libre3_managed_identity_missing">Las credenciales de conexión no están disponibles. Abre Ajustes → Libre 3, comprueba la conexión a Internet y vuelve a intentar la descarga. No se ha modificado el sensor.</string>
-    <string name="libre3_status_device_rejected">El dispositivo no es un Libre 3 (faltan servicios); vuelve a escanear el sensor</string>
+    <string name="libre3_status_services_missing">Faltan servicios del sensor; reintentando</string>
     <string name="libre3_status_certificate_rejected">No se reconoce el certificado del sensor; vuelve a escanearlo</string>
     <string name="libre3_status_identity_missing">No se ha importado ninguna identidad de aplicación para Libre 3</string>
     <string name="libre3_status_identity_rejected">El sensor no ha aceptado la identidad de la aplicación</string>

@@ -420,6 +420,19 @@ class Libre3ReviewRegressionTest {
         else assertTrue(healthWrites.isEmpty())
     }
 
+    @Test fun eachStoredLiveReadingWakesLibreViewAndClone() {
+        val at = System.currentTimeMillis()
+        invoke("publishCurrent", at, 123f, 0f, 101)
+        invoke("publishCurrent", at + 60_000, 124f, 0f, 102)
+        assertEquals(2, Libre3ReviewNatives.libreviewWakes)
+        assertEquals(2, Libre3ReviewNatives.cloneWakes)
+        // Nothing stored, nothing to send.
+        Libre3ReviewNatives.refusedSeconds = setOf((at + 120_000) / 1000L)
+        invoke("publishCurrent", at + 120_000, 125f, 0f, 103)
+        assertEquals(2, Libre3ReviewNatives.libreviewWakes)
+        assertEquals(2, Libre3ReviewNatives.cloneWakes)
+    }
+
     @Test fun oldBackfillCannotClaimHealthConnectFromTheCurrentSensor() {
         val oldBlue = SensorBluetooth.blueone
         val oldCallbacks = SensorBluetooth.gattcallbacks.toList()
@@ -690,6 +703,8 @@ class Libre3ReviewApplication : Applic() { override fun onCreate() {} }
 class Libre3ReviewNatives {
     companion object {
         val wakes = mutableListOf<Long>()
+        var libreviewWakes = 0
+        var cloneWakes = 0
         var accountNumber = 0L
         var wearDays = 0
         var activationSec = 0L
@@ -701,6 +716,7 @@ class Libre3ReviewNatives {
         var selectedName: String? = null
         val finishedNames = mutableSetOf<String>()
         fun reset() {
+            libreviewWakes = 0; cloneWakes = 0
             stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); refusedSeconds = emptySet(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
             legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
@@ -735,6 +751,8 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun getuseuploader(): Boolean = true
         @JvmStatic @Implementation fun gethealthConnect(): Boolean = true
         @JvmStatic @Implementation fun wakeNightscoutForLiveReading(source: String, at: Long): Boolean { wakes += at; return true }
+        @JvmStatic @Implementation fun wakeLibreviewForLiveReading() { libreviewWakes++ }
+        @JvmStatic @Implementation fun wakestreamonly() { cloneWakes++ }
         @JvmStatic @Implementation fun getSensorStreamCapacity(serial: String): Int = 32 * 24 * 60
         @JvmStatic @Implementation fun str2sensorptr(serial: String): Long = 1L
         @JvmStatic @Implementation fun activeSensors(): Array<String> = activeNames.filterNot(::sensorFinishedById).toTypedArray()

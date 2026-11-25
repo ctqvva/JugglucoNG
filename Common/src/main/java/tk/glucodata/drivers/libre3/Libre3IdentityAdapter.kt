@@ -38,6 +38,18 @@ object Libre3IdentityAdapter : ManagedSensorIdentityAdapter {
 
     override fun resolveCanonicalSensorId(sensorId: String?): String? = stored(sensorId)
 
+    /**
+     * Calibrations entered under the legacy record keep applying after the move. Both spellings the
+     * legacy driver handed out are covered, and only while the sensor is managed here.
+     */
+    override fun resolveCalibrationOwnerId(sensorId: String?): String? {
+        val id = sensorId?.trim().takeIf { !it.isNullOrEmpty() } ?: return null
+        val ctx = Applic.app ?: return null
+        return Libre3Persistence.sensorIds(ctx).firstOrNull {
+            id.equals(legacyNativeName(it), ignoreCase = true) || id.equals(legacyShortName(it), ignoreCase = true)
+        }
+    }
+
     override fun hasPersistedManagedRecord(sensorId: String?): Boolean = stored(sensorId) != null
 
     override fun persistedSensorIds(context: Context): List<String> = Libre3Persistence.sensorIds(context)

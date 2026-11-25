@@ -264,7 +264,7 @@ class Libre3GattSessionSimulationTest {
     }
 
     @Test fun repeatedIncompleteDiscoveriesBackOffAndSayWhyButNeverStop() {
-        val rejected = context.getString(tk.glucodata.R.string.libre3_status_device_rejected)
+        val rejected = context.getString(tk.glucodata.R.string.libre3_status_services_missing)
         sim.emptyDiscoveries = Int.MAX_VALUE
         val delays = (1..14).map { attempt ->
             connect()

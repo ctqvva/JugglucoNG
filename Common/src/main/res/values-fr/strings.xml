@@ -3439,7 +3439,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_imported">%1$d identités importées</string>
     <string name="libre3_managed_identity_import_failed">Impossible de charger les données de connexion : %1$s</string>
     <string name="libre3_managed_identity_missing">Données de connexion indisponibles. Ouvrez Réglages → Libre 3, vérifiez Internet et réessayez le téléchargement. Le capteur n’a pas été modifié.</string>
-    <string name="libre3_status_device_rejected">Ce n’est pas un Libre 3 (services absents) ; scannez à nouveau le capteur</string>
+    <string name="libre3_status_services_missing">Services du capteur absents ; nouvelle tentative</string>
     <string name="libre3_status_certificate_rejected">Certificat du capteur non reconnu ; scannez à nouveau le capteur</string>
     <string name="libre3_status_identity_missing">Aucune identité d’application Libre 3 importée</string>
     <string name="libre3_status_identity_rejected">Le capteur a refusé l’identité de l’application</string>
