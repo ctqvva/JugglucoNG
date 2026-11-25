@@ -322,7 +322,7 @@ class Libre3BleManager(sensorId: String) :
         }
         return ManagedSensorUiSnapshot(
             serial = sensorId,
-            displayName = "FreeStyle ${rec.modelName}",
+            displayName = rec.displayName,
             deviceAddress = rec.bleAddress,
             uiFamily = ManagedSensorUiFamily.LIBRE3,
             connectionStatus = getConnectionStatus(),
@@ -393,6 +393,9 @@ class Libre3BleManager(sensorId: String) :
     /** NFC refreshed this sensor's address/PIN/start: adopt it and start over with a clean link. */
     /** Stopped only because no connection credentials were installed. */
     fun isWaitingForCredentials(): Boolean = missingIdentity && !stop && !ended
+
+    /** The same, when the default download can supply them; a Lingo's are only imported. */
+    fun isWaitingForDownload(): Boolean = isWaitingForCredentials() && record?.isLingo != true
 
     fun onNfcRecordUpdated() {
         val ctx = Applic.app ?: return

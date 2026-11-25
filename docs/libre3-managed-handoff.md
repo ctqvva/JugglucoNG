@@ -156,8 +156,8 @@ services used are the generic managed-sensor mirror and lifecycle services.
   that was reading a Libre 3 through the removed driver converts its own record the same
   way as the phone and downloads credentials itself if it is online. Not hardware-tested.
 - **Lingo:** The managed driver recognizes NFC product type 9 with security version 3.
-  Enable the Kotlin Libre 3 driver and import the matching Lingo app identity in the
-  existing identity JSON format before scanning. The import requires the certificate
+  Import the matching Lingo app identity in Settings → Libre 3, in the existing identity
+  JSON format, before scanning. The import requires the certificate
   and matching P-256 scalar for the Lingo v3 app identity. The certificate must match
   the certificate fingerprint in `Libre3Lingo.kt`. The app keeps the identity and
   cached authorization in the device-local store. The regular Libre 3 identity

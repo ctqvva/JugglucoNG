@@ -791,7 +791,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_imported">Imported %1$d app identities</string>
     <string name="libre3_managed_identity_import_failed">Could not load connection credentials: %1$s</string>
     <string name="libre3_managed_identity_missing">Connection credentials are unavailable. Open Settings → Libre 3, check internet access and retry the download. The sensor was not changed.</string>
-    <string name="libre3_lingo_identity_missing">Import a Lingo app identity in Kotlin Libre 3 driver settings before scanning this sensor.</string>
+    <string name="libre3_lingo_identity_missing">Import a Lingo app identity in Settings → Libre 3 before scanning this sensor.</string>
     <string name="libre3_lingo_version_unsupported">This Lingo sensor uses an unsupported security version.</string>
     <string name="libre3_activation_legacy_fallback">The open-source Libre 3 activation could not be verified; using the established method.</string>
     <string name="libreview_account_ready">Account ID ready</string>

@@ -374,7 +374,7 @@ object Libre3Registry {
             if (installed) {
                 failedDownloads.set(0)
                 wakeDriversWaitingForCredentials()
-            } else if (waitingForCredentials().isNotEmpty() &&
+            } else if (waitingForCredentials().any { it.isWaitingForDownload() } &&
                 !Libre3Persistence.autoProvisionBlocked(context) &&
                 Libre3Persistence.effectiveIdentitySource(context) != null
             ) {

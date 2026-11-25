@@ -3495,7 +3495,7 @@
     <string name="libre3_managed_identity_import_failed">Nie udało się wczytać danych połączenia: %1$s</string>
     <string name="libre3_managed_identity_missing">Brak danych połączenia. Otwórz Ustawienia → Libre 3, sprawdź internet i ponów pobieranie. Sensor nie został zmieniony.</string>
     <string name="libre3_status_services_missing">Brak usług sensora; ponawianie próby</string>
-    <string name="libre3_lingo_identity_missing">Przed zeskanowaniem tego sensora zaimportuj tożsamość aplikacji Lingo w ustawieniach sterownika Libre 3 w Kotlinie.</string>
+    <string name="libre3_lingo_identity_missing">Przed zeskanowaniem tego sensora zaimportuj tożsamość aplikacji Lingo w Ustawienia → Libre 3.</string>
     <string name="libre3_lingo_version_unsupported">Ten sensor Lingo używa nieobsługiwanej wersji protokołu zabezpieczeń.</string>
     <string name="libre3_status_certificate_rejected">Nie rozpoznano certyfikatu sensora; zeskanuj sensor ponownie</string>
     <string name="libre3_status_identity_missing">Nie zaimportowano tożsamości aplikacji Libre 3</string>

@@ -3476,7 +3476,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libre3_managed_identity_import_failed">Verbindingsgegevens konden niet worden geladen: %1$s</string>
     <string name="libre3_managed_identity_missing">Verbindingsgegevens ontbreken. Open Instellingen → Libre 3, controleer internet en probeer opnieuw te downloaden. De sensor is niet gewijzigd.</string>
     <string name="libre3_status_services_missing">Sensordiensten ontbreken; opnieuw proberen</string>
-    <string name="libre3_lingo_identity_missing">Importeer een Lingo-app-identiteit in de instellingen van het Kotlin-stuurprogramma voor Libre 3 voordat je deze sensor scant.</string>
+    <string name="libre3_lingo_identity_missing">Importeer een Lingo-app-identiteit via Instellingen → Libre 3 voordat je deze sensor scant.</string>
     <string name="libre3_lingo_version_unsupported">Deze Lingo-sensor gebruikt een beveiligingsversie die niet wordt ondersteund.</string>
     <string name="libre3_status_certificate_rejected">Sensorcertificaat niet herkend; scan de sensor opnieuw</string>
     <string name="libre3_status_identity_missing">Geen Libre 3-app-identiteit geïmporteerd</string>

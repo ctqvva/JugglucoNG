@@ -122,7 +122,7 @@ class Libre3GattSessionSimulationTest {
     }
 
     /** A sensor that has been worn [lifeCount] minutes of its rated [wearMinutes]. */
-    private fun wear(lifeCount: Int, wearMinutes: Int) {
+    private fun wear(lifeCount: Int, wearMinutes: Int, productType: Int = Libre3SensorRecord.PRODUCT_LIBRE3) {
         if (::manager.isInitialized) runCatching { manager.setPause(true); manager.close() }
         val identity = Libre3AppIdentity.create("app", ByteArray(30) + byteArrayOf(0x44, 0x44), Libre3Bytes.parseHex(CERT_HEX)!!)
         // Life count L is sent as its minute ends, at activation + (L + 1) min: now.
@@ -130,7 +130,7 @@ class Libre3GattSessionSimulationTest {
         // Each case is another sensor under the same serial; a sensor's grid is otherwise kept for good.
         Libre3Persistence.removeSensor(context, sensorId)
         context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().remove("lifeZero.$sensorId").commit()
-        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensorId, address, pin, start, 60, wearMinutes, 0x6f0d8378L, "1.4.2.30", 1))
+        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensorId, address, pin, start, 60, wearMinutes, 0x6f0d8378L, "1.4.2.30", 1, productType))
         sim = SimulatedLibre3Sensor(identity.staticPublicKey, pin, lifeCount)
         Libre3SimGattShadow.sim = sim
         manager = Libre3BleManager(sensorId)
@@ -259,6 +259,26 @@ class Libre3GattSessionSimulationTest {
         connect()
         assertTrue(Libre3Persistence.isEnded(context, sensorId))
         assertFalse(manager.connectDevice(0))
+    }
+
+    /** Installed Libre 3 credentials are not Lingo's, and the default download has none for it. */
+    @Test fun aLingoWithoutItsOwnIdentityWaitsForAnImport() {
+        wear(life, 14 * 24 * 60, Libre3Lingo.PRODUCT_TYPE)
+        tk.glucodata.SensorBluetooth.gattcallbacks.add(manager)
+        try {
+            connect()
+            assertTrue("no security command with the wrong identity", sim.commands.isEmpty())
+            assertTrue(manager.isWaitingForCredentials())
+            assertFalse(manager.isWaitingForDownload())
+            val busy = Libre3Registry::class.java.getDeclaredField("provisioning").apply { isAccessible = true }
+                .get(null) as java.util.concurrent.atomic.AtomicBoolean
+            assertFalse("no download was started", busy.get())
+            assertEquals("Lingo", manager.getManagedUiSnapshot(sensorId)!!.vendorModel)
+            // A Libre 3 that waits is still served.
+            assertTrue(Libre3Persistence.ensureIdentities(context))
+        } finally {
+            tk.glucodata.SensorBluetooth.gattcallbacks.remove(manager)
+        }
     }
 
     @Test fun credentialsArrivingLaterWakeTheWaitingDriver() {

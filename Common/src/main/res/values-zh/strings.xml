@@ -3439,7 +3439,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_import_failed">无法加载连接凭据：%1$s</string>
     <string name="libre3_managed_identity_missing">连接凭据不可用。请打开设置 → Libre 3，检查网络并重试下载。传感器未更改。</string>
     <string name="libre3_status_services_missing">缺少传感器服务；正在重试</string>
-    <string name="libre3_lingo_identity_missing">扫描此传感器前，请在 Kotlin Libre 3 驱动设置中导入 Lingo 应用身份。</string>
+    <string name="libre3_lingo_identity_missing">扫描此传感器前，请在设置 → Libre 3 中导入 Lingo 应用身份。</string>
     <string name="libre3_lingo_version_unsupported">此 Lingo 传感器使用不受支持的安全协议版本。</string>
     <string name="libre3_status_certificate_rejected">无法识别传感器证书；请重新扫描传感器</string>
     <string name="libre3_status_identity_missing">尚未导入 Libre 3 应用身份</string>

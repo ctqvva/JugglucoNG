@@ -852,7 +852,9 @@ class Libre3ReviewRegressionTest {
         assertEquals("Libre 3 Plus", record(plus).modelName)
         assertEquals("Libre 3", record(plain).modelName)
         // Another product line with a long wear is not a Plus.
-        assertEquals("Libre 3", record(plus).copy(productType = 9).modelName)
+        assertEquals("Lingo", record(plus).copy(productType = 9).modelName)
+        assertEquals("Lingo", record(plus).copy(productType = 9).displayName)
+        assertEquals("FreeStyle Libre 3 Plus", record(plus).displayName)
 
         Libre3Persistence.saveSensor(context, record(plus).copy(productType = 9))
         assertEquals(9, Libre3Persistence.loadSensor(context, sensor)!!.productType)
