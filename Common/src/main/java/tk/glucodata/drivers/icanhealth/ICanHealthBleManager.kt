@@ -36,6 +36,8 @@ import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.math.abs
 import kotlin.math.round
 import tk.glucodata.Applic
+import tk.glucodata.HistoryReplaceOutcome
+import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.logd
@@ -99,8 +101,6 @@ class ICanHealthBleManager(
         private const val NATIVE_MIRROR_STREAM_WINDOW_SEC = 15L * 24L * 60L * 60L
         private const val HISTORY_SYNC_STATUS_STEP = 500
         private const val LIVE_GAP_BACKFILL_MIN_INTERVAL_MS = 10 * 60 * 1000L
-        private const val MIN_TZ_REPAIR_BATCH_RECORDS = 20
-        private const val MIN_TZ_REPAIR_BATCH_SPAN_MS = 60 * 60 * 1000L
 
         // CorrectCode (per-sensor calibration table) write path, mirroring the 2026-10-20
         // vendor capture: after the `1A` ack and the Session Start Time write, three
@@ -290,6 +290,13 @@ class ICanHealthBleManager(
         private set
     @Volatile private var vendorSoftwareVersion: String = ""
     private val pendingHistoryBatch = LinkedHashMap<Int, PendingHistoryReading>()
+    // A rebuild clears the native stream and writes it again; no reading may be written in between.
+    private val nativeStreamLock = Any()
+    private data class LiveNativeReading(val sensorId: String, val timestampMs: Long, val glucoseMgdl: Float)
+
+    @Volatile private var lastLiveNativeReading: LiveNativeReading? = null
+    @Volatile private var nativeRebuildFailures = 0
+    @Volatile private var nativeRebuildRetryAtMs = 0L
     private data class RecentGlucose(val sequenceNumber: Int, val mgDl: Float)
 
     private val recentLiveGlucose = ArrayDeque<RecentGlucose>(RECENT_GLUCOSE_WINDOW_SIZE)
@@ -364,6 +371,12 @@ class ICanHealthBleManager(
                     (NO_DATA_WATCHDOG_MS - elapsed).coerceAtLeast(1_000L)
                 )
             }
+        }
+    }
+
+    private val nativeRebuildRunnable = Runnable {
+        if (!stop && !uiPaused) {
+            runNativeRebuild()
         }
     }
 
@@ -1287,6 +1300,7 @@ class ICanHealthBleManager(
             return true
         }
         hydrateBluetoothDeviceFromAddress()
+        retryNativeRebuildIfDue()
         return super.connectDevice(delayMillis)
     }
 
@@ -2348,6 +2362,7 @@ class ICanHealthBleManager(
             rememberRecentGlucose(reading.glucoseMgdl, reading.sequenceNumber)
             updatePersistedHistoryTailTimestamp(sampleTimeMs)
             rememberCoveredEdge(reading.sequenceNumber, sampleTimeMs)
+            retryNativeRebuildIfDue()
             scheduleForegroundNotificationRefresh()
             rearmHistoryBackfillForLiveGap(previousLiveSequence, reading.sequenceNumber, nowMs)
             if (isAuthenticated && shouldRequestAuthenticatedHistoryBackfill && !historyBackfillRequested) {
@@ -2553,16 +2568,19 @@ class ICanHealthBleManager(
             applyNativeSensorMetadata()
             val nativeWriteName = resolveExistingNativeSensorName(SerialNumber)
                 ?: nativeCreationSensorName(SerialNumber)
-            prepareNativeMirrorWindow(nativeWriteName, sampleTimeSec)
             // Native addGlucoseStream() multiplies its float input by 10 before
             // storing the internal mg/dL value. Feed mg/dL / 10 here so native
             // stream storage matches the driver-decoded glucose value.
-            val stored = Natives.addGlucoseStreamWithTemp(
-                sampleTimeSec,
-                nativeStreamValue,
-                latestTemperatureC,
-                nativeWriteName
-            )
+            val stored = synchronized(nativeStreamLock) {
+                prepareNativeMirrorWindow(nativeWriteName, sampleTimeSec)
+                lastLiveNativeReading = LiveNativeReading(SerialNumber, sampleTimeMs, glucoseMgdl)
+                Natives.addGlucoseStreamWithTemp(
+                    sampleTimeSec,
+                    nativeStreamValue,
+                    latestTemperatureC,
+                    nativeWriteName
+                )
+            }
             if (stored) {
                 NightscoutUploadWake.afterLiveNativeWrite("ican", sampleTimeMs)
                 markLocalReadingAccepted(sampleTimeMs)
@@ -3905,19 +3923,25 @@ class ICanHealthBleManager(
                 ?: 0f
         }
         Log.i(TAG, "Persisting ${timestamps.size} direct RACP history readings to Room")
-        val stored = HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
+        val repairIntervals = timezoneRepairIntervals(timestamps)
+        val repairOutcome = if (repairIntervals.isEmpty()) {
+            null
+        } else {
+            replaceHistoryForTimezoneRepair(ordered, timestamps, values, rawValues, repairIntervals)
+        }
+        val replaced = repairOutcome == HistoryReplaceOutcome.REPLACED
+        val stored = if (repairOutcome != null) {
+            repairOutcome != HistoryReplaceOutcome.FAILED
+        } else {
+            HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
+        }
         if (stored) {
-            // Only now, with the corrected records demonstrably written, is it safe to drop the
-            // skewed ones. Deleting first would risk clearing history for a store that then
-            // failed — the batch goes back in immediately afterwards.
-            val repairing = historyTimezoneRepairPending() && purgeHistoryForTimezoneRepair(ordered)
-            if (repairing) {
-                HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
-            }
             updatePersistedHistoryTailTimestamp(timestamps.last())
             val lastRecord = ordered.last()
             rememberCoveredEdge(lastRecord.sequenceNumber, lastRecord.timestampMs)
-            mirrorHistoryBatchIntoNative(ordered, repairing)
+            if (repairOutcome == null) {
+                mirrorHistoryBatchIntoNative(ordered)
+            }
             val liveGap = pendingLiveHistoryGap
             if (liveGap != null && liveGap.isFullyCoveredBy(ordered.mapTo(HashSet<Int>()) { it.sequenceNumber })) {
                 pendingLiveHistoryGap = null
@@ -3927,17 +3951,41 @@ class ICanHealthBleManager(
                         "(${liveGap.readingCount} reading(s))"
                 )
             }
-            if (repairing) {
+            if (replaced) {
                 markHistoryTimezoneRepairApplied()
+                runNativeRebuild()
             }
         }
         return stored
     }
 
-    private fun mirrorHistoryBatchIntoNative(
+    /**
+     * One Room transaction drops the skewed rows and writes the corrected ones, so a failure or a kill
+     * midway keeps the history as it was and leaves the repair pending. Null when the rebuild of the
+     * native stream that has to follow could not be recorded: the batch is an ordinary import then.
+     */
+    private fun replaceHistoryForTimezoneRepair(
         ordered: List<PendingHistoryReading>,
-        repairing: Boolean = false,
-    ) {
+        timestamps: LongArray,
+        values: FloatArray,
+        rawValues: FloatArray,
+        intervals: List<LongRange>,
+    ): HistoryReplaceOutcome? =
+        // A rebuild running meanwhile would replay the old rows and settle what this is about to owe.
+        synchronized(nativeStreamLock) {
+            val rebuildAlreadyOwed = nativeRebuildOwed()
+            // Owed before Room changes: a process that dies after the commit still rebuilds the stream.
+            if (!oweNativeRebuild(ordered)) return null
+            val outcome = HistorySyncAccess.replaceSensorHistoryIntervalsBlocking(
+                SerialNumber, timestamps, values, rawValues, intervals,
+            )
+            if (outcome != HistoryReplaceOutcome.REPLACED && !rebuildAlreadyOwed) {
+                clearNativeRebuild()
+            }
+            outcome
+        }
+
+    private fun mirrorHistoryBatchIntoNative(ordered: List<PendingHistoryReading>) {
         if (ordered.isEmpty() || SerialNumber.isBlank()) {
             return
         }
@@ -3947,41 +3995,179 @@ class ICanHealthBleManager(
             val nativeWriteName = resolveExistingNativeSensorName(SerialNumber)
                 ?: nativeCreationSensorName(SerialNumber)
             val newestTimestampSec = ordered.last().timestampMs / 1000L
-            val windowStartSec = if (repairing) {
-                // The native stream holds mirrored ghosts at skewed timestamps that no corrected
-                // record will overwrite, so restart the window at the batch's first record. This
-                // zeroes the sensor's poll array; every record below is then replayed into it.
-                val repairStartSec = ordered.first().timestampMs / 1000L
-                Log.i(TAG, "Timezone repair: rebasing native mirror window for $nativeWriteName to $repairStartSec")
-                Natives.rebaseDirectStreamWindow(nativeWriteName, repairStartSec)
-                repairStartSec
-            } else {
-                prepareNativeMirrorWindow(nativeWriteName, newestTimestampSec)
+            synchronized(nativeStreamLock) {
+                val windowStartSec = prepareNativeMirrorWindow(nativeWriteName, newestTimestampSec)
+                val replayable = if (windowStartSec > 0L) {
+                    ordered.filter { (it.timestampMs / 1000L) >= windowStartSec }
+                } else {
+                    ordered
+                }
+                for (record in replayable) {
+                    if (record.timestampMs <= 0L) continue
+                    val glucoseMgdl = record.glucoseMgdl
+                    if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f) continue
+                    Natives.addGlucoseStreamWithTemp(
+                        record.timestampMs / 1000L,
+                        glucoseMgdl / 10f,
+                        record.temperatureC,
+                        nativeWriteName
+                    )
+                }
             }
-            val replayable = if (windowStartSec > 0L) {
-                ordered.filter { (it.timestampMs / 1000L) >= windowStartSec }
-            } else {
-                ordered
-            }
-            for (record in replayable) {
-                if (record.timestampMs <= 0L) continue
-                val glucoseMgdl = record.glucoseMgdl
-                if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f) continue
-                Natives.addGlucoseStreamWithTemp(
-                    record.timestampMs / 1000L,
-                    glucoseMgdl / 10f,
-                    record.temperatureC,
-                    nativeWriteName
-                )
-            }
-            applyNativeSensorMetadata()
-            if (nativeWriteName.isNotBlank()) {
-                adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
-            }
-            Natives.wakehereonly()
+            finishNativeHistoryWrite(nativeWriteName)
         }.onFailure {
             Log.stack(TAG, "mirrorHistoryBatchIntoNative", it)
         }
+    }
+
+    private fun finishNativeHistoryWrite(nativeWriteName: String) {
+        applyNativeSensorMetadata()
+        if (nativeWriteName.isNotBlank()) {
+            adoptNativeSensorIfAppropriate(SerialNumber, nativeWriteName)
+        }
+        Natives.wakehereonly()
+    }
+
+    private fun nativeRebuildOwed(): Boolean {
+        val context = Applic.app ?: return false
+        return SerialNumber.isNotBlank() && ICanHealthNativeRebuild.isOwed(context, SerialNumber)
+    }
+
+    /** Records that the native stream has to be rebuilt, and the temperatures [ordered] brought for it. */
+    private fun oweNativeRebuild(ordered: List<PendingHistoryReading>): Boolean {
+        val context = Applic.app ?: return false
+        val temperatures = HashMap(ICanHealthNativeRebuild.load(context, SerialNumber).orEmpty())
+        for (record in ordered) {
+            if (record.temperatureC.isFinite() && record.temperatureC > 0f) {
+                temperatures[ICanHealthNativeRebuild.minuteOf(record.timestampMs)] = record.temperatureC
+            }
+        }
+        if (ICanHealthNativeRebuild.save(context, SerialNumber, temperatures)) return true
+        Log.w(TAG, "Deferring timezone repair; its native rebuild could not be recorded")
+        return false
+    }
+
+    private fun clearNativeRebuild() {
+        Applic.app?.let { ICanHealthNativeRebuild.clear(it, SerialNumber) }
+    }
+
+    /** Rebuilds an owed native stream now; one that does not complete is retried until it does. */
+    private fun runNativeRebuild() {
+        handler.removeCallbacks(nativeRebuildRunnable)
+        if (rebuildNativeStream()) {
+            nativeRebuildFailures = 0
+            return
+        }
+        nativeRebuildFailures++
+        val delayMs = ICanHealthHistoryPolicy.nativeRebuildRetryDelayMs(nativeRebuildFailures)
+        nativeRebuildRetryAtMs = SystemClock.elapsedRealtime() + delayMs
+        Log.w(TAG, "Native stream of $SerialNumber is not rebuilt yet; retrying in ${delayMs / 1000L}s")
+        if (!stop) {
+            handler.postDelayed(nativeRebuildRunnable, delayMs)
+        }
+    }
+
+    /** The handler's clock stops in deep sleep; connecting or a live reading proves the phone is awake. */
+    private fun retryNativeRebuildIfDue() {
+        if (nativeRebuildOwed() && SystemClock.elapsedRealtime() >= nativeRebuildRetryAtMs) {
+            handler.removeCallbacks(nativeRebuildRunnable)
+            handler.post(nativeRebuildRunnable)
+        }
+    }
+
+    /**
+     * Restarts the native stream from the stored readings, which drops the ghosts mirrored into it at
+     * skewed timestamps. Needs no history batch: the sensor will not be asked again for records that are
+     * stored, so this has to be repeatable from Room alone. True when nothing is owed any more.
+     */
+    private fun rebuildNativeStream(): Boolean {
+        val context = Applic.app ?: return false
+        if (!nativeRebuildOwed()) return true
+        return runCatching {
+            ensureNativeDataptr(SerialNumber)
+            applyNativeSensorMetadata()
+            val nativeName = resolveExistingNativeSensorName(SerialNumber)
+                ?: nativeCreationSensorName(SerialNumber)
+            val rebuilt = synchronized(nativeStreamLock) { writeStoredReadingsToNative(context, nativeName) }
+            finishNativeHistoryWrite(nativeName)
+            rebuilt
+        }.onFailure {
+            Log.stack(TAG, "rebuildNativeStream", it)
+        }.getOrDefault(false)
+    }
+
+    private fun writeStoredReadingsToNative(context: Context, nativeName: String): Boolean {
+        val owed = ICanHealthNativeRebuild.load(context, SerialNumber) ?: return true
+        val readings = storedReadingsForNativeRebuild() ?: return false
+        if (readings.isEmpty()) {
+            return ICanHealthNativeRebuild.clear(context, SerialNumber)
+        }
+        // Only the stream holds these, and the rebase clears them. An earlier attempt may have cleared
+        // them already, so what it saved wins.
+        val temperatures = HashMap<Long, Float>()
+        Natives.getStreamTemperatures(nativeName)
+            ?.let { temperatures.putAll(ICanHealthNativeRebuild.unpackStream(it)) }
+        temperatures.putAll(owed)
+        if (temperatures.size > owed.size && !ICanHealthNativeRebuild.save(context, SerialNumber, temperatures)) {
+            return false
+        }
+        val firstSec = readings.first().timestampMs / 1000L
+        val windowStartSec = (readings.last().timestampMs + SEQUENCE_UNIT_MS) / 1000L - NATIVE_MIRROR_STREAM_WINDOW_SEC
+        // The shell counts its slots from the session start; any other start would be moved back to it
+        // by the next write, with the readings left in their old slots.
+        val startSec = resolveNativeShellStartTimeSec().takeIf { it in windowStartSec..firstSec } ?: firstSec
+        Log.i(TAG, "Timezone repair: rebuilding native stream $nativeName from $startSec with ${readings.size} reading(s)")
+        Natives.rebaseDirectStreamWindow(nativeName, startSec)
+        val written = Natives.addGlucoseStreamBatchWithTemp(
+            LongArray(readings.size) { readings[it].timestampMs / 1000L },
+            FloatArray(readings.size) { readings[it].glucoseMgdl / 10f },
+            FloatArray(readings.size) {
+                temperatures[ICanHealthNativeRebuild.minuteOf(readings[it].timestampMs)] ?: Float.NaN
+            },
+            nativeName
+        )
+        // Native storage that cannot be opened refuses the rebase silently and every write with it, so
+        // the writes are what tells whether the stream was really rebuilt.
+        if (written < readings.size) {
+            Log.w(TAG, "Native stream $nativeName took $written of ${readings.size} reading(s)")
+            return false
+        }
+        return ICanHealthNativeRebuild.clear(context, SerialNumber)
+    }
+
+    /** What a rebuilt native stream holds, oldest first. Null when the stored readings could not be read. */
+    private fun storedReadingsForNativeRebuild(): List<PendingHistoryReading>? {
+        val windowMs = NATIVE_MIRROR_STREAM_WINDOW_SEC * 1000L
+        val newestMs = HistorySyncAccess.getHistoryTimestampsForSensorOrNull(SerialNumber, 1L, Long.MAX_VALUE)
+            ?.let { it.maxOrNull() ?: return emptyList() }
+            ?: return null
+        val readings = HistoryRepositoryAccess.getHistoryForSensor(SerialNumber, newestMs - windowMs, false)
+            ?.filter { SensorIdentity.matches(it.sensorSerial, SerialNumber) }
+            ?.filter { it.value.isFinite() && it.value > 0f }
+            ?.sortedBy { it.timestamp }
+            ?.mapTo(ArrayList()) {
+                PendingHistoryReading(sequenceNumber = -1, timestampMs = it.timestamp, glucoseMgdl = it.value)
+            }
+        if (readings.isNullOrEmpty()) return null
+        // Room is written asynchronously by the live path, after the stream. A reading missing there may
+        // also be one the user deleted since.
+        val live = lastLiveNativeReading?.takeIf {
+            it.sensorId == SerialNumber &&
+                ICanHealthNativeRebuild.minuteOf(it.timestampMs) > ICanHealthNativeRebuild.minuteOf(newestMs)
+        }
+        if (live != null) {
+            val deleted = HistoryRepositoryAccess.isMinuteDeletedByUserOrNull(SerialNumber, live.timestampMs)
+                ?: return null
+            if (!deleted) {
+                readings += PendingHistoryReading(
+                    sequenceNumber = -1,
+                    timestampMs = live.timestampMs,
+                    glucoseMgdl = live.glucoseMgdl,
+                )
+            }
+        }
+        val mirrorStartMs = readings.last().timestampMs - windowMs + SEQUENCE_UNIT_MS
+        return readings.filter { it.timestampMs >= mirrorStartMs }
     }
 
     private fun resolveSequenceTimelineTimestampMs(
@@ -4121,6 +4307,23 @@ class ICanHealthBleManager(
         return historyTzRepairPending
     }
 
+    /** What [timestamps] replaces as a pending timezone repair; empty for an ordinary import. */
+    private fun timezoneRepairIntervals(timestamps: LongArray): List<LongRange> {
+        if (!historyTimezoneRepairPending()) return emptyList()
+        val intervals = ICanHealthHistoryPolicy.timezoneRepairIntervals(timestamps, readingIntervalMs())
+        Log.i(
+            TAG,
+            if (intervals.isEmpty()) {
+                "Deferring timezone repair; a batch of ${timestamps.size} record(s) spanning " +
+                    "${(timestamps.last() - timestamps.first()) / 60000L}min is too small to replace stored history"
+            } else {
+                "Timezone repair: replacing ${timestamps.first()}..${timestamps.last()} in " +
+                    "${intervals.size} run(s) with ${timestamps.size} re-pulled record(s)"
+            }
+        )
+        return intervals
+    }
+
     private fun markHistoryTimezoneRepairApplied() {
         val sensorId = SerialNumber.takeIf {
             it.isNotBlank() && !ICanHealthConstants.isProvisionalSensorId(it)
@@ -4136,33 +4339,6 @@ class ICanHealthBleManager(
             )
             .commit()
         Log.i(TAG, "Timezone repair complete for $sensorId")
-    }
-
-    /**
-     * Drop stored readings that the corrected batch is about to replace.
-     *
-     * Only the window the batch actually covers is cleared, and only once the replacement records
-     * are already in hand, so this can never leave a hole it does not immediately refill. Batches
-     * too small to be a session re-pull are left alone and the repair waits for a better one.
-     */
-    private fun purgeHistoryForTimezoneRepair(ordered: List<PendingHistoryReading>): Boolean {
-        val earliestMs = ordered.first().timestampMs
-        val latestMs = ordered.last().timestampMs
-        if (ordered.size < MIN_TZ_REPAIR_BATCH_RECORDS || latestMs - earliestMs < MIN_TZ_REPAIR_BATCH_SPAN_MS) {
-            Log.i(
-                TAG,
-                "Deferring timezone repair; batch of ${ordered.size} record(s) spanning " +
-                    "${(latestMs - earliestMs) / 60000L}min is too small to replace stored history"
-            )
-            return false
-        }
-        val removed = HistorySyncAccess.deleteReadingsForSensorAfter(SerialNumber, earliestMs - 1)
-        Log.i(
-            TAG,
-            "Timezone repair: dropped $removed stored reading(s) from $earliestMs onward, " +
-                "replacing them with ${ordered.size} re-pulled record(s)"
-        )
-        return true
     }
 
     private fun invalidatePersistedCoveredEdge(reason: String) {

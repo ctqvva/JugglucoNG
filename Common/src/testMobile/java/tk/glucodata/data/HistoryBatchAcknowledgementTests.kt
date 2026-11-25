@@ -17,6 +17,7 @@ import org.robolectric.annotation.ConscryptMode
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import tk.glucodata.Applic
+import tk.glucodata.HistoryReplaceOutcome
 import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistoryRepositoryBridge
 import tk.glucodata.HistorySyncAccess
@@ -147,6 +148,34 @@ class HistoryBatchAcknowledgementTests {
         runBlocking { HistoryRepository.batchWriter.flushPending() }
         assertEquals(mapOf(0 to 222f, 1 to 111f), stored())
         assertEquals(0, HistoryRepository.batchWriter.pendingCount(serial))
+    }
+
+    @Test
+    fun aReplacedIntervalAlsoDropsWhatWasQueuedInsideIt() = runBlocking {
+        // 1 and 2 are ghosts inside the interval the sensor re-delivers; 5 is outside it.
+        HistorySyncAccess.storeSensorHistoryBatchAsync(serial, times(0, 1, 2, 5), values(4, 111f), FloatArray(4))
+        assertEquals(
+            HistoryReplaceOutcome.REPLACED,
+            HistorySyncAccess.replaceSensorHistoryIntervalsBlocking(
+                serial, times(0, 3), values(2, 222f), FloatArray(2), listOf(base..base + 3 * 60_000L),
+            ),
+        )
+        HistoryRepository.batchWriter.flushPending()
+        assertEquals(mapOf(0 to 222f, 3 to 222f, 5 to 111f), stored())
+    }
+
+    @Test
+    fun aReplacementThatStoredNothingLeavesTheQueueAlone() = runBlocking {
+        database.historyDao().insertDeletedReadings(listOf(DeletedHistoryReading(base, serial, base)))
+        HistorySyncAccess.storeSensorHistoryBatchAsync(serial, times(1), values(1, 111f), FloatArray(1))
+        assertEquals(
+            HistoryReplaceOutcome.NOTHING_TO_STORE,
+            HistorySyncAccess.replaceSensorHistoryIntervalsBlocking(
+                serial, times(0), values(1, 222f), FloatArray(1), listOf(base..base + 3 * 60_000L),
+            ),
+        )
+        HistoryRepository.batchWriter.flushPending()
+        assertEquals(mapOf(1 to 111f), stored())
     }
 
     @Test

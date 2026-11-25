@@ -757,7 +757,8 @@ static void on_recv1(juice_agent_t *agent, const char *data, size_t size, void *
     userdata[head->side!=host.side].on_recv(agent,data,size,allindex);
     }
 
-static int selectedCloneTransportCode(juice_agent *agent) {
+static void refreshSelectedCloneTransport(ICEConnect *connection,
+                                          juice_agent *agent) {
     char localAddr[JUICE_MAX_ADDRESS_STRING_LEN];
     char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN];
     if (juice_get_selected_addresses_inc_type(
@@ -766,18 +767,13 @@ static int selectedCloneTransportCode(juice_agent *agent) {
             JUICE_MAX_ADDRESS_STRING_LEN,
             remoteAddr,
             JUICE_MAX_ADDRESS_STRING_LEN) != 0) {
-        return clone_transport_unknown;
+        return;
     }
-    return strstr(localAddr, " Relay") || strstr(remoteAddr, " Relay")
+    connection->setSelectedAddresses(localAddr, remoteAddr);
+    const int transport = strstr(localAddr, " Relay") || strstr(remoteAddr, " Relay")
         ? clone_transport_turn
         : clone_transport_local_ice;
-}
-
-static void refreshSelectedCloneTransport(ICEConnect *connection,
-                                          juice_agent *agent) {
-    const int transport=selectedCloneTransportCode(agent);
-    if(transport!=clone_transport_unknown)
-        connection->selectedCloneTransport.store(transport);
+    connection->selectedCloneTransport.store(transport);
 }
 
 static void reportConnectedRoute(ICEConnect *connection,juice_agent *agent) {
@@ -858,10 +854,12 @@ static void on_state_changed1(juice_agent_t *agent, juice_state_t state, void *u
         case	JUICE_STATE_GATHERING:
         case	JUICE_STATE_CONNECTING:
             con->selectedCloneTransport.store(clone_transport_unknown);
+            con->clearSelectedAddresses();
             con->notConnected();
             break;
         case JUICE_STATE_DISCONNECTED:
             con->selectedCloneTransport.store(clone_transport_unknown);
+            con->clearSelectedAddresses();
             con->notConnected();
             break;
         case JUICE_STATE_CONNECTED: {

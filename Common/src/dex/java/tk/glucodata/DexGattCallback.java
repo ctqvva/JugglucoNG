@@ -73,6 +73,7 @@ private static final long DEXCOM_RECONNECT_QUIET_MS = 5_000L;
 private static final String DEX_CONNECT_PREFS = "dex_connect";
 private static final String DIRECT_CONNECT_UNREACHABLE_PREFIX = "direct_unreachable_";
 private volatile boolean directConnectUnreachable;
+private volatile String persistedDeviceName;
 private BluetoothGatt connectedAttempt;
 private boolean known=false;
 private int authSlot;
@@ -91,7 +92,7 @@ private int authSlot;
             mActiveDeviceAddress = Natives.getDeviceAddress(dataptr, false);
         directConnectUnreachable = Applic.app.getSharedPreferences(DEX_CONNECT_PREFS, Context.MODE_PRIVATE)
                 .getBoolean(DIRECT_CONNECT_UNREACHABLE_PREFIX + SerialNumber, false);
-//        ownDeviceName=Natives.dexGetDeviceName(dataptr);
+        persistedDeviceName = dataptr != 0L ? Natives.dexGetDeviceName(dataptr) : null;
         {if(doLog) {Log.d(LOG_ID, SerialNumber + " DexGattCallback(..)");};};
         showtime=6*60*1000L;
     }
@@ -100,6 +101,30 @@ private int authSlot;
     @Override
     public boolean connectsPerReading() {
         return true;
+    }
+
+    @Override
+    public String mygetDeviceName() {
+        final var liveName = mDeviceName;
+        if (liveName != null && !liveName.trim().isEmpty())
+            return liveName;
+        final var device = mActiveBluetoothDevice;
+        if (device != null) {
+            try {
+                var name = device.getName();
+                if (name != null && !name.trim().isEmpty())
+                    return name;
+            } catch (SecurityException ignored) {
+                // Fall through to the persisted name when BLUETOOTH_CONNECT is missing.
+            }
+        }
+        final var saved = persistedDeviceName;
+        if (saved != null && !saved.trim().isEmpty())
+            return saved;
+        final var address = mActiveDeviceAddress;
+        if (address != null)
+            return address;
+        return "?";
     }
 
     static private byte[] lencode(int which, int code) {
@@ -591,9 +616,11 @@ private void askcertificate(int pha) {
 private void saveDeviceName() {
          final var aname=mDeviceName;
          {if(doLog) {Log.i(LOG_ID,"deviceName ="+aname);};};
-         if(aname!=null) {
+         if(aname!=null && !aname.trim().isEmpty()) {
              Natives.dexSaveDeviceName(dataptr,aname);
+             persistedDeviceName = aname;
              this.known=true;
+             SensorDisplayName.pushIfChanged();
              }
          }
 static boolean    createBond(BluetoothDevice device) {

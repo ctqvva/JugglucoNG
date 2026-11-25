@@ -64,6 +64,7 @@ class SettingsRegistryTests {
                 KEY_PREDICTION_HORIZON,
                 KEY_SENSOR_SELECTION,
                 KEY_SENSOR_COLORS,
+                KEY_SENSOR_DISPLAY_NAMES,
             ),
             SettingsRegistry.mirrored.map { it.key }.toSet(),
         )
@@ -143,6 +144,7 @@ class SettingsRegistryTests {
         assertEquals(KEY_PREDICTION_HORIZON, SettingsRegistry.PREDICTION_HORIZON.key)
         assertEquals(KEY_SENSOR_SELECTION, SettingsRegistry.SENSOR_SELECTION.key)
         assertEquals(KEY_SENSOR_COLORS, SettingsRegistry.SENSOR_COLORS.key)
+        assertEquals(KEY_SENSOR_DISPLAY_NAMES, SettingsRegistry.SENSOR_DISPLAY_NAMES.key)
     }
 
     @Test

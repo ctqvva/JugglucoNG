@@ -1566,13 +1566,15 @@ fun getMirrorsList(): List<MirrorItemData> {
         val sendsData = Natives.getbackuphostnums(i) ||
             Natives.getbackuphoststream(i) || Natives.getbackuphostscans(i)
         val receivesData = (Natives.getbackuphostreceive(i) and 2) != 0
+        val isWearOs = Natives.isWearOS(i)
+        val isDeactivated = Natives.getHostDeactivated(i)
         val canSendHistory = CloneHistoryRecoveryConnection(
             index = i,
             isIce = isIce,
-            isWearOs = Natives.isWearOS(i),
+            isWearOs = isWearOs,
             sendsData = sendsData,
             receivesData = receivesData,
-            isDeactivated = Natives.getHostDeactivated(i),
+            isDeactivated = isDeactivated,
             isPending = Natives.isBackupHostPending(i),
             hasPassword = !Natives.getbackuppassword(i).isNullOrBlank(),
         ).canSendHistory()
@@ -1582,9 +1584,9 @@ fun getMirrorsList(): List<MirrorItemData> {
                 Natives.getbackuplabel(i),
                 names,
                 mirrorDisplayPort(isIce, Natives.getbackuphostport(i)),
-                Natives.getHostDeactivated(i),
+                isDeactivated,
                 Natives.mirrorStatus(i) ?: "",
-                Natives.isWearOS(i),
+                isWearOs,
                 isIce,
                 iceIdentity?.let { CloneTransport.fromCode(Natives.getCloneConnectionTransport(it)) },
                 if (isIce) {

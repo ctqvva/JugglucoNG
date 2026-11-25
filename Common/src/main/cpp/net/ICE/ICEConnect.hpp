@@ -102,6 +102,23 @@ ICE_data   icedata[2]{{this,allindex,side},{this,allindex,!side}};
 std::atomic<juice_agent*> agent;
 std::atomic<uint64_t> agentGeneration{0};
 std::atomic<int> selectedCloneTransport{clone_transport_unknown};
+mutable std::mutex selectedAddressesMutex;
+std::string selectedLocalAddress;
+std::string selectedRemoteAddress;
+void setSelectedAddresses(std::string_view local, std::string_view remote) {
+        std::lock_guard<std::mutex> lock(selectedAddressesMutex);
+        selectedLocalAddress.assign(local);
+        selectedRemoteAddress.assign(remote);
+        }
+void clearSelectedAddresses() {
+        std::lock_guard<std::mutex> lock(selectedAddressesMutex);
+        selectedLocalAddress.clear();
+        selectedRemoteAddress.clear();
+        }
+std::pair<std::string,std::string> selectedAddresses() const {
+        std::lock_guard<std::mutex> lock(selectedAddressesMutex);
+        return {selectedLocalAddress,selectedRemoteAddress};
+        }
 char sdp[JUICE_MAX_SDP_STRING_LEN];
 int sdplen;
 // Primary rendezvous server; it also carries the peer generation watch.
@@ -139,6 +156,11 @@ void reloadNetworkConfig(const passhost_t &host);
 void endConnectionHere() {
        LOGGERICE("%d: endConnectionHere\n",side);
        isConnected=false;
+       selectedCloneTransport.store(clone_transport_unknown);
+       clearSelectedAddresses();
+       connectTime.store(0);
+       if(state.load()!=JUICE_STATE_FAILED)
+           state.store(JUICE_STATE_DISCONNECTED);
        endConnect=true;
        recoveryWake.cancel();
        cancelRendezvous();
@@ -161,6 +183,11 @@ bool requestReconnectIfCurrent(juice_agent_t *candidate,uint64_t generation,
            return true;
        })) return false;
        isConnected=false;
+       selectedCloneTransport.store(clone_transport_unknown);
+       clearSelectedAddresses();
+       connectTime.store(0);
+       if(state.load()!=JUICE_STATE_FAILED)
+           state.store(JUICE_STATE_DISCONNECTED);
        cancelRendezvous();
        cancelGenerationWatch();
        icedata[1].setshutdown();
@@ -348,6 +375,9 @@ void releaseReceiverThread() {
         resetStart();
         wakeReceiver=false;
         selectedCloneTransport.store(clone_transport_unknown);
+        clearSelectedAddresses();
+        state.store(JUICE_STATE_DISCONNECTED);
+        connectTime.store(0);
         generationWatchCapability.store(0,std::memory_order_release);
         isConnected=false;
         endConnect=false;
@@ -427,6 +457,10 @@ void endConnection() override{
         turnRelayRotation.failedAttempt(currentAgentGeneration());
         juice_agent *wasagent=agent.exchange(nullptr);
         advanceAgentGeneration();
+        state.store(JUICE_STATE_DISCONNECTED);
+        connectTime.store(0);
+        selectedCloneTransport.store(clone_transport_unknown);
+        clearSelectedAddresses();
         if(wasagent) {
             LOGGER("endConnection: juice_destroy(%p)\n",wasagent);
             #ifndef NOLOG

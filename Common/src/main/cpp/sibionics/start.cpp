@@ -35,6 +35,7 @@
 #include <dlfcn.h>
 #include <mutex>
 #include <string_view>
+#include <vector>
 extern void sendstreaming(SensorGlucoseData *hist);
 
 extern bool siInit();
@@ -1357,6 +1358,41 @@ fromjava(getTemperatureData)(JNIEnv *env, jclass cl, jlong sensorptr) {
   }
 
   env->ReleaseIntArrayElements(result, buf, 0);
+  return result;
+}
+
+// Temperatures with the time of the reading each belongs to. The arrays above
+// carry no times, and a slot's index does not give one: the window start moves.
+extern "C" JNIEXPORT jlongArray JNICALL
+fromjava(getStreamTemperatures)(JNIEnv *env, jclass cl, jstring jsensor) {
+  if (!jsensor || !sensors)
+    return nullptr;
+  const char *sensorChars = env->GetStringUTFChars(jsensor, nullptr);
+  if (!sensorChars)
+    return nullptr;
+  const SensorGlucoseData *sens = sensors->getSensorData(sensorChars);
+  if (!sens)
+    sens = sensors->gethistshort(sensorChars);
+  env->ReleaseStringUTFChars(jsensor, sensorChars);
+  if (!sens || sens->error())
+    return nullptr;
+
+  std::vector<jlong> packed;
+  {
+    const std::lock_guard<std::recursive_mutex> reading(
+        SensorGlucoseData::pollWriteMutex());
+    const size_t count = std::min<size_t>(std::max(sens->pollcount(), 0),
+                                          sens->pollStorageCapacity());
+    const ScanData *polls = sens->getPollsData();
+    const uint16_t *temps = sens->getTempPollsData();
+    for (size_t i = 0; i < count; ++i)
+      if (polls[i].t && polls[i].getmgdL() && temps[i])
+        packed.push_back(static_cast<jlong>(polls[i].t) << 16 | temps[i]);
+  }
+  jlongArray result = env->NewLongArray(static_cast<jsize>(packed.size()));
+  if (result)
+    env->SetLongArrayRegion(result, 0, static_cast<jsize>(packed.size()),
+                            packed.data());
   return result;
 }
 

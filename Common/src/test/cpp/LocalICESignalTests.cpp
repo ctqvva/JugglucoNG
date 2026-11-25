@@ -81,6 +81,7 @@ struct Peer {
     std::atomic_int winner{0};
     std::atomic_int candidates{0};
     std::atomic_bool gatheringDone{false};
+    std::atomic_int gatheringDoneCount{0};
     std::atomic_int restarts{0};
     std::string lastCandidate;
     std::mutex candidateMutex;
@@ -259,6 +260,7 @@ void applyLocalICECandidate(int index, juice_agent_t *, uint64_t, std::string_vi
 
 void applyLocalICEGatheringDone(int index, juice_agent_t *, uint64_t) {
     Link::active->peers[index].gatheringDone = true;
+    ++Link::active->peers[index].gatheringDoneCount;
 }
 
 void localICEPeerGenerationChanged(int index, juice_agent_t *, uint64_t) {
@@ -654,7 +656,8 @@ static void candidateRetriesDoNotAccumulateBeforeDescription() {
     std::this_thread::sleep_for(1200ms);
     {
         std::lock_guard lock(link.sessions[1]->impl->stateMutex);
-        require(link.sessions[1]->impl->pendingRemoteCandidates.size() == 1,
+        require(link.sessions[1]->impl->pendingRemoteGenerations.size() == 1 &&
+                    link.sessions[1]->impl->pendingRemoteGenerations.front().candidates.size() == 1,
                 "retries accumulate duplicate candidates while waiting for SDP");
     }
     link.sessions[0]->publishDescription("offer");
@@ -998,6 +1001,108 @@ static void recoveryWakeRejectsStaleAndUnprotectedRequests() {
     require(wakeReleases == 2, "new recovery success leaked lease");
 }
 
+static void duplicateAndPostGatheringCandidatesAreIgnored() {
+    Link link;
+    auto *offerer = link.sessions[0]->impl.get();
+    auto *answerer = link.sessions[1]->impl.get();
+    const std::string offererGen(32, 'a');
+
+    auto deliver = [&](MessageType type, std::string_view payload,
+                       std::string_view senderGen) {
+        const auto savedGen = answerer->localGeneration;
+        answerer->localGeneration.assign(senderGen);
+        auto packet = answerer->makePacket(type, payload, offererGen);
+        answerer->localGeneration = savedGen;
+        offerer->handlePacket(packet.data(), packet.size());
+    };
+
+    const std::string firstPeerGen(32, 'b');
+    const std::string secondPeerGen(32, 'c');
+    // Interleaved candidates from another generation must neither discard the
+    // accepted generation's pending candidates nor leak into the accepted peer.
+    deliver(MessageType::Candidate, "a=candidate:1", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:stale", secondPeerGen);
+    deliver(MessageType::Description, "answer-1", firstPeerGen);
+    require(link.peers[0].winner == 1, "answer description was not accepted");
+    require(link.peers[0].candidates == 1, "buffered candidate for accepted peer was lost or leaked");
+    {
+        std::lock_guard lock(link.peers[0].candidateMutex);
+        require(link.peers[0].lastCandidate == "a=candidate:1",
+                "wrong generation's pending candidate was applied");
+    }
+    {
+        std::lock_guard lock(offerer->stateMutex);
+        require(offerer->pendingRemoteGenerations.empty(),
+                "unaccepted pending generations were not cleared after description acceptance");
+    }
+
+    // Retransmitted candidate from the same generation is deduplicated.
+    deliver(MessageType::Candidate, "a=candidate:1", firstPeerGen);
+    require(link.peers[0].candidates == 1, "duplicate candidate was re-applied to libjuice");
+
+    // New unique candidate before GatheringDone is still applied.
+    deliver(MessageType::Candidate, "a=candidate:2", firstPeerGen);
+    require(link.peers[0].candidates == 2, "new unique candidate was dropped");
+
+    // Candidate from a different answerer generation is ignored.
+    deliver(MessageType::Candidate, "a=candidate:foreign", secondPeerGen);
+    require(link.peers[0].candidates == 2, "foreign generation candidate leaked into active agent");
+
+    // GatheringDone is applied once; duplicate candidates are ignored while
+    // an unseen candidate from the accepted generation (e.g. reordered or
+    // recovered on retry) is still delivered once.
+    deliver(MessageType::GatheringDone, {}, firstPeerGen);
+    deliver(MessageType::GatheringDone, {}, firstPeerGen);
+    deliver(MessageType::GatheringDone, {}, secondPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:1", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:3", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:3", firstPeerGen);
+    deliver(MessageType::Candidate, "a=candidate:foreign2", secondPeerGen);
+    require(link.peers[0].gatheringDoneCount == 1, "GatheringDone was applied more than once");
+    require(link.peers[0].candidates == 3, "unseen recovered candidate was lost or duplicates were re-applied");
+}
+
+static void answererGenerationChurnUsesRateLimitedNonHelloReplies() {
+    Link link;
+    auto *offerer = link.sessions[0]->impl.get();
+    auto *answerer = link.sessions[1]->impl.get();
+    link.sessions[0]->publishDescription("offer");
+    const std::string offererGen(32, 'a');
+    const std::string peerOne(32, 'b');
+    const std::string peerTwo(32, 'c');
+
+    // Seed initial peer generation and reset rate-limit window.
+    {
+        auto hello = answerer->makePacket(MessageType::Hello, {}, offererGen);
+        offerer->handlePacket(hello.data(), hello.size());
+        std::lock_guard lock(offerer->stateMutex);
+        offerer->nextSnapshot = {};
+    }
+
+    std::atomic_int replyHellos{0};
+    std::atomic_int replyDescriptions{0};
+    link.setDrop([&](int side, MessageType type) {
+        if (side == 0 && type == MessageType::Hello) ++replyHellos;
+        if (side == 0 && type == MessageType::Description) ++replyDescriptions;
+        return true;
+    });
+
+    for (int i = 0; i < 10; ++i) {
+        const auto &gen = (i % 2 == 0) ? peerTwo : peerOne;
+        const auto savedGen = answerer->localGeneration;
+        answerer->localGeneration.assign(gen);
+        auto packet = answerer->makePacket(MessageType::Hello, {}, offererGen);
+        answerer->localGeneration = savedGen;
+        offerer->handlePacket(packet.data(), packet.size());
+    }
+    link.setDrop({});
+
+    require(replyHellos == 0, "answerer generation change solicited another Hello broadcast loop");
+    // One reply snapshot sends 2 UDP copies over IPv4 broadcast.
+    require(replyDescriptions > 0 && replyDescriptions <= 4,
+            "answerer generation churn bypassed snapshot rate limiting");
+}
+
 static void recoveryWakeDestructionReleasesPendingLease() {
     wakeAcquires = wakeReleases = 0;
     {
@@ -1034,6 +1139,8 @@ int main() {
         {"first LAN contact preserves accepted ICE credentials", firstLanContactPreservesAcceptedCredentials},
         {"replacement requires authenticated complete credentials", replacementOffersRequireAuthenticatedCompleteCredentials},
         {"changed answer leaves offerer stable", changedAnswerDoesNotRestartOfferer},
+        {"duplicate and post-gathering candidates are ignored", duplicateAndPostGatheringCandidatesAreIgnored},
+        {"answerer generation churn uses rate-limited non-Hello replies", answererGenerationChurnUsesRateLimitedNonHelloReplies},
         {"generation watch retries past long outages with bounded backoff", generationWatchRetriesPastLongOutages},
         {"generation watch cancellation stops retries", generationWatchCancellationStopsRetries},
         {"empty replies do not finish pending candidates", emptyRepliesDoNotFinishPendingCandidates},

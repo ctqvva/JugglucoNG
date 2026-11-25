@@ -67,7 +67,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     private static final String LOG_ID = "SuperGattCallback";
     static final private int use_priority = CONNECTION_PRIORITY_HIGH;
     static boolean autoconnect = false;
-    String mDeviceName = null;
+    volatile String mDeviceName = null;
 
     protected static final UUID mCharacteristicConfigDescriptor = UUID
             .fromString("00002902-0000-1000-8000-00805f9b34fb");
@@ -943,7 +943,6 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         previousglucosereading = reading;
         previousglucosevalue = gl;
         previousglucosesensorid = SerialNumber;
-        Applic.app.sendBroadcast(new Intent("tk.glucodata.action.AOD_IMMEDIATE_REFRESH"));
         final var fview = Floating.floatview;
         // MainActivity.showmessage=null;
         final boolean alarmSpeechStarted = glucoseAlertStarted && !DontTalk && Natives.speakalarms();
@@ -1496,9 +1495,14 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         ;
         close();
+        releaseNativeData();
+        // sensorbluetooth=null;
+    }
+
+    /** Free the native wrapper. A driver that writes to it from another thread guards this. */
+    protected void releaseNativeData() {
         Natives.freedataptr(dataptr);
         dataptr = 0L;
-        // sensorbluetooth=null;
     }
 
     public boolean streamingEnabled() {// TODO: libre3?
@@ -1711,7 +1715,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                 }
 
                 watchConnectionAttempt(cb.mBluetoothGatt);
-                setpriority(cb.mBluetoothGatt);
+                // requestConnectionPriority() needs an established connection (and registered
+                // clientIf); drivers apply setpriority() once STATE_CONNECTED arrives.
                 {
                     if (doLog) {
                         Log.i(LOG_ID, SerialNumber + " after connectGatt =" + cb.mBluetoothGatt);

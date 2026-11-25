@@ -133,6 +133,9 @@ public class Natives {
 
         public static native int[] getTemperatureDataByName(String sensorname);
 
+        /** One entry per stream reading with a temperature: its second << 16 | 0.1 °C. Null without a native record. */
+        public static native long[] getStreamTemperatures(String sensorname);
+
         public static native boolean sameSensor(long one, long two);
 
         public static native String getSensorName(long dataptr);

@@ -18,6 +18,7 @@ import tk.glucodata.Applic
 import tk.glucodata.BatteryTrace
 import tk.glucodata.CloneSensorRegistry
 import tk.glucodata.GlucoseReadingSource
+import tk.glucodata.HistoryReplaceOutcome
 import tk.glucodata.HistorySourceProvenance
 import tk.glucodata.HistoryWriteListener
 import tk.glucodata.HistoryWriteOutcome
@@ -313,6 +314,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             }
         }
 
+        /** See [tk.glucodata.HistoryRepositoryBridge.isMinuteDeletedByUserBlocking]. */
+        fun isMinuteDeletedByUserBlocking(sensorSerial: String, timestamp: Long): Boolean? =
+            kotlinx.coroutines.runBlocking { HistoryRepository().isMinuteDeletedByUser(sensorSerial, timestamp) }
+
         /** Resolved by name from [tk.glucodata.HistorySyncAccess] — see [getHistoryTimestampsForSensorBlocking]. */
         @Keep
         @JvmStatic
@@ -575,17 +580,52 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             values: FloatArray,
             rawValues: FloatArray,
             source: String
-        ): Boolean {
+        ): Boolean =
+            // Rows the user deleted stay deleted: a batch made only of them
+            // has nothing to store, and its caller has nothing to retry.
+            storeHistoryBatch(sensorSerial, timestamps, values, rawValues, source, emptyList()) !=
+                BucketReplaceOutcome.FAILED
+
+        /** See [tk.glucodata.HistoryRepositoryBridge.replaceHistoryIntervalsBlocking]. */
+        fun replaceHistoryIntervalsBlocking(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            replacedIntervalsMs: List<LongRange>,
+        ): HistoryReplaceOutcome = when (
+            storeHistoryBatch(
+                sensorSerial,
+                timestamps,
+                values,
+                rawValues,
+                GlucoseReadingSource.SENSOR,
+                replacedIntervalsMs,
+            )
+        ) {
+            BucketReplaceOutcome.STORED -> HistoryReplaceOutcome.REPLACED
+            BucketReplaceOutcome.NOTHING_TO_STORE -> HistoryReplaceOutcome.NOTHING_TO_STORE
+            BucketReplaceOutcome.FAILED -> HistoryReplaceOutcome.FAILED
+        }
+
+        private fun storeHistoryBatch(
+            sensorSerial: String,
+            timestamps: LongArray,
+            values: FloatArray,
+            rawValues: FloatArray,
+            source: String,
+            replacedIntervalsMs: List<LongRange>,
+        ): BucketReplaceOutcome {
             val roomSerial = SensorIdentity.resolveRoomStorageSensorId(sensorSerial) ?: sensorSerial
-            if (roomSerial.isBlank()) return false
-            if (timestamps.isEmpty()) return true
+            if (roomSerial.isBlank()) return BucketReplaceOutcome.FAILED
+            if (timestamps.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
             if (timestamps.size != values.size || timestamps.size != rawValues.size) {
                 Log.w(
                     TAG,
                     "storeHistoryBatchBlocking rejected mismatched arrays for $roomSerial " +
                         "(timestamps=${timestamps.size}, values=${values.size}, raw=${rawValues.size})"
                 )
-                return false
+                return BucketReplaceOutcome.FAILED
             }
 
             return try {
@@ -613,6 +653,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         sensorSerial = roomSerial,
                         readings = readings,
                         bucketDurationMs = SENSOR_MINUTE_BUCKET_MS,
+                        replacedIntervalsMs = replacedIntervalsMs,
                         invalidateAutoDisplayRecords = runCatching {
                             tk.glucodata.drivers.ManagedSensorRuntime.integratesUserCalibration(sensorSerial, false) ||
                                 tk.glucodata.drivers.ManagedSensorRuntime.rewritesAutoHistory(sensorSerial)
@@ -622,13 +663,11 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         }.getOrDefault(false),
                     )
                     if (outcome == BucketReplaceOutcome.STORED) UiRefreshBus.requestDataRefresh()
-                    // Rows the user deleted stay deleted: a batch made only of them
-                    // has nothing to store, and its caller has nothing to retry.
-                    outcome != BucketReplaceOutcome.FAILED
+                    outcome
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed storing blocking history batch for $roomSerial", e)
-                false
+                BucketReplaceOutcome.FAILED
             }
         }
     }
@@ -853,6 +892,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
      * crash in between cannot destroy the rows they are judged against. Those
      * rows are the ones replaced, or [deletedRowsByMinute] when a full resync
      * already deleted them.
+     *
+     * Inside [replacedIntervalsMs] (inclusive) the batch replaces the sensor's
+     * history rather than only its own minutes: the same transaction drops every
+     * other row there, so a failed or interrupted write leaves all of them.
      */
     suspend fun replaceSensorBuckets(
         sensorSerial: String,
@@ -862,6 +905,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         deletedRowsByMinute: Map<Long, HistoryReading>? = null,
         invalidateAutoDisplayRecords: Boolean = false,
         invalidateRawDisplayRecords: Boolean = false,
+        replacedIntervalsMs: List<LongRange> = emptyList(),
     ): BucketReplaceOutcome {
         if (sensorSerial.isBlank() || readings.isEmpty()) return BucketReplaceOutcome.NOTHING_TO_STORE
         val ticket = batchWriter.ticket()
@@ -869,8 +913,16 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
             writeBuckets(
                 sensorSerial, readings, bucketDurationMs,
                 historyTimestamps, deletedRowsByMinute,
-                invalidateAutoDisplayRecords, invalidateRawDisplayRecords,
-            ).also { batchWriter.supersede(sensorSerial, it.rows.map(HistoryReading::timestamp), ticket) }
+                invalidateAutoDisplayRecords, invalidateRawDisplayRecords, replacedIntervalsMs,
+            ).also { written ->
+                batchWriter.supersede(sensorSerial, written.rows.map(HistoryReading::timestamp), ticket)
+                if (written.outcome == BucketReplaceOutcome.STORED && replacedIntervalsMs.isNotEmpty()) {
+                    // Readings queued before the replacement go the way of the rows it dropped.
+                    batchWriter.discard(replacedSerials(sensorSerial), ticket) { waiting ->
+                        replacedIntervalsMs.any { waiting.timestamp in it }
+                    }
+                }
+            }
         }
         afterBucketsStored(stored.rows)
         return stored.outcome
@@ -888,6 +940,10 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         }
     }
 
+    /** Every name [sensorSerial] may have rows or queued readings under. */
+    private fun replacedSerials(sensorSerial: String): List<String> =
+        (resolveQuerySensorSerials(sensorSerial) + sensorSerial).distinct()
+
     /** The database half of [replaceSensorBuckets]; the caller holds [HistoryBatchWriter.exclusive]. */
     internal suspend fun writeBuckets(
         sensorSerial: String,
@@ -897,6 +953,7 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
         deletedRowsByMinute: Map<Long, HistoryReading>? = null,
         invalidateAutoDisplayRecords: Boolean = false,
         invalidateRawDisplayRecords: Boolean = false,
+        replacedIntervalsMs: List<LongRange> = emptyList(),
     ): HistoryBatchWriter.Stored {
         return withContext(Dispatchers.IO) {
             try {
@@ -983,6 +1040,20 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                         bucketDurationMs = bucketDurationMs,
                         bucketRanges = plan.bucketRanges
                     )
+                    if (replacedIntervalsMs.isNotEmpty()) {
+                        val serials = replacedSerials(sensorSerial)
+                        var dropped = 0
+                        for (interval in replacedIntervalsMs) {
+                            for (serial in serials) {
+                                dropped += dao.deleteSensorRowsInTimeRange(serial, interval.first, interval.last + 1L)
+                            }
+                        }
+                        tk.glucodata.Log.i(
+                            TAG,
+                            "replacing ${replacedIntervalsMs.size} interval(s) for $sensorSerial: dropped $dropped " +
+                                "rows besides the ${readingsWithStableSources.size} being written"
+                        )
+                    }
                     dao.insertAll(readingsWithStableSources)
                     if (historyTimestamps.isNotEmpty()) {
                         val previousByMinute = deletedRowsByMinute
@@ -1499,6 +1570,25 @@ class HistoryRepository internal constructor(private val database: HistoryDataba
                 dao.getTimestampsForSensors(serials, startTime, endTime)
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting history timestamps for sensor $serial", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Whether the user deleted a reading of [serial] in the minute of [timestamp], or null when the
+     * query could not be answered. By minute, because a stored row need not carry the exact time the
+     * driver gave the reading: a live one is stored at its whole second.
+     */
+    suspend fun isMinuteDeletedByUser(serial: String, timestamp: Long): Boolean? {
+        val storageSerial = SensorIdentity.resolveRoomStorageSensorId(serial) ?: serial
+        val serials = (resolveQuerySensorSerials(serial) + storageSerial).distinct()
+        val minuteStart = (timestamp / SENSOR_MINUTE_BUCKET_MS) * SENSOR_MINUTE_BUCKET_MS
+        return withContext(Dispatchers.IO) {
+            try {
+                dao.countDeletedReadings(serials, minuteStart, minuteStart + SENSOR_MINUTE_BUCKET_MS) > 0
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking deleted readings for sensor $serial", e)
                 null
             }
         }

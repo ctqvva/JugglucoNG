@@ -305,8 +305,33 @@ class CloneReceptionSafetyTests {
 
         assertTrue(peerChange.contains("if (side) {"))
         assertTrue(peerChange.contains("localICEPeerGenerationChanged(allindex, agent, agentGeneration)"))
-        assertTrue(peerChange.contains("else {"))
-        assertTrue(peerChange.contains("sendSnapshot(generation)"))
+        assertTrue(peerChange.contains("sendSnapshot(generation, SnapshotKind::Reply)"))
+    }
+
+    @Test
+    fun iceStatusEscapesHtmlResetsStateOnTeardownAndAvoidsPollingLogSpam() {
+        val connection = source("Common/src/main/cpp/net/ICE/ICEConnect.hpp")
+            .replace(Regex("\\s+"), " ")
+        val iceStatus = source("Common/src/main/cpp/ICEstatus.cpp")
+        val mirrorStatus = source("Common/src/main/cpp/mirrorstatus.cpp")
+        val backupJava = source("Common/src/main/cpp/backupjava.cpp")
+        val wearSync = source("Common/src/main/java/tk/glucodata/WearSync2.kt")
+
+        assertTrue(connection.contains("state.store(JUICE_STATE_DISCONNECTED);"))
+        assertTrue(connection.contains("connectTime.store(0);"))
+        assertTrue(iceStatus.contains("escapeHtml(host.getICEname())"))
+        assertTrue(iceStatus.contains("escapeHtml(host.getnameif())"))
+        assertTrue(iceStatus.contains("con->selectedAddresses()"))
+        assertFalse(iceStatus.contains("juice_get_selected_addresses_inc_type"))
+        assertFalse(iceStatus.contains("con->agent"))
+        assertFalse(iceStatus.contains("ICEstatus size="))
+        assertTrue(mirrorStatus.contains("activeRendezvousEndpoint()"))
+        assertTrue(mirrorStatus.contains("escapeHtml(host.getnameif())"))
+        assertFalse(backupJava.contains("isWearos("))
+        val calibrationGuard = wearSync.substringAfter("fun onCalibrationChanged()")
+            .substringBefore("fun onRequest(")
+        assertTrue(calibrationGuard.indexOf("if (!wearCompanionEnabled()) return@execute") in
+            0 until calibrationGuard.indexOf("allowDeepServe("))
     }
 
     @Test

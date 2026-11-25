@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include <string_view>
 #include <memory>
 #include "deleter.hpp"
@@ -10,34 +11,41 @@
 #include "net/ICE/ICEConnect.hpp"
 
 extern mirrorstatus_t mirrorstatus[maxallhosts];
-template <class T, size_t N>
-inline static constexpr void addar(char *&uitptr,const T (&array)[N]) {
-        constexpr const int len=N-1;
-        memcpy(uitptr,array,len);
-        uitptr+=len;
+namespace {
+void appendHtmlEscaped(std::string &out, std::string_view input) {
+    out.reserve(out.size() + input.size());
+    for (char c : input) {
+        switch (c) {
+            case '&': out.append("&amp;"); break;
+            case '<': out.append("&lt;"); break;
+            case '>': out.append("&gt;"); break;
+            case '"': out.append("&quot;"); break;
+            default: out.push_back(c); break;
         }
-inline void    addstrview(char *&uitptr,const std::string_view indata) {
-    memcpy(uitptr,indata.data(),indata.size());
-    uitptr+=indata.size();
     }
+}
+
+std::string escapeHtml(std::string_view input) {
+    std::string out;
+    appendHtmlEscaped(out, input);
+    return out;
+}
+
+const char *phaseName(enum Phase_t phase) {
+    switch (phase) {
+        case Start: return "Start";
+        case GetDescription: return "Get description";
+        case PutDescription: return "Put description";
+        case GatherCandidates: return "Gather candidates";
+        case FailedInitAgent: return "InitAgent failed";
+        case NewConnection: return "New Connection";
+        case SameConnection: return "Same Connection";
+    }
+    return "Unknown";
+}
+}
 extern std::unique_ptr<const char[],deleter> ICEstatus(int allindex);
 
-#define  phasesel(x,str) case x: {\
-        char name[]=str;\
-        memcpy(buf,name,sizeof(name)-1);\
-        return sizeof(name)-1;\
-        };break;
-int addphase( enum Phase_t phase,char *buf) {
-        switch(phase) {
-            phasesel(Start,"Start");
-            phasesel(GetDescription,"Get description");
-            phasesel(PutDescription,"Put description");
-            phasesel(GatherCandidates,"Gather candidates");
-            phasesel(FailedInitAgent, "InitAgent failed");
-            phasesel(NewConnection,"New Connection");
-            phasesel(SameConnection, "Same Connection");
-        }
-   };
 std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
          ICEConnect *con=static_cast<ICEConnect *>(connections[allindex]);
          if(!con)  {
@@ -56,71 +64,67 @@ std::unique_ptr<const char[],deleter> ICEstatus(int allindex) {
         sendstream=send.sendstream;
         sendscans=send.sendscans;
         }
-    const int maxbuf=1024;
-    char *buf=new(nothrow) char[maxbuf];
-        if(!buf)  {
-         constexpr const char errormessage[]=R"(<h1>Error</h1>)";
-         return std::unique_ptr<const char[],deleter>((char *)errormessage,deleter(errormessage));
-             }
-
-    static char format[]=R"(<h1>ICE Connection %d: %s</h1><p><b>ICElabel</b>: "%s" <b>Side</b>=%d<br><b>Send to</b>: %s%s%s <b>Running</b>=%s <b>Locked</b>=%s  %s<br><b>Receive from</b>: %s    %d wait for commands: %s    <b>interpret</b>: %s %s</p><p><b>Phase</b>: )";
-        char *bufptr=buf+snprintf(buf,maxbuf,format,allindex,host.getnameif(),host.getICEname().data(),host.side,sendnums?"Amounts ":"",sendscans?"Scans ":"",sendstream?"Stream ":"",boolstr[status.sender.running],boolstr[status.sender.locked],con->icedata[0].shutdown?"shutdown":"",
-        boolstr[receives],status.receive.tid,boolstr[status.receive.ingetcom()],boolstr[status.receive.ininterpret],con->icedata[1].shutdown?"shutdown":"");
-    juice_agent *agent=con->agent.load();
-    char remoteAddr[JUICE_MAX_ADDRESS_STRING_LEN+10];
-    bufptr+=addphase(con->phase.load(),bufptr);
-    if(agent) {
-         addar(bufptr,"<br><b>Local:</b> ");
-        if(int res=juice_get_selected_addresses_inc_type(agent, bufptr, JUICE_MAX_ADDRESS_STRING_LEN, remoteAddr, JUICE_MAX_ADDRESS_STRING_LEN);res == 0) {
-            bufptr+=strlen(bufptr);
-            addar(bufptr,"<br><b>Remote:</b> ");
-            addstrview(bufptr,remoteAddr);
+    const std::string escapedName = escapeHtml(host.getnameif());
+    const std::string escapedIceLabel = escapeHtml(host.getICEname());
+    const bool senderRunning = status.sender.running;
+    const bool senderLocked = status.sender.locked;
+    const bool senderShutdown = con->icedata[0].shutdown;
+    const int receiveTid = status.receive.tid;
+    const bool receiveInGetCom = status.receive.ingetcom();
+    const bool receiveInInterpret = status.receive.ininterpret;
+    const bool receiverShutdown = con->icedata[1].shutdown;
+    static const char format[]=R"(<h1>ICE Connection %d: %s</h1><p><b>ICElabel</b>: "%s" <b>Side</b>=%d<br><b>Send to</b>: %s%s%s <b>Running</b>=%s <b>Locked</b>=%s  %s<br><b>Receive from</b>: %s    %d wait for commands: %s    <b>interpret</b>: %s %s</p><p><b>Phase</b>: )";
+    const int headerLen = snprintf(nullptr, 0, format,
+        allindex, escapedName.c_str(), escapedIceLabel.c_str(), host.side,
+        sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
+        boolstr[senderRunning], boolstr[senderLocked],
+        senderShutdown?"shutdown":"",
+        boolstr[receives], receiveTid,
+        boolstr[receiveInGetCom], boolstr[receiveInInterpret],
+        receiverShutdown?"shutdown":"");
+    std::string out;
+    out.reserve((headerLen > 0 ? static_cast<size_t>(headerLen) : 0) + 256);
+    if (headerLen > 0) {
+        out.resize(static_cast<size_t>(headerLen));
+        snprintf(out.data(), out.size() + 1, format,
+            allindex, escapedName.c_str(), escapedIceLabel.c_str(), host.side,
+            sendnums?"Amounts ":"", sendscans?"Scans ":"", sendstream?"Stream ":"",
+            boolstr[senderRunning], boolstr[senderLocked],
+            senderShutdown?"shutdown":"",
+            boolstr[receives], receiveTid,
+            boolstr[receiveInGetCom], boolstr[receiveInInterpret],
+            receiverShutdown?"shutdown":"");
+    }
+    out.append(phaseName(con->phase.load()));
+    const auto [localAddr, remoteAddr] = con->selectedAddresses();
+    if(!localAddr.empty()) {
+        out.append("<br><b>Local:</b> ");
+        appendHtmlEscaped(out, localAddr);
+        if(!remoteAddr.empty()) {
+            out.append("<br><b>Remote:</b> ");
+            appendHtmlEscaped(out, remoteAddr);
           }
       }
-   addar(bufptr,"<br><b>ICE State:</b> ");
-   auto statename=juice_state_to_string(con->state.load());
-   addstrview(bufptr,statename);
+   out.append("<br><b>ICE State:</b> ");
+   out.append(juice_state_to_string(con->state.load()));
    if(con->endConnect) {
-      addar(bufptr,"<br>End connection");
+      out.append("<br>End connection");
      }
    if(con->isConnected) {
-       addar(bufptr,"<br>Connected");
+       out.append("<br>Connected");
        }
    if(const time_t connectTime=con->connectTime.load();connectTime) {
-       addar(bufptr,"<br>");
-       ctime_r(&connectTime,bufptr);
-       bufptr+=26;
+       char timebuf[32];
+       if(ctime_r(&connectTime,timebuf)) {
+           out.append("<br>");
+           out.append(timebuf);
+           }
        }
-   else
-       *bufptr++='\0';
-/*
- ICEConnect:
-bool wakeReceiver=false;
-std::mutex receiveThreadMutex;
-std::condition_variable receiveThreadCon;
-std::atomic_flag startSending{};
-std::atomic_flag startDone{};
-bool start_ack;
-bool other_started;
-std::atomic_flag initrunning{};
-ICE_data
- bool shutdown=false;
-    bool sendShutdown=false;
-    bool  sendStop=false;
-        bool askedData=false;
-    std::mutex  receiveMutex;
-    std::condition_variable receiveCond;
-    bool sentAck=false;
-    bool lastAcked=false;
-    std::mutex  sendMutex;
-    std::condition_variable sendCond;
-    std::mutex  doSendMutex;
-    std::condition_variable doSendCond;
-    bool doSend=false;
-    */
-
-
-
-   LOGGER("ICEstatus size=%d\n",bufptr-buf);
+   char *buf=new(nothrow) char[out.size()+1];
+   if(!buf)  {
+        constexpr const char errormessage[]=R"(<h1>Error</h1>)";
+        return std::unique_ptr<const char[],deleter>(errormessage,deleter(errormessage));
+        }
+   memcpy(buf, out.data(), out.size()+1);
    return std::unique_ptr<const char[],deleter> (buf,deleter(nullptr));
    }

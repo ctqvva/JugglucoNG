@@ -185,6 +185,9 @@ public class SensorBluetooth {
             if (deviceName == null || deviceName.trim().isEmpty()) {
                 deviceName = device.getName();
             }
+            if (deviceName != null && deviceName.trim().isEmpty()) {
+                deviceName = null;
+            }
             {
                 if (doLog) {
                     Log.i(LOG_ID, "deviceName=" + deviceName);
@@ -194,14 +197,23 @@ public class SensorBluetooth {
             ;
             String address = device.getAddress();
             for (var cb : gattcallbacks) {
-                if (cb.mActiveDeviceAddress != null && address.equals(cb.mActiveDeviceAddress))
+                if (cb.mActiveDeviceAddress != null && address.equals(cb.mActiveDeviceAddress)) {
+                    if (deviceName != null && (cb.mDeviceName == null || cb.mDeviceName.trim().isEmpty())) {
+                        cb.mDeviceName = deviceName;
+                        SensorDisplayName.pushIfChanged();
+                    }
                     return cb;
+                }
             }
 
             if (deviceName != null) {
                 for (var cb : gattcallbacks) {
                     if (cb.matchDeviceName(deviceName, address)) {
+                        boolean nameChanged = !deviceName.equals(cb.mDeviceName);
                         cb.mDeviceName = deviceName;
+                        if (nameChanged) {
+                            SensorDisplayName.pushIfChanged();
+                        }
                         return cb;
                     }
                     {

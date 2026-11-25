@@ -314,10 +314,20 @@ struct LocalICESignalSession::Impl {
     std::string peerGeneration;
     std::string localDescription;
     std::string acceptedRemoteDescription;
+    static constexpr size_t maxPendingRemoteGenerations = 4;
+    static constexpr size_t maxPendingCandidatesPerGeneration = 64;
+    struct PendingRemoteGeneration {
+        std::string generation;
+        std::vector<std::string> candidates;
+        bool gatheringDone{false};
+    };
+
     std::vector<std::string> localCandidates;
     bool localGatheringDone{false};
-    std::vector<std::string> pendingRemoteCandidates;
-    bool pendingRemoteGatheringDone{false};
+    std::string acceptedRemoteGeneration;
+    std::vector<std::string> appliedRemoteCandidates;
+    bool remoteGatheringDoneApplied{false};
+    std::vector<PendingRemoteGeneration> pendingRemoteGenerations;
     std::chrono::steady_clock::time_point nextSnapshot{};
     std::string promotionProbeToken;
     std::atomic_bool promotionProbeActive{false};
@@ -647,7 +657,7 @@ struct LocalICESignalSession::Impl {
         }
     }
 
-    void sendSnapshot(std::string_view echo = {},
+    bool sendSnapshot(std::string_view echo = {},
                       SnapshotKind kind = SnapshotKind::Handshake) {
         std::string description;
         std::vector<std::string> candidates;
@@ -656,7 +666,7 @@ struct LocalICESignalSession::Impl {
             const std::lock_guard<std::mutex> lock(stateMutex);
             const auto now = std::chrono::steady_clock::now();
             if (kind != SnapshotKind::Handshake && now < nextSnapshot)
-                return;
+                return false;
             nextSnapshot = now + snapshotRetryInterval;
             description = localDescription;
             candidates = localCandidates;
@@ -672,6 +682,7 @@ struct LocalICESignalSession::Impl {
             sendPacket(MessageType::Candidate, candidate, echo);
         if (gatheringDone)
             sendPacket(MessageType::GatheringDone, {}, echo);
+        return true;
     }
 
     bool decryptPacket(const uint8_t *packet, size_t length,
@@ -697,13 +708,39 @@ struct LocalICESignalSession::Impl {
             wireHeaderLength, encryptedLength, tagLength);
     }
 
-    void applyPendingRemote() {
+    PendingRemoteGeneration &pendingForLocked(std::string_view generation) {
+        auto it = std::find_if(
+            pendingRemoteGenerations.begin(), pendingRemoteGenerations.end(),
+            [&](const PendingRemoteGeneration &entry) {
+                return entry.generation == generation;
+            });
+        if (it != pendingRemoteGenerations.end())
+            return *it;
+        if (pendingRemoteGenerations.size() >= maxPendingRemoteGenerations)
+            pendingRemoteGenerations.erase(pendingRemoteGenerations.begin());
+        pendingRemoteGenerations.push_back(
+            PendingRemoteGeneration{std::string(generation), {}, false});
+        return pendingRemoteGenerations.back();
+    }
+
+    void applyPendingRemote(std::string_view acceptedGeneration) {
         std::vector<std::string> candidates;
-        bool gatheringDone;
+        bool gatheringDone = false;
         {
             const std::lock_guard<std::mutex> lock(stateMutex);
-            candidates.swap(pendingRemoteCandidates);
-            gatheringDone = std::exchange(pendingRemoteGatheringDone, false);
+            acceptedRemoteGeneration.assign(acceptedGeneration);
+            auto it = std::find_if(
+                pendingRemoteGenerations.begin(), pendingRemoteGenerations.end(),
+                [&](const PendingRemoteGeneration &entry) {
+                    return entry.generation == acceptedGeneration;
+                });
+            if (it != pendingRemoteGenerations.end()) {
+                candidates.swap(it->candidates);
+                appliedRemoteCandidates = candidates;
+                gatheringDone = it->gatheringDone;
+                remoteGatheringDoneApplied = gatheringDone;
+            }
+            pendingRemoteGenerations.clear();
         }
         for (const auto &candidate : candidates)
             applyLocalICECandidate(allindex, agent, agentGeneration, candidate);
@@ -770,15 +807,19 @@ struct LocalICESignalSession::Impl {
             // Side 0 owns the offer. Let side 1 follow a replacement offer,
             // but never let both peers answer a generation change by
             // replacing each other forever. A stable side-0 agent republishes
-            // its snapshot so the new side-1 generation can answer it.
+            // its snapshot as a rate-limited Reply (without Hello) so a
+            // restarted answerer can catch up without triggering a LAN
+            // broadcast ping-pong loop.
             if (side) {
                 LOGARLOCALICE("authenticated offerer generation changed");
                 localICEPeerGenerationChanged(allindex, agent, agentGeneration);
-            } else {
-                LOGARLOCALICE("authenticated answerer generation changed; keeping offer stable");
-                sendSnapshot(generation);
+                return;
             }
-            return;
+            if (sendSnapshot(generation, SnapshotKind::Reply)) {
+                LOGARLOCALICE("authenticated answerer generation changed; keeping offer stable");
+            }
+            if (type == MessageType::Hello)
+                return;
         }
 
         if (type == MessageType::PromotionProbe) {
@@ -844,28 +885,54 @@ struct LocalICESignalSession::Impl {
                     applyLocalICEDescription(allindex, agent, agentGeneration,
                                              data, generation)) {
                     remoteDescriptionApplied = true;
-                    applyPendingRemote();
+                    applyPendingRemote(generation);
                 }
                 break;
             case MessageType::Candidate:
                 if (remoteDescriptionApplied.load()) {
-                    applyLocalICECandidate(allindex, agent, agentGeneration,
-                                           data);
+                    bool shouldApply = false;
+                    {
+                        const std::lock_guard<std::mutex> lock(stateMutex);
+                        if (acceptedRemoteGeneration == generation &&
+                            std::find(appliedRemoteCandidates.begin(),
+                                      appliedRemoteCandidates.end(), data) ==
+                                appliedRemoteCandidates.end()) {
+                            appliedRemoteCandidates.emplace_back(data);
+                            shouldApply = true;
+                        }
+                    }
+                    if (shouldApply) {
+                        applyLocalICECandidate(allindex, agent, agentGeneration,
+                                               data);
+                    }
                 } else {
                     const std::lock_guard<std::mutex> lock(stateMutex);
-                    if (std::find(pendingRemoteCandidates.begin(),
-                                  pendingRemoteCandidates.end(), data) ==
-                        pendingRemoteCandidates.end())
-                        pendingRemoteCandidates.emplace_back(data);
+                    auto &pending = pendingForLocked(generation);
+                    if (pending.candidates.size() < maxPendingCandidatesPerGeneration &&
+                        std::find(pending.candidates.begin(),
+                                  pending.candidates.end(), data) ==
+                            pending.candidates.end())
+                        pending.candidates.emplace_back(data);
                 }
                 break;
             case MessageType::GatheringDone:
                 if (remoteDescriptionApplied.load()) {
-                    applyLocalICEGatheringDone(allindex, agent,
-                                               agentGeneration);
+                    bool shouldApply = false;
+                    {
+                        const std::lock_guard<std::mutex> lock(stateMutex);
+                        if (acceptedRemoteGeneration == generation &&
+                            !remoteGatheringDoneApplied) {
+                            remoteGatheringDoneApplied = true;
+                            shouldApply = true;
+                        }
+                    }
+                    if (shouldApply) {
+                        applyLocalICEGatheringDone(allindex, agent,
+                                                   agentGeneration);
+                    }
                 } else {
                     const std::lock_guard<std::mutex> lock(stateMutex);
-                    pendingRemoteGatheringDone = true;
+                    pendingForLocked(generation).gatheringDone = true;
                 }
                 break;
             case MessageType::Hello:

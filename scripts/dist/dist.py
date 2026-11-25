@@ -75,6 +75,7 @@ def inventory():
 def inputs_check():
     data = inventory()
     expected = {f['path']: f for f in data['files'] if Path(f['path']).parent.name in abis()}
+    retired = set(data.get('removedFiles', []))
     for path, spec in expected.items():
         p = ROOT / path
         if not p.is_file() or p.stat().st_size != spec['size'] or digest(p.read_bytes()) != spec['sha256']:
@@ -83,8 +84,11 @@ def inputs_check():
     for source in ['main', 'mobile', 'wear', 'wearSi']:
         for abi in abis():
             for p in (ROOT / f'Common/src/{source}/jniLibs/{abi}').glob('*.so'):
-                if str(p.relative_to(ROOT)) not in expected:
-                    raise ValueError(f'Uninventoried distribution input: {p.relative_to(ROOT)}')
+                path = p.relative_to(ROOT).as_posix()
+                if path in expected:
+                    continue
+                hint = '. Remove this retired file.' if path in retired else ''
+                raise ValueError(f'Uninventoried distribution input: {path}{hint}')
     print(f'Verified {len(expected)} private JNI inputs', file=sys.stderr)
 
 

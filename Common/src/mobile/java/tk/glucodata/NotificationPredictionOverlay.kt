@@ -3,10 +3,10 @@ package tk.glucodata
 import android.content.Context
 import android.os.Looper
 import androidx.annotation.Keep
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
-import tk.glucodata.data.journal.JournalEntry
-import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalRepository
 import tk.glucodata.data.prediction.PredictiveSimulationSettings
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
@@ -44,18 +44,20 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
     private const val JOURNAL_KEY = "dashboard_journal_enabled"
     private const val FOOD_MACROS_KEY = "dashboard_journal_food_macros_enabled"
     private const val JOURNAL_LOOKBACK_MS = 36L * 60L * 60L * 1000L
-    private const val CACHE_MAX_AGE_MS = 30_000L
 
-    private data class JournalSnapshot(
-        val loadedAt: Long,
-        val startMillis: Long,
-        val endMillis: Long,
-        val entries: List<JournalEntry>,
-        val presetsById: Map<Long, JournalInsulinPreset>
+    private val journalCache = PredictionJournalCache(
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        revision = { JournalSnapshotAccess.revision },
+        clock = System::currentTimeMillis,
+        onMissedLoadReady = JournalSnapshotAccess::noteForecastJournalReady,
+        loadJournal = { start, end ->
+            val repository = JournalRepository()
+            PredictionJournal(
+                entries = repository.getEntriesBetweenSnapshot(start, end),
+                presetsById = repository.getInsulinPresetsSnapshot().associateBy { it.id }
+            )
+        }
     )
-
-    @Volatile
-    private var cachedJournalSnapshot: JournalSnapshot? = null
 
     @Keep
     override fun buildPredictionSeries(
@@ -86,23 +88,17 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
                 (point.rawValue.isFinite() && point.rawValue > 0.1f))
         }?.timestamp ?: return emptyList()
         val horizonMinutes = tk.glucodata.settings.SettingsRegistry.PREDICTION_HORIZON.readIntClamped(prefs)
-        val journalSnapshot = if (prefs.getBoolean(JOURNAL_KEY, true)) {
-            loadJournalSnapshot(baselineTime, horizonMinutes)
+        val journal = if (prefs.getBoolean(JOURNAL_KEY, true)) {
+            loadJournal(baselineTime, horizonMinutes)
         } else {
-            JournalSnapshot(
-                loadedAt = System.currentTimeMillis(),
-                startMillis = 0L,
-                endMillis = 0L,
-                entries = emptyList(),
-                presetsById = emptyMap()
-            )
+            PredictionJournal.EMPTY
         }
 
         val predictionSeries = buildPredictionSeriesForChart(
             points = uiHistory,
             viewMode = viewMode,
-            journalEntries = journalSnapshot.entries,
-            insulinPresetsById = journalSnapshot.presetsById,
+            journalEntries = journal.entries,
+            insulinPresetsById = journal.presetsById,
             unit = unit,
             targetLow = targetLow,
             targetHigh = targetHigh,
@@ -137,47 +133,16 @@ object NotificationPredictionOverlay : NotificationPredictionBridge {
         }
     }
 
-    private fun loadJournalSnapshot(baselineTime: Long, horizonMinutes: Int): JournalSnapshot {
+    private fun loadJournal(baselineTime: Long, horizonMinutes: Int): PredictionJournal {
         val start = baselineTime - JOURNAL_LOOKBACK_MS
         val end = baselineTime + horizonMinutes * 60_000L
-        val now = System.currentTimeMillis()
-        cachedJournalSnapshot?.let { snapshot ->
-            if (now - snapshot.loadedAt <= CACHE_MAX_AGE_MS && snapshot.startMillis <= start && snapshot.endMillis >= end) {
-                return snapshot
-            }
-        }
         if (Looper.myLooper() == Looper.getMainLooper()) {
-            BatteryTrace.bump("notify.prediction.main_thread_journal_skip", 20L)
-            return emptyJournalSnapshot(now, start, end)
-        }
-
-        return runCatching {
-            runBlocking(Dispatchers.IO) {
-                val repository = JournalRepository()
-                val entries = repository.getEntriesBetweenSnapshot(start, end)
-                val presets = repository.getInsulinPresetsSnapshot().associateBy { it.id }
-                JournalSnapshot(
-                    loadedAt = now,
-                    startMillis = start,
-                    endMillis = end,
-                    entries = entries,
-                    presetsById = presets
-                )
+            // The always-on overlay draws here and must not wait for Room; it draws again
+            // when the journal it missed is loaded.
+            return journalCache.getWithoutWaiting(start, end) ?: PredictionJournal.EMPTY.also {
+                BatteryTrace.bump("notify.prediction.main_thread_journal_skip", 20L)
             }
-        }.getOrElse {
-            emptyJournalSnapshot(now, start, end)
-        }.also { snapshot ->
-            cachedJournalSnapshot = snapshot
         }
-    }
-
-    private fun emptyJournalSnapshot(now: Long, start: Long, end: Long): JournalSnapshot {
-        return JournalSnapshot(
-            loadedAt = now,
-            startMillis = start,
-            endMillis = end,
-            entries = emptyList(),
-            presetsById = emptyMap()
-        )
+        return runBlocking(Dispatchers.IO) { journalCache.get(start, end) }
     }
 }

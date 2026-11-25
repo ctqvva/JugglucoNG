@@ -3,11 +3,12 @@ package tk.glucodata.ui.screens
 import android.text.format.DateUtils
 import tk.glucodata.Natives
 import tk.glucodata.NotificationHistorySource
+import tk.glucodata.SensorDisplayName
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
 
 internal data class WearSensorPresentation(
-    val serial: String,
+    val displayName: String,
     val connectionStatus: String,
     val detailedStatus: String,
     val dayValueText: String,
@@ -18,8 +19,6 @@ internal data class WearSensorPresentation(
 )
 
 private const val DAY_MS = 24L * 60L * 60L * 1000L
-
-internal fun displaySensorName(id: String): String = id.replace(Regex("^[A-Z0-9]{2,6}:"), "")
 
 internal fun loadWearSensorPresentation(sensorId: String, nowMs: Long): WearSensorPresentation {
     val managed = runCatching { ManagedSensorRuntime.resolveUiSnapshot(sensorId, sensorId) }.getOrNull()
@@ -70,7 +69,7 @@ internal fun loadWearSensorPresentation(sensorId: String, nowMs: Long): WearSens
     }.getOrNull()?.takeIf { it > 0L } ?: 0L
 
     return WearSensorPresentation(
-        serial = displaySensorName(managed?.serial?.takeIf { it.isNotBlank() } ?: sensorId),
+        displayName = SensorDisplayName.resolve(sensorId, managedSnapshot = managed),
         connectionStatus = managed?.connectionStatus?.trim().orEmpty(),
         detailedStatus = managed?.detailedStatus?.trim().orEmpty(),
         dayValueText = dayValue,

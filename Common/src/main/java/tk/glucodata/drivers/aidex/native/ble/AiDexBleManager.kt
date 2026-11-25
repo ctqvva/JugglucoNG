@@ -854,7 +854,7 @@ class AiDexBleManager(
 
     // -- SharedPreferences for per-sensor state persistence --
     private val algorithmRuntime by lazy {
-        AiDexAlgorithmRuntime(Applic.app, SerialNumber, { dataptr }, { sensorstartmsec },
+        AiDexAlgorithmRuntime(Applic.app, SerialNumber, { dataptr }, { write -> withNativeData(write) != null }, { sensorstartmsec },
             { historyDownloading }, storeLive = { row, previous -> storeAlgorithmLive(row, previous) },
             publish = { row, live -> publishAlgorithmReading(row, live) },
             requestSourceHistory = { time -> requestOriginalHistoryRecovery(time) })
@@ -872,9 +872,21 @@ class AiDexBleManager(
         }
     }
 
+    /**
+     * Keeps the native wrapper alive during a JNI call on it. Bluetooth teardown frees the
+     * wrapper holding the callback monitor, which [resetdataptr] takes after the controller
+     * lock, so neither can guard it. Innermost lock: take no other one while holding it.
+     */
+    private val nativeDataLock = Any()
+    override fun releaseNativeData() = synchronized(nativeDataLock) { super.releaseNativeData() }
+    private inline fun <T : Any> withNativeData(call: (Long) -> T): T? = synchronized(nativeDataLock) {
+        if (dataptr == 0L) null else call(dataptr)
+    }
+
     override fun resetdataptr(): Long = synchronized(algorithmRuntime.controller.lock) {
         if (algorithmRuntime.controller.isClosed()) 0L else {
             algorithmRuntime.controller.invalidateReferences()
+            releaseNativeData()
             super.resetdataptr()
         }
     }
@@ -924,11 +936,13 @@ class AiDexBleManager(
         trend: Int = Natives.AIDEX_TREND_UNKNOWN): AiDexAlgorithmReading {
         markLocalReadingAccepted(row.source.timestampMs)
         val raw = row.source.rawMgDl.takeIf { it.isFinite() } ?: 0f
-        if (dataptr != 0L) runCatching {
-            val result = Natives.aidexProcessData(dataptr, byteArrayOf(0), row.source.timestampMs,
-                row.glucoseMgDl, raw, 1f,
-                if (algorithmRuntime.controller.appliedSelection.adaptive) Natives.AIDEX_TREND_UNKNOWN else trend)
-            if (result != 0L && result != 1L) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite("aidex-managed", row.source.timestampMs)
+        runCatching {
+            val result = withNativeData {
+                Natives.aidexProcessData(it, byteArrayOf(0), row.source.timestampMs,
+                    row.glucoseMgDl, raw, 1f,
+                    if (algorithmRuntime.controller.appliedSelection.adaptive) Natives.AIDEX_TREND_UNKNOWN else trend)
+            }
+            if (result != null && result != 0L && result != 1L) tk.glucodata.NightscoutUploadWake.afterLiveNativeWrite("aidex-managed", row.source.timestampMs)
         }.onFailure { Log.stack(TAG, "selected live native write", it) }
         // The sensor's trend byte in Stock; otherwise a difference between
         // neighbouring readings, never across a dropout. Unknown publishes as 0,
@@ -998,6 +1012,8 @@ class AiDexBleManager(
     @Volatile private var historyDownloading = false
     private var historyRawNextIndex = 0
     private var historyBriefNextIndex = 0
+    /** 0x23 is ahead of 0x24, but the glucose it fetched is no longer in memory. */
+    @Volatile private var rawCursorLostItsCache = false
     private var historyNewestOffset = 0
     private var historyStoredCount = 0  // entries stored via aidexProcessData this download
     private var historyDownloadStartIndex = 0  // snapshot of starting index for progress display
@@ -1030,6 +1046,7 @@ class AiDexBleManager(
         if (historyRawNextIndex > 0 || historyBriefNextIndex > 0) {
             Log.i(TAG, "Restored history offsets: raw=$historyRawNextIndex, brief=$historyBriefNextIndex")
         }
+        rawCursorLostItsCache = historyRawNextIndex > historyBriefNextIndex
         // Restore post-reset activation flag — survives driver instance recreation
         // (e.g., finish/unfinish sensor cycle that creates a new AiDexBleManager)
         needsPostResetActivation = readBoolPref("needsPostResetActivation", false)
@@ -1100,6 +1117,49 @@ class AiDexBleManager(
         }
     }
 
+    /**
+     * Drop the buffered rows of an interrupted download. Their cursors have already
+     * moved on, so the journal, which holds every one of them, has to fill Room.
+     */
+    private fun releasePendingRoomHistory(reason: String) {
+        if (pendingRoomHistoryTimestamps.isEmpty()) return
+        clearPendingRoomHistory(reason)
+        algorithmRuntime.enqueue { algorithmRuntime.requestRoomRepair() }
+    }
+
+    /**
+     * 0x24 rows are stored with the factory glucose 0x23 cached in memory. Wherever that
+     * cache is lost before 0x24 consumed it, 0x23 has to be fetched again from there too.
+     */
+    private fun rewindRawHistoryCursor() {
+        historyRawNextIndex = minOf(historyRawNextIndex, historyBriefNextIndex)
+        writeIntPref("historyRawNextIndex", historyRawNextIndex)
+        rawCursorLostItsCache = false
+    }
+
+    /**
+     * The fallback belongs to the row before the cursor. It is kept with the cursor, so a
+     * download that resumes there merges the next rows as an uninterrupted one would.
+     */
+    private fun advanceBriefHistoryCursor(nextIndex: Int) {
+        historyBriefNextIndex = nextIndex
+        prefs.edit()
+            .putInt(prefKey("historyBriefNextIndex"), nextIndex)
+            .putInt(prefKey("historyFallbackIndex"), nextIndex)
+            .putInt(prefKey("historyFallbackGlucose"), lastCalibratedGlucoseFallback ?: 0)
+            .apply()
+    }
+
+    private fun restoreHistoryFallback() {
+        lastCalibratedGlucoseFallback = readIntPref("historyFallbackGlucose", 0)
+            .takeIf { it > 0 && readIntPref("historyFallbackIndex", 0) == historyBriefNextIndex }
+    }
+
+    private fun clearHistoryFallback() {
+        lastCalibratedGlucoseFallback = null
+        writeIntPref("historyFallbackGlucose", 0)
+    }
+
     private fun flushPendingRoomHistoryToRoom(): Boolean {
         if (pendingRoomHistoryTimestamps.isEmpty()) {
             return true
@@ -1134,7 +1194,7 @@ class AiDexBleManager(
         handler.removeCallbacks(historyPageWatchdog)
         historyDownloading = false
         historyPhase = HistoryPhase.IDLE
-        clearPendingRoomHistory(reason)
+        releasePendingRoomHistory(reason)
         // Persist current offsets so next reconnect resumes where we stopped
         writeIntPref("historyRawNextIndex", historyRawNextIndex)
         writeIntPref("historyBriefNextIndex", historyBriefNextIndex)
@@ -1150,7 +1210,8 @@ class AiDexBleManager(
     // Our wire format is swapped: 0x23 = calibrated, 0x24 = raw ADC.
     private val calibratedGlucoseCache = HashMap<Int, Int>()
     // Fallback glucose for 0x24 entries without an exact 0x23 offset match.
-    // Carried across pages so edge-of-page entries still get a valid glucose.
+    // Carried across pages so edge-of-page entries still get a valid glucose,
+    // and with the brief cursor across an interrupted download.
     private var lastCalibratedGlucoseFallback: Int? = null
 
     // -- F003 Live Data --
@@ -1706,9 +1767,10 @@ class AiDexBleManager(
         clearDefaultParamProbeState()
         clearDefaultParamApplyState()
         defaultParamProbeUserInitiated = false
-        clearPendingRoomHistory(reason)
+        releasePendingRoomHistory(reason)
         clearInvalidSetupTracking(resetRecoveryCounter = resetInvalidSetupCounter, reason = reason)
 
+        if (calibratedGlucoseCache.isNotEmpty()) rawCursorLostItsCache = true
         calibratedGlucoseCache.clear()
         lastCalibratedGlucoseFallback = null
         lastOffsetMinutes = 0
@@ -2208,7 +2270,7 @@ class AiDexBleManager(
             clearDefaultParamApplyState()
             defaultParamProbeUserInitiated = false
             noDirectLiveBroadcastFallbackMode = false
-            clearPendingRoomHistory("new-connection")
+            releasePendingRoomHistory("new-connection")
             handler.removeCallbacks(noStreamWatchdog)
             handler.removeCallbacks(delayedInitialHistoryRequest)
             handler.removeCallbacks(delayedStreamingMetadataRequest)
@@ -2945,7 +3007,7 @@ class AiDexBleManager(
 
         if (reportedWearDays != null) {
             try {
-                Natives.aidexSetWearDays(dataptr, reportedWearDays)
+                withNativeData { Natives.aidexSetWearDays(it, reportedWearDays) }
                 Log.i(TAG, "aidexSetWearDays: days=$reportedWearDays (sensor-reported, from $source)")
             } catch (_: Throwable) {}
         }
@@ -2956,7 +3018,7 @@ class AiDexBleManager(
                 if (algorithmRuntime.controller.isClosed()) return
                 algorithmRuntime.controller.invalidateReferences()
                 sensorstartmsec = startMs
-                Natives.aidexSetStartTime(dataptr, startMs)
+                withNativeData { Natives.aidexSetStartTime(it, startMs) }
             }
         }
         if (lastGlucoseTimeMs < startMs) {
@@ -4690,7 +4752,7 @@ class AiDexBleManager(
             rememberSensorWearDays(parsed.wearDays)
             if (dataptr != 0L) {
                 try {
-                    Natives.aidexSetWearDays(dataptr, parsed.wearDays)
+                    withNativeData { Natives.aidexSetWearDays(it, parsed.wearDays) }
                     Log.i(TAG, "aidexSetWearDays: days=${parsed.wearDays} (sensor-reported, from startup-0x10)")
                 } catch (_: Throwable) {}
             }
@@ -5014,7 +5076,7 @@ class AiDexBleManager(
         historyDownloading = true
         historyDownloadStartIndex = rawStart  // snapshot for progress display
         historyPhase = HistoryPhase.DOWNLOADING_CALIBRATED
-        clearPendingRoomHistory("history-range-reset")
+        releasePendingRoomHistory("history-range-reset")
         Log.i(TAG, "History range: briefStart=$briefStart, rawStart=$rawStart, newest=$newest")
 
         val now = System.currentTimeMillis()
@@ -5053,6 +5115,7 @@ class AiDexBleManager(
             lastOffsetMinutes = newest
             ensureSensorStartTime(now)
         }
+        if (rawCursorLostItsCache) rewindRawHistoryCursor()
         val repairTime = sourceHistoryRepairTime
         val repairOffset = repairTime?.let {
             AiDexHistoryPolicy.sourceRepairOffset(it, sensorstartmsec, briefStart, rawStart, newest)
@@ -5072,6 +5135,7 @@ class AiDexBleManager(
         )
         historyRawNextIndex = downloadPlan.rawNextIndex
         historyBriefNextIndex = downloadPlan.briefNextIndex
+        restoreHistoryFallback()
         historyDownloadStartIndex = downloadPlan.downloadStartIndex
 
         if (downloadPlan.action == AiDexHistoryPolicy.InitialAction.COMPLETE_EMPTY) {
@@ -5121,11 +5185,16 @@ class AiDexBleManager(
         }
     }
 
+    /**
+     * [opcode, status, payload, CRC16]: the CRC was validated on arrival and is no row.
+     * Read as one, a 0x23 page ends in an invented reading and skips the real minute.
+     */
+    private fun historyPagePayload(data: ByteArray): ByteArray = data.copyOfRange(2, data.size - 2)
+
     private fun handleHistoryRawResponse(data: ByteArray) {
         if (data.size < 4) return
         handler.removeCallbacks(historyPageWatchdog)  // Response arrived — cancel page timeout
-        // data[1] = status, data[2..] = payload
-        val payload = data.copyOfRange(2, data.size)
+        val payload = historyPagePayload(data)
         val entries = AiDexParser.parseHistoryResponse(payload)
         if (entries.isEmpty()) {
             Log.i(TAG, "History raw (0x23): empty page at offset=$historyRawNextIndex newest=$historyNewestOffset")
@@ -5149,7 +5218,7 @@ class AiDexBleManager(
             val (cached, skipped) = HistoryMerge.cacheCalibratedEntries(entries, calibratedGlucoseCache)
             Log.i(TAG, "0x23: cached $cached, skipped $skipped (cache size=${calibratedGlucoseCache.size})")
 
-            historyRawNextIndex = entries.last().timeOffsetMinutes + 1
+            historyRawNextIndex = AiDexHistoryPolicy.nextPageIndex(entries.last().timeOffsetMinutes, historyNewestOffset)
             writeIntPref("historyRawNextIndex", historyRawNextIndex)
 
             // Fetch next page if more data available
@@ -5173,11 +5242,22 @@ class AiDexBleManager(
     }
 
     private fun handleHistoryBriefResponse(data: ByteArray) {
-        if (data.size < 7) return
+        if (data.size < 7 || algorithmRuntime.controller.isClosed()) return
         handler.removeCallbacks(historyPageWatchdog)  // Response arrived — cancel page timeout
-        val payload = data.copyOfRange(2, data.size)
+        val payload = historyPagePayload(data)
         val entries = AiDexParser.parseBriefHistoryResponse(payload)
         if (entries.isEmpty()) {
+            // A page of all-zero rows has nothing to store, but is not the end of the
+            // history. At the announced end it stays pending: the rows may yet be written.
+            val pageEnd = AiDexParser.briefHistoryPageEnd(payload)
+            if (pageEnd != null && pageEnd > historyBriefNextIndex && pageEnd <= historyNewestOffset) {
+                Log.i(TAG, "History brief (0x24): no valid rows in $historyBriefNextIndex..${pageEnd - 1}, continuing")
+                advanceBriefHistoryCursor(pageEnd)
+                handler.postDelayed({
+                    requestHistoryPage(AiDexOpcodes.GET_HISTORIES, historyBriefNextIndex)
+                }, HISTORY_REQUEST_DELAY_MS)
+                return
+            }
             Log.i(TAG, "History brief (0x24): empty page at offset=$historyBriefNextIndex newest=$historyNewestOffset")
             onHistoryDownloadComplete()
             return
@@ -5189,13 +5269,12 @@ class AiDexBleManager(
             // Merge 0x24 raw ADC data with cached 0x23 calibrated glucose using extracted helper.
             val mergeResult = HistoryMerge.mergeHistoryEntries(entries, calibratedGlucoseCache, lastCalibratedGlucoseFallback)
             if (!storeHistoryEntries(mergeResult.entries)) {
-                // Adaptive history reaches Room only through a replay of journaled
-                // originals. Keep this page pending rather than advancing past rows
-                // nothing stored. Merging consumed its factory cache, and reconnect
-                // discards that cache, so persist a rewind of 0x23 as well. Its
-                // caught-up cursor otherwise skips the factory refetch on resume.
-                historyRawNextIndex = minOf(historyRawNextIndex, historyBriefNextIndex)
-                abortHistoryDownload("source-journal-unavailable")
+                // Keep this page pending rather than advancing past rows nothing
+                // stored. Merging consumed its factory cache, and reconnect discards
+                // that cache, so persist a rewind of 0x23 as well. Its caught-up
+                // cursor otherwise skips the factory refetch on resume.
+                rewindRawHistoryCursor()
+                abortHistoryDownload("history-page-not-stored")
                 return
             }
             // Persist the last known glucose for the next page
@@ -5203,8 +5282,7 @@ class AiDexBleManager(
 
             Log.i(TAG, "0x24: merged=${mergeResult.mergedCount} fallback=${mergeResult.fallbackCount} noGlucose=${mergeResult.noGlucoseCount} (cache remaining=${calibratedGlucoseCache.size})")
 
-            historyBriefNextIndex = entries.last().timeOffsetMinutes + 1
-            writeIntPref("historyBriefNextIndex", historyBriefNextIndex)
+            advanceBriefHistoryCursor(AiDexHistoryPolicy.nextPageIndex(entries.last().timeOffsetMinutes, historyNewestOffset))
 
             // Fetch next page
             if (historyBriefNextIndex <= historyNewestOffset) {
@@ -5892,11 +5970,11 @@ class AiDexBleManager(
                 if (dataptr != 0L) {
                     reportedWearDaysOrNull()?.let { wearDays ->
                         try {
-                            Natives.aidexSetWearDays(dataptr, wearDays)
+                            withNativeData { Natives.aidexSetWearDays(it, wearDays) }
                         } catch (_: Throwable) {}
                     }
                     try {
-                        Natives.aidexSetStartTime(dataptr, sensorstartmsec)
+                        withNativeData { Natives.aidexSetStartTime(it, sensorstartmsec) }
                     } catch (_: Throwable) {}
                 }
             }
@@ -5918,46 +5996,33 @@ class AiDexBleManager(
      * - Uses a quiet native history path (native persistence only)
      * - Leaves UI/current-reading refresh to the single catch-up update after download completion
      * - Leaves Room merge to a single non-destructive sync after download completion
+     *
+     * True when every row was either stored or deliberately discarded, so the cursor may
+     * pass this page. False when a row that belongs in history was not stored: the caller
+     * must keep the page for a later attempt.
      */
-    /** False only when Adaptive owns history and these originals could not be journaled. */
     private fun storeHistoryEntries(entries: List<HistoryStoreEntry>): Boolean = synchronized(algorithmRuntime.controller.lock) {
-        if (algorithmRuntime.controller.isClosed()) return@synchronized true
-        // Ensure start time is available before computing timestamps.
-        // History download can begin before 0x21 succeeds or before any F003 arrives.
-        if (sensorstartmsec <= 0L) {
-            ensureSensorStartTime(System.currentTimeMillis())
-        }
-        if (sensorstartmsec <= 0L) {
-            Log.w(TAG, "storeHistoryEntries: sensorstartmsec still not set after ensureSensorStartTime — skipping ${entries.size} entries")
-            return@synchronized true
-        }
-        if (dataptr == 0L) {
-            Log.w(TAG, "storeHistoryEntries: dataptr is 0 — cannot store")
-            return@synchronized true
-        }
+        if (algorithmRuntime.controller.isClosed()) return@synchronized false
 
         val now = System.currentTimeMillis()
         val reportedWearDays = reportedWearDaysOrNull()
         val wearDurationMinutes = AiDexHistoryPolicy.wearDurationMinutes(reportedWearDays)
-        var stored = 0
         var skippedWearDuration = 0
-        var newestStoredTimeMs = 0L
-        val temperatureRecords = ArrayList<AiDexTemperatureStore.TemperatureRecord>()
-        val originals = ArrayList<AiDexSourceSample>()
 
-        for (entry in entries) {
+        // Rows that are never stored, whatever the state of the store
+        val candidates = entries.filter { entry ->
             // Filter invalid
-            if (!entry.isValid) continue
-            if (entry.offsetMinutes <= 0) continue
-            if (entry.offsetMinutes.toLong() > MAX_OFFSET_DAYS * 24L * 60L) continue
+            if (!entry.isValid) return@filter false
+            if (entry.offsetMinutes <= 0) return@filter false
+            if (entry.offsetMinutes.toLong() > MAX_OFFSET_DAYS * 24L * 60L) return@filter false
             if (!AiDexHistoryPolicy.isWithinWearDuration(entry.offsetMinutes, reportedWearDays)) {
                 skippedWearDuration++
-                continue
+                return@filter false
             }
 
             // Skip entries beyond the sensor's reported newest offset — these contain
             // uninitialized/corrupt data from the sensor's ring buffer write head.
-            if (historyNewestOffset > 0 && entry.offsetMinutes > historyNewestOffset) continue
+            if (historyNewestOffset > 0 && entry.offsetMinutes > historyNewestOffset) return@filter false
 
             // Only skip the exact live-backed minute that was already stored by
             // direct F003 before history started. On reconnect, newer history
@@ -5966,66 +6031,15 @@ class AiDexBleManager(
                     entryOffsetMinutes = entry.offsetMinutes,
                     liveOffsetCutoff = liveOffsetCutoff,
                 )
-            ) continue
+            ) return@filter false
 
             // Filter ADC saturation sentinel (≥1023 for calibrated, but raw can be higher)
             val glucoseInt = entry.glucoseMgDl.toInt()
-            if (glucoseInt >= 1023 && entry.glucoseMgDl > 0f) continue
+            if (glucoseInt >= 1023 && entry.glucoseMgDl > 0f) return@filter false
 
             // Filter out-of-range calibrated values (matches vendor driver's MIN_VALID..MAX_VALID check)
-            if (glucoseInt !in MIN_VALID_GLUCOSE_MGDL..MAX_VALID_GLUCOSE_MGDL) continue
-
-            // Compute timestamp
-            val historicalTimeMs = sensorstartmsec + (entry.offsetMinutes.toLong() * 60_000L)
-
-            // No warmup gate — valid readings during warmup are stored and displayed.
-            // The isValid/MIN_VALID check above already filters out garbage warmup data
-            // (e.g., glucose=15 mg/dL). Valid-looking readings (>= MIN_VALID) are stored
-            // even during the first 7 minutes so the user sees data as soon as possible.
-
-            // Future-timestamp guard (2 minutes tolerance)
-            if (historicalTimeMs > now + 120_000L) continue
-
-            // Store via JNI — quiet history path, no per-entry UI wakeups
-            try {
-                val rawForStore = HistoryMerge.normalizeRawMgDl(entry.rawMgDl) ?: 0f
-                originals += algorithmRuntime.source(historicalTimeMs, entry.glucoseMgDl, rawForStore,
-                    entry.temperatureC, AiDexSourceSample.HISTORY)
-                if (AiDexTemperatureStore.isPlausibleSkinTemperatureC(entry.temperatureC)) {
-                    temperatureRecords.add(
-                        AiDexTemperatureStore.TemperatureRecord(historicalTimeMs, entry.temperatureC)
-                    )
-                }
-                stored++
-                historyStoredCount++
-                if (historicalTimeMs > newestStoredTimeMs) {
-                    newestStoredTimeMs = historicalTimeMs
-                }
-                if (entry.offsetMinutes > lastHistoryNewestOffset) {
-                    lastHistoryNewestOffset = entry.offsetMinutes
-                    lastHistoryNewestGlucose = entry.glucoseMgDl
-                }
-            } catch (t: Throwable) {
-                Log.e(TAG, "storeHistoryEntries: aidexProcessData failed: $t")
-                break  // Don't keep hammering a broken JNI
-            }
-
+            glucoseInt in MIN_VALID_GLUCOSE_MGDL..MAX_VALID_GLUCOSE_MGDL
         }
-
-        // Journal failure must not cost Stock its history (stored directly below).
-        // Adaptive stores nothing here, so the caller must keep the page pending.
-        val journaled = runCatching { algorithmRuntime.record(originals) }
-            .onFailure { Log.stack(TAG, "history source journal", it) }.isSuccess
-        val adaptiveOwned = algorithmRuntime.controller.appliedSelection.adaptive
-        if (!adaptiveOwned) {
-            originals.forEach { row ->
-                Natives.aidexStoreHistoryData(dataptr, row.timestampMs, row.factoryMgDl, row.rawMgDl)
-                pendingRoomHistoryTimestamps.add(row.timestampMs)
-                pendingRoomHistoryValues.add(row.factoryMgDl)
-                pendingRoomHistoryRawValues.add(row.rawMgDl)
-            }
-        }
-
         if (skippedWearDuration > 0) {
             val wearLimitLabel = wearDurationMinutes?.let { "${it}min" } ?: "unknown"
             Log.w(
@@ -6034,16 +6048,81 @@ class AiDexBleManager(
                     "($wearLimitLabel, wearDays=$reportedWearDays)"
             )
         }
-        if (stored > 0) {
-            noteValidReadingAvailable(newestStoredTimeMs, "valid-history")
-            Log.i(TAG, "storeHistoryEntries: stored $stored/${entries.size} entries (total=$historyStoredCount)")
-            if (temperatureRecords.isNotEmpty()) {
-                Applic.app?.let { context ->
-                    AiDexTemperatureStore.appendTemperatureHistory(context, SerialNumber, temperatureRecords)
-                }
+        if (candidates.isEmpty()) return@synchronized true
+
+        // Ensure start time is available before computing timestamps.
+        // History download can begin before 0x21 succeeds or before any F003 arrives.
+        if (sensorstartmsec <= 0L) {
+            ensureSensorStartTime(now)
+        }
+        if (sensorstartmsec <= 0L) {
+            Log.w(TAG, "storeHistoryEntries: sensorstartmsec still not set after ensureSensorStartTime — keeping ${candidates.size} entries for retry")
+            return@synchronized false
+        }
+        if (dataptr == 0L) {
+            Log.w(TAG, "storeHistoryEntries: dataptr is 0 — keeping ${candidates.size} entries for retry")
+            return@synchronized false
+        }
+
+        // No warmup gate — valid readings during warmup are stored and displayed.
+        // The isValid/MIN_VALID check above already filters out garbage warmup data
+        // (e.g., glucose=15 mg/dL). Valid-looking readings (>= MIN_VALID) are stored
+        // even during the first 7 minutes so the user sees data as soon as possible.
+        // Future-timestamp guard (2 minutes tolerance)
+        val storable = candidates.filter { sensorstartmsec + (it.offsetMinutes.toLong() * 60_000L) <= now + 120_000L }
+        val originals = storable.map { entry ->
+            algorithmRuntime.source(
+                sensorstartmsec + (entry.offsetMinutes.toLong() * 60_000L), entry.glucoseMgDl,
+                HistoryMerge.normalizeRawMgDl(entry.rawMgDl) ?: 0f, entry.temperatureC, AiDexSourceSample.HISTORY,
+            )
+        }
+        if (originals.isEmpty()) return@synchronized true
+
+        // Journal failure must not cost Stock its history (stored directly below).
+        // Adaptive stores nothing here, so the caller must keep the page pending.
+        val journaled = runCatching { algorithmRuntime.record(originals) }
+            .onFailure { Log.stack(TAG, "history source journal", it) }.isSuccess
+        if (algorithmRuntime.controller.appliedSelection.adaptive) {
+            if (!journaled) return@synchronized false
+        } else {
+            // Quiet history path, no per-entry UI wakeups
+            runCatching {
+                checkNotNull(withNativeData { pointer ->
+                    originals.forEach { row -> Natives.aidexStoreHistoryData(pointer, row.timestampMs, row.factoryMgDl, row.rawMgDl) }
+                }) { "native shell released" }
+            }.onFailure {
+                Log.stack(TAG, "storeHistoryEntries: native history write", it)
+                return@synchronized false
+            }
+            originals.forEach { row ->
+                pendingRoomHistoryTimestamps.add(row.timestampMs)
+                pendingRoomHistoryValues.add(row.factoryMgDl)
+                pendingRoomHistoryRawValues.add(row.rawMgDl)
+            }
+            // The Room buffer is memory only. Rows the journal cannot restore must reach
+            // Room before the cursor passes them, not at the end of the download.
+            if (!journaled && tk.glucodata.HistoryRepositoryAccess.isRegistered() && !flushPendingRoomHistoryToRoom()) {
+                return@synchronized false
             }
         }
-        journaled || !adaptiveOwned
+
+        historyStoredCount += originals.size
+        storable.maxBy { it.offsetMinutes }.let { newest ->
+            if (newest.offsetMinutes > lastHistoryNewestOffset) {
+                lastHistoryNewestOffset = newest.offsetMinutes
+                lastHistoryNewestGlucose = newest.glucoseMgDl
+            }
+        }
+        noteValidReadingAvailable(originals.maxOf { it.timestampMs }, "valid-history")
+        Log.i(TAG, "storeHistoryEntries: stored ${originals.size}/${entries.size} entries (total=$historyStoredCount)")
+        val temperatureRecords = originals.filter { AiDexTemperatureStore.isPlausibleSkinTemperatureC(it.temperatureC) }
+            .map { AiDexTemperatureStore.TemperatureRecord(it.timestampMs, it.temperatureC) }
+        if (temperatureRecords.isNotEmpty()) {
+            Applic.app?.let { context ->
+                AiDexTemperatureStore.appendTemperatureHistory(context, SerialNumber, temperatureRecords)
+            }
+        }
+        true
     }
 
     /**
@@ -6060,7 +6139,13 @@ class AiDexBleManager(
             Log.i(TAG, "History complete: ${calibratedGlucoseCache.size} cached 0x23 entries had no matching 0x24")
             calibratedGlucoseCache.clear()
         }
-        lastCalibratedGlucoseFallback = null
+        // 0x24 can run out of rows before the announced end. The rows still ahead of its
+        // cursor need the factory glucose dropped above, and the fallback before them.
+        if (historyNewestOffset > 0 && historyBriefNextIndex <= historyNewestOffset) {
+            rewindRawHistoryCursor()
+        } else {
+            clearHistoryFallback()
+        }
 
         Log.i(TAG, "History download complete. Total entries stored: $historyStoredCount")
 
@@ -6487,6 +6572,7 @@ class AiDexBleManager(
         writeIntPref("historyBriefNextIndex", 0)
         liveOffsetCutoff = 0
         clearPendingRoomHistory("reset-sensor")
+        clearHistoryFallback()
         Log.i(TAG, "resetSensor: history indices reset to 0")
 
         enqueueExclusiveClearStorage(cmd)
@@ -6511,7 +6597,7 @@ class AiDexBleManager(
         liveOffsetCutoff = 0
         clearPendingRoomHistory("start-new-sensor")
         calibratedGlucoseCache.clear()
-        lastCalibratedGlucoseFallback = null
+        clearHistoryFallback()
         Log.i(TAG, "startNewSensor: history indices and caches reset")
 
         val cal = Calendar.getInstance(TimeZone.getDefault())
@@ -6726,17 +6812,12 @@ class AiDexBleManager(
         }
 
     private fun restorePersistedViewMode(): Int {
-        val nativeMode = if (dataptr != 0L) {
-            runCatching { Natives.getViewMode(dataptr) }.getOrDefault(0)
-        } else {
-            0
-        }
+        val nativeMode = runCatching { withNativeData { Natives.getViewMode(it) } }.getOrNull() ?: 0
         return ManagedSensorViewModeStore.read(Applic.app, SerialNumber, nativeMode)
     }
 
     private fun applyViewModeToNative(mode: Int) {
-        if (dataptr == 0L) return
-        runCatching { Natives.setViewMode(dataptr, mode) }
+        runCatching { withNativeData { Natives.setViewMode(it, mode) } }
             .onFailure { Log.w(TAG, "applyViewModeToNative failed: ${it.message}") }
     }
 

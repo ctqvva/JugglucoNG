@@ -84,6 +84,15 @@ internal object AiDexHistoryPolicy {
         }
     }
 
+    /**
+     * Cursor after a page. Rows past the newest offset the sensor announced are not
+     * stored, so they stay ahead of the cursor for the next download.
+     */
+    fun nextPageIndex(lastOffsetMinutes: Int, newest: Int): Int {
+        val next = lastOffsetMinutes + 1
+        return if (newest > 0) minOf(next, newest + 1) else next
+    }
+
     /** Match Room/journal wall-clock minutes, including activation's seconds. */
     fun sourceRepairOffset(timeMs: Long, sensorStartMs: Long, briefStart: Int, rawStart: Int, newest: Int): Int? {
         if (sensorStartMs <= 0L || timeMs <= 0L) return null

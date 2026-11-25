@@ -55,6 +55,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import tk.glucodata.Applic
 import tk.glucodata.Applic.removescreenupdater
@@ -166,6 +167,9 @@ override fun onSensorChanged(event: SensorEvent) {
 
         scope.launch {
             currentUserStyleRepository.userStyle.collect { userStyle -> updateWatchFaceData(userStyle) }
+        }
+        scope.launch {
+            tk.glucodata.UiRefreshBus.revision.drop(1).collect { postInvalidate() }
         }
 
    setscreenupdater(updater)
@@ -459,7 +463,16 @@ private fun   showglucose(canvas:Canvas,glucosePaint:Paint,agePaint:Paint,getxin
           val idbounds=Rect()
           val previousSize = glucosePaint.textSize
           glucosePaint.textSize/=5.0f
-          val sensorid=glucose.sensorId ?: ""
+          val rawSensorId = glucose.sensorId.orEmpty()
+          val sensorid = if (rawSensorId.isNotEmpty()) {
+              fitWatchFaceSensorLabel(
+                  tk.glucodata.SensorDisplayName.resolve(rawSensorId),
+                  width * 0.72f,
+                  glucosePaint::measureText,
+              )
+          } else {
+              ""
+          }
           glucosePaint.getTextBounds(sensorid, 0,sensorid.length, idbounds)
           val yid= gety+idbounds.height()*1.5f
           val wid= idbounds.width()
@@ -478,4 +491,40 @@ private fun   showglucose(canvas:Canvas,glucosePaint:Paint,agePaint:Paint,getxin
 
 
 
+}
+
+/**
+ * Fits a sensor display name onto the watch face under the glucose value without
+ * overflowing the staleness bar or clipping off a round display.
+ */
+internal fun fitWatchFaceSensorLabel(
+    label: String,
+    maxWidthPx: Float,
+    measureText: (String) -> Float,
+): String {
+    val trimmed = label.trim()
+    if (trimmed.isEmpty() || maxWidthPx <= 0f || measureText(trimmed) <= maxWidthPx) {
+        return trimmed
+    }
+    val ellipsis = "…"
+    fun safePrefix(endIndex: Int): String {
+        var cut = endIndex
+        if (cut > 0 && cut < trimmed.length && Character.isHighSurrogate(trimmed[cut - 1])) {
+            cut -= 1
+        }
+        return trimmed.substring(0, cut).trimEnd()
+    }
+    var low = 0
+    var high = trimmed.length
+    while (low < high) {
+        val mid = (low + high + 1) / 2
+        val candidate = safePrefix(mid) + ellipsis
+        if (measureText(candidate) <= maxWidthPx) {
+            low = mid
+        } else {
+            high = mid - 1
+        }
+    }
+    val prefix = safePrefix(low)
+    return if (prefix.isNotEmpty()) prefix + ellipsis else ellipsis
 }
