@@ -112,9 +112,16 @@ class Libre3GattSessionSimulationTest {
         val json = Libre3AppIdentity.toJson(listOf(identity)).toByteArray()
         Libre3Persistence.installIdentities(context, "sim", Libre3IdentityProvisioning.sha256Hex(json), json, "test")
 
-        val start = System.currentTimeMillis() - life * 60_000L
-        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensorId, address, pin, start, 60, 20_160, 0x6f0d8378L, "1.4.2.30", 1))
-        sim = SimulatedLibre3Sensor(identity.staticPublicKey, pin, life)
+        wear(life, 20_160)
+    }
+
+    /** A sensor that has been worn [lifeCount] minutes of its rated [wearMinutes]. */
+    private fun wear(lifeCount: Int, wearMinutes: Int) {
+        if (::manager.isInitialized) runCatching { manager.setPause(true); manager.close() }
+        val identity = Libre3AppIdentity.create("app", ByteArray(30) + byteArrayOf(0x44, 0x44), Libre3Bytes.parseHex(CERT_HEX)!!)
+        val start = System.currentTimeMillis() - lifeCount * 60_000L
+        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensorId, address, pin, start, 60, wearMinutes, 0x6f0d8378L, "1.4.2.30", 1))
+        sim = SimulatedLibre3Sensor(identity.staticPublicKey, pin, lifeCount)
         Libre3SimGattShadow.sim = sim
         manager = Libre3BleManager(sensorId)
         manager.patchSigningKeys = listOf(Libre3P256.encode(sim.signing.public as ECPublicKey))
@@ -197,6 +204,51 @@ class Libre3GattSessionSimulationTest {
         assertEquals(listOf(0x11, 0x08), sim.commands)
         assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
         assertEquals(104f, field("lastReadingMgdl").get(manager) as Float)
+    }
+
+    /** Nothing on the phone ends a Plus at day 14, nor either model at its rated end: the sensor does. */
+    @Test fun readingsCrossDayFourteenAndDayFifteenUntilTheSensorStops() {
+        val day = 24 * 60
+        for ((wearMinutes, model) in listOf(14 * day to "Libre 3", 15 * day to "Libre 3 Plus")) {
+            for (first in listOf(14 * day - 1, 14 * day, 14 * day + 1, 14 * day + 12 * 60 + 1, 15 * day - 1, 15 * day, 15 * day + 1)) {
+                val case = "$model at minute $first"
+                Libre3ReviewNatives.reset()
+                roomWrites.clear()
+                wear(first, wearMinutes)
+                val gatt = connect()
+                advance(2_500)
+                assertEquals(case, Libre3BleManager.Phase.STREAMING, manager.phase)
+                assertTrue("$case stored", roomWrites.contains(lifeTime(first)))
+                assertTrue("$case native", Libre3ReviewNatives.nativeSeconds.contains(lifeTime(first) / 1000L))
+                assertEquals(case, wearMinutes / day, Libre3ReviewNatives.wearDays)
+
+                // The sensor reports the end of its rated wear and keeps sending.
+                manager.onConnectionStateChange(gatt, 19, BluetoothProfile.STATE_DISCONNECTED)
+                settle()
+                sim.reconnect(nextLife = first + 1, mgdl = 104)
+                sim.errorData = 5
+                connect()
+                advance(2_500)
+                assertEquals(case, Libre3BleManager.Phase.STREAMING, manager.phase)
+                assertEquals(case, 104f, field("lastReadingMgdl").get(manager) as Float)
+                assertTrue("$case + 1 stored", roomWrites.contains(lifeTime(first + 1)))
+                assertFalse(case, Libre3Persistence.isEnded(context, sensorId))
+
+                val snapshot = manager.getManagedUiSnapshot(sensorId)!!
+                assertEquals(case, model, snapshot.vendorModel)
+                assertEquals(case, "FreeStyle $model", snapshot.displayName)
+                assertEquals(case, snapshot.startTimeMs + wearMinutes * 60_000L, snapshot.officialEndMs)
+                assertEquals(case, snapshot.officialEndMs, snapshot.expectedEndMs)
+            }
+        }
+    }
+
+    @Test fun onlyAShutDownSensorStopsReconnecting() {
+        wear(15 * 24 * 60, 15 * 24 * 60)
+        sim.errorData = 6
+        connect()
+        assertTrue(Libre3Persistence.isEnded(context, sensorId))
+        assertFalse(manager.connectDevice(0))
     }
 
     @Test fun credentialsArrivingLaterWakeTheWaitingDriver() {
@@ -329,6 +381,7 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
 
     /** Discoveries that still find none of the sensor's services. */
     var emptyDiscoveries = 0
+    var errorData = 0
     var refreshes = 0
     fun discover() { hidden = emptyDiscoveries > 0; if (hidden) emptyDiscoveries-- }
     private var hidden = false
@@ -388,6 +441,7 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
         if (id == Libre3Gatt.PATCH_STATUS) {
             sendGlucose(life, liveMgdl)
             val status = Libre3Bytes.parseHex("9d280000e0000704e4381300")!!
+            Libre3Bytes.putU16le(status, 2, errorData)
             Libre3Bytes.putU16le(status, 8, life)
             notify(Libre3Gatt.PATCH_STATUS, session.encryptInbound(Libre3Channel.PATCH_STATUS, status, inbound++))
         }

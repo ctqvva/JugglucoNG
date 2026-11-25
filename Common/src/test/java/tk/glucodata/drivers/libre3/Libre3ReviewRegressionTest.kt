@@ -638,6 +638,7 @@ class Libre3ReviewRegressionTest {
         assertEquals("3225ec72", Libre3Bytes.hex(record.blePin))
         assertEquals(now, record.startTimeMs)
         assertEquals(15 * 24 * 60, record.wearMinutes)
+        assertEquals("Libre 3 Plus", record.modelName)
         assertEquals(0x6f0d8378L, record.receiverId) // the ID the removed driver sent in A0/A8
         // The legacy record is finished (its history stays) and its stream pointer released.
         assertTrue(Libre3ReviewNatives.sensorFinishedById("E07A-$legacyName"))
@@ -648,6 +649,23 @@ class Libre3ReviewRegressionTest {
         SensorIdentity.invalidateCaches()
         assertEquals(sensor, SensorIdentity.resolveMainSensor())
         successor.close()
+    }
+
+    @Test fun theModelFollowsProductTypeAndRatedWear() {
+        // Captured patch info of a Plus, and of a plain Libre 3 (Libre3CapturedVectorsTest, Libre3ProtocolTest).
+        val plus = Libre3Nfc.parsePatchInfo(Libre3Bytes.parseHex("00a50001000200010060541e020401040c0130525243393839415151ff17")!!)!!
+        val plain = Libre3Nfc.parsePatchInfo(Libre3Bytes.parseHex("00A500010001000000C04E1E0D0101040C043036385A4D524631382F97")!!)!!
+        fun record(info: Libre3Nfc.PatchInfo) = pairing().copy(wearMinutes = info.wearDurationMinutes, productType = info.productType)
+        assertEquals("Libre 3 Plus", record(plus).modelName)
+        assertEquals("Libre 3", record(plain).modelName)
+        // Another product line with a long wear is not a Plus.
+        assertEquals("Libre 3", record(plus).copy(productType = 9).modelName)
+
+        Libre3Persistence.saveSensor(context, record(plus).copy(productType = 9))
+        assertEquals(9, Libre3Persistence.loadSensor(context, sensor)!!.productType)
+        // A record saved before the type was kept.
+        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().remove("$sensor.product").commit()
+        assertEquals("Libre 3 Plus", Libre3Persistence.loadSensor(context, sensor)!!.modelName)
     }
 
     @Test fun legacySensorWithoutStoredPairingWaitsForAScan() = withHandoverRoster { _, legacyName ->

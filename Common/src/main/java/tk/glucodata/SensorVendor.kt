@@ -126,7 +126,9 @@ private val genericModelWords = setOf("CGM", "SENSOR", "GLUCOSE", "UNKNOWN")
 private fun modelToken(vendorModel: String): String {
     val trimmed = vendorModel.trim()
     if (trimmed.isEmpty()) return ""
-    val lastWord = trimmed.substringAfterLast(' ').trim()
+    // "Libre 3 Plus": the number is the model, so the badge reads "3+" and not "PLUS".
+    val lastWord = trimmed.removeSuffix(" Plus").substringAfterLast(' ').trim() +
+        if (trimmed.endsWith(" Plus")) "+" else ""
     val shortened = if (lastWord.length > 6) lastWord.substringBefore('-') else lastWord
     if (shortened.length !in 1..6) return ""
     val upper = shortened.uppercase()

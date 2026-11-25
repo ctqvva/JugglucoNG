@@ -100,6 +100,8 @@ class SensorVendorTests {
         assertEquals("SIBI 2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").inlineText)
         assertTrue(!sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").stacked)
         assertTrue(!sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3).stacked)
+        assertEquals("3", sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3, "Libre 3").model)
+        assertEquals("3+", sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3, "Libre 3 Plus").model)
         assertTrue(!sensorBadge(SensorVendor.DEXCOM, SensorTypeName.DEXCOM_G7).stacked)
         assertTrue(!sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "iCan i6").stacked)
         // Long pairs still split across two rows.

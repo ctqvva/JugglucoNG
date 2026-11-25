@@ -958,7 +958,7 @@ public:
       };
       return (maxSIhours * 60 - 19) * 60;
     }
-    if (isLibre3() || isAccuChek() || isAir())
+    if (isLibre3() || isManagedLibre3() || isAccuChek() || isAir())
       return getweardurationSEC();
     return getweardurationSEC() + 12 * 60 * 60;
   }
@@ -992,6 +992,11 @@ public:
     // info->days normally covers that day already.
     if (isNfcLibre2())
       minutes = std::max(minutes, getweardurationMIN() + 24 * 60);
+    // A day past the rated wear, as mkdatabase3's records have it: the sensor
+    // decides when it stops, and its last minutes arrive after its nominal end.
+    // Without this checkinfo() retires a sensor that is still sending.
+    if (isManagedLibre3())
+      minutes += 24 * 60;
     uint32_t maxtime = minutes * 60 + getstarttime();
 
     // ARCHITECTURAL FIX: Support Custom Calibration for aged sensors.

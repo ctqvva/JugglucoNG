@@ -2055,6 +2055,14 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorWearDays)(
         // is actually mapped. getmaxtime() consults wearduration2 instead, so
         // the lifetime the sensor negotiated is honoured without touching the
         // geometry of files that are already open.
+        // The roster keeps its own lifetime, 14.5 days while unset, and Clone's
+        // live stream stops there (Sensoren::update). At stdMaxDaysSI * 2 and
+        // beyond it would mean Sibionics.
+        if (hist->isManagedLibre3()) {
+          if (auto *entry = sensors->getsensor(hist->sensorIndex))
+            entry->halfdays = static_cast<uint8_t>(
+                std::min(2 * (days + 1), stdMaxDaysSI * 2 - 1));
+        }
         LOGGER("setSensorWearDays: %s days=%d wear=%u\n", str, days,
                info->wearduration2);
       }

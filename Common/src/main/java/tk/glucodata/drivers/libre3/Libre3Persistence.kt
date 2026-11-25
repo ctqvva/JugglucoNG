@@ -75,13 +75,23 @@ data class Libre3SensorRecord(
     val receiverId: Long,
     val firmware: String,
     val securityVersion: Int,
+    /** From the NFC patch info; records saved before it was kept are Libre 3 or 3 Plus. */
+    val productType: Int = PRODUCT_LIBRE3,
 ) {
+    /** A Plus shares the Libre 3's product type and differs by its rated wear, 15 days instead of 14. */
+    val isPlus: Boolean get() = productType == PRODUCT_LIBRE3 && wearMinutes > LIBRE3_WEAR_MINUTES
+    val modelName: String get() = if (isPlus) "Libre 3 Plus" else "Libre 3"
     val expectedEndMs: Long get() = if (startTimeMs > 0L && wearMinutes > 0) startTimeMs + wearMinutes * 60_000L else 0L
 
     override fun equals(other: Any?): Boolean =
         other is Libre3SensorRecord && sensorId == other.sensorId && bleAddress == other.bleAddress &&
             blePin.contentEquals(other.blePin) && startTimeMs == other.startTimeMs
     override fun hashCode(): Int = sensorId.hashCode()
+
+    companion object {
+        const val PRODUCT_LIBRE3 = 4
+        private const val LIBRE3_WEAR_MINUTES = 14 * 24 * 60
+    }
 }
 
 object Libre3Persistence {
@@ -358,6 +368,7 @@ object Libre3Persistence {
             .putLong("$k.receiver", record.receiverId)
             .putString("$k.firmware", record.firmware)
             .putInt("$k.secver", record.securityVersion)
+            .putInt("$k.product", record.productType)
             .putBoolean("$k.ended", false)
         // Every A0/A8 starts a new pairing on the sensor's side, so the cached kAuth goes (the
         // legacy native record clears haskAuth on each scan for the same reason). Backfill marks
@@ -384,6 +395,7 @@ object Libre3Persistence {
             receiverId = p.getLong("$k.receiver", 0L),
             firmware = p.getString("$k.firmware", "") ?: "",
             securityVersion = p.getInt("$k.secver", 0),
+            productType = p.getInt("$k.product", Libre3SensorRecord.PRODUCT_LIBRE3),
         )
     }
 
@@ -481,6 +493,7 @@ object Libre3Persistence {
             .put("receiver", record.receiverId)
             .put("firmware", record.firmware)
             .put("secver", record.securityVersion)
+            .put("product", record.productType)
             .put("lastLife", getLastLifeCount(context, sensorId))
             .put("lastHist", getLastHistoricLifeCount(context, sensorId))
             .put("anchor", getAnchor(context, sensorId))
@@ -518,6 +531,7 @@ object Libre3Persistence {
             receiverId = json.optLong("receiver"),
             firmware = json.optString("firmware"),
             securityVersion = json.optInt("secver"),
+            productType = json.optInt("product", Libre3SensorRecord.PRODUCT_LIBRE3),
         ))
         // saveSensor starts a fresh pairing; this one carries on where the phone was.
         val edit = prefs(context).edit()

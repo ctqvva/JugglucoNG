@@ -98,7 +98,7 @@ struct SensorGlucoseData {
     bool isSibionics()const{return metadata.sibionics;}
     bool isSibionics1()const{return false;}
     bool isLibre2()const{return !(isAccuChek()||isSibionics()||isDexcom()||isAir()||getinfo()->interval==interval5);}
-    bool isLibre3()const{return false;}bool isAiDex()const{return false;}
+    bool isLibre3()const{return false;}bool isManagedLibre3()const{return false;}bool isAiDex()const{return false;}
     bool isAccuChek()const{return false;}bool isAir()const{return false;}
     int siSubtype()const{return 0;}uint32_t lastused()const{return stream[0].timestamp;}
     int getelsize()const{return 12;}

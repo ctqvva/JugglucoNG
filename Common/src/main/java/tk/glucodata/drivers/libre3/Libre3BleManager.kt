@@ -53,7 +53,6 @@ class Libre3BleManager(sensorId: String) :
         /** The sensor kind downstream code (xDrip source name, display) uses for Libre 3. */
         const val SENSOR_GEN = SensorSourceResolver.SENSOR_KIND_LIBRE3
 
-        const val DISPLAY_NAME = "FreeStyle Libre 3"
         const val LOG_LABEL = "Libre3"
 
         private const val RECONNECT_DELAY_MS = 3_000L
@@ -278,7 +277,7 @@ class Libre3BleManager(sensorId: String) :
         }
         return ManagedSensorUiSnapshot(
             serial = sensorId,
-            displayName = DISPLAY_NAME,
+            displayName = "FreeStyle ${rec.modelName}",
             deviceAddress = rec.bleAddress,
             uiFamily = ManagedSensorUiFamily.LIBRE3,
             connectionStatus = getConnectionStatus(),
@@ -298,7 +297,7 @@ class Libre3BleManager(sensorId: String) :
             sensorRemainingHours = if (end > 0L) ((end - now).coerceAtLeast(0L) / 3_600_000L).toInt() else -1,
             sensorAgeHours = if (start > 0L) ((now - start).coerceAtLeast(0L) / 3_600_000L).toInt() else -1,
             vendorFirmware = rec.firmware,
-            vendorModel = "Libre 3",
+            vendorModel = rec.modelName,
         )
     }
 

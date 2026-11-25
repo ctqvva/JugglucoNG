@@ -104,7 +104,8 @@ object Libre3ManagedNfc {
         Log.i(
             TAG,
             "patch info serial=${info.serial} state=${info.state} fw=${info.firmwareVersion} " +
-                "secver=${info.securityVersion} wear=${info.wearDurationMinutes} warmup=${info.warmupMinutes}",
+                "secver=${info.securityVersion} wear=${info.wearDurationMinutes} warmup=${info.warmupMinutes} " +
+                "product=${info.productType} gen=${info.puckGeneration}",
         )
         if (info.isTerminated) {
             Libre3Registry.endSensor(ctx, info.serial)
@@ -141,6 +142,7 @@ object Libre3ManagedNfc {
                     receiverId = receiver,
                     firmware = info.firmwareVersion,
                     securityVersion = info.securityVersion,
+                    productType = info.productType,
                 )
                 Libre3Registry.addSensor(ctx, record)
                 Outcome.Paired(info.serial, activated = command == Libre3Nfc.CMD_ACTIVATE)
