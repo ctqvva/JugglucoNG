@@ -346,8 +346,11 @@ class ICanHealthTimezoneRepairTests {
             Int::class.java, Long::class.java, Float::class.java, Float::class.java, Float::class.java)
             .apply { isAccessible = true }
         slots.forEach { record.invoke(manager, (it + 1) * 3, at(it), 200f, Float.NaN, temperatureC) }
-        return ICanHealthBleManager::class.java.getDeclaredMethod("flushHistoryBackfillBatch")
-            .apply { isAccessible = true }.invoke(manager) as Boolean
+        ICanHealthBleManager::class.java.getDeclaredMethod("flushImportedGlucoseHistory")
+            .apply { isAccessible = true }.invoke(manager)
+        val historyImport = ICanHealthBleManager::class.java.getDeclaredField("historyImport")
+            .apply { isAccessible = true }.get(manager) as ICanHealthHistoryImport
+        return !historyImport.hasUnsaved()
     }
 
     private fun storeLive(glucoseMgdl: Float, timestampMs: Long) {
