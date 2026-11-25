@@ -185,7 +185,8 @@ class AdaptiveEnsembleUnitTests {
 
         assertNotNull(mgdl.slope)
         assertNotNull(mmol.slope)
-        assertEquals(mgdl.slope!!, mmol.slope!!, 1e-3)
+        assertEquals(mgdl.slope!!, mmol.slope!!, 1e-9)
+        assertEquals(mgdl.prediction, mmol.prediction * mgdlPerMmol, predictionToleranceMgdl)
     }
 
     @Test
@@ -200,6 +201,18 @@ class AdaptiveEnsembleUnitTests {
         val maxStep = values.zipWithNext().maxOf { abs(it.second - it.first) }
 
         assertTrue("max step $maxStep mg/dL", maxStep < 6.0)
+    }
+
+    @Test
+    fun infinitesimalInputChangeDoesNotJumpAtAnchorTransition() {
+        val anchors = listOf(
+            CalPoint(x = 100.0, y = 120.0, timestamp = now - 2 * hour),
+            CalPoint(x = 160.0, y = 140.0, timestamp = now - hour),
+        )
+        val before = resultIn(anchors, 127.4999, 1.0, CalibrationMath.ALG_SANE_WEIGHTED_OLS).prediction
+        val after = resultIn(anchors, 127.5001, 1.0, CalibrationMath.ALG_SANE_WEIGHTED_OLS).prediction
+
+        assertTrue("jump ${abs(after - before)} mg/dL", abs(after - before) < 0.01)
     }
 
     @Test
