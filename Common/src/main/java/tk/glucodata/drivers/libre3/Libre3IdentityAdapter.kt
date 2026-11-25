@@ -38,17 +38,15 @@ object Libre3IdentityAdapter : ManagedSensorIdentityAdapter {
 
     override fun resolveCanonicalSensorId(sensorId: String?): String? = stored(sensorId)
 
+    private val LEGACY_NAME = Regex("(?:E07A-)?XX([0-9A-Z]{9})", RegexOption.IGNORE_CASE)
+
     /**
-     * Calibrations entered under the legacy record keep applying after the move. Both spellings the
-     * legacy driver handed out are covered, and only while the sensor is managed here.
+     * Calibrations entered under the legacy record apply to the same serial here, in both spellings
+     * the legacy driver handed out. By name alone, so they also hold for a forgotten sensor's
+     * history, on a Clone receiver, and on a watch whose phone still names the old record.
      */
-    override fun resolveCalibrationOwnerId(sensorId: String?): String? {
-        val id = sensorId?.trim().takeIf { !it.isNullOrEmpty() } ?: return null
-        val ctx = Applic.app ?: return null
-        return Libre3Persistence.sensorIds(ctx).firstOrNull {
-            id.equals(legacyNativeName(it), ignoreCase = true) || id.equals(legacyShortName(it), ignoreCase = true)
-        }
-    }
+    override fun resolveCalibrationOwnerId(sensorId: String?): String? =
+        sensorId?.trim()?.let { LEGACY_NAME.matchEntire(it) }?.groupValues?.get(1)?.uppercase()
 
     override fun hasPersistedManagedRecord(sensorId: String?): Boolean = stored(sensorId) != null
 

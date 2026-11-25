@@ -302,8 +302,14 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         val requested = requestedSensorId?.trim()?.takeIf { it.isNotEmpty() }
             ?: mainSensorId?.trim()?.takeIf { it.isNotEmpty() }
         if (requested == null) return candidates.singleOrNull()
-        candidates.firstOrNull { keyOf(it.sensorId) == keyOf(requested) }?.let { return it }
-        // An identity match: the phone may name the sensor differently from the id the caller holds.
-        return candidates.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
+        val own = candidates.firstOrNull { keyOf(it.sensorId) == keyOf(requested) }
+            // An identity match: the phone may name the sensor differently from the id the caller holds.
+            ?: candidates.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
+        // Another record of the same sensor (its driver was replaced) shares its calibrations, and
+        // the phone fills both from the same points, so the newest of them is the current state.
+        val shared = candidates.filter {
+            !SensorIdentity.matches(it.sensorId, requested) && SensorIdentity.sharesCalibrations(it.sensorId, requested)
+        }
+        return (listOfNotNull(own) + shared).maxByOrNull { it.revision }
     }
 }

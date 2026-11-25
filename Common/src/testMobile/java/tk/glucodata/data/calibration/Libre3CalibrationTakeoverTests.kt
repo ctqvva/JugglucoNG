@@ -63,8 +63,29 @@ class Libre3CalibrationTakeoverTests {
 
     private fun anchors(id: String) = CalibrationManager.getActiveCalibrationAnchors(id, false).size / 3
 
+    /** Asked before pairing, as retained history does: a cached "none" must not outlive the pairing. */
+    @Test fun pairingForgettingAndPairingAgainNeverLosesThem() {
+        val asked = { CalibrationManager.getCalibratedValue(100f, time + 700_000, false, false, serial) }
+        val corrected = asked()
+        assertNotEquals(100f, corrected)
+        takeOver()
+        assertEquals(corrected, asked(), 0f)
+        Libre3Persistence.removeSensor(context, serial)
+        SensorIdentity.invalidateCaches()
+        assertEquals(corrected, asked(), 0f)
+        takeOver()
+        assertEquals(corrected, asked(), 0f)
+        assertEquals(2, anchors(serial))
+    }
+
+    @Test fun onlyTheLegacyNamesOfTheSameSerialAreShared() {
+        for (id in listOf(full, short, full.lowercase(), serial)) assertTrue(id, SensorIdentity.sharesCalibrations(id, serial))
+        for (id in listOf("XX0D1234ABD", "E07A-XX0D1234ABCD", "E07A-0D1234ABC", "YY$serial", "3MH$serial", "XX")) {
+            assertFalse(id, SensorIdentity.sharesCalibrations(id, serial))
+        }
+    }
+
     @Test fun bothLegacySpellingsApplyToTheManagedSensorAndStayOnTheLegacyRecord() {
-        assertEquals(0, anchors(serial))
         takeOver()
         assertEquals(2, anchors(serial))
         assertEquals(2, anchors(full))

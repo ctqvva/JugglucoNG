@@ -901,7 +901,11 @@ public:
     auto *info = getinfo();
     if (!info)
       return 14 * 24 * 60;
-    const int wear = (isLibre2() || isDexcom() || isAccuChek() || isAir())
+    // A managed Libre 3 shell is a Libre 2 by elimination, but its wear is in
+    // wearduration2 (setWearDays). Until that is written the field still holds
+    // ident.len, which it shares storage with, and the shell's own 14 days hold.
+    const bool negotiated = isManagedLibre3() && info->wearduration2 >= 24 * 60;
+    const int wear = !negotiated && (isLibre2() || isDexcom() || isAccuChek() || isAir())
                          ? info->wearduration
                          : info->wearduration2;
     if (isAiDex()) {
