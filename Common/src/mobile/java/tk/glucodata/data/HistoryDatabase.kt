@@ -777,12 +777,24 @@ abstract class HistoryDatabase : RoomDatabase() {
          */
         private val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN targetServer TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN nextRetryAt INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN failureKind INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN lastErrorCode INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN lastErrorMessage TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE journal_nightscout_uploads ADD COLUMN targetServer TEXT NOT NULL DEFAULT ''")
+                if (!hasColumn(db, "journal_pending_deletes", "targetServer")) {
+                    db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN targetServer TEXT NOT NULL DEFAULT ''")
+                }
+                if (!hasColumn(db, "journal_pending_deletes", "nextRetryAt")) {
+                    db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN nextRetryAt INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!hasColumn(db, "journal_pending_deletes", "failureKind")) {
+                    db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN failureKind INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!hasColumn(db, "journal_pending_deletes", "lastErrorCode")) {
+                    db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN lastErrorCode INTEGER NOT NULL DEFAULT 0")
+                }
+                if (!hasColumn(db, "journal_pending_deletes", "lastErrorMessage")) {
+                    db.execSQL("ALTER TABLE journal_pending_deletes ADD COLUMN lastErrorMessage TEXT NOT NULL DEFAULT ''")
+                }
+                if (!hasColumn(db, "journal_nightscout_uploads", "targetServer")) {
+                    db.execSQL("ALTER TABLE journal_nightscout_uploads ADD COLUMN targetServer TEXT NOT NULL DEFAULT ''")
+                }
             }
         }
 
