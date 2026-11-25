@@ -270,6 +270,8 @@ class Libre3GattSessionSimulationTest {
             assertTrue("no security command with the wrong identity", sim.commands.isEmpty())
             assertTrue(manager.isWaitingForCredentials())
             assertFalse(manager.isWaitingForDownload())
+            assertEquals(context.getString(tk.glucodata.R.string.libre3_status_lingo_identity_missing),
+                manager.getManagedUiSnapshot(sensorId)!!.detailedStatus)
             val busy = Libre3Registry::class.java.getDeclaredField("provisioning").apply { isAccessible = true }
                 .get(null) as java.util.concurrent.atomic.AtomicBoolean
             assertFalse("no download was started", busy.get())
@@ -290,6 +292,8 @@ class Libre3GattSessionSimulationTest {
             connect()
             assertTrue(manager.isWaitingForCredentials())
             assertTrue("no security command without credentials", sim.commands.isEmpty())
+            assertEquals(context.getString(tk.glucodata.R.string.libre3_status_identity_missing),
+                manager.getManagedUiSnapshot(sensorId)!!.detailedStatus)
             awaitCredentialWorker()
 
             // Settings (download or file import) installs a set: the driver reconnects by itself.

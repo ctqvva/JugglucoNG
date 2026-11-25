@@ -278,7 +278,7 @@ class Libre3BleManager(sensorId: String) :
 
     override fun getDetailedBleStatus(): String = when (phase) {
         Phase.IDLE -> when {
-            missingIdentity -> text(tk.glucodata.R.string.libre3_status_identity_missing)
+            missingIdentity -> text(missingIdentityStatus())
             identityRejected -> text(tk.glucodata.R.string.libre3_status_identity_rejected)
             deviceRejected -> lastNote.ifBlank { text(tk.glucodata.R.string.libre3_status_certificate_rejected) }
             incompleteDiscoveries >= INCOMPLETE_DISCOVERIES_SHOWN -> text(tk.glucodata.R.string.libre3_status_services_missing)
@@ -294,6 +294,10 @@ class Libre3BleManager(sensorId: String) :
         Phase.ENDED -> "Sensor ended"
         Phase.ERROR -> lastNote.ifBlank { "Error" }
     }
+
+    private fun missingIdentityStatus(): Int =
+        if (record?.isLingo == true) tk.glucodata.R.string.libre3_status_lingo_identity_missing
+        else tk.glucodata.R.string.libre3_status_identity_missing
 
     fun getConnectionStatus(): String = getDetailedBleStatus()
 
@@ -717,10 +721,9 @@ class Libre3BleManager(sensorId: String) :
         } else {
             if (identities.isEmpty()) {
                 missingIdentity = true
-                if (linkIsLingo) return failSetup(text(tk.glucodata.R.string.libre3_lingo_identity_missing), stopUntilUser = true)
                 // Reconnects once the download lands; until then this waits instead of retrying.
-                Libre3Registry.requestCredentials()
-                return failSetup(text(tk.glucodata.R.string.libre3_status_identity_missing), stopUntilUser = true)
+                if (!linkIsLingo) Libre3Registry.requestCredentials()
+                return failSetup(text(missingIdentityStatus()), stopUntilUser = true)
             }
             val identity = pickIdentity(ctx, identities)
             handshakeIdentity = identity

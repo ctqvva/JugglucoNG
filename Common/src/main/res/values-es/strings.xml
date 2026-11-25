@@ -3705,6 +3705,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="libre3_status_services_missing">Faltan servicios del sensor; reintentando</string>
     <string name="libre3_status_certificate_rejected">No se reconoce el certificado del sensor; vuelve a escanearlo</string>
     <string name="libre3_status_identity_missing">No se ha importado ninguna identidad de aplicación para Libre 3</string>
+    <string name="libre3_status_lingo_identity_missing">No se ha importado ninguna identidad de la aplicación Lingo</string>
     <string name="libre3_status_identity_rejected">El sensor no ha aceptado la identidad de la aplicación</string>
     <string name="libre3_managed_receiver_save_failed">No se ha podido guardar el ID del receptor. Comprueba el almacenamiento del dispositivo y vuelve a intentarlo. El emparejamiento NFC está bloqueado hasta que se guarde el ID.</string>
 </resources>

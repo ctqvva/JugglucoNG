@@ -3550,6 +3550,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="libre3_lingo_version_unsupported">Dieser Lingo-Sensor verwendet eine nicht unterstützte Sicherheitsversion.</string>
     <string name="libre3_status_certificate_rejected">Sensorzertifikat nicht erkannt; Sensor erneut scannen</string>
     <string name="libre3_status_identity_missing">Keine Libre-3-App-Identität importiert</string>
+    <string name="libre3_status_lingo_identity_missing">Keine Lingo-App-Identität importiert</string>
     <string name="libre3_status_identity_rejected">Sensor hat die App-Identität nicht akzeptiert</string>
     <string name="libre3_managed_receiver_save_failed">Empfänger-ID konnte nicht gespeichert werden. Gerätespeicher prüfen und erneut versuchen. NFC-Kopplung bleibt bis zum Speichern der ID gesperrt.</string>
 </resources>
