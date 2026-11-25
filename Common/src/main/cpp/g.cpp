@@ -1605,7 +1605,8 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
                                      jfloat rawGlucose, jfloat temperatureC,
                                      bool overwriteRaw, bool overwriteTemp,
                                      bool quiet, int *rewindFrom, bool primaryIsResolved = false,
-                                     bool onlyIfMissing = false, bool localSource = false) {
+                                     bool onlyIfMissing = false, bool localSource = false,
+                                     int trend = 0) {
   if (!hist || hist->error() || timestamp <= 0)
     return false;
   auto *info = hist->getinfo();
@@ -1676,6 +1677,11 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   if (overwriteTemp && temperatureC > 0.0f)
     preservedTemp = static_cast<uint16_t>(temperatureC * 10.0f);
 
+  // The sensor classified this minute once, in its live frame. A backfilled or
+  // mirrored copy of the minute carries no class and must not erase it.
+  if (managedLibre3)
+    trend = keptTrendClass(trend, pollsbuf ? pollsbuf + lifeCount : nullptr, fillsPollGap);
+
   const float change = derivechangeforsample(hist->getPollsData(), 0, lifeCount,
                                              mgVal, timestamp, primaryIsResolved);
   // Persist before the sample, under the same lock as peer imports. A process
@@ -1686,15 +1692,15 @@ static bool storeGlucoseStreamSample(SensorGlucoseData *hist, const char *sensor
   }
   const bool stored =
       dexslots ? (quiet ? hist->savepollallIDsQuiet<300>(
-                              timestamp, lifeCount, storedGlucose, 0, change,
+                              timestamp, lifeCount, storedGlucose, trend, change,
                               preservedRaw, preservedTemp)
                         : hist->savepollallIDs<300>(timestamp, lifeCount,
-                                                    storedGlucose, 0, change,
+                                                    storedGlucose, trend, change,
                                                     preservedRaw, preservedTemp))
       : quiet ? hist->savepollallIDsQuiet<60>(timestamp, lifeCount, storedGlucose,
-                                              0, change, preservedRaw,
+                                              trend, change, preservedRaw,
                                               preservedTemp)
-              : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, 0,
+              : hist->savepollallIDs<60>(timestamp, lifeCount, storedGlucose, trend,
                                          change, preservedRaw, preservedTemp);
   if (stored && changesPollGlucose && managedLibre3)
     healthConnectBackfillProgress.rewind(hist, lifeCount, info->healthconnectiter);
@@ -1838,16 +1844,23 @@ static jlong ensureSensorShellInternal(const char *str, jlong startTimeSec,
 static jint addGlucoseStreamBatchWithRawTempInternal(
     JNIEnv *env, jlongArray timestamps, jfloatArray glucoses,
     jfloatArray raws, jfloatArray temperatures, jstring sensorId, bool primaryIsResolved,
-    bool wearPeerImport = false, bool forceOnlyMissing = false) {
+    bool wearPeerImport = false, bool forceOnlyMissing = false,
+    jintArray trends = nullptr) {
   if (!sensors || !timestamps || !glucoses || !raws || !temperatures ||
       !sensorId)
     return 0;
   const jsize count = env->GetArrayLength(timestamps);
   if (count <= 0 || env->GetArrayLength(glucoses) != count ||
       env->GetArrayLength(raws) != count ||
-      env->GetArrayLength(temperatures) != count)
+      env->GetArrayLength(temperatures) != count ||
+      (trends && env->GetArrayLength(trends) != count))
     return 0;
 
+  std::vector<jint> trendValues;
+  if (trends) {
+    trendValues.resize(count);
+    env->GetIntArrayRegion(trends, 0, count, trendValues.data());
+  }
   const char *str = env->GetStringUTFChars(sensorId, nullptr);
   jlong *timeValues = env->GetLongArrayElements(timestamps, nullptr);
   jfloat *glucoseValues = env->GetFloatArrayElements(glucoses, nullptr);
@@ -1910,7 +1923,8 @@ static jint addGlucoseStreamBatchWithRawTempInternal(
       if (storeGlucoseStreamSample(
               hist, str, timeValues[index], glucoseValues[index],
               rawValues[index], temperatureValues[index], true, true, true,
-              &rewindFrom, primaryIsResolved, onlyIfMissing, localSource)) {
+              &rewindFrom, primaryIsResolved, onlyIfMissing, localSource,
+              trends ? trendValues[index] : 0)) {
         ++stored;
       }
     }
@@ -1947,6 +1961,14 @@ extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithRawTemp)(
     jfloatArray raws, jfloatArray temperatures, jstring sensorId) {
   return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
                                                  temperatures, sensorId, false);
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(addGlucoseStreamBatchWithTrend)(
+    JNIEnv *env, jclass, jlongArray timestamps, jfloatArray glucoses,
+    jfloatArray raws, jfloatArray temperatures, jintArray trends, jstring sensorId) {
+  return addGlucoseStreamBatchWithRawTempInternal(env, timestamps, glucoses, raws,
+                                                 temperatures, sensorId, false, false,
+                                                 false, trends);
 }
 
 extern "C" JNIEXPORT jint JNICALL fromjava(addResolvedGlucoseStreamBatchWithRawTemp)(

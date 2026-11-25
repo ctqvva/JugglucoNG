@@ -766,6 +766,10 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** {@link #addGlucoseStreamBatchWithRawTemp} with the sensor's own trend, 1 (falling
+         * quickly) to 5 (rising quickly), or 0 for a reading that came without one. */
+        public static native int addGlucoseStreamBatchWithTrend(long[] times, float[] glucoses, float[] raws, float[] temperatures, int[] trends, String sensorId);
+
         /** Import managed Wear history. Local/unknown populated records retain their
          * origin and occupied samples even while disconnected. Proven peer-only records
          * retain ordinary import behavior. The provenance check and import are atomic

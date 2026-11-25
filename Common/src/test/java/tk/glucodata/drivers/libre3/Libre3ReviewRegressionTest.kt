@@ -413,7 +413,7 @@ class Libre3ReviewRegressionTest {
 
     @Test fun liveMirrorWakesNightscoutAndCompletesHealthExport() {
         val at = System.currentTimeMillis()
-        invoke("publishCurrent", at, 123f, 0f, 101)
+        invoke("publishCurrent", at, 123f, 0f, 3, 101)
         assertEquals(1, Libre3ReviewNatives.stockWrites)
         assertEquals(listOf(at), Libre3ReviewNatives.wakes)
         if (!Applic.isWearable) assertEquals(listOf(1L to sensor), healthWrites)
@@ -422,15 +422,38 @@ class Libre3ReviewRegressionTest {
 
     @Test fun eachStoredLiveReadingWakesLibreViewAndClone() {
         val at = System.currentTimeMillis()
-        invoke("publishCurrent", at, 123f, 0f, 101)
-        invoke("publishCurrent", at + 60_000, 124f, 0f, 102)
+        invoke("publishCurrent", at, 123f, 0f, 3, 101)
+        invoke("publishCurrent", at + 60_000, 124f, 0f, 3, 102)
         assertEquals(2, Libre3ReviewNatives.libreviewWakes)
         assertEquals(2, Libre3ReviewNatives.cloneWakes)
         // Nothing stored, nothing to send.
         Libre3ReviewNatives.refusedSeconds = setOf((at + 120_000) / 1000L)
-        invoke("publishCurrent", at + 120_000, 125f, 0f, 103)
+        invoke("publishCurrent", at + 120_000, 125f, 0f, 3, 103)
         assertEquals(2, Libre3ReviewNatives.libreviewWakes)
         assertEquals(2, Libre3ReviewNatives.cloneWakes)
+    }
+
+    @Test fun theSensorsOwnTrendReachesTheNativeRecordLibreViewUploads() {
+        // A captured frame with life count, rate and trend bits replaced: the rate says falling
+        // whatever the class, so a class rebuilt from the rate or the values would not match.
+        val frame = "e3386200d6ff0000f023d1386c000b62006c00200a9e03113d03100000"
+        set("anchorStartMs", System.currentTimeMillis() - 14_571 * 60_000L)
+        for (bits in 0..7) {
+            val lifeCount = 14_563 + bits
+            val plain = Libre3Bytes.parseHex(frame)!!
+            Libre3Bytes.putU16le(plain, 0, lifeCount)
+            plain[14] = (0x08 or bits).toByte()
+            Libre3ReviewNatives.nativeTrends.clear()
+            invoke("onRealtime", Libre3RealtimeReading.parse(plain))
+            val second = (System.currentTimeMillis() - 14_571 * 60_000L + lifeCount * 60_000L) / 1000L
+            val stored = Libre3ReviewNatives.nativeSeconds.last()
+            assertTrue(kotlin.math.abs(stored - second) <= 2)
+            val expected = if (bits in 1..5) listOf(stored to bits) else emptyList()
+            assertEquals("trend $bits", expected, Libre3ReviewNatives.nativeTrends)
+            // The flush writes the live minute again and must not take its class away.
+            invoke("flushBackfill")
+            assertEquals("trend $bits flushed", expected + expected, Libre3ReviewNatives.nativeTrends)
+        }
     }
 
     @Test fun oldBackfillCannotClaimHealthConnectFromTheCurrentSensor() {
@@ -729,13 +752,14 @@ class Libre3ReviewNatives {
         var stockWrites = 0
         var resolvedWrites = 0
         val nativeSeconds = sortedSetOf<Long>()
+        val nativeTrends = mutableListOf<Pair<Long, Int>>()
         var refusedSeconds = emptySet<Long>()
         var activeNames = emptyArray<String>()
         var selectedName: String? = null
         val finishedNames = mutableSetOf<String>()
         fun reset() {
             libreviewWakes = 0; cloneWakes = 0
-            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); refusedSeconds = emptySet(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
+            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); nativeTrends.clear(); refusedSeconds = emptySet(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
             legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
         }
@@ -783,6 +807,10 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
             val accepted = t.filterNot { it in refusedSeconds }
             stockWrites += accepted.size; nativeSeconds.addAll(accepted); return accepted.size
+        }
+        @JvmStatic @Implementation fun addGlucoseStreamBatchWithTrend(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, trends: IntArray, serial: String): Int {
+            t.indices.forEach { nativeTrends += t[it] to trends[it] }
+            return addGlucoseStreamBatchWithRawTemp(t, g, r, temp, serial)
         }
         @JvmStatic @Implementation fun getGlucoseHistoryForSensor(serial: String, startSec: Long): LongArray? =
             nativeSeconds.filter { it > startSec }.flatMap { listOf(it, 1230L, 0L) }.takeIf { it.isNotEmpty() }?.toLongArray()

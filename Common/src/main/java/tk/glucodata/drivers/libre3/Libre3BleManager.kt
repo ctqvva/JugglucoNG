@@ -807,7 +807,7 @@ class Libre3BleManager(sensorId: String) :
                 // marks valid after its nominal wear time is published; the sensor decides when it stops.
                 lastNote = if (pastWear(r.lifeCount)) "Past nominal wear time" else ""
                 val sampleTime = lifeCountTimeMs(r.lifeCount)
-                if (sampleTime > 0L) publishCurrent(sampleTime, mgdl.toFloat(), r.rateMgdlPerMinute, r.lifeCount)
+                if (sampleTime > 0L) publishCurrent(sampleTime, mgdl.toFloat(), r.rateMgdlPerMinute, r.trendClass, r.lifeCount)
             }
         }
         if (learnedAnchor) planBackfill(r.lifeCount)
@@ -815,7 +815,7 @@ class Libre3BleManager(sensorId: String) :
         UiRefreshBus.requestStatusRefresh()
     }
 
-    private fun publishCurrent(timeMs: Long, mgdl: Float, rate: Float, lifeCount: Int) {
+    private fun publishCurrent(timeMs: Long, mgdl: Float, rate: Float, trendClass: Int, lifeCount: Int) {
         synchronized(readingLock) {
             if (stop) return
             lastReadingMs = timeMs
@@ -824,12 +824,15 @@ class Libre3BleManager(sensorId: String) :
             markLocalReadingAccepted(timeMs)
             ensureNativeWindow()
             val safeRate = rate.takeIf { it.isFinite() } ?: 0f
+            val reading = VirtualGlucoseSensorBridge.Reading(
+                timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate, trendClass = trendClass,
+            )
             // Include live minutes in the blocking flush before its progress can be persisted.
-            minuteBackfill += VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)
+            minuteBackfill += reading
             markMinuteReceived(lifeCount)
             val mirrored = VirtualGlucoseSensorBridge.mirrorToNative(
                 sensorId,
-                listOf(VirtualGlucoseSensorBridge.Reading(timestampMs = timeMs, glucoseMgdl = mgdl, rate = rate)),
+                listOf(reading),
                 LOG_LABEL,
                 ManagedSensorUiFamily.LIBRE3,
             )

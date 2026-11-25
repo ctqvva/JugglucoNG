@@ -44,6 +44,9 @@ data class Libre3RealtimeReading(
     val temperatureRaw: Int,
 ) {
     val trend: Int get() = trendByte and 0x07
+
+    /** The sensor's trend, 1 (falling quickly) to 5 (rising quickly); 0 when it gave none. */
+    val trendClass: Int get() = trend.takeIf { it in 1..5 } ?: 0
     val isActionable: Boolean get() = trendByte and 0x08 != 0
     val dataQualityError: Boolean get() = currentWord and 0x8000 != 0
     val sensorCondition: Int get() = (currentWord ushr 13) and 0x03

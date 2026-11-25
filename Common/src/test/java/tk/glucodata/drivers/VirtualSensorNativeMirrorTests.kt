@@ -40,7 +40,7 @@ class VirtualSensorNativeMirrorTests {
             native.rebased += startSeconds
             native.startSeconds = startSeconds
         },
-        writeBatch = { timestampsSec, glucose, raws, sensorSerial, primaryIsResolved ->
+        writeBatch = { timestampsSec, glucose, raws, _, sensorSerial, primaryIsResolved ->
             native.batches += Batch(timestampsSec, glucose, raws, sensorSerial, primaryIsResolved)
             timestampsSec.size - native.refuse
         },

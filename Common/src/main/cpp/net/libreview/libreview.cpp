@@ -177,7 +177,7 @@ static char *libreScanel(const SensorGlucoseData *sens, const ScanData &scanel,
   ptr += sprintf(
       ptr,
       R"(","trendArrow":"%s","isActionable":true,"isFirstAfterTimeChange":false},"recordNumber":%hd,"timestamp":")",
-      trendName[scanel.tr], id);
+      trendName(scanel.tr), id);
   ptr += Tdatestringlocal(scanel.gettime(), mil, ptr);
   addar(ptr, R"("})");
   return ptr;
@@ -502,7 +502,7 @@ static char *onecurrent(const SensorGlucoseData *sens, const ScanData &scanel,
   const int id = nr * 256;
   ptr += sprintf(ptr, currentformat, isviewed ? "true" : "false",
                  mgdL < 40 ? "true" : "false", mgdL > 500 ? "true" : "false",
-                 trendName[scanel.tr], id);
+                 trendName(scanel.tr), id);
   ptr += Tdatestringlocal(scanel.gettime(), mil, ptr);
   addar(ptr, R"("})");
   return ptr;

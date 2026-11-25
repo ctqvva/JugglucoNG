@@ -84,6 +84,7 @@ using jint = int;
 using jsize = int;
 using jlongArray = vector<jlong>*;
 using jfloatArray = vector<float>*;
+using jintArray = vector<int>*;
 #define JNI_ABORT 2
 using sensorname_t = array<char, 11>;
 struct CaliPara { uint32_t time = 1; };
@@ -169,6 +170,7 @@ struct JNIEnv {
     template<class T> int GetArrayLength(vector<T> *array) { return array->size(); }
     jlong *GetLongArrayElements(jlongArray array, void *) { return array->data(); }
     float *GetFloatArrayElements(jfloatArray array, void *) { return array->data(); }
+    void GetIntArrayRegion(jintArray array, int first, int n, int *out) { copy_n(array->begin() + first, n, out); }
     void ReleaseLongArrayElements(jlongArray, jlong *, int) {}
     void ReleaseFloatArrayElements(jfloatArray, float *, int) {}
     // NightscoutCalibration: raw-primary view modes export the raw lane (mmol/L x10), then the
@@ -258,6 +260,7 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
         return body
     code += (CPP / "healthconnectbackfill.hpp").read_text().replace('#pragma once', '')
     code += "\nstatic HealthConnectBackfillProgress healthConnectBackfillProgress;\n"
+    code += extract("net/libreview/libreview.hpp", "constexpr const char *trendName(")
     code += extract("g.cpp", "static bool storeGlucoseStreamSample(")
     code += "\njint " + extract("g.cpp", "fromjava(healthConnectfromSensorptr)(")
     code += extract("g.cpp", 'extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(')
@@ -399,6 +402,53 @@ int main() {
     }
 
     static_assert(sizeof(ScanData) == 20);
+    {
+        // What LibreView is sent for a minute is the class the sensor gave it in its live frame.
+        SensorGlucoseData libre3{"libre3trend"};
+        libre3.capacity = 128;
+        libre3.info.family = 9;
+        batchSensor = &libre3;
+        const jlong start = libre3.getstarttime();
+        const auto trendOf = [&](int slot) { return string(trendName(libre3.getPollsData()[slot].tr)); };
+        vector<jlong> times; vector<float> values, zeros(8); vector<int> trends;
+        for (int i = 0; i < 8; ++i) {
+            times.push_back(start + (50 + i) * 60);
+            // Flat values: a class derived from them could only be Stable or unknown.
+            values.push_back(12);
+            trends.push_back(i);
+        }
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false, false, false, &trends) == 8);
+        const string names[] = {"Undetermined", "FallingQuickly", "Falling", "Stable", "Rising",
+                                "RisingQuickly", "Undetermined", "Undetermined"};
+        const auto keepsClasses = [&] {
+            for (int i = 0; i < 8; ++i)
+                assert(trendOf(50 + i) == names[i]);
+        };
+        keepsClasses();
+        // The same minutes replayed, and corrected, without a class.
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false) == 8);
+        keepsClasses();
+        for (auto &value : values) value = 14;
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false) == 8);
+        assert(libre3.getPollsData()[51].getmgdL() == 140);
+        keepsClasses();
+        // A recovered minute never had one.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start + 60*60, 12, 0, 0, false, false, true, nullptr));
+        assert(trendOf(60) == "Undetermined");
+        // A live frame overrides the class an earlier copy of the minute carried.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start + 51*60, 14, 0, 0, false, false, true,
+                                        nullptr, false, false, false, 5));
+        assert(trendOf(51) == "RisingQuickly");
+        for (int bad : {-1, 6, 7, 1000})
+            assert(string(trendName(bad)) == "Undetermined");
+        vector<int> tooFew{1};
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false, false, false, &tooFew) == 0);
+        batchSensor = nullptr;
+    }
     {
         SensorGlucoseData managed{"SIBI:0111801JGS9"};
         filesystem::create_directory(managed.id);

@@ -49,7 +49,7 @@ class NativeMirrorCalibrationTests {
             readShellStartSeconds = { reading.timestampMs / 1000L - 60L },
             openShell = { _, _, _ -> error("existing shell") },
             rebaseShell = { _, _ -> error("existing window") },
-            writeBatch = { _, values, _, _, resolved ->
+            writeBatch = { _, values, _, _, _, resolved ->
                 assertEquals(primaryIsResolved, resolved)
                 // storeGlucoseStreamSample multiplies this argument by 10.
                 stored = (values.single() * 10f).toInt()

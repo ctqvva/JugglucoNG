@@ -33,7 +33,7 @@ internal class VirtualSensorNativeMirror(
     private val readShellStartSeconds: (String) -> Long,
     private val openShell: (String, Long, Int) -> Unit,
     private val rebaseShell: (String, Long) -> Unit,
-    private val writeBatch: (LongArray, FloatArray, FloatArray, String, Boolean) -> Int,
+    private val writeBatch: (LongArray, FloatArray, FloatArray, IntArray, String, Boolean) -> Int,
     private val readCapacityMinutes: (String) -> Int = { Int.MAX_VALUE },
 ) {
 
@@ -164,6 +164,7 @@ internal class VirtualSensorNativeMirror(
             FloatArray(writable.size) {
                 writable[it].second.rawMgdl.takeIf { raw -> raw.isFinite() && raw > 0f } ?: 0f
             },
+            IntArray(writable.size) { writable[it].second.trendClass },
             sensorSerial,
             primaryIsResolved,
         )

@@ -44,13 +44,15 @@ object VirtualGlucoseSensorBridge {
             }
         },
         rebaseShell = { serial, startSeconds -> Natives.rebaseDirectStreamWindow(serial, startSeconds) },
-        writeBatch = { timestampsSec, glucose, raws, serial, primaryIsResolved ->
+        writeBatch = { timestampsSec, glucose, raws, trends, serial, primaryIsResolved ->
             if (primaryIsResolved) Natives.addResolvedGlucoseStreamBatchWithRawTemp(
                 timestampsSec,
                 glucose,
                 raws,
                 FloatArray(timestampsSec.size),
                 serial,
+            ) else if (trends.any { it != 0 }) Natives.addGlucoseStreamBatchWithTrend(
+                timestampsSec, glucose, raws, FloatArray(timestampsSec.size), trends, serial,
             ) else Natives.addGlucoseStreamBatchWithRawTemp(
                 timestampsSec, glucose, raws, FloatArray(timestampsSec.size), serial,
             )
@@ -120,6 +122,8 @@ object VirtualGlucoseSensorBridge {
         val calibratedMgdl: Float = Float.NaN,
         val rawMgdl: Float = Float.NaN,
         val rate: Float = Float.NaN,
+        /** The sensor's own trend, 1 (falling quickly) to 5 (rising quickly); 0 when it gave none. */
+        val trendClass: Int = 0,
     ) {
         val storageGlucoseMgdl: Float
             get() = autoMgdl.takeIf { it.isFinite() && it > 0f } ?: glucoseMgdl
