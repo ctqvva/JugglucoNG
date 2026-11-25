@@ -48,7 +48,6 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Applic.mgdLmult;
 import static tk.glucodata.BuildConfig.libreVersion;
-import static tk.glucodata.Gen2.getversion;
 import static tk.glucodata.Libre3.libre3NFC;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Log.showbytes;
@@ -300,10 +299,6 @@ public class ScanNfcV {
             if (!Natives.gethaslibrary()) {
                 vibrator.cancel();
                 failure(vibrator);
-                if (main.openfile != null)
-                    Applic.RunOnUiThread(() -> {
-                        main.openfile.showchoice(main, true);
-                    });
                 return;
             }
             int value = 0;
@@ -378,6 +373,16 @@ public class ScanNfcV {
                             Log.format("glucose=%.1f\n", (float) value / mgdLmult);
                             ret = uit >> 16;
                             String scannedSensorIdent = Natives.getserial(uid, info);
+                            if ((ret & RESTART_BLE_FLAG) != 0) {
+                                // The scan rebuilt the sensor's state without a glucose value;
+                                // BLE never started without that state.
+                                ret &= ~RESTART_BLE_FLAG;
+                                if (doLog) {
+                                    Log.d(LOG_ID, "State rebuilt, resetDevice " + scannedSensorIdent);
+                                }
+                                if (SensorBluetooth.resetDevice(scannedSensorIdent))
+                                    askpermission = true;
+                            }
                             if (shouldSyncDecodedHistory(ret, value)) {
                                 HistorySyncAccess.mergeFullSyncForSensor(scannedSensorIdent);
                             }
@@ -491,14 +496,6 @@ public class ScanNfcV {
                                 ;
                             }
                             ;
-                            if (getversion(info) == 2 && !Natives.switchgen2()) {
-                                Openfile.reinstall = true;
-                                Natives.closedynlib();
-                                Applic.RunOnUiThread(() -> {
-                                    getlibrary.openlibrary(main);
-                                });
-                            }
-
                         }
                     }
                 }
@@ -532,6 +529,9 @@ public class ScanNfcV {
                 main.finepermission();
         });
     }
+
+    /** Set by {@code Natives.nfcdata} (g.cpp {@code restartBleFlag}), after the shift by 16. */
+    static final int RESTART_BLE_FLAG = 0x40;
 
     static boolean shouldSyncDecodedHistory(int resultCode, int glucoseValue) {
         return glucoseValue > 0 || (resultCode & 0x7F) <= 9;

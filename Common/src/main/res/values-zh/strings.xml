@@ -615,6 +615,7 @@
     <string name="status_connected">已连接</string>
     <string name="sensor_error">传感器错误</string>
     <string name="sensor_replace">更换传感器</string>
+    <string name="sensor_scan_needed">扫描传感器</string>
     <string name="sensor_ended">传感器已结束</string>
     <string name="sensor_warming_up">预热中</string>
     <string name="sensor_error_code">传感器错误代码</string>

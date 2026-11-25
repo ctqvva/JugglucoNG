@@ -1063,6 +1063,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="status_connected">Conectado</string>
      <string name="sensor_error">Error de sensor</string>
      <string name="sensor_replace">Reemplazar sensor</string>
+     <string name="sensor_scan_needed">Escanear el sensor</string>
      <string name="sensor_ended">Sensor finalizado</string>
      <string name="sensor_warming_up">Calentando</string>
      <string name="sensor_error_code">Código de error del sensor</string>

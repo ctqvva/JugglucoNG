@@ -4,6 +4,7 @@ package tk.glucodata.ui
 enum class LegacySensorStatusText {
     SensorError,
     ReplaceSensor,
+    ScanSensor,
     SensorEnded,
     WarmingUp,
     Other,
@@ -18,6 +19,7 @@ const val DEXCOM_DEFAULT_WARMUP_MINUTES = 30
 fun classifyLegacySensorStatus(status: String): LegacySensorStatusText = when (status) {
     "Sensor Error" -> LegacySensorStatusText.SensorError
     "Replace Sensor?" -> LegacySensorStatusText.ReplaceSensor
+    "Scan Sensor" -> LegacySensorStatusText.ScanSensor
     "Sensor Ended" -> LegacySensorStatusText.SensorEnded
     "Warming Up" -> LegacySensorStatusText.WarmingUp
     else -> LegacySensorStatusText.Other

@@ -978,8 +978,12 @@ public:
     // retires a 28-day sensor on day 14 and it silently leaves the watch feed.
     // Only AiDex, Libre3 and direct-stream shells carry wearduration2, and for
     // the first two it never exceeds days*24*60, so this is a no-op there.
-    const int minutes =
+    int minutes =
         std::max(hours * 60, static_cast<int>(info->wearduration2));
+    // Its frames are read for a day past the nominal wear (wear_grace_minutes in libre2_imp).
+    // info->days normally covers that day already.
+    if (isNfcLibre2())
+      minutes = std::max(minutes, getweardurationMIN() + 24 * 60);
     uint32_t maxtime = minutes * 60 + getstarttime();
 
     // ARCHITECTURAL FIX: Support Custom Calibration for aged sensors.
@@ -1432,6 +1436,7 @@ static int getgeneration(const char *info) {
     }
     return false;
   }
+  bool isNfcLibre2() const { return isLibre2() && !isAiDex() && hasLibrePatchInfo(); }
   // The plain record a watch builds for a phone's sensor from mirrored
   // readings alone: no driver of its own and nothing but polls. Anything with
   // a driver flag, patch info, scans or history belongs to a sensor this
@@ -3339,10 +3344,18 @@ public:
   uint32_t sensorErrorTime = 0;
   uint32_t sensorErrorStart = 0;
   uint32_t sensorErrorCode = 0;
+  uint32_t sensorErrorFrames = 0;
   uint32_t lastPacketTime = 0;
   bool persistentSensorError = false;
   bool replacesensor = false;
   bool dexcomWarmingUp = false;
+  // Libre 2 frames arrive, but there is no saved state to read them with until an NFC scan.
+  bool awaitsScan = false;
+
+  bool receivingPackets(uint32_t nu) const {
+    return lastPacketTime && nu >= lastPacketTime && (nu - lastPacketTime) < (10 * 60);
+  }
+  bool isScanNeeded(uint32_t nu) const { return awaitsScan && receivingPackets(nu); }
 
   /**
    * Start or refresh an error episode. Libre 2 errors are kept until a valid reading
@@ -3357,12 +3370,14 @@ public:
     if (!sensorerror || staleEpisode) {
       sensorErrorStart = nu;
       sensorErrorCode = code;
+      sensorErrorFrames = 0;
       replacesensor = false;
     } else if (code) {
       sensorErrorCode = code;
     }
     sensorerror = true;
     sensorErrorTime = nu;
+    ++sensorErrorFrames;
     persistentSensorError = true;
     if (sensorErrorStart && nu >= sensorErrorStart &&
         (nu - sensorErrorStart) >= 10 * 60) {
@@ -3375,14 +3390,20 @@ public:
     sensorErrorTime = 0;
     sensorErrorStart = 0;
     sensorErrorCode = 0;
+    sensorErrorFrames = 0;
     persistentSensorError = false;
     replacesensor = false;
     dexcomWarmingUp = false;
   }
 
+  // A lone frame without a value is a gap, not a sensor error: the error shows once three
+  // received frames in a row had none. Frames that never arrived do not count.
+  static constexpr uint32_t sensorErrorShowFrames = 3;
   bool hasSensorError(uint32_t nu) const {
     if (!sensorerror) return false;
     if (persistentSensorError) {
+      if (sensorErrorFrames < sensorErrorShowFrames)
+        return false;
       // Keep the error until a valid reading, but do not mask a link that stopped
       // delivering frames: after ten minutes without a packet, no connection is the
       // truthful state.

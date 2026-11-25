@@ -218,6 +218,10 @@ bool addStreamHistory(const jniHistory &hist,time_t nutime,int nuid, SensorGluco
 		LOGAR("old value");
 		return false;
 		}
+	if(pos>=save.maxpos()) {
+		LOGGER("GLU: addStreamHistory pos %d out of 0..%d\n",pos,save.maxpos());
+		return false;
+		}
 	uint16_t gv=10*histvalue.getValue();//Same unit as raw
 	time_t was=nutime-(nuid-id)*60;
 	LOGGER("glucose id=%d %.1f (%d) %ld %s",id,gv/180.0f,gv,was,ctime(&was));

@@ -476,6 +476,7 @@
     <string name="status_connected">Connesso</string>
     <string name="sensor_error">Errore del sensore</string>
     <string name="sensor_replace">Sostituire il sensore</string>
+    <string name="sensor_scan_needed">Scansionare il sensore</string>
     <string name="sensor_ended">Sensore terminato</string>
     <string name="sensor_warming_up">Riscaldamento</string>
     <string name="sensor_error_code">Codice errore sensore</string>

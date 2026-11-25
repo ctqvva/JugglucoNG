@@ -655,6 +655,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="status_connected">Bağlı</string>
     <string name="sensor_error">Sensör hatası</string>
     <string name="sensor_replace">Sensörü değiştirin</string>
+    <string name="sensor_scan_needed">Sensörü tarayın</string>
     <string name="sensor_ended">Sensör sona erdi</string>
     <string name="sensor_warming_up">Isınıyor</string>
     <string name="sensor_error_code">Sensör hata kodu</string>

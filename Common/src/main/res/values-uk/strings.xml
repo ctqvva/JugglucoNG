@@ -615,6 +615,7 @@
     <string name="status_connected">Підключено</string>
     <string name="sensor_error">Помилка датчика</string>
     <string name="sensor_replace">Замініть датчик</string>
+    <string name="sensor_scan_needed">Відскануйте датчик</string>
     <string name="sensor_ended">Датчик завершив роботу</string>
     <string name="sensor_warming_up">Йде прогрів</string>
     <string name="sensor_error_code">Код помилки датчика</string>

@@ -663,6 +663,8 @@ class SensorViewModel : ViewModel() {
                                     tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_error)
                                 LegacySensorStatusText.ReplaceSensor ->
                                     tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_replace)
+                                LegacySensorStatusText.ScanSensor ->
+                                    tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_scan_needed)
                                 LegacySensorStatusText.SensorEnded ->
                                     tk.glucodata.Applic.app.getString(tk.glucodata.R.string.sensor_ended)
                                 LegacySensorStatusText.WarmingUp ->

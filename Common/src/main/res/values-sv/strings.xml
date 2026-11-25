@@ -603,6 +603,7 @@
     <string name="status_connected">Ansluten</string>
     <string name="sensor_error">Sensorfel</string>
     <string name="sensor_replace">Byt sensor</string>
+    <string name="sensor_scan_needed">Skanna sensorn</string>
     <string name="sensor_ended">Sensorn har avslutats</string>
     <string name="sensor_warming_up">Värms upp</string>
     <string name="sensor_error_code">Sensorfelkod</string>

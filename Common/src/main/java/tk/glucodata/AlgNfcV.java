@@ -55,9 +55,14 @@ public class AlgNfcV {
         return nfccmd(tag, new byte[]{38, 1, 0}) != null;
     }
     static boolean enableStreaming(final Tag tag, byte[] info) {
+        return enableStreaming(tag, info, false);
+    }
+
+    /** @param newSensor just activated, so a Gen2 sensor has no entry to save its login record to */
+    private static boolean enableStreaming(final Tag tag, byte[] info, boolean newSensor) {
         final int version = getversion(info);
         if (version == 2)
-            return gen2enablestreaming(tag);
+            return gen2enablestreaming(tag, info, newSensor);
 
         final boolean euEnabled = EUenableStreaming(tag, info, version == 0);
         if (euEnabled)
@@ -67,7 +72,7 @@ public class AlgNfcV {
         // requiring the Gen2 NFC auth path for BLE bootstrap.
         if (version == 0) {
             {if(doLog) {Log.i(LOG_ID, "Unknown Libre generation, trying Gen2 BLE enable fallback");};};
-            return gen2enablestreaming(tag);
+            return gen2enablestreaming(tag, info, newSensor);
         }
         return false;
     }
@@ -161,7 +166,7 @@ public class AlgNfcV {
             return false;
         }
         }
-        if(enableStreaming(tag, info)) {
+        if(enableStreaming(tag, info, true)) {
             log("Streaming enabled");
             return true;
         } else

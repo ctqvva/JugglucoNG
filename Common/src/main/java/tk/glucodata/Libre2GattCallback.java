@@ -51,13 +51,10 @@ import static java.util.Objects.nonNull;
 import static tk.glucodata.Applic.app;
 import static tk.glucodata.Applic.isWearable;
 //import static tk.glucodata.DexGattCallback.setalarm;
-import static tk.glucodata.Gen2.errorP1;
-import static tk.glucodata.Gen2.v1check;
+import tk.glucodata.drivers.libre2.Libre2Gen2BleLogin;
+import tk.glucodata.drivers.libre2.Libre2ManagedDriver;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.LossOfSensorAlarm.cancelalarm;
-import static tk.glucodata.Natives.V1;
-import static tk.glucodata.Natives.V2;
-import static tk.glucodata.Natives.abbottinit;
 import static tk.glucodata.Natives.getstreamingAuthenticationData;
 import static tk.glucodata.Natives.hasalarmloss;
 import static tk.glucodata.Natives.processTooth;
@@ -89,14 +86,20 @@ public class Libre2GattCallback extends SuperGattCallback {
 	// sensor, which never saw a disconnect, ignores the new login: in a tester trace 69 of 69
 	// such reconnects got no answer to the challenge request, until the link finally timed out.
 	// Waiting lets the link drop so the sensor starts a fresh session. The earliest reconnect
-	// time outlives the closed GATT, so every path that closes a link that was up (our own
-	// disconnect, a pause, close()) holds the next connectGatt back, whatever delay it asks for.
+	// time outlives the closed GATT, so every path that closes a link that was up holds the
+	// next connectGatt back, whatever delay it asks for.
 	private static final long RELINK_DELAY_MILLIS = 5_000L;
 	private boolean linkWasUp;
 	private long relinkNotBefore = -1L;
 
 	private void holdRelink() {
 		if (linkWasUp) relinkNotBefore = SystemClock.elapsedRealtime() + RELINK_DELAY_MILLIS;
+	}
+
+	// close() and the callers that close the transport directly both get here.
+	@Override
+	protected void onClosingGattTransport() {
+		holdRelink();
 	}
 
 	private void streamPacketReceived() {
@@ -312,8 +315,11 @@ static void showCharacter(String label, BluetoothGattCharacteristic characterist
             return;
          }
          
-		if (sensorgen == 2 && conphase == 1) {
-			writeBLELogin();
+		if (sensorgen == 2) {
+			if (conphase == 1)
+				writeBLELogin();
+			else
+				runPendingBleStep();
 		}
 	}
 private boolean connected=false;
@@ -395,6 +401,7 @@ private boolean connected=false;
 				}
 				constatchange[1] = tim;
 				if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+					closeManagedGen2();
 					logLinkEnd("status=" + status);
 					// Keep the existing Libre 2 notification/authentication recovery policy.
 					if (status == 19 && justenablednotification) {
@@ -446,12 +453,12 @@ private boolean connected=false;
 						if(BLELogincharacteristic.setValue(key)) {
 							if(mBluetoothGatt.writeCharacteristic(BLELogincharacteristic)) {
 								if(doLog) {
-									{if(doLog) {Log.v(LOG_ID, SerialNumber + " writeCharacteristic passcode: " + new String(showhex.hexstr(key, 0, key.length)));};};
+									{if(doLog) {Log.v(LOG_ID, SerialNumber + " writeCharacteristic passcode");};};
 									}
 								return true;
 								}
 							else {
-								Log.e(LOG_ID,SerialNumber + " writeCharacteristic failed passcode: " + new String(showhex.hexstr(key, 0, key.length)));
+								Log.e(LOG_ID,SerialNumber + " writeCharacteristic failed passcode");
 								wrotepass[1] = tim;
 								handshake="writeCharacteristic";
 								return false;
@@ -461,7 +468,7 @@ private boolean connected=false;
 						else {
 							wrotepass[1] = tim;
 							handshake="setValue";
-						Log.e(LOG_ID,SerialNumber + " setValue failed: passcode: " + new String(showhex.hexstr(key, 0, key.length)));
+						Log.e(LOG_ID,SerialNumber + " setValue failed: passcode");
 							return false;
 							}
 						} 
@@ -540,8 +547,10 @@ private   boolean failedbefore=false;
 					+ " (" + gattStatusText(status) + ")"
 					+ (bluetoothGattCharacteristic == null ? "" : " UUID:" + bluetoothGattCharacteristic.getUuid()));
 		}
-		if (sensorgen == 2)
+		if (sensorgen == 2) {
+			runPendingBleStep();
 			return;
+		}
 		try {
 			var sensorbluetooth=SensorBluetooth.blueone;
 			if(sensorbluetooth==null) {
@@ -673,7 +682,8 @@ private	void oldonCharacteristicChanged(byte[] value) {
 						pack2 = false;
 						System.arraycopy(value, 0, packet, 38, 8);
 						final long timmsec = System.currentTimeMillis();
-						final var newpacket= sensorgen==2?V2(773, tovalue, packet, null):packet;
+						final var gen2Login = managedGen2;
+						final var newpacket= sensorgen!=2?packet:(gen2Login!=null?gen2Login.decryptFrame(packet):null);
 						if(newpacket!=null) {
 							long res = processTooth(dataptr, newpacket);
 							if(res!=1L) {
@@ -702,103 +712,35 @@ private	void oldonCharacteristicChanged(byte[] value) {
 		;
 	}
 
-	int contactint = 0;
+	// Kotlin Gen2 login of the current link.
+	private Libre2Gen2BleLogin managedGen2;
 
-	private int authlastv1v2(int i, byte[] bArr, byte[] bArr2, byte[] bArr3,int numb) {
-		int P1res = V1(28960, numb, bArr, null);
-		if (P1res < 0) {
-			return P1res;
-		}
-		byte[] bArr4 = new byte[2];
-		bArr4[0] = 1;
-		bArr4[1] = (byte) i;
-		byte[] P2res = V2(6505, P1res, bArr4, bArr2);
-		if (P2res == null) {
-			errorP1(P1res);
-			return -99;
-		}
-		System.arraycopy(P2res, 0, bArr3, 0, P2res.length);
-		return P1res;
+	private void closeManagedGen2() {
+		final var login = managedGen2;
+		managedGen2 = null;
+		if (login != null)
+			login.close();
 	}
 
 	private byte[] authenticateStream(byte[] bArr) {
-		int i = contactint;
-		if(i > 0) {
-			V1(37400, i, null, null);
-			contactint = 0;
+		closeManagedGen2();
+		final var login = Libre2ManagedDriver.gen2BleLogin();
+		final byte[] answer = login.answerChallenge(Natives.getsensorident(dataptr), getstreamingAuthenticationData(dataptr), bArr);
+		if(answer != null) {
+			managedGen2 = login;
+			return answer;
 			}
-		byte[] Ew = Natives.getsensorident(dataptr); //uid sensorident
-		if(Ew == null) { 
-			handshake= "No ident";
-			wrotepass[1] = System.currentTimeMillis();
-			var gatt = mBluetoothGatt;
-			if (gatt != null)
-				requestDisconnect(gatt, 0L);
-			Log.e(LOG_ID, SerialNumber+ " No ident");
-			return null;
-			}
-
-		if(doLog) {
-			{if(doLog) {Log.i(LOG_ID, "sensdorident: " + showhex.showbytes(Ew));};};
-			}
-//  streamingAuthenticationData
-		byte[] auth = getstreamingAuthenticationData(dataptr);
-		if(auth == null ) { 
-			handshake= "No Auth";
-			wrotepass[1] = System.currentTimeMillis();
-			var gatt = mBluetoothGatt;
-			if (gatt != null)
-				requestDisconnect(gatt, 0L);
-			{if(doLog) {Log.i(LOG_ID,SerialNumber+" " +  showhex.showbytes(Ew));};};
-			return null;
-			}
-		if(doLog) {
-			{if(doLog) {Log.i(LOG_ID, "Authenticationdata: " + showhex.showbytes(auth));};};
-			}
-		int numb;
-		if(Gen2.newVersion) {
-			if(auth.length == 12) {
-			   numb = ((auth[11] << 8) | auth[10]) & 0xFFFF;
-			   } 
-			else {
-			var mess="Authenticationdata: len="+auth.length;
-			   if (auth.length < 10) {
-				Log.e(LOG_ID,SerialNumber+" "+mess);
-				handshake= mess;
-				wrotepass[1] = System.currentTimeMillis();
-				var gatt = mBluetoothGatt;
-				if (gatt != null)
-					requestDisconnect(gatt, 0L);
-				return null;
-			   } else {
-			   	{if(doLog) {Log.i(LOG_ID,mess);};};
-			       numb = -1; //-1
-				}
-			    }
-			   }
-		else {
-			numb=0;
-			}
-
-		byte[] bArr2 = new byte[bArr.length+10];
-		System.arraycopy(auth, 0, bArr2, 0, 10);
-		System.arraycopy(bArr, 0, bArr2, 10, bArr.length);
-		byte[] bArr3 = new byte[19];
-		contactint = authlastv1v2(31, Ew, bArr2, bArr3,numb);
-		if(contactint > 0)
-			return bArr3;
-		handshake= "Auth = "+contactint;
+		handshake = "Kotlin: " + login.getFailure();
 		wrotepass[1] = System.currentTimeMillis();
+		Log.e(LOG_ID, SerialNumber + " " + handshake);
 		var gatt = mBluetoothGatt;
 		if (gatt != null)
 			requestDisconnect(gatt, 0L);
-		Log.e(LOG_ID,SerialNumber+" "+handshake);
 		return null;
 	}
 
 
 	//mCharacteristicUUID_BLELogin.toString().equals(bluetoothGattCharacteristic.getUuid().toString())
-	byte[] buf25 = new byte[25];// this.f14472dGb = new byte[25];
 	public final void phase2(byte[] value) {
 		if (value.length != 14) {
 			Log.e(LOG_ID, SerialNumber+" phase2 wrong " + value);
@@ -853,12 +795,6 @@ private	void oldonCharacteristicChanged(byte[] value) {
 		}
 	}
 
-	private void contactintZero(int i) {
-		V1(37400, i, null, null);
-		contactint = 0;
-	}
-
-	int tovalue;
 /*
 static	public final boolean enableNotification(BluetoothGatt bluetoothGatt,BluetoothGattCharacteristic bluetoothGattCharacteristic) {
 	bluetoothGatt.setCharacteristicNotification(bluetoothGattCharacteristic, true);
@@ -870,33 +806,7 @@ private final boolean enableNotification(BluetoothGattCharacteristic bluetoothGa
 	return enableNotification(mBluetoothGatt, bluetoothGattCharacteristic);
 	} */
 
-	public final void phase3(byte[] value) {
-		int i;
-		if (value.length == 7) {
-			System.arraycopy(value, 0, buf25, 0, value.length);
-		} 
-	else {
-		if (value.length == 18) {
-			System.arraycopy(value, 0, buf25, 7, value.length);
-			byte[] bArr = buf25;
-			if (v1check(contactint, 1, bArr) != 0) {
-				contactintZero(contactint);
-				i = 0;
-			} else
-				i = contactint;
-			tovalue = i;
-			if (i <= 0) {
-				handshake= "phase3 i<=0";
-				wrotepass[1] = System.currentTimeMillis();
-				Log.e(LOG_ID, SerialNumber+" Error creating session context");
-				var gatt = mBluetoothGatt;
-				if (gatt != null)
-					requestDisconnect(gatt, 0L);
-				return;
-				}
-			{if(doLog) {Log.i(LOG_ID, "Gen2 session " + i);};};
-			conphase = 4;
-
+	private void startRawDataNotifications() {
             mBLELoginHandler = forCurrentGatt(() -> {
                 if (!asknotification(CompositeRawDatacharacteristic)) {
                     Log.e(LOG_ID, SerialNumber+" phase3 retry=" + BLELoginposted + " enableNotification failed");
@@ -918,16 +828,35 @@ private final boolean enableNotification(BluetoothGattCharacteristic bluetoothGa
                 wrotepass[0] = System.currentTimeMillis();
             });
             mBLELoginHandler.run();
+	}
 
-		} else {
-			handshake= "phase3 wrong length";
+	public final void phase3(byte[] value) {
+		final var gen2Login = managedGen2;
+		if (gen2Login == null) {
+			handshake = "phase3 without login";
 			wrotepass[1] = System.currentTimeMillis();
-			Log.e(LOG_ID, SerialNumber+" Erroneous response length " + value.length);
+			Log.e(LOG_ID, SerialNumber + " " + handshake);
 			var gatt = mBluetoothGatt;
 			if (gatt != null)
 				requestDisconnect(gatt, 0L);
+			return;
 		}
+		final var reply = gen2Login.onReplyPart(value);
+		if (reply == Libre2Gen2BleLogin.Reply.NEED_MORE)
+			return;
+		if (reply == Libre2Gen2BleLogin.Reply.REJECTED) {
+			handshake = "Kotlin: " + gen2Login.getFailure();
+			wrotepass[1] = System.currentTimeMillis();
+			Log.e(LOG_ID, SerialNumber + " " + handshake);
+			closeManagedGen2();
+			var gatt = mBluetoothGatt;
+			if (gatt != null)
+				requestDisconnect(gatt, 0L);
+			return;
 		}
+		{if(doLog) {Log.i(LOG_ID, "Kotlin Gen2 session");};};
+		conphase = 4;
+		startRawDataNotifications();
 	}
 
 @Override // android.bluetooth.BluetoothGattCallback
@@ -973,15 +902,30 @@ private int BLELoginposted=0;
 private Runnable		mBLELoginHandler=null; 
 private long bleLoginGeneration;
 
-// A Handler retry may already be dispatched when removeCallbacks() runs.
+// A Handler retry may already be dispatched when removeCallbacks() runs. It runs only while it
+// is still the pending step: a step that succeeded meanwhile (runPendingBleStep) cleared it.
 private Runnable forCurrentGatt(Runnable task) {
     final BluetoothGatt gatt = mBluetoothGatt;
     final long generation = ++bleLoginGeneration;
-    return () -> {
+    final Runnable[] self = new Runnable[1];
+    self[0] = () -> {
         synchronized (this) {
-            if (generation == bleLoginGeneration && acceptGattCallback(gatt)) task.run();
+            if (generation == bleLoginGeneration && mBLELoginHandler == self[0]
+                    && acceptGattCallback(gatt)) task.run();
         }
     };
+    return self[0];
+}
+
+// Android runs one GATT operation at a time. The sensor can answer before Android confirms our
+// previous write; the next login step is then refused as busy and waits for its 100 ms retry,
+// long enough for the sensor to drop the link. Send it as soon as the confirmation arrives.
+private void runPendingBleStep() {
+    final Runnable pending = mBLELoginHandler;
+    if (pending == null || BLELoginposted == 0)
+        return;
+    Applic.app.getHandler().removeCallbacks(pending);
+    pending.run();
 }
 
 private void endBLEHandler() {
@@ -1002,7 +946,6 @@ private void endBLEHandler() {
          disablenotification(gatt,BLELogincharacteristic);
          disablenotification(gatt, CompositeRawDatacharacteristic) ;
          }
-		holdRelink();
 		super.close();
 		resetConnectionState();
 		}

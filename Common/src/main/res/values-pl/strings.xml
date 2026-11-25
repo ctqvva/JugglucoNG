@@ -678,6 +678,7 @@
     <string name="status_connected">Połączono</string>
     <string name="sensor_error">Błąd czujnika</string>
     <string name="sensor_replace">Wymień czujnik</string>
+    <string name="sensor_scan_needed">Zeskanuj czujnik</string>
     <string name="sensor_ended">Czujnik zakończył pracę</string>
     <string name="sensor_warming_up">Nagrzewanie</string>
     <string name="sensor_error_code">Kod błędu czujnika</string>

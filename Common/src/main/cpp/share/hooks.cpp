@@ -58,8 +58,6 @@
 #include <sys/prctl.h>
 //#define loggert printf
 #define VISIBLE __attribute__((__visibility__("default")))
-extern const char *package;
-extern int packagelen;
 
 extern "C" {
 typedef void (*sighandler_t)(int);
@@ -136,7 +134,6 @@ extern "C" int  VISIBLE Pipe(int pipefd[2]) {
 //	typedef  int (*pipe_t)(int [2]); static pipe_t pi=(pipe_t)useddlvsym(RTLD_NEXT,"pipe",nullptr); int  ret=pi(pipefd);
 	int ret=sys_pipe2(pipefd,0);
 	LOGGER("pipe({%d,%d})=%d\n",pipefd[0],pipefd[1],ret);
-        sys_write(pipefd[1],package,packagelen);
 	return ret;	
 	}
 extern "C" int  VISIBLE pipe(int pipefd[2]) {

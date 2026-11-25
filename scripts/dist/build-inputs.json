@@ -16,11 +16,6 @@
       "sha256": "a4340b99a7e1050db0f926d80b9bc42cd5ffac1238f7da0cb11a4f232676d15c"
     },
     {
-      "path": "Common/src/main/jniLibs/arm64-v8a/libcalibrat2.so",
-      "size": 3475016,
-      "sha256": "c15a1efa60a7d2b17ac6cab8e3efffbcb5d6d4e5c8085e68d5812c3d4bf49a93"
-    },
-    {
       "path": "Common/src/main/jniLibs/arm64-v8a/libcrl_dp.so",
       "size": 740536,
       "sha256": "19afe7e21e25d98072d90864bf7ad03f8d4fb6d2fcf66def7622adc140af86d8"
@@ -46,16 +41,6 @@
       "sha256": "365572ee3157908217c3ff6047dbe6a04d61ff70633c3f48a95e3bf1b14c1df6"
     },
     {
-      "path": "Common/src/main/jniLibs/armeabi-v7a/libcalibrat2.so",
-      "size": 3171368,
-      "sha256": "6aefcef0d7fc995ace8f1b2c4e3809c8ce349e013ad0a53fbab97c02d16d1f6a"
-    },
-    {
-      "path": "Common/src/main/jniLibs/armeabi-v7a/libcalibrate.so",
-      "size": 669842,
-      "sha256": "b815e7d0392c9e8217a652662acd19584a051909b8fc05e3aabb5bbc28fe2091"
-    },
-    {
       "path": "Common/src/main/jniLibs/armeabi-v7a/libcrl_dp.so",
       "size": 570032,
       "sha256": "a0f58cc7d6f0b18bb12dd86dfc72fcfdf3080c0ad6f77d1b62b02e7e83942512"
@@ -73,6 +58,7 @@
   ],
   "removedFiles": [
     "Common/src/main/jniLibs/arm64-v8a/libalgorithm-jni.so",
+    "Common/src/main/jniLibs/arm64-v8a/libcalibrat2.so",
     "Common/src/main/jniLibs/arm64-v8a/libcgat-lib.so",
     "Common/src/main/jniLibs/arm64-v8a/libjniPdfium.so",
     "Common/src/main/jniLibs/arm64-v8a/libmarsxlog.so",
@@ -83,6 +69,8 @@
     "Common/src/main/jniLibs/arm64-v8a/libobjectbox-jni.so",
     "Common/src/main/jniLibs/arm64-v8a/libscannative.so",
     "Common/src/main/jniLibs/armeabi-v7a/libalgorithm-jni.so",
+    "Common/src/main/jniLibs/armeabi-v7a/libcalibrat2.so",
+    "Common/src/main/jniLibs/armeabi-v7a/libcalibrate.so",
     "Common/src/main/jniLibs/armeabi-v7a/libcgat-lib.so",
     "Common/src/main/jniLibs/armeabi-v7a/libgetuiext3.so",
     "Common/src/main/jniLibs/armeabi-v7a/libjniPdfium.so",

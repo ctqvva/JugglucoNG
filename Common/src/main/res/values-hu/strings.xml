@@ -954,6 +954,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="status_connected">Csatlakoztatva</string>
     <string name="sensor_error">Szenzorhiba</string>
     <string name="sensor_replace">Cserélje a szenzort</string>
+    <string name="sensor_scan_needed">Olvassa be a szenzort</string>
     <string name="sensor_ended">A szenzor lejárt</string>
     <string name="sensor_warming_up">Bemelegedés</string>
     <string name="sensor_error_code">Szenzor hibakód</string>

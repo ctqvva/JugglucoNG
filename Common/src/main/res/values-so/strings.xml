@@ -1009,6 +1009,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="status_connected">Ku xidhan</string>
     <string name="sensor_error">Khalad sensor</string>
     <string name="sensor_replace">Beddel sensor</string>
+    <string name="sensor_scan_needed">Iskaan garee sensor-ka</string>
     <string name="sensor_ended">Sensor-ku wuu dhamaaday</string>
     <string name="sensor_warming_up">Diirimaad</string>
     <string name="sensor_error_code">Lambarka khaladka sensor-ka</string>

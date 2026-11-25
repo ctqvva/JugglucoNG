@@ -13,6 +13,7 @@ private fun localizeNativeStatus(status: String): String {
     return when (classifyLegacySensorStatus(status)) {
         LegacySensorStatusText.SensorError -> app.getString(R.string.sensor_error)
         LegacySensorStatusText.ReplaceSensor -> app.getString(R.string.sensor_replace)
+        LegacySensorStatusText.ScanSensor -> app.getString(R.string.sensor_scan_needed)
         LegacySensorStatusText.SensorEnded -> app.getString(R.string.sensor_ended)
         LegacySensorStatusText.WarmingUp -> app.getString(R.string.sensor_warming_up)
         LegacySensorStatusText.Other -> status
