@@ -1631,6 +1631,9 @@ public class Natives {
 
         public static native byte[] airGetPin(long dataptr);
 
+        /** Debug builds: also run each record through the open engine and log differences. */
+        public static native void airSetOpenCalibrationShadow(boolean on);
+
         /**
          * Pass as {@code trendByte} when the AiDex frame carried no trend field — the direct F003
          * live frame does not, only the 0x11 broadcast sample does. Native stores NaN for the rate
