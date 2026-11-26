@@ -119,7 +119,8 @@ class Libre3GattSessionSimulationTest {
     private fun wear(lifeCount: Int, wearMinutes: Int) {
         if (::manager.isInitialized) runCatching { manager.setPause(true); manager.close() }
         val identity = Libre3AppIdentity.create("app", ByteArray(30) + byteArrayOf(0x44, 0x44), Libre3Bytes.parseHex(CERT_HEX)!!)
-        val start = System.currentTimeMillis() - lifeCount * 60_000L
+        // Life count L is sent as its minute ends, at activation + (L + 1) min: now.
+        val start = System.currentTimeMillis() - (lifeCount + 1) * 60_000L
         Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensorId, address, pin, start, 60, wearMinutes, 0x6f0d8378L, "1.4.2.30", 1))
         sim = SimulatedLibre3Sensor(identity.staticPublicKey, pin, lifeCount)
         Libre3SimGattShadow.sim = sim
@@ -167,7 +168,7 @@ class Libre3GattSessionSimulationTest {
     }
 
     private fun lifeTime(lifeCount: Int): Long =
-        Libre3Persistence.loadSensor(context, sensorId)!!.startTimeMs + lifeCount * 60_000L
+        Libre3Persistence.loadSensor(context, sensorId)!!.startTimeMs + (lifeCount + 1) * 60_000L
 
     @Test fun firstPairStreamsBackfillsAndReconnectsWithCachedAuthorization() {
         val gatt = connect()

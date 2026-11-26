@@ -375,7 +375,8 @@ object Libre3Persistence {
         // survive a rescan of the same activation and are reset only for a different one.
         edit.remove("$k.kauth")
         if (previous == null || previous.startTimeMs != record.startTimeMs) {
-            edit.remove("$k.lastLife").remove("$k.lastHist").remove("$k.identity").remove("$k.anchor")
+            edit.remove("$k.lastLife").remove("$k.lastHist").remove("$k.identity")
+                .remove("$k.anchor").remove("$k.activation")
         }
         edit.apply()
     }
@@ -450,11 +451,20 @@ object Libre3Persistence {
         prefs(context).edit().putString("$sensorId.fillers", Libre3BackfillMerge.encode(fillers)).apply()
     }
 
-    /** A fixed estimate when activation time was unavailable, or an earlier preview grid. */
-    fun getAnchor(context: Context, sensorId: String): Long = prefs(context).getLong("$sensorId.anchor", 0L)
+    /**
+     * The activation estimated when the driver took over a sensor without one (its first arrival
+     * less [Libre3LifeCount.endMs]). Earlier builds kept the time of life count 0's *start* under
+     * "anchor", which is the same grid one minute later; it is read back as such, so readings
+     * already stored keep their times.
+     */
+    fun getAnchor(context: Context, sensorId: String): Long {
+        val p = prefs(context)
+        p.getLong("$sensorId.activation", 0L).takeIf { it > 0L }?.let { return it }
+        return Libre3LifeCount.activationFromLegacyAnchor(p.getLong("$sensorId.anchor", 0L))
+    }
 
     fun setAnchor(context: Context, sensorId: String, anchorMs: Long) {
-        prefs(context).edit().putLong("$sensorId.anchor", anchorMs).apply()
+        prefs(context).edit().putLong("$sensorId.activation", anchorMs).remove("$sensorId.anchor").apply()
     }
 
     fun isEnded(context: Context, sensorId: String): Boolean = prefs(context).getBoolean("$sensorId.ended", false)
@@ -496,7 +506,9 @@ object Libre3Persistence {
             .put("product", record.productType)
             .put("lastLife", getLastLifeCount(context, sensorId))
             .put("lastHist", getLastHistoricLifeCount(context, sensorId))
-            .put("anchor", getAnchor(context, sensorId))
+            .put("activation", getAnchor(context, sensorId))
+            // What a watch on an earlier build reads.
+            .put("anchor", Libre3LifeCount.legacyAnchor(getAnchor(context, sensorId)))
             .put("fillers", p.getString("$sensorId.fillers", "") ?: "")
             .put("ended", isEnded(context, sensorId))
             .put("selected", selected ?: org.json.JSONObject.NULL)
@@ -539,7 +551,9 @@ object Libre3Persistence {
             .putInt("$sensorId.lastHist", json.optInt("lastHist"))
             .putString("$sensorId.fillers", json.optString("fillers"))
             .putBoolean("$sensorId.ended", json.optBoolean("ended"))
-        json.optLong("anchor").takeIf { it > 0L }?.let { edit.putLong("$sensorId.anchor", it) }
+        (json.optLong("activation").takeIf { it > 0L }
+            ?: Libre3LifeCount.activationFromLegacyAnchor(json.optLong("anchor")).takeIf { it > 0L })
+            ?.let { edit.putLong("$sensorId.activation", it).remove("$sensorId.anchor") }
         check(edit.commit()) { "could not persist the sensor from the phone" }
         val key = Libre3Bytes.parseHex(json.optString("kauth"))
         val label = json.optString("kauthIdentity").takeIf { it.isNotEmpty() }

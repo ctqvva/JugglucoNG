@@ -125,7 +125,7 @@ class Libre3ReviewRegressionTest {
         // The live frame is 20 seconds late. The recovered minute is only 40
         // seconds after receipt, but a full minute after the sensor's live sample.
         val liveAt = System.currentTimeMillis() - 20_000L
-        val anchor = liveAt - lifeCount * 60_000L
+        val anchor = liveAt - (lifeCount + 1) * 60_000L
         set("anchorStartMs", anchor)
         set("lastLifeCount", lifeCount - 1)
         invoke("onRealtime", Libre3RealtimeReading(lifeCount, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0))
@@ -142,11 +142,74 @@ class Libre3ReviewRegressionTest {
 
     @Test fun aPreviewReceiptTimestampDoesNotHideTheAdjacentRecoveredMinute() {
         val nextMinute = System.currentTimeMillis() - 30_000L
-        set("anchorStartMs", nextMinute - 101 * 60_000L)
+        set("anchorStartMs", nextMinute - 102 * 60_000L)
         timestamps = longArrayOf(nextMinute - 40_000L)
         invoke("onClinical", Libre3ClinicalRecord(101, 124, 0))
         invoke("flushBackfill")
         assertEquals(listOf(nextMinute), roomWrites)
+    }
+
+    /**
+     * Life count L is the minute that ends at activation + (L + 1) min, which is when the sensor
+     * sends it: a 15-day sensor's frames for life 3056 to 3901 arrived 1 to 5 s before that
+     * boundary. The live frame, its five-minute history value and a clinical replay of the same
+     * minute all get their time from that one rule, as the removed driver's did.
+     */
+    @Test fun aLifeCountIsDatedByTheEndOfItsMinuteOnEveryPath() {
+        val life = 3_900
+        val arrival = System.currentTimeMillis()
+        val activation = arrival + 4_000L - (life + 1) * 60_000L
+        Libre3Persistence.saveSensor(context, pairing().copy(startTimeMs = activation))
+        set("record", Libre3Persistence.loadSensor(context, sensor))
+        set("anchorStartMs", activation)
+        set("lastLifeCount", life - 1)
+        invoke("onRealtime", Libre3RealtimeReading(life, 123, 0, 0, 0, life - 20, 118, 0, 0, 0, 0))
+        invoke("flushBackfill")
+
+        val end = activation + (life + 1) * 60_000L
+        assertEquals(end, manager.getManagedCurrentSnapshot(0)!!.timeMillis)
+        assertTrue("live minute in Room", roomWrites.contains(end))
+        assertTrue("live minute in native", Libre3ReviewNatives.nativeSeconds.contains(end / 1000L))
+        assertTrue("history value in Room", roomWrites.contains(activation + (life - 19) * 60_000L))
+
+        // The sensor replays the same minute: it is the reading already stored, not the next one.
+        roomWrites.clear()
+        timestamps = longArrayOf(end)
+        invoke("onClinical", Libre3ClinicalRecord(life, 123, 0))
+        invoke("flushBackfill")
+        assertEquals(emptyList<Long>(), roomWrites)
+    }
+
+    /**
+     * Earlier builds saved the start of life count 0 when they learned the grid from an arrival,
+     * which dated each minute at its arrival already. Read back, that grid must not move, or every
+     * minute stored under it would get a neighbour a minute away.
+     */
+    @Test fun aGridLearnedByAnEarlierBuildKeepsTheTimesItStored() {
+        val life = 100
+        val firstArrival = System.currentTimeMillis()
+        Libre3Persistence.saveSensor(context, pairing().copy(startTimeMs = 0))
+        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putLong("$sensor.anchor", firstArrival - life * 60_000L).commit()
+        manager.setPause(true)
+        manager.close()
+        manager = Libre3BleManager(sensor)
+        set("nativeWindowChecked", true)
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(60))
+        invoke("onRealtime", Libre3RealtimeReading(life + 1, 124, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        invoke("flushBackfill")
+
+        // What the earlier build stored for life + 1: its arrival a minute after the first.
+        assertEquals(listOf(firstArrival + 60_000L), roomWrites)
+        assertEquals(firstArrival - (life + 1) * 60_000L, Libre3Persistence.getAnchor(context, sensor))
+        assertEquals(firstArrival - (life + 1) * 60_000L, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
+
+        // A phone on an earlier build hands the watch the same grid.
+        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+        Libre3Persistence.importFromPhone(context, org.json.JSONObject()
+            .put("sensor", sensor).put("pin", "01020304").put("address", "AA:BB:CC:DD:EE:FF")
+            .put("anchor", firstArrival - life * 60_000L))
+        assertEquals(firstArrival - (life + 1) * 60_000L, Libre3Persistence.getAnchor(context, sensor))
     }
 
     @Test fun takeoverWithoutActivationTimeLearnsItsGridOnlyOnce() {
@@ -157,7 +220,7 @@ class Libre3ReviewRegressionTest {
         invoke("onRealtime", Libre3RealtimeReading(100, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         val learned = Libre3Persistence.getAnchor(context, sensor)
         val first = manager.getManagedCurrentSnapshot(0)!!.timeMillis
-        assertEquals(first - 100 * 60_000L, learned)
+        assertEquals(first - 101 * 60_000L, learned)
         assertEquals(learned, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
         invoke("flushBackfill")
         ShadowSystemClock.advanceBy(Duration.ofSeconds(80))
@@ -359,13 +422,14 @@ class Libre3ReviewRegressionTest {
         set("anchorStartMs", now + 30_000L)
         set("nativeWindowChecked", false)
         invoke("ensureNativeWindow")
-        assertEquals((now + 30_000L) / 1000L, Libre3ReviewNatives.activationSec)
+        // Life count 0 is the minute that ends a minute after activation.
+        assertEquals((now + 90_000L) / 1000L, Libre3ReviewNatives.activationSec)
 
         // An NFC rescan that moves the activation hands the new origin over too.
         Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now - 600_000L, 60, 21600, 1, "test", 1))
         manager.onNfcRecordUpdated()
         invoke("ensureNativeWindow")
-        assertEquals((now - 600_000L) / 1000L, Libre3ReviewNatives.activationSec)
+        assertEquals((now - 540_000L) / 1000L, Libre3ReviewNatives.activationSec)
     }
 
     @Test fun watchHandoffCarriesTheSensorItsCredentialsAndCachedKey() {
@@ -445,7 +509,7 @@ class Libre3ReviewRegressionTest {
             plain[14] = (0x08 or bits).toByte()
             Libre3ReviewNatives.nativeTrends.clear()
             invoke("onRealtime", Libre3RealtimeReading.parse(plain))
-            val second = (System.currentTimeMillis() - 14_571 * 60_000L + lifeCount * 60_000L) / 1000L
+            val second = (System.currentTimeMillis() - 14_571 * 60_000L + (lifeCount + 1) * 60_000L) / 1000L
             val stored = Libre3ReviewNatives.nativeSeconds.last()
             assertTrue(kotlin.math.abs(stored - second) <= 2)
             val expected = if (bits in 1..5) listOf(stored to bits) else emptyList()

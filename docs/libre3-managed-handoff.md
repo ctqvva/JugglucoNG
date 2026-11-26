@@ -95,9 +95,13 @@ services used are the generic managed-sensor mirror and lifecycle services.
 - Backfill timeout closes the link. Room success is required before durable
   progress advances; failed writes and failed timestamp queries retain batches.
   Live minutes join the blocking flush so progress cannot precede their storage.
-  Live and recovered timestamps use the same fixed activation grid. If NFC
-  takeover has no known activation time, the first live frame fixes an estimate
-  before history recovery starts. Pause retains pending batches until Resume can
+  Live and recovered timestamps use the same fixed activation grid: life count L
+  is the minute that ends at activation + (L + 1) min, when the sensor sends it
+  (traced frames arrive 1-5 s before that boundary; the removed native driver
+  dated live minutes at arrival). If NFC takeover has no known activation time,
+  the first live frame fixes an estimate before history recovery starts. Builds
+  before this rule saved such an estimate as the start of life count 0
+  ("anchor"); it is read back one minute earlier, so its stored times stay put. Pause retains pending batches until Resume can
   flush them.
 - Libre 3 gap fills rewind the Health Connect cursor under the poll-write lock.
   An export acknowledgement cannot overwrite a concurrent rewind; invalidated

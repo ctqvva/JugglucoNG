@@ -146,7 +146,10 @@ class Libre3BleManager(sensorId: String) :
     private var highestClinicalSeen = 0
     private var highestHistoricSeen = 0
 
-    /** Fixed time of life count 0. Preserve the saved grid of an earlier preview. */
+    /**
+     * The activation the sensor counts life from: the NFC start, or an estimate saved when the
+     * driver took over without one. Life count L is the minute that ends at anchor + (L + 1) min.
+     */
     @Volatile private var anchorStartMs: Long = 0L
 
     // ---- per-link state (handler thread) ----
@@ -752,9 +755,15 @@ class Libre3BleManager(sensorId: String) :
         }
     }
 
+    /**
+     * When the minute with this life count ended, which is when the sensor sends it. Life count L
+     * covers minute L after activation: the removed driver stamped each live minute with its
+     * arrival, and a sensor's frames arrive 1-5 s before activation + (L + 1) min (traces, days 2
+     * to 3). Dating it at the start of that minute put every reading a minute early.
+     */
     private fun lifeCountTimeMs(lifeCount: Int): Long {
         val base = anchorStartMs.takeIf { it > 0L } ?: record?.startTimeMs ?: 0L
-        return if (base > 0L) base + lifeCount * 60_000L else 0L
+        return if (base > 0L) Libre3LifeCount.endMs(base, lifeCount) else 0L
     }
 
     private fun activationTimeMs(): Long = record?.startTimeMs?.takeIf { it > 0L } ?: anchorStartMs
@@ -773,7 +782,7 @@ class Libre3BleManager(sensorId: String) :
         if (learnedAnchor) {
             // A takeover with no known activation time can only estimate it.
             // Capture a single origin; receipt jitter cannot move later minutes.
-            anchorStartMs = now - r.lifeCount * 60_000L
+            anchorStartMs = Libre3LifeCount.activationFromArrival(now, r.lifeCount)
             sensorstartmsec = activationTimeMs()
             Applic.app?.let { Libre3Persistence.setAnchor(it, sensorId, anchorStartMs) }
         }
@@ -807,6 +816,7 @@ class Libre3BleManager(sensorId: String) :
                 // marks valid after its nominal wear time is published; the sensor decides when it stops.
                 lastNote = if (pastWear(r.lifeCount)) "Past nominal wear time" else ""
                 val sampleTime = lifeCountTimeMs(r.lifeCount)
+                tk.glucodata.ReadingPipelineTrace.live(sensorId, r.lifeCount, now, sampleTime)
                 if (sampleTime > 0L) publishCurrent(sampleTime, mgdl.toFloat(), r.rateMgdlPerMinute, r.trendClass, r.lifeCount)
             }
         }
