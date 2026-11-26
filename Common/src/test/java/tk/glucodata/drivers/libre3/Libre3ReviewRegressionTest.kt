@@ -743,7 +743,8 @@ class Libre3ReviewRegressionTest {
      * its life counts, and each live reading wakes the upload.
      */
     @Test fun aLingoReadingReachesTheLibreViewRecordOnItsOwnLifeCounts() {
-        val start = (System.currentTimeMillis() / 1000L - 63 * 60L) * 1000L
+        // Life 63 is the minute that ends now.
+        val start = (System.currentTimeMillis() / 1000L - 64 * 60L) * 1000L
         Libre3Persistence.saveSensor(context, pairing().copy(
             startTimeMs = start, wearMinutes = 14 * 24 * 60, receiverId = Libre3Lingo.RECEIVER_ID,
             securityVersion = Libre3Lingo.SECURITY_VERSION, productType = Libre3Lingo.PRODUCT_TYPE))
@@ -756,7 +757,8 @@ class Libre3ReviewRegressionTest {
         invoke("onRealtime", Libre3Lingo.parseRealtime(frame))
 
         val stored = Libre3ReviewNatives.nativeSeconds.single()
-        assertEquals(start / 1000L, Libre3ReviewNatives.activationSec)
+        // Native counts record numbers from the end of life count 0.
+        assertEquals(start / 1000L + 60L, Libre3ReviewNatives.activationSec)
         assertEquals("record number", 63L, (stored - Libre3ReviewNatives.activationSec + 30L) / 60L)
         assertEquals(14, Libre3ReviewNatives.wearDays)
         assertEquals(1, Libre3ReviewNatives.libreviewWakes)
