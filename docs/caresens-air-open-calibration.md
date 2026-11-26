@@ -1,0 +1,174 @@
+# CareSens Air: open calibration engine
+
+`Common/src/main/java/tk/glucodata/drivers/caresens/calibration/` is an open
+reimplementation of the glucose calculation that CareSens Air sensors
+otherwise get from i-SENS' `air1_opcal4_algorithm` in `libCALCULATION.so`.
+The Bluetooth driver (`AirGattCallback`, `air/java.cpp`) is unchanged; it
+still uses the vendor library for what the app shows.
+
+## Status
+
+| Part | Status |
+|---|---|
+| ADC to current, spike limiter, 90-sample robust loess, minute averaging | reproduced |
+| Lot offset, drift correction (first ~6 days), temperature compensation | reproduced |
+| Sensitivity-loss compensation after day 7 (high-pass, 4-day reference, diabetes level) | reproduced |
+| Early-wear rescale (first 1.5 days), Kalman filter, warm-up blend, restarts | reproduced |
+| History smoothing (the six values the app writes back), trend | reproduced |
+| Contact rejection (data type 2), parameter error 64, timing error 32 | reproduced |
+| Taking over a running sensor from the vendor library's state block | reproduced |
+| Error checks 1, 2, 4, 8, 16, 128 | **not reproduced**; the engine never raises them |
+| Low-signal flag (data type 4) | not reproduced; only changes the trend below 40 mg/dL, where the engine reports `exact = false` |
+| Filling records after a clock jump (consecutive sequence, 480–1379 s gap) | not reproduced; reported as `exact = false` |
+| Fingerstick calibration | not part of the engine; JugglucoNG never passes a calibration list |
+
+"Reproduced" means equal to the vendor output to floating-point rounding
+(about 1e-12 mg/dL), not "close". The vendor library stays in use until the
+error checks are reproduced and the engine has run against real sensors.
+
+The error checks matter: the vendor withholds readings while one of them is
+active (often until the end of the sensor), and the engine would show values
+there. In the synthetic tests error 16 (sensitivity) occurs in 3 of 18
+scenarios, the others only with deliberately broken signals.
+
+## How it was verified
+
+The reference is the arm64 `libCALCULATION.so` the app ships
+(sha256 `0bc4e28b…02d4cf`), run in-process on an arm64 Mac by
+`tools/caresens-oracle`. It is supplied locally and never committed.
+
+- **Fixtures** (`Common/src/test/resources/caresens`, 700 KB): vendor outputs
+  for 18 scenarios, regenerated inputs: three 15-day wears (both lot types,
+  varying temperature, sensitivity loss), sustained lows and highs, fast
+  swings, temperature steps, gaps with clock jitter, contact spikes, a clock
+  jump, start in the middle of a wear, warm-up, invalid factory values, and a
+  separate holdout set with other seeds and factory values that was not used
+  while writing the engine (it found two of the rules below). The unit test
+  checks glucose, trend, history, factory glucose, sequence, rejections and
+  the reproduced error bits on every record, and that state survives a
+  save/restore anywhere and can be taken over from the vendor's state block.
+- **Randomised sweep** (`tools/caresens-oracle/differential.py`): random factory
+  values over the whole accepted range, noise, glucose shapes, temperature
+  modes, gaps, jitter, clock jumps, spikes, sensitivity loss and start
+  sequence. The last sweeps: 600 full runs (seeds 101 and 202) and 300 runs
+  taking over vendor state at a random record (seeds 7 and 8), all equal.
+  Two rules were found this way after the fixtures passed: the diabetes level
+  thresholds and the unit of the timing-error window.
+- **Intermediates**: the harness compares minute currents, corrected current,
+  factory glucose, rescaled glucose, history and trend separately, so a
+  difference points at the stage that causes it.
+
+Remaining known differences: the sample current (step 1) agrees with the
+reference to a few units in the last place (±4 ulp over 13 500 samples), not
+bit for bit; the operation order the vendor uses was not found. Identical ADC
+values still give identical currents, so the spike limiter's equality tests
+agree; a decision exactly on its threshold (to 1e-15) could go either way. None
+was seen in the last 900 runs. When taking over vendor state, the previous
+record's samples are recomputed from the ADC values the state keeps, because
+mixing the two roundings did flip the limiter once.
+
+### Real-sensor check
+
+Debug builds call `CareSensAirOpenCalibrationShadow` for every record: the
+engine takes over the vendor state from before the record, processes it, and
+the results are compared and logged under the tag `CareSensAirOpen` (a
+summary every 288 records). The vendor result is the one used. A tester's log
+over a full wear is the real-sensor evidence still needed.
+
+## Provenance and licence
+
+The engine was derived by black-box testing of the vendor library through the
+interface the app already uses, declared in `air/air.hpp` (inherited from
+upstream Juggluco): its inputs, outputs, the 1 579-byte debug record and the
+117 312-byte state record. Inputs and states were set, perturbed and compared
+against the outputs and intermediates; constants were measured, not copied.
+
+- No disassembly or decompilation was used for this engine. An earlier review
+  produced a disassembly listing; only its function names and instruction
+  counts were looked at before it was deleted. A decompiler run was blocked
+  before it started, and the download was deleted.
+- No code or tables were taken from the vendor library or from
+  OpenCareSens-air (GPL-2.0, and itself based on decompiled code). That
+  project's temperature formula had been read during the earlier review; the
+  engine's temperature compensation was measured independently and differs
+  from it.
+- The fixtures contain vendor outputs for synthetic inputs, as test vectors.
+- The code is GPL-3.0-or-later like the rest of the app.
+
+Black-box study of a program's behaviour to learn its underlying ideas is
+what EU Directive 2009/24/EC art. 5(3) permits, and functional rules and
+constants are not protected expression. This is a description of what was
+done, not legal advice; whether to ship it is the maintainer's decision.
+
+## Algorithm
+
+All currents in nA, glucose in mg/dL. `seq` is the transmitter's sequence
+number (one record per 5 minutes), `t` its time in seconds.
+
+1. **Current.** `(adc × vref / 40950 − eapp) × 100` for each of the 30 samples
+   (10 s apart). Lot type 2 if `eapp < 0.075`. Factory values outside
+   slope100 2.5–8.1, vref 1.4–1.6, eapp 0.0385–0.11295 give error 64.
+2. **Contact rejection**, once the number of accepted records reaches the
+   first sequence number of 6 or more: the record is dropped (data type 2) if its
+   maximum is in the first two samples, exceeds 1.2× the mean of the others,
+   the standard deviation of all 30 is 1.5× that without the maximum and its
+   larger neighbour, and less than 1.1× that without the minimum.
+3. **Spike limiter** (only for the next sequence number): each sample is
+   compared with the median of itself and the five before (raw, or cleaned
+   when four of the last six were limited). Scale 1.486 × MAD, or
+   1.253314 × mean absolute deviation when MAD is 0. A sample more than
+   1.5 scale from the median becomes the previous cleaned sample ± scale; after
+   five identical samples it must also differ by more than 0.0036.
+4. **Smoothing.** From the third record, linear loess over the last 90 samples
+   (tricube on the 87 nearest, three fits with bisquare weights at 6 × median
+   residual), when they span less than 898 s. Then per minute: moving median
+   over [i−3, i+2], a (−1, 4, 7, 8, 7, 4, −1)/28 kernel continuing the
+   previous record's last three medians (if it ended less than 18 s before),
+   and the mean without minimum and maximum. The record's current is the
+   trimmed mean of its five minutes, minus 0.7 (lot 1) or 0.243 (lot 2).
+5. **Sensitivity loss.** A high-pass `y = 0.99891 (x − x₋₁) + 0.99782 y₋₁`
+   from seq 24 (starting from the mean of seq 5–24). Reference: mean current
+   over seq 865–2016. At seq 2017 a level is set from the glucose of that
+   window (more than 288 values within 40–600): 6 if over 5 % below 70 or CV over
+   36 %; 5 or 4 if over 60 or 30 % above 180; 3 if at least 15 % above 180 or CV
+   over 30 %; 1 if under 5 % above 180 and CV at most 20 %; else 2.
+   Factor 1.0, 0.95, 0.85, 0.80, 0.75 for levels 1–5; none for 6. While the
+   low-passed current is below factor × reference, it is raised by
+   `min(1, (seq − 2016)/288) × (factor × reference − low-passed)`.
+6. **Drift** below seq 1829: divide by
+   `min(1, 0.92319967 + 4.76441685e-5 s + 5.39473347e-9 s² − 4.63640418e-12 s³)`.
+7. **Factory glucose** `current × 100 / slope100 / r` with
+   `r = clamp(0.0328 T̄ − 0.118, 0.882, 1.134)`, T̄ the mean of the temperatures
+   of the last four sequence numbers (missing ones left out).
+8. **Early-wear rescale** below 180: `+ 30 (1 − g/180)(1 − g/385)`, full to
+   seq 288, fading to 0 at 432.
+9. **Kalman filter** `x = A x + K (z − (A x)₀)` with
+   A = [[e^−½, 1−e^−½, 0], [0, 1, 1], [0, 0, 1]], K = (0.6729, 1.761, 0.1279);
+   output `w x₁ + (1 − w) z`, w = (n−1)/24 since the last restart. Restarts on
+   the first record, seq < 10, a gap over 1500 s (1080 s after a rejected
+   record), or a rate over 5 mg/dL/min unless the previous three rates average
+   over 1 in the same direction; after such a jump it stays restarted until
+   six records in a row change by at most 3 mg/dL/min.
+10. **History.** The last ten values; when consecutive times are all under
+    600 s apart, the six behind the newest are smoothed with
+    (−1.6, 2.7, 6.6, 5.6, 5.4, 3.9, −1.6)/21 (newest repeated at the end).
+11. **Trend** `(h₉ − h₃) / minutes`, none if they are over 35 minutes apart or a
+    value is outside 40–500; if it exceeds 1 mg/dL/min but the last step goes
+    the other way, the last step's rate if the step before also did, else 0.
+12. **Timing error 32**, latched: an interruption (consecutive sequence, time
+    step ≥ 23 min) four times within 864 records, ≥ 60 min twice, or ≥ 10 h
+    once. The window counts accepted records (the record's index + 1, also
+    for a rejected record), not sequence numbers.
+
+## Running the harness
+
+```
+CARESENS_REFERENCE_LIB=/path/to/arm64-v8a/libCALCULATION.so tools/caresens-oracle/make_fixtures.py
+CARESENS_REFERENCE_LIB=... tools/caresens-oracle/differential.py --runs 200
+CARESENS_REFERENCE_LIB=... tools/caresens-oracle/differential.py --runs 100 --import-state
+```
+
+The library is the one `scripts/restore-build-inputs.sh` places in
+`Common/src/main/jniLibs/arm64-v8a/`. The loader needs an arm64 host
+(Apple silicon or arm64 Linux), Python 3 with numpy, a C compiler, and for
+`differential.py` kotlinc and a JDK.

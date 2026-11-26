@@ -87,6 +87,27 @@ def write(ref, name, spec):
     print('%-34s %5d records, error codes %s, %d bytes' % (name, len(seq), errors, os.path.getsize(path)))
 
 
+IMPORT_FROM = ('gaps-and-jitter', (3, 290, 1100))
+
+
+def write_vendor_states(ref):
+    """Vendor state blocks after the given records, for the importer test."""
+    name, points = IMPORT_FROM
+    seq, time, adc, temp = scenarios.generate(**DEVELOPMENT[name])
+    full = dict(scenarios.DEFAULTS, **DEVELOPMENT[name])
+    dev = co.default_device()
+    for key in ('slope100', 'vref', 'eapp'):
+        dev[key][0] = full[key]
+    _, _, _, _, snaps = ref.run(dev, co.records(seq, time, np.array(adc, 'u2'), temp), snapshots=True)
+    blob = b'CSAS1' + struct.pack('<B', len(name)) + name.encode() + struct.pack('<B', len(points))
+    for p in points:
+        blob += struct.pack('<I', p) + snaps[p - 1].tobytes()
+    path = os.path.join(OUT, 'vendor-states.bin.gz')
+    with gzip.GzipFile(path, 'wb', mtime=0) as f:
+        f.write(blob)
+    print('vendor states after records %s of %s, %d bytes' % (points, name, os.path.getsize(path)))
+
+
 def main():
     ref = co.Reference()
     if ref.sha256 not in co.KNOWN_REFERENCE:
@@ -94,6 +115,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for name, spec in list(DEVELOPMENT.items()) + list(HOLDOUT.items()):
         write(ref, name, spec)
+    write_vendor_states(ref)
     with open(os.path.join(OUT, 'index.txt'), 'w') as f:
         for name in DEVELOPMENT:
             f.write('development %s\n' % name)

@@ -13,6 +13,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /** Everything [CareSensAirCalibration] carries from one record to the next. */
@@ -86,16 +87,18 @@ class CareSensAirCalibrationState {
     }
 
     fun diabetesLevel(): Int {
-        if (diabetesCount <= 1) return 6
-        val above = 100.0 * diabetesHigh / diabetesCount
-        val below = 100.0 * diabetesLow / diabetesCount
-        val cv = 100.0 * sqrt(diabetesM2 / (diabetesCount - 1)) / diabetesMean
+        // Needs more than a day of samples.
+        if (diabetesCount <= 288) return 6
+        // Same operation order as the reference, so values on a threshold agree.
+        val above = diabetesHigh.toDouble() / diabetesCount * 100
+        val below = diabetesLow.toDouble() / diabetesCount * 100
+        val cv = sqrt(diabetesM2 / (diabetesCount - 1)) / diabetesMean * 100
         return when {
-            below >= 5 || cv >= 36 -> 6
-            above >= 60 -> 5
-            above >= 30 -> 4
-            above >= 15 -> 3
-            above < 5 && cv < 20 -> 1
+            below > 5 || cv > 36 -> 6
+            above > 60 -> 5
+            above > 30 -> 4
+            above >= 15 || cv > 30 -> 3
+            above < 5 && cv <= 20 -> 1
             else -> 2
         }
     }
@@ -167,5 +170,75 @@ class CareSensAirCalibrationState {
         private fun fill(target: DoubleArray, i: DataInputStream) {
             for (k in target.indices) target[k] = i.readDouble()
         }
+    }
+}
+
+/**
+ * Reads the state block the vendor library keeps per sensor
+ * (`air1_opcal4_arguments_t`, 117 312 bytes, natural alignment, little
+ * endian; offsets from Common/src/main/cpp/air/air.hpp), so a sensor started
+ * on the vendor library can continue on the open engine.
+ *
+ * The engine's sample currents can differ from the reference's in the last
+ * bits. The previous record's samples are therefore recomputed from its ADC
+ * values, which the block keeps: the spike limiter compares them for
+ * equality with the next record's.
+ */
+object CareSensAirVendorState {
+    const val SIZE = 117312
+
+    fun read(block: ByteArray, parameters: CareSensAirFactoryParameters): CareSensAirCalibrationState {
+        require(block.size >= SIZE) { "vendor state is $SIZE bytes" }
+        val b = java.nio.ByteBuffer.wrap(block).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        fun u8(o: Int) = b.get(o).toInt() and 0xff
+        fun i8(o: Int) = b.get(o).toInt()
+        fun u16(o: Int) = b.getShort(o).toInt() and 0xffff
+        fun u32(o: Int) = b.getInt(o).toLong() and 0xffffffffL
+        fun f64(o: Int) = b.getDouble(o)
+        val s = CareSensAirCalibrationState()
+        s.count = u16(1608)
+        s.previousSequence = u16(16)
+        s.previousTime = u32(12)
+        s.contactCheckStart = u16(452)
+        s.rejectedSinceAccepted = u16(454) > s.previousSequence
+        for (k in 0 until 5) { s.rawTail[k] = f64(3344 + 8 * k); s.cleanTail[k] = f64(3384 + 8 * k) }
+        for (k in 0 until 6) s.flags[k] = i8(3424 + k)
+        for (k in 0 until 60) { s.history60[k] = f64(3432 + 8 * k); s.history60Time[k] = u32(92 + 4 * (30 + k)) }
+        for (k in 0 until 3) s.previousMedians[k] = f64(3912 + 8 * k)
+        s.initialSum = f64(10960); s.initialCount = u16(10968)
+        s.highPassStarted = u8(11016) != 0; s.highPassInput = f64(10992 + 8); s.highPass = f64(11008)
+        s.referenceSum = f64(10976); s.referenceCount = u16(10984)
+        s.diabetesHigh = u16(10856); s.diabetesLow = u16(10858); s.diabetesCount = u16(10860)
+        s.diabetesLevel = u8(10862); s.diabetesMean = f64(10888); s.diabetesM2 = f64(10896)
+        s.diabetesLevelDone = s.previousSequence >= 2017
+        s.lastGlucose = f64(10904); s.hasLastGlucose = s.count > 0
+        for (k in 0 until 4) s.temperatures[k] = f64(11032 + 8 * k)
+        for (k in 0 until 3) s.kalman[k] = f64(11128 + 8 * k)
+        s.warmup = u16(11122)
+        for (k in 0 until 4) s.rates[k] = f64(11152 + 8 * k)
+        s.fluctuating = u8(11120) == 3
+        s.fluctuationCount = f64(11184).toInt()
+        s.previousRescaled = f64(11192)
+        for (k in 0 until 10) {
+            s.history[k] = f64(11200 + 8 * k)
+            s.historyTime[k] = u32(11280 + 4 * k)
+            s.historySequence[k] = u16(1610 + 2 * (855 + k))
+            s.historyRaw[k] = s.history[k]
+        }
+        for (j in 0 until CareSensAirCalibration.SAMPLES) {
+            val own = CareSensAirCalibration.current(u16(18 + 2 * j), parameters)
+            fun same(v: Double) = abs(v - own) <= 16 * Math.ulp(own)
+            if (same(s.history60[30 + j])) s.history60[30 + j] = own
+            val k = j - 25
+            if (k >= 0) {
+                if (same(s.rawTail[k])) s.rawTail[k] = own
+                if (same(s.cleanTail[k])) s.cleanTail[k] = own
+            }
+        }
+        s.timingTime = u32(117284); s.timingSequence = u16(117288); s.timingStarted = s.timingTime != 0L
+        for (k in 0 until 4) u16(117290 + 2 * k).takeIf { it != 0 }?.let { s.pushGap23(it) }
+        for (k in 0 until 2) u16(117298 + 2 * k).takeIf { it != 0 }?.let { s.pushGap60(it) }
+        s.timingError = u8(117307) != 0
+        return s
     }
 }

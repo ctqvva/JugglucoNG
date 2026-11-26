@@ -130,6 +130,62 @@ class CareSensAirReferenceFixtureTest {
     }
 
     @Test
+    fun continuesFromTheVendorLibrarysState() {
+        val bytes = GZIPInputStream(javaClass.getResourceAsStream("/caresens/vendor-states.bin.gz")!!).readBytes()
+        val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        assertEquals("CSAS1", String(ByteArray(5).also { b.get(it) }))
+        val fixture = load(String(ByteArray(b.get().toInt()).also { b.get(it) }))
+        val records = CareSensAirScenarios.generate(fixture.spec)
+        repeat(b.get().toInt()) {
+            val after = b.int
+            val block = ByteArray(CareSensAirVendorState.SIZE).also { b.get(it) }
+            val engine = CareSensAirCalibration(fixture.spec.parameters, CareSensAirVendorState.read(block, fixture.spec.parameters))
+            for (i in after until records.size) {
+                val want = fixture.expected[i]
+                val got = engine.process(records[i])
+                val at = "${fixture.name} from vendor state after $after, record ${i + 1}"
+                assertEquals("$at rejected record", want.dataType == 2, got.dataType == 2)
+                if (want.dataType == 2) continue
+                close("$at glucose", want.glucose, got.glucose)
+                if (got.exact) close("$at trend", want.trend, got.trend)
+                close("$at oldest history value", want.oldestHistory, got.history[0])
+            }
+        }
+    }
+
+    @Test
+    fun shadowComparisonAcceptsTheReferenceAndSpotsADifference() {
+        val bytes = GZIPInputStream(javaClass.getResourceAsStream("/caresens/vendor-states.bin.gz")!!).readBytes()
+        val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        b.position(5)
+        val fixture = load(String(ByteArray(b.get().toInt()).also { b.get(it) }))
+        b.get()
+        b.int // first block: after the third record
+        val state = ByteArray(CareSensAirVendorState.SIZE).also { b.get(it) }
+        val after = b.int
+        val block = ByteArray(CareSensAirVendorState.SIZE).also { b.get(it) }
+        val record = CareSensAirScenarios.generate(fixture.spec)[after]
+        val want = fixture.expected[after]
+        val device = ByteBuffer.allocate(CareSensAirFactoryParameters.BLOCK_SIZE).order(ByteOrder.LITTLE_ENDIAN)
+            .putFloat(5, fixture.spec.slope100).putFloat(434, fixture.spec.vref).putFloat(438, fixture.spec.eapp).array()
+        val input = ByteBuffer.allocate(74).order(ByteOrder.LITTLE_ENDIAN).apply {
+            putShort(record.sequence.toShort()); putInt(record.timeSeconds.toInt())
+            record.adc.forEach { putShort(it.toShort()) }; putDouble(record.temperatureC)
+        }.array()
+        fun output(glucose: Double) = ByteBuffer.allocate(155).order(ByteOrder.LITTLE_ENDIAN).apply {
+            putShort(2, want.sequenceFinal.toShort()); putDouble(68, glucose); putDouble(76, want.trend.toDouble())
+            putShort(151, want.errorCode.toShort()); put(154, want.dataType.toByte())
+        }.array()
+        // Float fixture values: the engine's double result is within float rounding of them.
+        val exact = CareSensAirCalibration(fixture.spec.parameters, CareSensAirVendorState.read(block, fixture.spec.parameters)).process(record)
+        assertTrue(CareSensAirOpenCalibrationShadow.compare(device, block, input, output(exact.glucose), 1).matches)
+        assertTrue(!CareSensAirOpenCalibrationShadow.compare(device, block, input, output(exact.glucose + 0.5), 1).matches)
+        assertTrue(!CareSensAirOpenCalibrationShadow.compare(device, block, input, output(exact.glucose), 2).compared)
+        close("glucose", want.glucose, exact.glucose)
+        assertTrue(state.isNotEmpty())
+    }
+
+    @Test
     fun damagedOrForeignStateIsRefused() {
         val bytes = CareSensAirCalibrationState().toBytes()
         assertEquals(null, CareSensAirCalibrationState.fromBytes(bytes.copyOf(bytes.size - 1)))

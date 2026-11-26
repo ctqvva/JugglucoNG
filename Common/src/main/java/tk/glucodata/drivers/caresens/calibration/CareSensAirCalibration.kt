@@ -87,7 +87,7 @@ class CareSensAirCalibration(
                 IntArray(6), DoubleArray(6), true, EMPTY_INTERMEDIATES,
             )
         }
-        val currents = DoubleArray(SAMPLES) { (record.adc[it] * parameters.vref.toDouble() / 40950.0 - parameters.eapp.toDouble()) * 100.0 }
+        val currents = DoubleArray(SAMPLES) { current(record.adc[it], parameters) }
         val first = s.count == 0
         val consecutive = !first && record.sequence == s.previousSequence + 1
         val start = record.timeSeconds - 290
@@ -315,14 +315,16 @@ class CareSensAirCalibration(
     private fun timing(record: Record, s: CareSensAirCalibrationState) {
         if (s.timingStarted && record.sequence == s.timingSequence + 1) {
             val dt = record.timeSeconds - s.timingTime
-            val seq = record.sequence
+            // The window counts accepted records, not sequence numbers: the
+            // reference stores its record index + 1, also for a rejected record.
+            val index = s.count + 1
             if (dt >= 23 * 60) {
-                s.pushGap23(seq)
-                if (s.gap23Count >= 4 && seq - s.gap23[0] <= 864) s.timingError = true
+                s.pushGap23(index)
+                if (s.gap23Count >= 4 && index - s.gap23[0] <= 864) s.timingError = true
             }
             if (dt >= 60 * 60) {
-                s.pushGap60(seq)
-                if (s.gap60Count >= 2 && seq - s.gap60[0] <= 864) s.timingError = true
+                s.pushGap60(index)
+                if (s.gap60Count >= 2 && index - s.gap60[0] <= 864) s.timingError = true
             }
             if (dt >= 600 * 60) s.timingError = true
         }
@@ -384,6 +386,13 @@ class CareSensAirCalibration(
     }
 
     companion object {
+        /**
+         * Sample current in nA. Equal to the reference to a few units in the
+         * last place, not bit for bit (its operation order is not known).
+         */
+        fun current(adc: Int, parameters: CareSensAirFactoryParameters): Double =
+            (adc * parameters.vref.toDouble() / 40950.0 - parameters.eapp.toDouble()) * 100.0
+
         const val SAMPLES = 30
         private const val SPIKE_FLOOR = 0.0036
         const val NO_TREND = 100.0
