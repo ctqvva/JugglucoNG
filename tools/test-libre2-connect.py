@@ -43,6 +43,8 @@ base_methods = '\n'.join(method(base, signature) for signature in [
     'static String gattStatusText(', 'protected final synchronized void noteLossOfSignal(',
     'protected final synchronized void clearLossOfSignalState(', 'private boolean isNotificationSensor(',
     'protected final void recordEstablishedLinkDrop(',
+    'public void requestRssi()', 'protected boolean isRssiLinkConnected(', 'private boolean canReadRssi(',
+    'protected final void queueRssiRead(', 'public void onReadRemoteRssi(',
 ])
 libre_methods = '\n'.join(method(libre, signature) for signature in [
     'protected boolean useAutoConnect(', 'protected long connectionAttemptTimeoutMillis(',
@@ -53,7 +55,7 @@ libre_methods = '\n'.join(method(libre, signature) for signature in [
     'public synchronized void setPause(', 'public synchronized void onConnectionStateChange(',
     'public synchronized void onServicesDiscovered(', 'public synchronized void onDescriptorWrite(',
     'public synchronized void onCharacteristicWrite(', 'public synchronized void onCharacteristicChanged(',
-    'public synchronized void onReadRemoteRssi(', 'public synchronized void close()',
+    'protected boolean isRssiLinkConnected(', 'public synchronized void close()',
     'private Runnable forCurrentGatt(', 'private void runPendingBleStep(', 'private void endBLEHandler(',
     'private void streamPacketReceived(', 'private synchronized void streamSilent(',
     'private void logLinkEnd(', 'private void holdRelink(', 'protected void onClosingGattTransport(',
@@ -112,9 +114,10 @@ class SuperGattCallback {
     }
     static class BluetoothGatt {
         static final int GATT_SUCCESS=0;
-        int closed, disconnected, discoveries, writes; boolean discoverySucceeds=true;
+        int closed, disconnected, discoveries, writes, rssiReads; boolean discoverySucceeds=true;
         void disconnect(){disconnected++;} void close(){closed++;}
         boolean discoverServices(){discoveries++;return discoverySucceeds;}
+        boolean readRemoteRssi(){rssiReads++;return true;}
         BluetoothDevice getDevice(){return new BluetoothDevice();}
         BluetoothGattService getService(UUID u){return new BluetoothGattService();}
         boolean setCharacteristicNotification(BluetoothGattCharacteristic c,boolean v){return true;}
@@ -152,6 +155,7 @@ class SuperGattCallback {
     static class Scheduler extends ScheduledThreadPoolExecutor {
         long now; List<Job> jobs=new ArrayList<>();
         Scheduler(){super(1);}
+        public void execute(Runnable r){schedule(r,0,TimeUnit.MILLISECONDS);}
         public ScheduledFuture<?> schedule(Runnable r,long delay,TimeUnit unit){Job j=new Job(r,now+unit.toMillis(delay));jobs.add(j);return j;}
         void advance(long delta){long target=now+delta;while(true){Job j=jobs.stream().filter(x->!x.done&&x.at<=target).min(Comparator.comparingLong(x->x.at)).orElse(null);if(j==null)break;now=j.at;j.fire();}now=target;}
         Job last(){return jobs.get(jobs.size()-1);}
@@ -175,6 +179,8 @@ class SuperGattCallback {
     static void check(boolean b,String message){if(!b)throw new AssertionError(message);}
 '''
 java += field(base, 'private final GattConnectDeadline<BluetoothGatt> connectDeadline', '}, this::connectionAttemptExpired);')
+java += field(base, 'private static final long RSSI_CALLBACK_TIMEOUT_MS', ';')
+java += field(base, 'private static final RssiReadQueue<BluetoothGatt> rssiReads', 'TimeUnit.MILLISECONDS));')
 java += '\n' + base_methods + '\n}\nclass Libre2GattCallback extends SuperGattCallback {\n'
 java += field(libre, 'private final GattConnectDeadline<BluetoothGatt> disconnectDeadline', '}, this::retryAfterDisconnect);')
 java += field(libre, 'private static final long STREAM_SILENCE_MILLIS', ';')
@@ -352,7 +358,10 @@ java += r'''
         // A CONNECTED link that stops streaming is retired through the same fresh-GATT path.
         cb=fresh();BleErrorHistory.events.clear();Notify.signalLoss=0;current=cb.mBluetoothGatt;cb.onConnectionStateChange(current,0,2);cb.onServicesDiscovered(current,0);
         cb.onCharacteristicChanged(current,new BluetoothGattCharacteristic());
-        Applic.scheduler.advance(100_000);cb.onReadRemoteRssi(current,-70,0);
+        Applic.scheduler.advance(100_000);cb.requestRssi();Applic.scheduler.advance(0);
+        check(current.rssiReads==1,"connected link did not request RSSI");
+        cb.onReadRemoteRssi(current,-70,0);
+        check(cb.readrssi==-70,"current RSSI callback was not recorded");
         Applic.scheduler.advance(49_999);check(current.disconnected==0,"stream watchdog early or RSSI extended it");
         Applic.scheduler.advance(1);
         check(current.disconnected==1&&"Loss of signal".equals(cb.constatstatusstr),"silent stream not recovered");
@@ -524,5 +533,6 @@ with tempfile.TemporaryDirectory(prefix='libre2-connect-') as directory:
         'public static final int STATE_CONNECTED=2,STATE_DISCONNECTED=0;}')
     subprocess.run(['javac', '-d', str(directory), str(directory / 'Libre2GattCallback.java'),
                     str(directory / 'BluetoothProfile.java'),
-                    str(root / 'Common/src/main/java/tk/glucodata/GattConnectDeadline.java')], check=True)
+                    str(root / 'Common/src/main/java/tk/glucodata/GattConnectDeadline.java'),
+                    str(root / 'Common/src/main/java/tk/glucodata/RssiReadQueue.java')], check=True)
     subprocess.run(['java', '-cp', str(directory), 'tk.glucodata.Libre2GattCallback'], check=True)
