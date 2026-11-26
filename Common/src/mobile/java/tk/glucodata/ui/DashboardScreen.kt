@@ -1038,16 +1038,28 @@ fun DashboardScreen(
                 }
             }
             val refreshRevision by UiRefreshBus.revision.collectAsStateWithLifecycle(initialValue = 0L)
-            val dashboardCurrentSnapshot = remember(
+            // Resolved in composition, on the main thread; how long it took goes to the trace.
+            val (dashboardCurrentSnapshot, dashboardResolveMs) = remember(
                 refreshRevision,
                 sensorName,
                 activeSensorList,
                 latestPoint?.timestamp,
                 viewMode
             ) {
+                val startedMs = android.os.SystemClock.elapsedRealtime()
                 CurrentDisplaySource.resolveCurrent(
                     maxAgeMillis = Notify.glucosetimeout,
                     preferredSensorId = sensorName.ifBlank { activeSensorList.firstOrNull() }
+                ) to android.os.SystemClock.elapsedRealtime() - startedMs
+            }
+            // Diagnostics: the reading the dashboard shows once this composition is applied.
+            LaunchedEffect(dashboardCurrentSnapshot?.timeMillis, latestPoint?.timestamp) {
+                tk.glucodata.ReadingPipelineTrace.displayed(
+                    dashboardCurrentSnapshot?.timeMillis ?: 0L,
+                    dashboardCurrentSnapshot?.primaryStr,
+                    dashboardCurrentSnapshot?.source,
+                    latestPoint?.timestamp ?: 0L,
+                    dashboardResolveMs,
                 )
             }
             val freshnessTick by produceState(

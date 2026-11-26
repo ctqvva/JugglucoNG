@@ -210,6 +210,7 @@ object VirtualGlucoseSensorBridge {
             if (failOnStorageError) error("History batch storage failed")
             return 0
         }
+        tk.glucodata.ReadingPipelineTrace.roomCommitted(sensorSerial, timestamps.last(), timestamps.size)
         Log.i(
             TAG,
             String.format(

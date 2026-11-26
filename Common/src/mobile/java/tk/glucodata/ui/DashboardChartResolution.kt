@@ -106,6 +106,13 @@ private class ChartResolutionHolder(
     var resolution: ChartResolution,
 )
 
+/** A resolution that reaches the live edge, for [tk.glucodata.ReadingPipelineTrace]; browsing older stretches is not traced. */
+private fun traceLiveEdge(inputs: ChartResolutionInputs, tookMs: Long, restarts: Int) {
+    val newest = inputs.safeData.lastOrNull()?.timestamp ?: return
+    if (System.currentTimeMillis() - newest > 10 * 60_000L) return
+    tk.glucodata.ReadingPipelineTrace.chartResolved(newest, tookMs, restarts)
+}
+
 @Composable
 internal fun rememberChartResolution(
     inputs: ChartResolutionInputs,
@@ -120,6 +127,8 @@ internal fun rememberChartResolution(
             else ChartResolution(emptyList(), emptyList(), tk.glucodata.chart.HistoryChartModel.EMPTY))
     }
     var asyncRevision by remember { mutableStateOf(0) }
+    // Diagnostics: inputs that restarted the resolution before it could publish.
+    val restarts = remember { intArrayOf(0) }
     // The first frame *with data* is the one that matters, and it is still
     // resolved in composition: a chart that composed empty — the history
     // screen waiting for a range to load — draws its first readings in the
@@ -130,9 +139,13 @@ internal fun rememberChartResolution(
     }
     LaunchedEffect(inputs) {
         if (!inputs.isCoherent() || inputs.sameAs(holder.resolvedFor)) return@LaunchedEffect
+        restarts[0]++
+        val startedMs = android.os.SystemClock.elapsedRealtime()
         val resolution = recentChartResolutions.get(inputs)
             ?: withContext(Dispatchers.Default) { resolve(inputs) }
         recentChartResolutions.put(inputs, resolution)
+        traceLiveEdge(inputs, android.os.SystemClock.elapsedRealtime() - startedMs, restarts[0] - 1)
+        restarts[0] = 0
         holder.resolution = resolution
         holder.resolvedFor = inputs
         asyncRevision++
