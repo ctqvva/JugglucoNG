@@ -1,6 +1,8 @@
 package tk.glucodata;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -12,6 +14,7 @@ final class RssiReadQueue<G> {
     private final Executor worker;
     private final Consumer<Runnable> postTimeout;
     private final ArrayDeque<Read<G>> pending = new ArrayDeque<>();
+    private final ArrayList<WeakReference<G>> awaitingLateResult = new ArrayList<>();
     private Read<G> active;
     private boolean acceptingResult;
 
@@ -22,6 +25,10 @@ final class RssiReadQueue<G> {
 
     synchronized void request(G gatt, BooleanSupplier start, Runnable onTimeout) {
         if (active != null && active.gatt() == gatt) return;
+        awaitingLateResult.removeIf(link -> link.get() == null);
+        for (WeakReference<G> link : awaitingLateResult) {
+            if (link.get() == gatt) return;
+        }
         for (Read<G> read : pending) {
             if (read.gatt() == gatt) return;
         }
@@ -30,6 +37,7 @@ final class RssiReadQueue<G> {
     }
 
     synchronized void onResult(G gatt) {
+        if (awaitingLateResult.removeIf(link -> link.get() == gatt)) return;
         if (acceptingResult && active.gatt() == gatt) finish(active);
     }
 
@@ -46,11 +54,19 @@ final class RssiReadQueue<G> {
         }
         if (read.start().getAsBoolean()) {
             postTimeout.accept(() -> {
-                if (finish(read)) read.onTimeout().run();
+                if (expire(read)) read.onTimeout().run();
             });
         } else {
             finish(read);
         }
+    }
+
+    private synchronized boolean expire(Read<G> read) {
+        if (active != read) return false;
+        // Android supplies only the GATT in its callback. Wait for the late result
+        // before reusing that GATT and let replacement GATTs be collected normally.
+        awaitingLateResult.add(new WeakReference<>(read.gatt()));
+        return finish(read);
     }
 
     private synchronized boolean finish(Read<G> read) {

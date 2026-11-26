@@ -61,6 +61,27 @@ public class RssiReadQueueTest {
     }
 
     @Test
+    public void timedOutGattWaitsForItsCallbackWhileAnotherGattCanStart() {
+        request(firstGatt, "first", true);
+        runWork();
+        timeouts.removeFirst().run();
+
+        request(firstGatt, "premature retry", true);
+        request(secondGatt, "replacement", true);
+        runWork();
+        assertEquals(List.of("start first", "timeout first", "start replacement"), events);
+
+        reads.onResult(firstGatt);
+        request(firstGatt, "retry after late result", true);
+        runWork();
+        assertEquals(List.of("start first", "timeout first", "start replacement"), events);
+
+        reads.onResult(secondGatt);
+        runWork();
+        assertEquals(List.of("start first", "timeout first", "start replacement", "start retry after late result"), events);
+    }
+
+    @Test
     public void obsoleteTimeoutDoesNotReleaseANewerReadOnTheSameGatt() {
         request(firstGatt, "first", true);
         runWork();
