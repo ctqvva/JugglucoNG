@@ -54,16 +54,19 @@ class CareSensAirCalibration(
         /** mg/dL per minute, or [NO_TREND]. */
         val trend: Double,
         val errorCode: Int,
-        /** 0 normal, 2 rejected record (sensor contact). */
+        /** 0 normal, 2 rejected record (sensor contact). The low-signal type 4 is not reproduced. */
         val dataType: Int,
         /** Sequence numbers and smoothed values of the six newest history entries. */
         val historySequence: IntArray,
         val history: DoubleArray,
         /**
          * False when the record reached behaviour that is not reproduced yet:
-         * filling missed records after a clock jump, or a trend while a value
-         * below 40 mg/dL is in its window. Error checks other than the timing
-         * check are not reproduced at all; see the documentation.
+         * filling missed records after a clock jump, a trend while the
+         * reference's low-signal flag may mark a record in its window, or the
+         * sensitivity compensation after day 7 when that flag may have marked a
+         * record of its reference period. Errors 1, 2, 8, 16 and 128, and the
+         * noise part of the low-signal flag, are not reproduced; see the
+         * documentation.
          */
         val exact: Boolean,
         val intermediates: Intermediates,
@@ -99,6 +102,9 @@ class CareSensAirCalibration(
         if (s.contactCheckStart != 0 && s.count >= s.contactCheckStart && contactLost(record.adc)) {
             timing(record, s)
             s.rejectedSinceAccepted = true
+            // Errors held from record to record end at a rejected record.
+            s.lowError = false
+            s.lowRawCount = 0
             return Result(
                 record.sequence, record.sequence, record.timeSeconds, 0.0, 0.0, if (s.timingError) ERROR_TIMING else 0, 2,
                 IntArray(6), DoubleArray(6), true, EMPTY_INTERMEDIATES,
@@ -183,6 +189,32 @@ class CareSensAirCalibration(
         s.lastGlucose = glucose
         s.hasLastGlucose = true
 
+        // Error 4 (signal lost): the highest raw 10 s current of the last four
+        // accepted records with consecutive sequence numbers stays below a
+        // limit, stricter in the first three days. It stays set while records
+        // keep following each other; a rejected record or a missed sequence
+        // number ends it.
+        var rawMax = currents[0]
+        for (v in currents) if (v > rawMax) rawMax = v
+        if (!consecutive) s.lowRawCount = 0
+        System.arraycopy(s.lowRawMax, 1, s.lowRawMax, 0, 3)
+        s.lowRawMax[3] = rawMax
+        s.lowRawCount = min(4, s.lowRawCount + 1)
+        var highest = Double.NEGATIVE_INFINITY
+        for (v in s.lowRawMax) if (v > highest) highest = v
+        val ratio = highest / parameters.slope100.toDouble()
+        val lowCurrent = s.lowRawCount == 4 && if (seq < 865) highest < 0.5 && ratio < 0.1 else highest < 0.7 && ratio < 0.2
+        s.lowError = lowCurrent || (s.lowError && consecutive)
+
+        // The reference's low-signal flag (data type 4) is only partly known.
+        // Every decoded part of it needs one of these, so without them the
+        // flag is surely off. It suppresses the trend, and from day 3 to 7 a
+        // flagged record can be left out of the sensitivity reference.
+        val maybeLowFlag = rawMax < 1.1 || glucose < 40.5 || factory < 20.5 || (factory < 40.5 && rawMax < 1.5)
+        // The reference leaves a record out when it and the one before are both flagged.
+        if (maybeLowFlag && s.historyMaybeFlagged[9] && seq in 865..2016) s.referenceMaybeFlagged = true
+        if (seq > 2016 && s.referenceMaybeFlagged) exact = false
+
         // History: ten newest values, the six behind the newest re-smoothed.
         System.arraycopy(s.history, 1, s.history, 0, 9)
         System.arraycopy(s.historyTime, 1, s.historyTime, 0, 9)
@@ -192,19 +224,21 @@ class CareSensAirCalibration(
         s.historySequence[9] = seq
         System.arraycopy(s.historyRaw, 1, s.historyRaw, 0, 9)
         s.historyRaw[9] = glucose
+        System.arraycopy(s.historyMaybeFlagged, 1, s.historyMaybeFlagged, 0, 9)
+        s.historyMaybeFlagged[9] = maybeLowFlag
+
         if (s.count >= 9 && historyContinuous(s)) smoothHistory(s.history)
         val trend = trend(s)
-        // The reference also gives no trend while its low-signal flag (data type 4,
-        // not reproduced) marks a record in the window; that flag only occurs
-        // below 40 mg/dL.
-        if (s.count >= 11) for (j in 3 until 10) if (s.historyRaw[j] < 40) exact = false
+        // The reference gives no trend while its low-signal flag marks a record
+        // in the window.
+        if (s.count >= 11) for (j in 3 until 10) if (s.historyMaybeFlagged[j]) exact = false
 
         timing(record, s)
         s.rejectedSinceAccepted = false
         s.previousSequence = seq
         s.previousTime = record.timeSeconds
         s.count++
-        val errorCode = if (s.timingError) ERROR_TIMING else 0
+        val errorCode = (if (s.timingError) ERROR_TIMING else 0) or (if (s.lowError) ERROR_LOW else 0)
         return Result(
             seq, seq, record.timeSeconds, glucose, trend, errorCode, 0,
             s.historySequence.copyOfRange(3, 9), s.history.copyOfRange(3, 9), exact,
@@ -396,6 +430,7 @@ class CareSensAirCalibration(
         const val SAMPLES = 30
         private const val SPIKE_FLOOR = 0.0036
         const val NO_TREND = 100.0
+        const val ERROR_LOW = 4
         const val ERROR_TIMING = 32
         const val ERROR_PARAMETERS = 64
         private const val CONTACT_CHECK_AFTER = 6

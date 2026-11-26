@@ -61,7 +61,8 @@ class CareSensAirReferenceFixtureTest {
     }
 
     /** Error checks the engine reproduces; the others are listed in the documentation. */
-    private val modelledErrors = CareSensAirCalibration.ERROR_TIMING or CareSensAirCalibration.ERROR_PARAMETERS
+    private val modelledErrors =
+        CareSensAirCalibration.ERROR_LOW or CareSensAirCalibration.ERROR_TIMING or CareSensAirCalibration.ERROR_PARAMETERS
 
     private fun check(fixture: Fixture): Map<Int, Int> {
         val records = CareSensAirScenarios.generate(fixture.spec)
@@ -81,10 +82,14 @@ class CareSensAirReferenceFixtureTest {
             (want.errorCode and modelledErrors.inv()).takeIf { it != 0 }?.let { unmodelled.merge(it, 1, Int::plus) }
             assertEquals("$at rejected record", want.dataType == 2, got.dataType == 2)
             if (want.dataType == 2 || want.errorCode and CareSensAirCalibration.ERROR_PARAMETERS != 0) return@forEachIndexed
+            // Inexact marks values that rest on the reference's low-signal flag.
+            if (!got.exact) {
+                unmodelled.merge(-1, 1, Int::plus)
+                return@forEachIndexed
+            }
             close("$at factory glucose", want.factoryGlucose, got.intermediates.factoryGlucose)
             close("$at glucose", want.glucose, got.glucose)
-            // Inexact only marks a trend the reference may withhold (its low flag).
-            if (got.exact) close("$at trend", want.trend, got.trend) else unmodelled.merge(-1, 1, Int::plus)
+            close("$at trend", want.trend, got.trend)
             close("$at oldest history value", want.oldestHistory, got.history[0])
         }
         return unmodelled
@@ -96,7 +101,7 @@ class CareSensAirReferenceFixtureTest {
         val report = StringBuilder()
         for (name in names) {
             val unmodelled = check(load(name))
-            if (unmodelled.isNotEmpty()) report.append("$name: reference-only error bits / inexact trends (-1) $unmodelled\n")
+            if (unmodelled.isNotEmpty()) report.append("$name: reference-only error bits / records not claimed exact (-1) $unmodelled\n")
         }
         if (report.isNotEmpty()) println(report)
     }

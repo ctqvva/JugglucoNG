@@ -6,6 +6,7 @@ development sustained-highs
 development temperature-steps
 development gaps-and-jitter
 development contact-spikes
+development dropouts
 development clock-jump
 development takeover-mid-wear
 development warmup-fast-changes
@@ -16,3 +17,4 @@ holdout holdout-fast-swings
 holdout holdout-gaps-spikes
 holdout holdout-late-takeover-lows
 holdout holdout-invalid-vref
+holdout holdout-dropouts-late

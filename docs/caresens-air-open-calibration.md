@@ -16,9 +16,10 @@ still uses the vendor library for what the app shows.
 | Early-wear rescale (first 1.5 days), Kalman filter, warm-up blend, restarts | reproduced |
 | History smoothing (the six values the app writes back), trend | reproduced |
 | Contact rejection (data type 2), parameter error 64, timing error 32 | reproduced |
+| Error 4 (signal lost), its main condition and how long it stays set | reproduced; its other four conditions are not (seen only on extreme or late-start signals) |
 | Taking over a running sensor from the vendor library's state block | reproduced |
-| Error checks 1, 2, 4, 8, 16, 128 | **not reproduced**; the engine never raises them |
-| Low-signal flag (data type 4) | not reproduced; only changes the trend below 40 mg/dL, where the engine reports `exact = false` |
+| Error checks 1, 2, 8, 16, 128 | **not reproduced**; the engine never raises them |
+| Low-signal flag (data type 4) | partly decoded, not emitted; where it may be set the engine reports `exact = false` for the trend and, if it fell in days 3 to 7, for the sensitivity compensation |
 | Filling records after a clock jump (consecutive sequence, 480–1379 s gap) | not reproduced; reported as `exact = false` |
 | Fingerstick calibration | not part of the engine; JugglucoNG never passes a calibration list |
 
@@ -155,7 +156,16 @@ number (one record per 5 minutes), `t` its time in seconds.
 11. **Trend** `(h₉ − h₃) / minutes`, none if they are over 35 minutes apart or a
     value is outside 40–500; if it exceeds 1 mg/dL/min but the last step goes
     the other way, the last step's rate if the step before also did, else 0.
-12. **Timing error 32**, latched: an interruption (consecutive sequence, time
+12. **Error 4**, signal lost: over the last four accepted records with
+    consecutive sequence numbers, the highest raw 10 s current is below
+    0.5 nA and below 0.1 × slope100 (before seq 865), or below 0.7 nA and
+    0.2 × slope100 (from seq 865). It stays set while the following records
+    are accepted and consecutive; a rejected record or a missed sequence
+    number clears it (errors 1 and 2 behave the same; error 16 and 32 stay).
+    The reference has four more conditions, not reproduced: a relative fall
+    of the current over the past day (seen in late-start sensors) and two
+    for negative currents whose limits depend on the earlier signal level.
+13. **Timing error 32**, latched: an interruption (consecutive sequence, time
     step ≥ 23 min) four times within 864 records, ≥ 60 min twice, or ≥ 10 h
     once. The window counts accepted records (the record's index + 1, also
     for a rejected record), not sequence numbers.

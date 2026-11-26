@@ -42,6 +42,8 @@ DEVELOPMENT = {
                               temp_knot_min=5, temp_knot_max=60, lo=60, hi=250),
     'gaps-and-jitter': dict(seed=107, readings=1500, gap_permille=30, gap_max=12, jitter=40, lo=60, hi=300),
     'contact-spikes': dict(seed=108, readings=800, spike_permille=15),
+    'dropouts': dict(seed=110, readings=1500, noise=25, dropout_permille=8, dropout_min=1, dropout_max=20,
+                     gap_permille=20, gap_max=3, spike_permille=8),
     'clock-jump': dict(seed=109, readings=1200, clock_jump_at=700, clock_jump=40000),
     'takeover-mid-wear': dict(seed=110, start=500, readings=1000, lo=60, hi=260),
     'warmup-fast-changes': dict(seed=111, readings=400, lo=40, hi=350, knot_min=3, knot_max=15, noise=30),
@@ -58,6 +60,9 @@ HOLDOUT = {
     'holdout-gaps-spikes': dict(seed=9004, readings=1500, gap_permille=60, gap_max=30, jitter=25, spike_permille=8),
     'holdout-late-takeover-lows': dict(seed=9005, start=1200, readings=2000, lo=40, hi=110, decay=0.8),
     'holdout-invalid-vref': dict(seed=9006, readings=40, vref=1.7),
+    'holdout-dropouts-late': dict(seed=9007, start=500, readings=1500, slope100=6.1, vref=1.47, eapp=0.06, noise=50,
+                                  dropout_permille=6, dropout_min=2, dropout_max=40, gap_permille=15, gap_max=2,
+                                  spike_permille=5),
 }
 
 RECORD = struct.Struct('<BHHBffff')

@@ -34,6 +34,7 @@ RESULT = np.dtype([('seq', '<i4'), ('glucose', '<f8'), ('trend', '<f8'), ('error
                    ('exact', '<i4'), ('history', '<f8', 6), ('minutes', '<f8', 5), ('current', '<f8'),
                    ('factory', '<f8'), ('rescaled', '<f8')])
 SHADOW = 'CareSensAirOpenCalibrationShadow.kt'  # needs Android; not part of the CLI
+MODELLED = 4 | 32 | 64  # error bits the engine reproduces
 
 
 def engine_jar():
@@ -64,7 +65,9 @@ def random_spec(r):
                 decay=r.choice([1, 1, 0.9, 0.7, 0.5]), gap_permille=r.choice([0, 0, 10, 40, 100]),
                 gap_max=r.choice([1, 3, 12, 40]), jitter=r.choice([0, 0, 5, 30, 45]),
                 spike_permille=r.choice([0, 0, 5, 20]), clock_jump_at=r.choice([-1, -1, -1, 200]),
-                clock_jump=r.choice([2000, 40000]))
+                clock_jump=r.choice([2000, 40000]), dropout_permille=r.choice([0, 0, 0, 2, 10]),
+                dropout_min=r.choice([1, 3, 6]), dropout_max=r.choice([6, 20, 60]))
+    spec['dropout_max'] = max(spec['dropout_max'], spec['dropout_min'])
     spec['knot_max'] = spec['knot_min'] * r.choice([2, 5, 10])
     spec['temp_hi'] = spec['temp_lo'] + r.choice([0, 100, 300, 600])
     return spec
@@ -89,15 +92,17 @@ def compare(ref, jar, spec, start=None):
     end = filled[0] if len(filled) else len(k)
     usable = (o['data_type'] != 2) & ((o['errcode'] & 64) == 0) & (np.arange(len(k)) < end)
     exact = usable & (k['exact'] == 1)
+    # Error 4 conditions 1-4 are not reproduced; once one has fired the bit can differ.
+    other_low = np.maximum.accumulate(g['err4_condi'][:, 1:].any(1)) if len(k) else np.zeros(0, bool)
     checks = [
         ('rejection', (k['type'] == 2) != (o['data_type'] == 2), np.arange(len(k)) < end),
-        ('error 32/64', ((k['error'] ^ o['errcode']) & 96) != 0, np.arange(len(k)) < end),
+        ('error 4/32/64', ((k['error'] ^ o['errcode']) & MODELLED) != 0, (np.arange(len(k)) < end) & ~other_low),
         ('minute currents', np.abs(k['minutes'] - g['tran_inA_1min']).max(1) > 1e-9, usable),
-        ('corrected current', np.abs(k['current'] - g['out_iir']) > 1e-9, usable),
-        ('factory glucose', np.abs(k['factory'] - g['init_cg']) > 1e-7, usable),
-        ('rescaled', np.abs(k['rescaled'] - g['out_rescale']) > 1e-7, usable),
-        ('glucose', np.abs(k['glucose'] - o['result_glucose']) > 1e-7, usable),
-        ('history', np.abs(k['history'] - o['smooth_result_glucose']).max(1) > 1e-7, usable),
+        ('corrected current', np.abs(k['current'] - g['out_iir']) > 1e-9, exact),
+        ('factory glucose', np.abs(k['factory'] - g['init_cg']) > 1e-7, exact),
+        ('rescaled', np.abs(k['rescaled'] - g['out_rescale']) > 1e-7, exact),
+        ('glucose', np.abs(k['glucose'] - o['result_glucose']) > 1e-7, exact),
+        ('history', np.abs(k['history'] - o['smooth_result_glucose']).max(1) > 1e-7, exact),
         ('trend', np.abs(np.nan_to_num(k['trend']) - o['trendrate']) > 1e-7, exact),
     ]
     first = None

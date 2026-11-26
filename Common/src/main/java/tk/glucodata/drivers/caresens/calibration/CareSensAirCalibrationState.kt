@@ -67,6 +67,13 @@ class CareSensAirCalibrationState {
     val historySequence = IntArray(10)
     val historyRaw = DoubleArray(10) { Double.NaN }
 
+    // Error 4: raw maxima of the newest records with consecutive sequence numbers.
+    val lowRawMax = DoubleArray(4)
+    var lowRawCount = 0
+    var lowError = false
+    val historyMaybeFlagged = BooleanArray(10)
+    var referenceMaybeFlagged = false
+
     // Interruption check.
     var timingStarted = false
     var timingSequence = 0
@@ -132,12 +139,14 @@ class CareSensAirCalibrationState {
             o.writeBoolean(timingStarted); o.writeInt(timingSequence); o.writeLong(timingTime)
             gap23.forEach(o::writeInt); o.writeInt(gap23Count); gap60.forEach(o::writeInt); o.writeInt(gap60Count)
             o.writeBoolean(timingError)
+            lowRawMax.forEach(o::writeDouble); o.writeInt(lowRawCount); o.writeBoolean(lowError)
+            historyMaybeFlagged.forEach(o::writeBoolean); o.writeBoolean(referenceMaybeFlagged)
         }
         return bytes.toByteArray()
     }
 
     companion object {
-        const val VERSION = 1
+        const val VERSION = 2
 
         /** Restores [toBytes]; null for another format version or a damaged copy. */
         fun fromBytes(data: ByteArray): CareSensAirCalibrationState? = runCatching {
@@ -162,6 +171,9 @@ class CareSensAirCalibrationState {
                 for (k in s.gap23.indices) s.gap23[k] = i.readInt(); s.gap23Count = i.readInt()
                 for (k in s.gap60.indices) s.gap60[k] = i.readInt(); s.gap60Count = i.readInt()
                 s.timingError = i.readBoolean()
+                fill(s.lowRawMax, i); s.lowRawCount = i.readInt(); s.lowError = i.readBoolean()
+                for (k in 0 until 10) s.historyMaybeFlagged[k] = i.readBoolean()
+                s.referenceMaybeFlagged = i.readBoolean()
                 if (i.read() != -1) return null
             }
             s
@@ -235,6 +247,20 @@ object CareSensAirVendorState {
                 if (same(s.cleanTail[k])) s.cleanTail[k] = own
             }
         }
+        // Error 4: the block keeps the raw currents of the last 13 accepted
+        // records (newest last), their sequence numbers in accu_seq.
+        for (k in 0 until 4) {
+            var m = Double.NEGATIVE_INFINITY
+            for (j in 0 until CareSensAirCalibration.SAMPLES) m = maxOf(m, f64(40096 + 8 * (30 * (9 + k) + j)))
+            s.lowRawMax[k] = m
+        }
+        var run = if (s.count > 0) 1 else 0
+        while (run < minOf(4, s.count) && u16(1610 + 2 * (864 - run)) == u16(1610 + 2 * (864 - run + 1)) - 1) run++
+        s.lowRawCount = run
+        s.lowError = u8(48824) != 0
+        // The block records the low-signal decisions of the last 576 records.
+        for (k in 0 until 10) s.historyMaybeFlagged[k] = u8(48248 + 566 + k) != 0
+        // The reference sums taken over are the vendor's own, flagged records already left out.
         s.timingTime = u32(117284); s.timingSequence = u16(117288); s.timingStarted = s.timingTime != 0L
         for (k in 0 until 4) u16(117290 + 2 * k).takeIf { it != 0 }?.let { s.pushGap23(it) }
         for (k in 0 until 2) u16(117298 + 2 * k).takeIf { it != 0 }?.let { s.pushGap60(it) }
