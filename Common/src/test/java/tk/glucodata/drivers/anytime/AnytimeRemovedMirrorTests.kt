@@ -2,6 +2,7 @@ package tk.glucodata.drivers.anytime
 
 import android.content.Context
 import android.os.HandlerThread
+import java.lang.reflect.Proxy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,6 +18,8 @@ import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import tk.glucodata.Applic
 import tk.glucodata.GlucoseAlarmHandler
+import tk.glucodata.HistoryRepositoryAccess
+import tk.glucodata.HistoryRepositoryBridge
 import tk.glucodata.Natives
 import tk.glucodata.Notify
 import tk.glucodata.SensorBluetooth
@@ -123,13 +126,37 @@ class AnytimeRemovedMirrorTests {
     }
 
     @Test
-    fun manualReconnectReactivatesAnExistingNativePointer() {
+    fun manualReconnectWaitsForAStoredLiveReadingEvenWithAPointer() {
         manager.dataptr = 42L
 
         manager.softReconnect()
 
-        assertEquals(listOf("unfinish"), AnytimeMirrorTestNatives.events)
-        assertFalse(AnytimeMirrorTestNatives.removed)
+        assertTrue(AnytimeMirrorTestNatives.events.isEmpty())
+        assertNull(SensorIdentity.resolveMainSensor())
+
+        commitReading()
+
+        assertEquals(listOf("write", "revive", "publish"), AnytimeMirrorTestNatives.events)
+        assertEquals(SENSOR_ID, SensorIdentity.resolveMainSensor())
+    }
+
+    @Test
+    fun pauseDuringRoomImportStillMirrorsTheAcceptedHistory() {
+        flushHistoryWithRoomStore { manager.setPause(true) }
+
+        assertEquals(listOf("room", "history"), AnytimeMirrorTestNatives.events)
+        assertEquals(0L, manager.dataptr)
+        assertTrue(AnytimeMirrorTestNatives.removed)
+    }
+
+    @Test
+    fun removalDuringRoomImportPreventsTheOldCallbackFromTouchingNativeHistory() {
+        AnytimeMirrorTestNatives.removed = false
+
+        flushHistoryWithRoomStore { manager.terminateManagedSensor(wipeData = false) }
+
+        assertEquals(listOf("room", "remove"), AnytimeMirrorTestNatives.events)
+        assertTrue(AnytimeMirrorTestNatives.removed)
     }
 
     @Test
@@ -145,7 +172,29 @@ class AnytimeRemovedMirrorTests {
         assertNull(SensorIdentity.resolveMainSensor())
     }
 
-    private fun commitReading(expected: Boolean = true) {
+    private fun flushHistoryWithRoomStore(onStore: () -> Unit) {
+        commitReading(live = false)
+        val field = HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }
+        val previousBridge = field.get(HistoryRepositoryAccess)
+        val bridge = Proxy.newProxyInstance(
+            HistoryRepositoryBridge::class.java.classLoader,
+            arrayOf(HistoryRepositoryBridge::class.java),
+        ) { _, method, _ ->
+            check(method.name == "storeHistoryBatchWithSourceBlocking")
+            AnytimeMirrorTestNatives.events += "room"
+            onStore()
+            true
+        } as HistoryRepositoryBridge
+        HistoryRepositoryAccess.register(bridge)
+        try {
+            AnytimeBleManager::class.java.getDeclaredMethod("flushPendingHistoryRoomImports")
+                .apply { isAccessible = true }.invoke(manager)
+        } finally {
+            field.set(HistoryRepositoryAccess, previousBridge)
+        }
+    }
+
+    private fun commitReading(expected: Boolean = true, live: Boolean = true) {
         val method = AnytimeBleManager::class.java.getDeclaredMethod(
             "commitReading",
             AnytimeAlgorithm.Result::class.java,
@@ -155,7 +204,7 @@ class AnytimeRemovedMirrorTests {
             Boolean::class.javaPrimitiveType,
             Boolean::class.javaPrimitiveType,
         ).apply { isAccessible = true }
-        assertEquals(expected, method.invoke(manager, reading, System.currentTimeMillis(), Applic.app, true, false, false))
+        assertEquals(expected, method.invoke(manager, reading, System.currentTimeMillis(), Applic.app, live, !live, false))
     }
 }
 
@@ -207,5 +256,17 @@ class AnytimeMirrorTestNatives {
             events += "write"
             return acceptWrite
         }
+
+        @JvmStatic @Implementation
+        fun addGlucoseStreamBatchWithRawTemp(
+            timestamps: LongArray, glucoses: FloatArray, raws: FloatArray, temps: FloatArray, sensorId: String,
+        ): Int {
+            assertEquals(SENSOR_ID, sensorId)
+            events += "history"
+            return timestamps.size
+        }
+
+        @JvmStatic @Implementation
+        fun getdataptr(sensorId: String): Long = 42L
     }
 }

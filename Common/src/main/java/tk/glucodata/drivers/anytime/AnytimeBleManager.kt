@@ -4818,7 +4818,10 @@ class AnytimeBleManager(
     @Synchronized
     private fun mirrorHistoryBatchIntoNative(items: List<AnytimePendingHistoryRoomImport>) {
         val name = SerialNumber ?: return
-        if (stop) return
+        // Room has already accepted this batch. Finish mirroring through a
+        // temporary pause, including ownership release. Full removal retires
+        // the callback and can delete the native files.
+        if (terminated) return
         val valid = items.filter {
             it.reading.timestampMs / 1000L > 0L &&
                     it.reading.storageGlucoseMgdl.isFinite() &&
@@ -4853,7 +4856,7 @@ class AnytimeBleManager(
                     valid.maxOf { it.reading.timestampMs },
                 )
             }
-            if (dataptr == 0L) {
+            if (!stop && dataptr == 0L) {
                 dataptr = runCatching { Natives.getdataptr(name) }.getOrDefault(0L)
             }
         }.onFailure { Log.stack(TAG, "mirrorHistoryBatchIntoNative", it) }
@@ -5482,11 +5485,7 @@ class AnytimeBleManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
-    override fun softReconnect() = restartConnection(unfinishExistingSlot = true)
-
-    internal fun reconnectWithImportedCredentials() = restartConnection(unfinishExistingSlot = false)
-
-    private fun restartConnection(unfinishExistingSlot: Boolean) {
+    override fun softReconnect() {
         Log.i(TAG, "softReconnect requested")
         synchronized(this) {
             if (terminated) return
@@ -5506,12 +5505,6 @@ class AnytimeBleManager(
             .onFailure { Log.stack(TAG, "softReconnect(closeGatt)", it) }
         runCatching { close() }
             .onFailure { Log.stack(TAG, "softReconnect(close)", it) }
-        synchronized(this) {
-            if (unfinishExistingSlot && !stop && dataptr != 0L) {
-                runCatching { Natives.unfinishSensor(dataptr) }
-                    .onFailure { Log.stack(TAG, "softReconnect(unfinishSensor)", it) }
-            }
-        }
         handler.postDelayed({
             if (!stop) connectDevice(0)
         }, SOFT_RECONNECT_SETTLE_MS)

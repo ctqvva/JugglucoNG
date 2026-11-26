@@ -577,7 +577,7 @@ object AnytimeRegistry {
         }
         if (callback is AnytimeBleManager) {
             callback.restoreFromPersistence(c)
-            callback.reconnectWithImportedCredentials()
+            callback.softReconnect()
         } else {
             connectSensor(c, sensorId)
         }
