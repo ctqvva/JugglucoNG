@@ -274,7 +274,6 @@ class AnytimeBleManager(
 
     private val handlerThread = HandlerThread("Anytime-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
-    private var terminated = false // Guarded by the same monitor as setPause.
 
     private var primaryService: BluetoothGattService? = null
     private var charNotify: BluetoothGattCharacteristic? = null
@@ -4296,7 +4295,7 @@ class AnytimeBleManager(
         // and only once the vendor has stopped supplying one.
         val result = AnytimeAlgorithm.fromComputedRecord(record, qr, familyEntry)
         val stored = commitReading(result, sampleMs, Applic.app, live = true, history = false)
-        noteCt5ImportedId(record.glucoseId)
+        if (stored) noteCt5ImportedId(record.glucoseId)
         if (stored && wasWarmingUp) {
             Log.i(TAG, "CT5 warm-up complete at id=${record.glucoseId}; first glucose stored")
         }
@@ -4400,6 +4399,7 @@ class AnytimeBleManager(
     }
 
     private fun handleCt5Series(data: ByteArray) {
+        if (isRetired) return
         val key = ct5CipherKey
         if (key !in 0..255) {
             Log.w(TAG, "CT5 series before cipher key: ${data.joinToHex()}")
@@ -4466,15 +4466,6 @@ class AnytimeBleManager(
                 ct5RawScale.observe(record.iwNa, record.gluMgdl.toFloat())
             }
         }
-        // Every valid returned id resolves that part of a pending CT5 gap, even
-        // when Room already contained the glucose point. Without caching these
-        // ids, an "all existing" response completed the range and then the gap
-        // scanner immediately requested the exact same ids forever.
-        noteCt5GapProgress(records.map { it.glucoseId })
-        records.maxOfOrNull { it.glucoseId }?.let { maxId ->
-            if (maxId > historyLastPulledId) historyLastPulledId = maxId
-            clearCaughtUpCooldownIfNewerData(maxId)
-        }
         val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
         val now = System.currentTimeMillis()
         val maxId = records.maxOf { it.glucoseId }
@@ -4482,7 +4473,9 @@ class AnytimeBleManager(
         // One summary line per batch instead of one line per already-present point:
         // a reconnect trace has to stay readable.
         val tally = AnytimeCt5HistoryBatchTally()
+        var highestCommittedId = -1
         for (rec in records) {
+            if (isRetired) return
             lastIwNa = rec.iwNa
             lastIbNa = rec.ibNa
             lastTemperatureC = rec.temperatureC
@@ -4504,22 +4497,34 @@ class AnytimeBleManager(
             }
             val result = AnytimeAlgorithm.fromComputedRecord(rec, qr, familyEntry)
             activeHistoryTally = tally
-            try {
+            val committed = try {
                 commitReading(result, sampleMs, Applic.app, live = false, history = true)
             } finally {
                 activeHistoryTally = null
             }
-            noteCt5ImportedId(rec.glucoseId)
+            if (committed) highestCommittedId = maxOf(highestCommittedId, rec.glucoseId)
             if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
         }
         Log.i(TAG, tally.describe(minId, maxId))
         flushPendingHistoryRoomImports()
-        advancePendingCt5GapAfterBatch()
-        persistAlgorithmState()
-        armNoDataWatchdog()
-        armPullFallback()
-        if (historyBackfillActive) {
-            handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+        synchronized(this) {
+            if (isRetired) return
+            // Resolve valid returned ids after the packet has been processed.
+            // This includes warm-up and already-present points so gap repair
+            // does not keep requesting the same ids.
+            noteCt5ImportedId(highestCommittedId)
+            noteCt5GapProgress(records.map { it.glucoseId })
+            historyLastPulledId = maxOf(historyLastPulledId, maxId)
+            clearCaughtUpCooldownIfNewerData(maxId)
+            advancePendingCt5GapAfterBatch()
+            persistAlgorithmState()
+            if (!stop) {
+                armNoDataWatchdog()
+                armPullFallback()
+                if (historyBackfillActive) {
+                    handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+                }
+            }
         }
         UiRefreshBus.requestStatusRefresh()
     }
@@ -4628,7 +4633,9 @@ class AnytimeBleManager(
         history: Boolean,
         skipHistoryImport: Boolean = false,
     ): Boolean {
-        if (stop) return false
+        // A pause stops live traffic, but a history packet already being
+        // processed must reach storage before its gap progress is recorded.
+        if (isRetired || (stop && (live || !history))) return false
         if (live) noteSessionSensorData()
         // Warm-up gate: hold back readings the model has not settled for yet, so they
         // never reach Nightscout/watch/notifications or the app's own history. CT5
@@ -4821,7 +4828,7 @@ class AnytimeBleManager(
         // Room has already accepted this batch. Finish mirroring through a
         // temporary pause, including ownership release. Full removal retires
         // the callback and can delete the native files.
-        if (terminated) return
+        if (isRetired) return
         val valid = items.filter {
             it.reading.timestampMs / 1000L > 0L &&
                     it.reading.storageGlucoseMgdl.isFinite() &&
@@ -4988,10 +4995,12 @@ class AnytimeBleManager(
     }
 
     private fun flushPendingHistoryRoomImports() {
+        if (isRetired) return
         val name = SerialNumber ?: return
         val pending = historyRoomImportBuffer.drain()
         if (pending.isEmpty()) return
         pending.groupBy { it.source }.forEach { (source, imports) ->
+            if (isRetired) return
             runCatching {
                 val imported = VirtualGlucoseSensorBridge.importHistory(
                     sensorSerial = name,
@@ -5005,6 +5014,7 @@ class AnytimeBleManager(
                         0L
                     },
                 )
+                if (isRetired) return
                 if (imported > 0) {
                     persistTemperatureHistory(imports.map { item ->
                         AnytimeRegistry.TemperatureRecord(
@@ -5488,7 +5498,7 @@ class AnytimeBleManager(
     override fun softReconnect() {
         Log.i(TAG, "softReconnect requested")
         synchronized(this) {
-            if (terminated) return
+            if (isRetired) return
             setPause(false)
         }
         if (!ct5EndCycleInternalReconnect) {
@@ -5522,10 +5532,7 @@ class AnytimeBleManager(
 
     override fun terminateManagedSensor(wipeData: Boolean) {
         Log.i(TAG, "terminateManagedSensor requested wipeData=$wipeData")
-        synchronized(this) {
-            terminated = true
-            setPause(true)
-        }
+        retireCallback()
         cancelCt5EndCycleRestart("terminateManagedSensor")
         cancelReconnect()
         clearGattCallbacks()

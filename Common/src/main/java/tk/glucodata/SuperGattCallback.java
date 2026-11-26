@@ -62,6 +62,7 @@ import static tk.glucodata.SensorBluetooth.blueone;
 
 public abstract class SuperGattCallback extends BluetoothGattCallback {
     volatile protected boolean stop = false;
+    private volatile boolean retired;
     public static boolean doWearInt = false;
     public static boolean doGadgetbridge = false;
     private static final String LOG_ID = "SuperGattCallback";
@@ -271,6 +272,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     public synchronized void setPause(boolean pause) {
+        if (!pause && retired) return;
         this.stop = pause;
         if (pause) {
             connectDeadline.cancel();
@@ -278,6 +280,18 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         }
         if (doLog)
             Log.i(LOG_ID, "setPause " + pause);
+    }
+
+    protected final boolean isRetired() {
+        return retired;
+    }
+
+    /** Permanently stops this callback instance before its transport or native data is released. */
+    protected final synchronized void retireCallback() {
+        retired = true;
+        stop = true;
+        connectDeadline.cancel();
+        clearPendingConnect();
     }
 
     /**
@@ -1480,7 +1494,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
      * SensorGlucoseData back to the allocator — taking that sensor's history with it.
      */
     synchronized void discard() {
-        stop = true;
+        retireCallback();
         if (doLog) {
             Log.i(LOG_ID, "discard " + SerialNumber);
         }
@@ -1489,7 +1503,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
     }
 
     synchronized void free() {
-        stop = true;
+        retireCallback();
         {
             if (doLog) {
                 Log.i(LOG_ID, "free " + SerialNumber);

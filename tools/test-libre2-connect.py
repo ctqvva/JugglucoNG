@@ -73,6 +73,7 @@ class SuperGattCallback {
     static final int GATT_SUCCESS=0;
     static final String LOG_ID="test";
     boolean stop, connectPending;
+    private volatile boolean retired;
     private volatile boolean lossRecorded=false, lossNotified=false;
     static long lastfoundL=0L;
     long dataptr=1L, foundtime, connectTime, showtime=60_000L;

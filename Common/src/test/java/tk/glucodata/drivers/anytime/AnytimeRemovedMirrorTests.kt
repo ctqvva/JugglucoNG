@@ -17,6 +17,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import tk.glucodata.Applic
+import tk.glucodata.CalibrationAccess
+import tk.glucodata.CalibrationProvider
 import tk.glucodata.GlucoseAlarmHandler
 import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistoryRepositoryBridge
@@ -52,6 +54,7 @@ class AnytimeRemovedMirrorTests {
         Applic.app = RuntimeEnvironment.getApplication() as Applic
         AnytimeMirrorTestNatives.removed = true
         AnytimeMirrorTestNatives.acceptWrite = true
+        AnytimeMirrorTestNatives.historyValues = emptyList()
         AnytimeMirrorTestNatives.events.clear()
         AnytimeRegistry.addSensor(Applic.app, DEVICE_NAME, ADDRESS, DEVICE_NAME, connectNow = false)
         manager = AnytimeBleManager(SENSOR_ID, 0L)
@@ -160,6 +163,77 @@ class AnytimeRemovedMirrorTests {
     }
 
     @Test
+    fun aPauseDuringTheFirstCt5RecordStillStoresTheWholePacket() {
+        AnytimeRegistry.saveCt5CipherKey(Applic.app, SENSOR_ID, 0x48)
+        AnytimeRegistry.saveCt5PendingGap(Applic.app, SENSOR_ID, 400, 403)
+        manager.restoreFromPersistence(Applic.app)
+        var calibrated = 0
+        CalibrationAccess.register(object : CalibrationProvider {
+            override fun hasActiveCalibration(isRawMode: Boolean, sensorId: String?) = false
+
+            override fun getCalibratedValue(
+                value: Float, timestamp: Long, isRawMode: Boolean, emitDiagnostics: Boolean, sensorId: String?,
+            ) = value
+
+            override fun getIntegratedCalibratedSeries(
+                values: FloatArray, timestamps: LongArray, isRawMode: Boolean, sensorId: String?,
+            ): FloatArray {
+                if (++calibrated == 1) manager.softDisconnect()
+                return values
+            }
+        })
+        var roomValues = emptyList<Float>()
+        var resolvedAtRoomWrite = emptySet<Int>()
+        val records = (110..112).fold(ByteArray(0)) { bytes, glucose ->
+            bytes + byteArrayOf(
+                0, 0, 3, 32, (30 + AnytimeConstants.TEMP_INT_OFFSET).toByte(), 0, 0, glucose.toByte(), 0, 0, 0,
+            )
+        }
+        val payload = AnytimeFrames.ct5Decode(records, 0x48)
+        val frame = byteArrayOf(AnytimeConstants.RX_CT5_SERIES, 0x90.toByte(), 1) + payload + byteArrayOf(0)
+        frame[frame.lastIndex] = AnytimeFrames.sum(frame, 0, frame.lastIndex - 1)
+        try {
+            withRoomStore({ values ->
+                roomValues = values.toList()
+                resolvedAtRoomWrite = AnytimeRegistry.loadCt5ResolvedHistoryIds(Applic.app, SENSOR_ID)
+            }) {
+                AnytimeBleManager::class.java.getDeclaredMethod("handleCt5Series", ByteArray::class.java)
+                    .apply { isAccessible = true }.invoke(manager, frame)
+            }
+        } finally {
+            CalibrationAccess.unregisterForTests()
+        }
+
+        assertTrue(manager.pauseRequested())
+        assertEquals(listOf(110f, 111f, 112f), roomValues)
+        assertTrue(resolvedAtRoomWrite.isEmpty())
+        assertEquals(listOf(11f, 11.1f, 11.2f), AnytimeMirrorTestNatives.historyValues)
+        assertEquals(setOf(400, 401, 402), AnytimeRegistry.loadCt5ResolvedHistoryIds(Applic.app, SENSOR_ID))
+        assertEquals(402, AnytimeRegistry.loadCt5HighestImportedId(Applic.app, SENSOR_ID))
+        assertNull(AnytimeRegistry.loadCt5PendingGap(Applic.app, SENSOR_ID))
+    }
+
+    @Test
+    fun deviceRemovalDuringRoomImportPreventsTheOldCallbackFromMirroring() {
+        assertDoesNotMirrorAfterRetirement {
+            SensorBluetooth::class.java.getDeclaredMethod("removeDevice", String::class.java)
+                .apply { isAccessible = true }.invoke(SensorBluetooth(), SENSOR_ID)
+        }
+    }
+
+    @Test
+    fun cloneRetirementDuringRoomImportPreventsTheOldCallbackFromMirroring() {
+        assertDoesNotMirrorAfterRetirement { SensorBluetooth.retireCloneSensor(SENSOR_ID) }
+    }
+
+    @Test
+    fun discardingADuplicateDuringRoomImportPreventsTheOldCallbackFromMirroring() {
+        assertDoesNotMirrorAfterRetirement {
+            SuperGattCallback::class.java.getDeclaredMethod("discard").apply { isAccessible = true }.invoke(manager)
+        }
+    }
+
+    @Test
     fun terminationMarksTheMacNamedSlotRemovedAndRejectsALateReading() {
         AnytimeMirrorTestNatives.removed = false
         manager.terminateManagedSensor(wipeData = false)
@@ -172,23 +246,38 @@ class AnytimeRemovedMirrorTests {
         assertNull(SensorIdentity.resolveMainSensor())
     }
 
+    private fun assertDoesNotMirrorAfterRetirement(retire: () -> Unit) {
+        flushHistoryWithRoomStore(retire)
+        assertEquals(listOf("room"), AnytimeMirrorTestNatives.events)
+        manager.setPause(false)
+        assertTrue(manager.pauseRequested())
+        manager.softReconnect()
+        assertTrue(manager.pauseRequested())
+    }
+
     private fun flushHistoryWithRoomStore(onStore: () -> Unit) {
         commitReading(live = false)
+        withRoomStore({ onStore() }) {
+            AnytimeBleManager::class.java.getDeclaredMethod("flushPendingHistoryRoomImports")
+                .apply { isAccessible = true }.invoke(manager)
+        }
+    }
+
+    private fun withRoomStore(onStore: (FloatArray) -> Unit, block: () -> Unit) {
         val field = HistoryRepositoryAccess::class.java.getDeclaredField("bridge").apply { isAccessible = true }
         val previousBridge = field.get(HistoryRepositoryAccess)
         val bridge = Proxy.newProxyInstance(
             HistoryRepositoryBridge::class.java.classLoader,
             arrayOf(HistoryRepositoryBridge::class.java),
-        ) { _, method, _ ->
+        ) { _, method, args ->
             check(method.name == "storeHistoryBatchWithSourceBlocking")
             AnytimeMirrorTestNatives.events += "room"
-            onStore()
+            onStore(args[2] as FloatArray)
             true
         } as HistoryRepositoryBridge
         HistoryRepositoryAccess.register(bridge)
         try {
-            AnytimeBleManager::class.java.getDeclaredMethod("flushPendingHistoryRoomImports")
-                .apply { isAccessible = true }.invoke(manager)
+            block()
         } finally {
             field.set(HistoryRepositoryAccess, previousBridge)
         }
@@ -216,6 +305,7 @@ class AnytimeMirrorTestApp : Applic() {
 class AnytimeMirrorTestNatives {
     companion object {
         val events = mutableListOf<String>()
+        var historyValues = emptyList<Float>()
         var removed = false
         var acceptWrite = true
 
@@ -263,6 +353,7 @@ class AnytimeMirrorTestNatives {
         ): Int {
             assertEquals(SENSOR_ID, sensorId)
             events += "history"
+            historyValues = glucoses.toList()
             return timestamps.size
         }
 
