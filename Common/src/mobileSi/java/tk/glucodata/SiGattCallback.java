@@ -95,6 +95,7 @@ public class SiGattCallback extends SuperGattCallback {
    }
 
    boolean connected = false;
+   private volatile BluetoothGatt rssiConnectedGatt;
    private boolean pendingHistoryUiRefresh = false;
    private long historyReplayBaselineSec = 0L;
    private boolean pendingHistoryRoomMerge = false;
@@ -144,6 +145,9 @@ public class SiGattCallback extends SuperGattCallback {
    @Override
    public void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
       noteFirstGattCallback("onConnectionStateChange", bluetoothGatt);
+      if (bluetoothGatt == mBluetoothGatt) {
+         rssiConnectedGatt = newState == BluetoothProfile.STATE_CONNECTED ? bluetoothGatt : null;
+      }
       if (stop) {
          if (newState == BluetoothProfile.STATE_DISCONNECTED) {
             bluetoothGatt.close();
@@ -613,18 +617,8 @@ public class SiGattCallback extends SuperGattCallback {
    }
 
    @Override
-   public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-      {
-         if (doLog) {
-            Log.i(LOG_ID, "onReadRemoteRssi(BluetoothGatt," + rssi + "," + status
-                  + (status == GATT_SUCCESS ? " SUCCESS" : " FAILURE"));
-         }
-         ;
-      }
-      ;
-      if (status == GATT_SUCCESS) {
-         readrssi = rssi;
-      }
+   protected boolean isRssiLinkConnected(BluetoothGatt gatt) {
+      return rssiConnectedGatt == gatt;
    }
 
    @Override

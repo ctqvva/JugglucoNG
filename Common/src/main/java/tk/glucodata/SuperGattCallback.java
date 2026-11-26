@@ -156,7 +156,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
 
     boolean superseded = false;
     public final int sensorgen;
-    public int readrssi = 9999;
+    public volatile int readrssi = 9999;
     protected long sensorstartmsec;
 
     protected SuperGattCallback(String SerialNumber, long dataptr, int gen) {
@@ -2002,43 +2002,49 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         ;
     }
 
-    /**
-     * Asks the phone's own controller for this link's signal level; the answer lands in
-     * {@link #readrssi}. The sensor takes no part in it, so it costs the sensor nothing and says
-     * nothing about whether it still answers. The Sensors screen calls this while it is open.
-     * A driver that reads the level on its own schedule overrides this with nothing.
-     */
+    private static final long RSSI_CALLBACK_TIMEOUT_MS = 5_000L;
+    private static final RssiReadQueue<BluetoothGatt> rssiReads = new RssiReadQueue<>(
+            work -> Applic.scheduler.execute(work),
+            timeout -> Applic.scheduler.schedule(timeout, RSSI_CALLBACK_TIMEOUT_MS, TimeUnit.MILLISECONDS));
+
+    /** The Sensors screen requests optional telemetry. Drivers with their own cadence can opt out. */
     public void requestRssi() {
-        final BluetoothGatt gatt = mBluetoothGatt;
-        if (gatt == null || stop) return;
-        try {
-            gatt.readRemoteRssi();
-        } catch (Throwable ignored) {
-            // No BLUETOOTH_CONNECT or a dead binder: there is simply no figure to show.
-        }
+        queueRssiRead(mBluetoothGatt);
     }
 
-    /**
-     * Relay for {@link BluetoothGatt#readRemoteRssi()}. Five drivers declared their own copy of
-     * this callback and the base class had none, so a driver that did not was simply unable to see
-     * a signal level: the whole 2026-08-01 jamming storm was logged without a single RSSI value in
-     * it, which is why "jammed" and "out of range" are still indistinguishable in that dataset.
-     * {@link #readrssi} is what the sensor screens read, so it is filled here for every driver
-     * rather than once per driver; the drivers that already override this keep their own handling.
-     */
+    /** Legacy callbacks that track their own BLE connection override this check. */
+    protected boolean isRssiLinkConnected(BluetoothGatt gatt) {
+        return locallyConnectedGatt == gatt;
+    }
+
+    private boolean canReadRssi(BluetoothGatt gatt) {
+        return gatt != null && !stop && mBluetoothGatt == gatt && isRssiLinkConnected(gatt);
+    }
+
+    protected final void queueRssiRead(BluetoothGatt gatt) {
+        if (!canReadRssi(gatt)) return;
+        rssiReads.request(gatt, () -> {
+            // The link may have turned over while another sensor was being sampled.
+            if (!canReadRssi(gatt)) return false;
+            try {
+                if (gatt.readRemoteRssi()) return true;
+                if (doLog) Log.i(LOG_ID, SerialNumber + " RSSI read rejected by Android");
+            } catch (RuntimeException error) {
+                if (doLog) Log.stack(LOG_ID, SerialNumber + " RSSI request failed", error);
+            }
+            return false;
+        }, () -> {
+            if (doLog && canReadRssi(gatt)) Log.i(LOG_ID, SerialNumber + " RSSI callback timed out");
+        });
+    }
+
+    /** The phone's RSSI sample is telemetry and does not establish sensor liveness. */
     @Override
     public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-        noteFirstGattCallback("onReadRemoteRssi", gatt);
-        if (status == GATT_SUCCESS) {
-            readrssi = rssi;
-        }
-        {
-            if (doLog) {
-                Log.i(LOG_ID, SerialNumber + " onReadRemoteRssi rssi=" + rssi + " status=" + status);
-            }
-            ;
-        }
-        ;
+        rssiReads.onResult(gatt);
+        if (!canReadRssi(gatt)) return;
+        if (status == GATT_SUCCESS) readrssi = rssi;
+        if (doLog) Log.i(LOG_ID, SerialNumber + " onReadRemoteRssi rssi=" + rssi + " status=" + status);
     }
 
     static public String bondString(int bonded) {

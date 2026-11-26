@@ -62,7 +62,7 @@ import static tk.glucodata.Natives.processTooth;
 
 public class Libre2GattCallback extends SuperGattCallback {
 	private int conphase = 0;
-	private BluetoothGatt disconnectingGatt;
+	private volatile BluetoothGatt disconnectingGatt;
 	private long reconnectDelayMillis;
 	private final GattConnectDeadline<BluetoothGatt> disconnectDeadline = new GattConnectDeadline<>(
 			this, (task, delay) -> {
@@ -144,6 +144,11 @@ public class Libre2GattCallback extends SuperGattCallback {
 
 	private boolean acceptGattCallback(BluetoothGatt gatt) {
 		return gatt != null && gatt == mBluetoothGatt && disconnectingGatt == null && !stop;
+	}
+
+	@Override
+	protected boolean isRssiLinkConnected(BluetoothGatt gatt) {
+		return disconnectingGatt == null && super.isRssiLinkConnected(gatt);
 	}
 
 	private void cancelDisconnectDeadline() {
@@ -949,15 +954,6 @@ private void endBLEHandler() {
 		super.close();
 		resetConnectionState();
 		}
-@Override
-public synchronized void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status)  {
-		if (!acceptGattCallback(gatt)) return;
-	{if(doLog) {Log.i(LOG_ID,"onReadRemoteRssi(BluetoothGatt,"+ rssi+","+status+(status==GATT_SUCCESS?" SUCCESS":" FAILURE"));};};
-	if(status==GATT_SUCCESS) {
-		readrssi=rssi;
-		}
-	}
-
 @Override
 public boolean matchDeviceName(String deviceName,String address) {
 	if(deviceName==null||!deviceName.startsWith("ABBOTT")) {
