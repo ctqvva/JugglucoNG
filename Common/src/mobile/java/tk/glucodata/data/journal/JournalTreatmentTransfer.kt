@@ -3,6 +3,7 @@ package tk.glucodata.data.journal
 import android.content.Context
 import org.json.JSONObject
 import tk.glucodata.R
+import tk.glucodata.ui.util.GlucoseFormatter
 import java.security.MessageDigest
 import java.text.ParseException
 import java.text.SimpleDateFormat
@@ -47,6 +48,27 @@ object JournalTreatmentTransfer {
         useV3: Boolean,
         includeRemoteId: Boolean = true
     ): JSONObject? {
+        val json = buildTreatmentFields(entry, preset, food) ?: return null
+        if (includeRemoteId) {
+            json.put("_id", remoteId)
+            if (useV3) json.put("identifier", remoteId)
+        }
+        return json
+    }
+
+    internal fun buildNightscoutTreatmentJson(
+        entry: JournalEntryEntity,
+        preset: JournalInsulinPresetEntity?,
+        food: JournalFoodEntity?,
+        useMmol: Boolean
+    ): JSONObject? = buildTreatmentFields(entry, preset, food, nightscoutUseMmol = useMmol)
+
+    private fun buildTreatmentFields(
+        entry: JournalEntryEntity,
+        preset: JournalInsulinPresetEntity?,
+        food: JournalFoodEntity?,
+        nightscoutUseMmol: Boolean? = null
+    ): JSONObject? {
         val type = JournalEntryType.fromStorage(entry.entryType)
         val timestamp = entry.timestamp.takeIf { it > 0L } ?: return null
         val json = JSONObject()
@@ -64,12 +86,23 @@ object JournalTreatmentTransfer {
         when (type) {
             JournalEntryType.INSULIN -> {
                 val units = positiveAmount(entry.amount) ?: return null
-                val isBasal = preset?.let { !it.countsTowardIob } ?: false
-                json.put("eventType", "Correction Bolus")
-                    .put("insulin", units.toDouble())
-                    .put("isBasalInsulin", isBasal)
-                    .put("insulinType", preset?.displayName ?: entry.title)
-                    .put("notes", mergedNotes(if (isBasal) "Long-Acting" else "Rapid-Acting", entry.note))
+                val insulinName = preset?.displayName ?: entry.title
+                val isBasal = if (nightscoutUseMmol != null) {
+                    isNightscoutBasalInjection(entry.insulinCurveProfileId, preset)
+                } else {
+                    preset?.countsTowardIob == false
+                }
+                json.put("isBasalInsulin", isBasal).put("insulinType", insulinName)
+                if (nightscoutUseMmol != null && isBasal) {
+                    val dose = units.toString().removeSuffix(".0")
+                    json.put("eventType", "Note")
+                        .put("amount", dose.toDouble())
+                        .put("notes", mergedNotes("Basal injection: $insulinName $dose U", entry.note))
+                } else {
+                    json.put("eventType", "Correction Bolus")
+                        .put("insulin", units.toDouble())
+                        .put("notes", mergedNotes(if (isBasal) "Long-Acting" else "Rapid-Acting", entry.note))
+                }
                 preset?.let {
                     json.put("insulinOnsetMinutes", it.onsetMinutes)
                         .put("insulinDurationMinutes", it.durationMinutes)
@@ -94,11 +127,20 @@ object JournalTreatmentTransfer {
             }
             JournalEntryType.FINGERSTICK -> {
                 val mgdl = positiveAmount(entry.glucoseValueMgDl) ?: return null
+                val useMmol = nightscoutUseMmol == true
+                val units = if (useMmol) "mmol" else "mg/dl"
+                val glucose = if (nightscoutUseMmol != null) {
+                    GlucoseFormatter.formatCsv(GlucoseFormatter.displayFromMgDl(mgdl, useMmol), units).toDouble()
+                } else {
+                    mgdl.toDouble()
+                }
+                // Keep the original Float recoverable without its widened decimal tail.
+                val canonicalGlucose = if (nightscoutUseMmol != null) mgdl.toString().toDouble() else mgdl.toDouble()
                 json.put("eventType", "BG Check")
-                    .put("glucose", mgdl.toDouble())
-                    .put("glucoseValueMgDl", mgdl.toDouble())
+                    .put("glucose", glucose)
+                    .put("glucoseValueMgDl", canonicalGlucose)
                     .put("glucoseType", "Finger")
-                    .put("units", "mg/dl")
+                    .put("units", units)
                 entry.note?.takeIf { it.isNotBlank() }?.let { json.put("notes", it) }
             }
             JournalEntryType.ACTIVITY -> {
@@ -124,17 +166,32 @@ object JournalTreatmentTransfer {
             }
         }
 
-        if (includeRemoteId) {
-            json.put("_id", remoteId)
-                .put("identifier", remoteId)
-        }
-        if (!useV3) {
-            json.remove("identifier")
-        }
         return json
     }
 
-/**
+    internal fun isNightscoutBasalInjection(
+        recordedProfile: String?,
+        preset: JournalInsulinPresetEntity?
+    ): Boolean = isBasalProfile(recordedProfile)
+        ?: isBasalProfile(preset?.curveProfileId)
+        // Custom and older presets may have no recorded insulin profile.
+        ?: (preset?.countsTowardIob == false)
+
+    private fun isBasalProfile(profileId: String?): Boolean? =
+        when (JournalBuiltInCurveProfile.fromStorage(profileId)) {
+            JournalBuiltInCurveProfile.LONG_BASAL_GENERIC,
+            JournalBuiltInCurveProfile.NPH,
+            JournalBuiltInCurveProfile.ULTRA_LONG_BASAL,
+            JournalBuiltInCurveProfile.GLARGINE_U100,
+            JournalBuiltInCurveProfile.GLARGINE_U300,
+            JournalBuiltInCurveProfile.DETEMIR,
+            JournalBuiltInCurveProfile.DEGLUDEC,
+            JournalBuiltInCurveProfile.ICODEC -> true
+            null -> null
+            else -> false
+        }
+
+    /**
      * The same document with the fields v3 will not let a client change taken out.
      *
      * v3 answers an update that carries them with 400 "Field date cannot be modified by the
@@ -242,7 +299,7 @@ object JournalTreatmentTransfer {
         val insulin = treatment.optPositiveFloat("insulin", "enteredInsulin", "enteredinsulin", "bolus")
             ?: treatment.optPositiveFloat("amount").takeIf { explicitType == JournalEntryType.INSULIN }
         if (insulin != null) {
-            val preset = chooseInsulinPreset(insulinPresets, treatment)
+            val preset = chooseInsulinPreset(insulinPresets, treatment, source == JournalEntrySource.NIGHTSCOUT)
             inputs.add(
                 JournalEntryInput(
                     timestamp = safeTimestamp,
@@ -385,18 +442,33 @@ object JournalTreatmentTransfer {
 
     private fun chooseInsulinPreset(
         presets: List<JournalInsulinPreset>,
-        treatment: JSONObject
+        treatment: JSONObject,
+        isNightscout: Boolean
     ): JournalInsulinPreset? {
+        val markedBasal = treatment.optBoolean("isBasalInsulin", false)
+        if (isNightscout) {
+            treatment.optNonBlankString("insulinType")?.let { name ->
+                val candidates = if (markedBasal) presets.filter { it.isBasalForNightscout() } else presets
+                val matches = candidates.filter { it.displayName.equals(name, ignoreCase = true) }.ifEmpty {
+                    candidates.filter { it.scientificName.equals(name, ignoreCase = true) }
+                }
+                // A named injection should never pick up a different product's activity curve.
+                return matches.filterNot { it.isArchived }.ifEmpty { matches }.singleOrNull()
+            }
+        }
         val text = listOfNotNull(
             treatment.optNonBlankString("eventType", "eventtype"),
             treatment.optNonBlankString("notes", "note"),
             treatment.optNonBlankString("insulinType", "type"),
             treatment.optNonBlankString("enteredBy", "device", "app")
         ).joinToString(" ").lowercase(Locale.US)
-        val isBasal = treatment.optBoolean("isBasalInsulin", false) ||
-            text.contains("basal") ||
+        val isBasal = markedBasal || text.contains("basal") ||
             text.contains("long") ||
             text.contains("nph")
+        if (isNightscout) {
+            return presets.filter { it.isBasalForNightscout() == isBasal && it.countsTowardIob != isBasal }
+                .minWithOrNull(compareBy<JournalInsulinPreset> { it.isArchived }.thenBy { it.sortOrder })
+        }
         val candidates = presets.filter { !it.isArchived }
             .ifEmpty { presets }
         return if (isBasal) {
@@ -407,6 +479,9 @@ object JournalTreatmentTransfer {
                 ?: candidates.minByOrNull { it.sortOrder }
         }
     }
+
+    private fun JournalInsulinPreset.isBasalForNightscout(): Boolean =
+        isBasalProfile(curveProfileId) ?: !countsTowardIob
 
     private fun JSONObject.optRemoteId(): String? =
         remoteIdentifiers().firstOrNull()

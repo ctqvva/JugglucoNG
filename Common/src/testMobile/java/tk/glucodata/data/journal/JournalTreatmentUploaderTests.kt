@@ -74,6 +74,20 @@ class JournalTreatmentUploaderTests {
         )
     }
 
+    @Test
+    fun recordedBasalProfilesControlTheNightscoutSwitchIndependentlyOfIob() {
+        val type = JournalEntryType.INSULIN.storageValue
+        val rapid = preset(countsTowardIob = false)
+            .copy(curveProfileId = JournalBuiltInCurveProfile.FIASP.storageValue)
+        assertTrue(JournalTreatmentUploader.shouldUploadTreatment(type, rapid, sendLongInsulin = false))
+        assertFalse(
+            JournalTreatmentUploader.shouldUploadTreatment(
+                type, rapid, sendLongInsulin = false,
+                recordedProfile = JournalBuiltInCurveProfile.DEGLUDEC.storageValue
+            )
+        )
+    }
+
     // -- how often treatments are read back ----------------------------------
 
     @Test
@@ -266,6 +280,24 @@ class JournalTreatmentUploaderTests {
         assertEquals(
             JournalTreatmentUploader.OldCopyAction.DELETE,
             JournalTreatmentUploader.oldCopyAction(atFirst, moved)
+        )
+    }
+
+    @Test
+    fun aBasalNoteReplacesTheLegacyBolusAndSubsequentEditsStayOnTheNote() {
+        val bolus = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L)
+        val note = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L, basalInjection = true)
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.CREATE,
+            JournalTreatmentUploader.treatmentWrite(bolus, note)
+        )
+        assertEquals(
+            JournalTreatmentUploader.OldCopyAction.DELETE,
+            JournalTreatmentUploader.oldCopyAction(bolus, note)
+        )
+        assertEquals(
+            JournalTreatmentUploader.TreatmentWrite.UPDATE,
+            JournalTreatmentUploader.treatmentWrite(note, note)
         )
     }
 

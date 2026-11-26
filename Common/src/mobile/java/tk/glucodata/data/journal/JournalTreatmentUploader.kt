@@ -16,6 +16,7 @@ import tk.glucodata.NightPost
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.HistoryDatabase
 import tk.glucodata.drivers.nightscout.NightscoutFollowerRegistry
+import tk.glucodata.ui.util.GlucoseFormatter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -90,9 +91,8 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
      * refused (a token without api:treatments:update answers 403) the delete had already gone
      * through, and the entry was not stale on Nightscout but gone. So the new document is
      * written first, and only once it has been accepted is the old copy surplus -- and only
-     * when it is a different document. On v3 the re-upload carries the old identifier and is
-     * an update of that document, so there is nothing old left to delete; on v1 the server
-     * answers with the _id it stored under, which is the old one when it upserted.
+     * when it is a different document. On v3 a mutable edit keeps the identifier and updates
+     * the document in place. On v1 the server answers with the _id it stored under.
      */
     internal enum class OldCopyAction { KEEP, DELETE }
 
@@ -100,13 +100,13 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     internal enum class TreatmentWrite { CREATE, UPDATE }
 
     /**
-     * What a v3 document is named. The time is part of the name because v3 will not let a
-     * client move a document's date: an entry whose time was corrected is a different
-     * document, and saying so in the identifier is what turns that write into a create the
-     * server accepts, after which the old copy is deleted as any other stale copy is.
+     * Nightscout v3 locks both date and eventType. A basal note gets a different identifier
+     * from the old bolus at the same time so it can be created before the bolus is removed.
      */
-    internal fun datedIdentifier(entryId: Long, timestampMillis: Long): String =
-        ID_PREFIX + entryId.toString(16) + "-" + timestampMillis.toString(16)
+    internal fun datedIdentifier(entryId: Long, timestampMillis: Long, basalInjection: Boolean = false): String {
+        val identifier = ID_PREFIX + entryId.toString(16) + "-" + timestampMillis.toString(16)
+        return if (basalInjection) "$identifier-basal" else identifier
+    }
 
     /**
      * An update only where the server already holds this exact document; anything else is a
@@ -376,6 +376,7 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     private suspend fun uploadInternal(useV3: Boolean, sendEnabled: Boolean, receiveEnabled: Boolean): Boolean {
         val sendLongInsulin = getSendLongInsulin()
         if (!sendEnabled && !receiveEnabled) return true
+        val useMmol = GlucoseFormatter.isMmolApp()
         val baseUrl = Natives.getnightuploadurl()?.takeIf { it.isNotBlank() } ?: return true
         val secretHashed = if (useV3) null else hashedSecret(Natives.getnightuploadsecret())
         val rawSecret = Natives.getnightuploadsecret().orEmpty()
@@ -392,6 +393,10 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
         // was never cleared, wedge every later cycle at the same document (issue #191).
         if (sendEnabled) {
             for (tomb in dao.getPendingNightscoutDeletes()) {
+                // An edit can restore the identifier of a copy whose deletion was queued.
+                if (dao.clearReusedNightscoutDelete(tomb.entryId, tomb.nsRemoteId) > 0) {
+                    continue
+                }
                 val deleteRemoteId = resolveDeleteRemoteId(baseUrl, rawSecret, tomb.nsRemoteId, useV3)
                 val deleteUrl = treatmentDeleteUrl(baseUrl, deleteRemoteId, useV3)
                 val code = NightPost.deleteUrlCode(deleteUrl, secretHashed)
@@ -435,7 +440,7 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                 val preset = entry.insulinPresetId?.let { id ->
                     presetCache.getOrPut(id) { dao.getInsulinPresetById(id) }
                 }
-                if (!shouldUploadTreatment(entry.entryType, preset, sendLongInsulin)) continue
+                if (!shouldUploadTreatment(entry.entryType, preset, sendLongInsulin, entry.insulinCurveProfileId)) continue
 
                 if (sendBackoff.shouldHold(entry.id, System.currentTimeMillis())) {
                     // Same entry, same refusal a moment ago: reported then, not again now.
@@ -443,28 +448,21 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                     break
                 }
 
-                val localIdentifier = ID_PREFIX + entry.id.toString(16)
-                val remoteId = if (useV3) {
-                    datedIdentifier(entry.id, entry.timestamp)
-                } else {
-                    localIdentifier
-                }
-                // A re-upload writes first; the old copy is dealt with after the server has
-                // accepted the new document (see oldCopyAction). It used to be deleted here,
-                // before the POST, and a refused POST then left the entry gone from Nightscout.
-
                 val food = entry.foodId?.let { id ->
                     foodCache.getOrPut(id) { dao.getFoodById(id) }
                 }
-                val json = JournalTreatmentTransfer.buildTreatmentJson(
+                val json = JournalTreatmentTransfer.buildNightscoutTreatmentJson(
                     entry = entry,
-                    remoteId = remoteId,
                     preset = preset,
                     food = food,
-                    useV3 = useV3,
-                    includeRemoteId = useV3
-                )
-                    ?: continue
+                    useMmol = useMmol
+                ) ?: continue
+                val localIdentifier = ID_PREFIX + entry.id.toString(16)
+                val remoteId = if (useV3) {
+                    datedIdentifier(entry.id, entry.timestamp, basalInjection = json.optBoolean("isBasalInsulin"))
+                } else {
+                    localIdentifier
+                }
                 val result = if (useV3) {
                     // A partial update belongs at the concrete document endpoint. Collection
                     // POST is only for a create and requires date, while PATCH deliberately
@@ -472,10 +470,11 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                     val write = treatmentWrite(entry.nsRemoteId, remoteId)
                     if (write == TreatmentWrite.UPDATE) {
                         JournalTreatmentTransfer.stripImmutableForUpdate(json)
+                    } else {
+                        json.put("_id", remoteId).put("identifier", remoteId)
                     }
                     uploadViaNightPost(baseUrl, json, secretHashed, useV3, remoteId, write)
                 } else {
-                    json.remove("_id")
                     json.put("identifier", localIdentifier)
                     postV1Treatment(baseUrl, rawSecret, json, localIdentifier, entry.timestamp, entry.nsRemoteId)
                 }
@@ -555,15 +554,13 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     internal fun shouldUploadTreatment(
         entryType: String,
         preset: JournalInsulinPresetEntity?,
-        sendLongInsulin: Boolean
+        sendLongInsulin: Boolean,
+        recordedProfile: String? = null
     ): Boolean {
         if (sendLongInsulin || JournalEntryType.fromStorage(entryType) != JournalEntryType.INSULIN) {
             return true
         }
-        // Basal presets deliberately do not count toward IOB. Unknown/deleted
-        // presets remain sendable so this preference never silently drops an
-        // insulin entry whose classification cannot be recovered.
-        return preset?.countsTowardIob != false
+        return !JournalTreatmentTransfer.isNightscoutBasalInjection(recordedProfile, preset)
     }
 
     internal fun isExternalMirrorSource(source: String): Boolean {

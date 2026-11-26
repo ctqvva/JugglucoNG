@@ -274,6 +274,15 @@ interface JournalDao {
     suspend fun clearPendingNightscoutDelete(entryId: Long)
 
     @Query(
+        """
+        DELETE FROM journal_pending_deletes
+         WHERE entryId = :entryId AND nsRemoteId = :remoteId
+           AND EXISTS (SELECT 1 FROM journal_entries WHERE id = :entryId AND nsRemoteId = :remoteId)
+        """
+    )
+    suspend fun clearReusedNightscoutDelete(entryId: Long, remoteId: String): Int
+
+    @Query(
         "UPDATE journal_pending_deletes SET attempts = :attempts, lastAttemptAt = :attemptedAt " +
             "WHERE entryId = :entryId"
     )
