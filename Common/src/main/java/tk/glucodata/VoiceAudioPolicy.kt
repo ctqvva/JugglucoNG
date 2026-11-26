@@ -230,6 +230,41 @@ object VoiceAudioPolicy {
     }
 
     /**
+     * Sanitizes a Bluetooth MAC address for diagnostic logs so full hardware MACs are never
+     * written to trace files, while preserving the last 2 octets (`**EE:FF`) to distinguish
+     * same-name devices.
+     */
+    fun sanitizeAddress(raw: String?): String {
+        val trimmed = raw?.trim()?.uppercase(Locale.ROOT).orEmpty()
+        if (trimmed.isEmpty()) return "none"
+        if (trimmed in PLACEHOLDER_MACS) return "placeholder"
+        val mac = normalizeAddress(trimmed)
+        return if (mac != null) "**${mac.takeLast(5)}" else "invalid"
+    }
+
+    /** Sanitizes any embedded MAC address inside a `triggerKey` (e.g. `dev:mac:AA:...:EE:FF`). */
+    fun sanitizeTriggerKey(key: String?): String {
+        if (key.isNullOrEmpty()) return "none"
+        val macMarker = key.indexOf("mac:")
+        if (macMarker < 0) return key
+        val prefix = key.substring(0, macMarker + 4)
+        val rawMac = key.substring(macMarker + 4)
+        return prefix + sanitizeAddress(rawMac)
+    }
+
+    /** Outcome and explicit reason for comparing one [SavedDevice] against one [ConnectedDevice]. */
+    data class DeviceMatchDetail(
+        val matched: Boolean,
+        val reason: String,
+    )
+
+    /** Enrichment output with the identity source used for diagnostic tracing. */
+    data class EnrichmentResult(
+        val device: ConnectedDevice?,
+        val source: String,
+    )
+
+    /**
      * True when two **simultaneously active** audio outputs reported by [AudioManager] represent
      * the same physical headset (e.g. Classic A2DP + LE Audio / BLE Headset, or Left + Right LE
      * Audio CSIP earbuds). Never used across disconnected bonded devices so two separate headsets
@@ -270,27 +305,45 @@ object VoiceAudioPolicy {
      * earbuds match across Classic A2DP and LE Audio. When either side lacks a valid MAC, falls back
      * to normalized device name unless the paired name is ambiguous.
      */
-    fun devicesMatch(saved: SavedDevice, connected: ConnectedDevice): Boolean {
+    fun explainDeviceMatch(saved: SavedDevice, connected: ConnectedDevice): DeviceMatchDetail {
+        val savedPrimary = normalizeAddress(saved.address)
+        val savedAlts = saved.alternateAddresses.mapNotNull(::normalizeAddress).toSet()
         val savedMacs = buildSet {
-            normalizeAddress(saved.address)?.let(::add)
-            saved.alternateAddresses.mapNotNull(::normalizeAddress).forEach(::add)
+            savedPrimary?.let(::add)
+            addAll(savedAlts)
         }
+        val connPrimary = normalizeAddress(connected.address)
+        val connAlts = connected.alternateAddresses.mapNotNull(::normalizeAddress).toSet()
         val connMacs = buildSet {
-            normalizeAddress(connected.address)?.let(::add)
-            connected.alternateAddresses.mapNotNull(::normalizeAddress).forEach(::add)
+            connPrimary?.let(::add)
+            addAll(connAlts)
         }
         if (savedMacs.isNotEmpty() && connMacs.isNotEmpty()) {
-            return savedMacs.any { it in connMacs }
+            return when {
+                savedPrimary != null && connPrimary != null && savedPrimary == connPrimary ->
+                    DeviceMatchDetail(true, "mac_exact")
+                savedMacs.any { it in connMacs } ->
+                    DeviceMatchDetail(true, "mac_alt")
+                else ->
+                    DeviceMatchDetail(false, "mac_mismatch")
+            }
         }
         // Fail closed when the user selected a MAC-identified device and the connected output
         // has no MAC while sharing a name with multiple paired devices (e.g. two "Car Multimedia").
         if (savedMacs.isNotEmpty() && connMacs.isEmpty() && connected.ambiguousName) {
-            return false
+            return DeviceMatchDetail(false, "ambiguous_name")
         }
         val savedName = normalizeName(saved.name)
         val connName = normalizeName(connected.name)
-        return savedName.isNotEmpty() && savedName == connName
+        return if (savedName.isNotEmpty() && savedName == connName) {
+            DeviceMatchDetail(true, "name_fallback")
+        } else {
+            DeviceMatchDetail(false, "name_mismatch")
+        }
     }
+
+    fun devicesMatch(saved: SavedDevice, connected: ConnectedDevice): Boolean =
+        explainDeviceMatch(saved, connected).matched
 
     /**
      * Merges duplicate entries for the same physical Bluetooth device (e.g. A2DP + LE Audio or
@@ -497,14 +550,14 @@ object VoiceAudioPolicy {
      *    keep [ConnectedDevice.address] as null so [devicesMatch] uses name fallback instead of
      *    treating a guessed MAC as authoritative.
      */
-    fun enrichConnectedAudioOutput(
+    fun enrichConnectedAudioOutputDetailed(
         rawAddress: String?,
         rawName: String?,
         profileConnected: List<ConnectedDevice>,
         bondedHints: List<BondedHint>,
         looksLikeCarName: (String) -> Boolean,
         transport: Transport = Transport.UNKNOWN,
-    ): ConnectedDevice? {
+    ): EnrichmentResult {
         var mac = normalizeAddress(rawAddress)
         var name = rawName?.trim().orEmpty()
         val normName = normalizeName(name)
@@ -512,6 +565,7 @@ object VoiceAudioPolicy {
         var ambiguousName = false
         var resolvedTransport = transport
         val altAddresses = LinkedHashSet<String>()
+        var source = if (mac != null) "raw_mac" else "raw_name"
 
         if (mac == null && normName.isNotEmpty()) {
             val matchingProfiles = profileConnected.filter {
@@ -521,6 +575,7 @@ object VoiceAudioPolicy {
             if (distinctMacs.size == 1) {
                 mac = distinctMacs.first()
                 isCar = matchingProfiles.any { it.isCarAudio }
+                source = "profile_mac"
             }
         }
 
@@ -530,6 +585,7 @@ object VoiceAudioPolicy {
                 if (exactBonded.name.isNotBlank()) name = exactBonded.name.trim()
                 isCar = isCar || exactBonded.isCar
                 if (resolvedTransport == Transport.UNKNOWN) resolvedTransport = exactBonded.transport
+                source = if (source == "raw_mac") "raw_mac+bonded" else "$source+bonded"
             }
         } else if (normName.isNotEmpty()) {
             val nameMatches = bondedHints.filter { normalizeName(it.name) == normName }
@@ -539,26 +595,47 @@ object VoiceAudioPolicy {
                 if (unique.name.isNotBlank()) name = unique.name.trim()
                 isCar = isCar || unique.isCar
                 if (resolvedTransport == Transport.UNKNOWN) resolvedTransport = unique.transport
+                source = "bonded_unique_name"
             } else if (nameMatches.size > 1) {
                 // Ambiguous paired name with distinct MACs: never guess or merge across bonded
                 // entries so an unselected headset/car can never match a selected sibling.
                 isCar = isCar || nameMatches.any { it.isCar }
                 ambiguousName = true
+                source = "bonded_ambiguous_name(${nameMatches.size})"
             }
         }
 
         isCar = isCar || looksLikeCarName(name)
-        if (mac == null && name.isEmpty()) return null
-        return ConnectedDevice(
-            address = mac,
-            name = name.ifBlank { mac.orEmpty() },
-            isBluetoothAudio = true,
-            isCarAudio = isCar,
-            ambiguousName = ambiguousName,
-            transport = resolvedTransport,
-            alternateAddresses = altAddresses.toList(),
+        if (mac == null && name.isEmpty()) return EnrichmentResult(null, "empty")
+        return EnrichmentResult(
+            device = ConnectedDevice(
+                address = mac,
+                name = name.ifBlank { mac.orEmpty() },
+                isBluetoothAudio = true,
+                isCarAudio = isCar,
+                ambiguousName = ambiguousName,
+                transport = resolvedTransport,
+                alternateAddresses = altAddresses.toList(),
+            ),
+            source = source,
         )
     }
+
+    fun enrichConnectedAudioOutput(
+        rawAddress: String?,
+        rawName: String?,
+        profileConnected: List<ConnectedDevice>,
+        bondedHints: List<BondedHint>,
+        looksLikeCarName: (String) -> Boolean,
+        transport: Transport = Transport.UNKNOWN,
+    ): ConnectedDevice? = enrichConnectedAudioOutputDetailed(
+        rawAddress = rawAddress,
+        rawName = rawName,
+        profileConnected = profileConnected,
+        bondedHints = bondedHints,
+        looksLikeCarName = looksLikeCarName,
+        transport = transport,
+    ).device
 
     /**
      * True when the active trigger moved from one matched device/session to a different one

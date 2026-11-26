@@ -844,6 +844,120 @@ class VoiceAudioTriggerTests {
         assertFalse(VoiceReadings.isActive(app))
         assertFalse(VoiceReadings.status(app).on)
     }
+
+    @Test
+    fun acquireUiMonitoring_whenAlreadyRegistered_refreshesStaleAndroidAutoProjection() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
+        assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Android Auto becomes active without a broadcast arriving while monitoring is already registered.
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        VoiceAudioTrigger.acquireUiMonitoring(app)
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
+        assertTrue(
+            "Opening Voice settings must re-query Android Auto projection even when monitoring is already registered",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+        VoiceAudioTrigger.releaseUiMonitoring(app)
+    }
+
+    @Test
+    fun diagnosticLogging_deduplicatesUnchangedSnapshotsLogsRejectionReasonsAndSanitizesMacs() {
+        SensorTraceRing.reset()
+        val savedMac = "AA:BB:CC:DD:EE:01"
+        val otherMac = "11:22:33:44:55:02"
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice(
+                id = "mac:$savedMac",
+                address = savedMac,
+                name = "My Car",
+                isCar = true,
+            ),
+        )
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, false)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        // Connect a device with the same name but a different MAC -> must reject with mac_mismatch.
+        SensorTraceRing.reset()
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(otherMac, "My Car")))
+        VoiceAudioTrigger.refreshState(app, "test_first")
+        val afterFirst = SensorTraceRing.snapshot().filter { it.contains("VoiceAudioTrigger") }
+        assertTrue("Expected state diagnostic line", afterFirst.any { it.contains("NO_MATCH") })
+        assertTrue("Expected raw output diagnostic line", afterFirst.any { it.contains("A2DP:My Car(**55:02)") })
+        assertTrue("Expected explicit rejection reason", afterFirst.any { it.contains("mac_mismatch") })
+
+        // Repeated refresh with unchanged state must emit zero duplicate lines.
+        VoiceAudioTrigger.refreshState(app, "test_repeat")
+        val afterRepeat = SensorTraceRing.snapshot().filter { it.contains("VoiceAudioTrigger") }
+        assertEquals("Unchanged snapshots must be deduplicated", afterFirst.size, afterRepeat.size)
+
+        // Switch to the matching saved device -> activates and logs sanitized key.
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice(savedMac, "My Car")))
+        VoiceAudioTrigger.refreshState(app, "test_match")
+        val allLines = SensorTraceRing.snapshot().filter { it.contains("VoiceAudioTrigger") }
+        assertTrue("Expected MATCH diagnostic line", allLines.any { it.contains("MATCH(dev:mac:**EE:01") })
+        assertTrue("Expected activated transition log", allLines.any { it.contains("activated: key=dev:mac:**EE:01") })
+
+        // Full MAC addresses must NEVER appear anywhere in diagnostic logs.
+        assertFalse("Full saved MAC must never be logged", allLines.any { it.contains(savedMac, ignoreCase = true) })
+        assertFalse("Full other MAC must never be logged", allLines.any { it.contains(otherMac, ignoreCase = true) })
+    }
+
+    @Test
+    fun bondedCacheLoad_refreshesStateWhenBondedMetadataChanges() {
+        val btManager = app.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+        val shadowAdapter = shadowOf(adapter)
+        shadowAdapter.setEnabled(true)
+        shadowOf(app).grantPermissions(android.Manifest.permission.BLUETOOTH_CONNECT)
+
+        val carMac = "AA:BB:CC:DD:EE:42"
+        val bondedCar = adapter.getRemoteDevice(carMac)
+        shadowOf(bondedCar).setName("Car Audio")
+
+        // Saved device is identified by MAC + name; AudioManager omits MAC on this output.
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice(
+                id = "mac:$carMac",
+                address = carMac,
+                name = "Car Audio",
+                isCar = true,
+            ),
+        )
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, false)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+
+        // Start with bonded cache empty and a connected output reporting only the name -> matches name fallback,
+        // then populate bonded devices with two same-name devices (ambiguous!) and call refreshBondedCacheNow:
+        // refreshState must automatically re-run and re-evaluate against the updated bonded metadata.
+        val otherCar = adapter.getRemoteDevice("AA:BB:CC:DD:EE:99")
+        shadowOf(otherCar).setName("Car Audio")
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("", "Car Audio")))
+        VoiceAudioTrigger.refreshState(app, "before_bonded")
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        shadowAdapter.setBondedDevices(setOf(bondedCar, otherCar))
+        VoiceAudioTrigger.refreshBondedCacheNow(app)
+        assertFalse(
+            "Updated bonded metadata revealing an ambiguous paired name must immediately trigger refreshState",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+    }
 }
 
 class FakeCarConnectionProvider : ContentProvider() {

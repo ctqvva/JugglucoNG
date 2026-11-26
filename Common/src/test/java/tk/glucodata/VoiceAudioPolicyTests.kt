@@ -546,4 +546,72 @@ class VoiceAudioPolicyTests {
         assertTrue("Connected device must not inherit MACs from unrelated bonded entries", connectedUnselected.alternateAddresses.isEmpty())
         assertFalse("Unselected headset must NEVER match selected headset", VoiceAudioPolicy.devicesMatch(selected, connectedUnselected))
     }
+
+    @Test
+    fun sanitizeAddressAndTriggerKey_neverExposeFullMacAddresses() {
+        assertEquals("**EE:FF", VoiceAudioPolicy.sanitizeAddress("aa:bb:cc:dd:ee:ff"))
+        assertEquals("placeholder", VoiceAudioPolicy.sanitizeAddress("02:00:00:00:00:00"))
+        assertEquals("none", VoiceAudioPolicy.sanitizeAddress(null))
+        assertEquals("none", VoiceAudioPolicy.sanitizeAddress("   "))
+        assertEquals("invalid", VoiceAudioPolicy.sanitizeAddress("not-a-mac"))
+
+        val sanitizedKey = VoiceAudioPolicy.sanitizeTriggerKey("dev:mac:AA:BB:CC:DD:EE:FF")
+        assertEquals("dev:mac:**EE:FF", sanitizedKey)
+        assertFalse(sanitizedKey.contains("AA:BB:CC"))
+        assertEquals("car_mode", VoiceAudioPolicy.sanitizeTriggerKey("car_mode"))
+        assertEquals("any_bt:name:my car", VoiceAudioPolicy.sanitizeTriggerKey("any_bt:name:my car"))
+    }
+
+    @Test
+    fun explainDeviceMatch_reportsExplicitMatchAndRejectionReasons() {
+        val saved = VoiceAudioPolicy.SavedDevice(
+            id = "mac:AA:BB:CC:DD:EE:01",
+            address = "AA:BB:CC:DD:EE:01",
+            name = "Car Audio",
+            isCar = true,
+            alternateAddresses = listOf("AA:BB:CC:DD:EE:02"),
+        )
+        assertEquals(
+            VoiceAudioPolicy.DeviceMatchDetail(true, "mac_exact"),
+            VoiceAudioPolicy.explainDeviceMatch(
+                saved,
+                VoiceAudioPolicy.ConnectedDevice(address = "AA:BB:CC:DD:EE:01", name = "Car Audio"),
+            ),
+        )
+        assertEquals(
+            VoiceAudioPolicy.DeviceMatchDetail(true, "mac_alt"),
+            VoiceAudioPolicy.explainDeviceMatch(
+                saved,
+                VoiceAudioPolicy.ConnectedDevice(address = "AA:BB:CC:DD:EE:02", name = "Car Audio"),
+            ),
+        )
+        assertEquals(
+            VoiceAudioPolicy.DeviceMatchDetail(false, "mac_mismatch"),
+            VoiceAudioPolicy.explainDeviceMatch(
+                saved,
+                VoiceAudioPolicy.ConnectedDevice(address = "AA:BB:CC:DD:EE:99", name = "Car Audio"),
+            ),
+        )
+        assertEquals(
+            VoiceAudioPolicy.DeviceMatchDetail(false, "ambiguous_name"),
+            VoiceAudioPolicy.explainDeviceMatch(
+                saved,
+                VoiceAudioPolicy.ConnectedDevice(address = null, name = "Car Audio", ambiguousName = true),
+            ),
+        )
+        assertEquals(
+            VoiceAudioPolicy.DeviceMatchDetail(true, "name_fallback"),
+            VoiceAudioPolicy.explainDeviceMatch(
+                saved,
+                VoiceAudioPolicy.ConnectedDevice(address = null, name = "Car Audio", ambiguousName = false),
+            ),
+        )
+        assertEquals(
+            VoiceAudioPolicy.DeviceMatchDetail(false, "name_mismatch"),
+            VoiceAudioPolicy.explainDeviceMatch(
+                saved,
+                VoiceAudioPolicy.ConnectedDevice(address = null, name = "Other Headset", ambiguousName = false),
+            ),
+        )
+    }
 }
