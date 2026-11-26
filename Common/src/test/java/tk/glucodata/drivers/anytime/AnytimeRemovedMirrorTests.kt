@@ -78,6 +78,8 @@ class AnytimeRemovedMirrorTests {
         val credentials = checkNotNull(
             AnytimeCt5CredentialFile.encode(SENSOR_ID, ADDRESS, DEVICE_NAME, 0x48, intArrayOf(1, 2, 3, 4), "1234")
         )
+        // Also cover import over an existing callback that already holds a native pointer.
+        manager.dataptr = 42L
         assertEquals(SENSOR_ID, AnytimeRegistry.importCt5Credentials(Applic.app, credentials)?.sensorId)
         AnytimeRegistry.reconnectAfterCt5CredentialImport(Applic.app, SENSOR_ID)
         assertNull(SensorIdentity.resolveMainSensor())
@@ -117,6 +119,16 @@ class AnytimeRemovedMirrorTests {
         commitReading()
 
         assertEquals(listOf("publish", "write"), AnytimeMirrorTestNatives.events)
+        assertFalse(AnytimeMirrorTestNatives.removed)
+    }
+
+    @Test
+    fun manualReconnectReactivatesAnExistingNativePointer() {
+        manager.dataptr = 42L
+
+        manager.softReconnect()
+
+        assertEquals(listOf("unfinish"), AnytimeMirrorTestNatives.events)
         assertFalse(AnytimeMirrorTestNatives.removed)
     }
 
@@ -181,6 +193,12 @@ class AnytimeMirrorTestNatives {
             assertEquals(SENSOR_ID, sensorId)
             this.removed = removed
             events += if (removed) "remove" else "revive"
+        }
+
+        @JvmStatic @Implementation
+        fun unfinishSensor(dataptr: Long) {
+            removed = false
+            events += "unfinish"
         }
 
         @JvmStatic @Implementation

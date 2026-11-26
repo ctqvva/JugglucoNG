@@ -5482,7 +5482,11 @@ class AnytimeBleManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
-    override fun softReconnect() {
+    override fun softReconnect() = restartConnection(unfinishExistingSlot = true)
+
+    internal fun reconnectWithImportedCredentials() = restartConnection(unfinishExistingSlot = false)
+
+    private fun restartConnection(unfinishExistingSlot: Boolean) {
         Log.i(TAG, "softReconnect requested")
         synchronized(this) {
             if (terminated) return
@@ -5503,7 +5507,7 @@ class AnytimeBleManager(
         runCatching { close() }
             .onFailure { Log.stack(TAG, "softReconnect(close)", it) }
         synchronized(this) {
-            if (!stop && dataptr != 0L) {
+            if (unfinishExistingSlot && !stop && dataptr != 0L) {
                 runCatching { Natives.unfinishSensor(dataptr) }
                     .onFailure { Log.stack(TAG, "softReconnect(unfinishSensor)", it) }
             }
