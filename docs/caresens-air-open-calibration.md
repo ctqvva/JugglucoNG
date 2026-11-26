@@ -32,6 +32,31 @@ active (often until the end of the sensor), and the engine would show values
 there. In the synthetic tests error 16 (sensitivity) occurs in 3 of 18
 scenarios, the others only with deliberately broken signals.
 
+### What is known about the checks not reproduced
+
+Found with `tools/caresens-oracle` (triggers, state perturbation, bisection);
+details and scripts in the research notes, not needed to run the engine.
+
+- **All error bits** are evaluated per record. Errors 1, 2 and 4 stay set
+  only while records are accepted and consecutive; errors 16 and 32 stay set
+  to the end (a rejected record reports no error 16, but error 32).
+  Thresholds in the device block's `err*` fields (sent by the transmitter)
+  were changed without effect on errors 4 and 32; the others were not tested.
+- **Error 16** (sensitivity, from day 6): its inputs are exact. Two 12-tap
+  filters over the last 12 accepted, consecutive records with weights
+  .19204, .16522, .11845, .07161, .03473, .01187, .00419, .01187, .03473,
+  .07161, .11845, .16522 (newest first): over rounded glucose ("plasma"), and
+  over the 5-minute current × 100 / slope100 ("ISF"), both rounded. Seven
+  conditions over three-day statistics of these (minimum, mode, mean, rate);
+  only three were seen. Their decision rules were not separable from the
+  exposed statistics.
+- **Error 2** fired only for a sustained signal above about 800 mg/dL
+  with a 12-record CV below about 10 %.
+- **Error 1** (noise) and its break flag follow a noise statistic against
+  adaptive thresholds; not decoded. The break flag also sets data type 4.
+- **Errors 8 and 128**: no input found that triggers them (signal shapes,
+  temperature −5 to 50 °C, sequence and clock faults).
+
 ## How it was verified
 
 The reference is the arm64 `libCALCULATION.so` the app ships
