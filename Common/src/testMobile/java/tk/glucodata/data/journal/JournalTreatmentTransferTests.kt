@@ -80,6 +80,27 @@ class JournalTreatmentTransferTests {
     }
 
     @Test
+    fun aNightscoutFingerstickCorrectionSupersedesStaleCanonicalMetadata() {
+        val entry = journalEntry(JournalEntryType.FINGERSTICK).copy(glucoseValueMgDl = 165.76744f)
+        val mmol = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = true)!!
+        val mgdl = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = false)!!
+
+        assertEquals(144.1456f, parseNightscout(mmol.put("glucose", "8.0")).glucoseValueMgDl!!, 0.001f)
+        assertEquals(145f, parseNightscout(mgdl.put("glucose", 145)).glucoseValueMgDl!!, 0f)
+    }
+
+    @Test
+    fun aNightscoutUnitLabelChangeAloneKeepsTheOriginalCanonicalValue() {
+        val canonicalMgdl = 165.76744f
+        val entry = journalEntry(JournalEntryType.FINGERSTICK).copy(glucoseValueMgDl = canonicalMgdl)
+        val mmol = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = true)!!
+        val mgdl = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = false)!!
+
+        assertEquals(canonicalMgdl, parseNightscout(mmol.put("units", "mg/dl")).glucoseValueMgDl!!, 0f)
+        assertEquals(canonicalMgdl, parseNightscout(mgdl.put("units", "mmol")).glucoseValueMgDl!!, 0f)
+    }
+
+    @Test
     fun basalNoteCarriesDoseAndRestoresTheNamedPreset() {
         val entry = journalEntry(JournalEntryType.INSULIN).copy(
             title = "Tresiba",

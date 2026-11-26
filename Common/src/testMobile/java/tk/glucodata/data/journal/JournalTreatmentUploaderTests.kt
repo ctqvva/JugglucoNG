@@ -288,7 +288,8 @@ class JournalTreatmentUploaderTests {
     @Test
     fun aBasalNoteReplacesTheLegacyBolusAndSubsequentEditsStayOnTheNote() {
         val bolus = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L)
-        val note = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_000L, basalInjection = true)
+        val note = NightscoutInsulinIdentity.forUpload(bolus, bolus, basalNote = true)
+        val restoredBolus = NightscoutInsulinIdentity.forUpload(bolus, note, basalNote = false)
         assertEquals(
             JournalTreatmentUploader.TreatmentWrite.CREATE,
             JournalTreatmentUploader.treatmentWrite(bolus, note)
@@ -299,8 +300,14 @@ class JournalTreatmentUploaderTests {
         )
         assertEquals(
             JournalTreatmentUploader.TreatmentWrite.UPDATE,
-            JournalTreatmentUploader.treatmentWrite(note, note)
+            JournalTreatmentUploader.treatmentWrite(
+                note, NightscoutInsulinIdentity.forUpload(bolus, note, basalNote = true)
+            )
         )
+        assertTrue(restoredBolus != bolus)
+        val restoredRevision = NightscoutInsulinIdentity.parse(restoredBolus)!!.revision
+        val noteRevision = NightscoutInsulinIdentity.parse(note)!!.revision
+        assertTrue(restoredRevision > noteRevision)
     }
 
     @Test
@@ -392,10 +399,11 @@ class JournalTreatmentUploaderTests {
     }
 
     @Test
-    fun aV3ConflictWhenRestoringTheRapidCopySavesTheLatestDoseWithPatch() {
+    fun aV3ConflictWhenRetryingARapidReplacementSavesTheLatestDoseWithPatch() {
         val timestamp = 1_700_000_000_000L
-        val rapidId = JournalTreatmentUploader.datedIdentifier(423L, timestamp)
-        val basalId = JournalTreatmentUploader.datedIdentifier(423L, timestamp, basalInjection = true)
+        val baseId = JournalTreatmentUploader.datedIdentifier(423L, timestamp)
+        val basalId = NightscoutInsulinIdentity.forUpload(baseId, baseId, basalNote = true)
+        val rapidId = NightscoutInsulinIdentity.forUpload(baseId, basalId, basalNote = false)
         val write = JournalTreatmentUploader.treatmentWrite(basalId, rapidId)
         val edit = JSONObject()
             .put("date", timestamp)

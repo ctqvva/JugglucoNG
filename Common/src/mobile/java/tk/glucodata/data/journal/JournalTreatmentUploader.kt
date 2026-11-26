@@ -99,14 +99,9 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     /** Whether a v3 write creates a document or changes one the server already holds. */
     internal enum class TreatmentWrite { CREATE, UPDATE }
 
-    /**
-     * Nightscout v3 locks both date and eventType. A basal note gets a different identifier
-     * from the old bolus at the same time so it can be created before the bolus is removed.
-     */
-    internal fun datedIdentifier(entryId: Long, timestampMillis: Long, basalInjection: Boolean = false): String {
-        val identifier = ID_PREFIX + entryId.toString(16) + "-" + timestampMillis.toString(16)
-        return if (basalInjection) "$identifier-basal" else identifier
-    }
+    /** The date is part of the identifier because Nightscout v3 locks it on creation. */
+    internal fun datedIdentifier(entryId: Long, timestampMillis: Long): String =
+        ID_PREFIX + entryId.toString(16) + "-" + timestampMillis.toString(16)
 
     /**
      * An update only where the server already holds this exact document; anything else is a
@@ -454,10 +449,14 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                     useMmol = useMmol
                 ) ?: continue
                 val localIdentifier = ID_PREFIX + entry.id.toString(16)
-                val remoteId = if (useV3) {
-                    datedIdentifier(entry.id, entry.timestamp, basalInjection = json.optBoolean("isBasalInsulin"))
-                } else {
-                    localIdentifier
+                val remoteId = when {
+                    !useV3 -> localIdentifier
+                    entry.entryType == JournalEntryType.INSULIN.storageValue -> NightscoutInsulinIdentity.forUpload(
+                        datedIdentifier(entry.id, entry.timestamp),
+                        entry.nsRemoteId,
+                        json.optBoolean("isBasalInsulin")
+                    )
+                    else -> datedIdentifier(entry.id, entry.timestamp)
                 }
                 val result = if (useV3) {
                     val write = treatmentWrite(entry.nsRemoteId, remoteId)

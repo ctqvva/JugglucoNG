@@ -128,9 +128,8 @@ object JournalTreatmentTransfer {
             JournalEntryType.FINGERSTICK -> {
                 val mgdl = positiveAmount(entry.glucoseValueMgDl) ?: return null
                 val useMmol = nightscoutUseMmol == true
-                val units = if (useMmol) "mmol" else "mg/dl"
                 val glucose = if (nightscoutUseMmol != null) {
-                    GlucoseFormatter.formatCsv(GlucoseFormatter.displayFromMgDl(mgdl, useMmol), units).toDouble()
+                    nightscoutDisplayGlucose(mgdl, useMmol)
                 } else {
                     mgdl.toDouble()
                 }
@@ -140,7 +139,7 @@ object JournalTreatmentTransfer {
                     .put("glucose", glucose)
                     .put("glucoseValueMgDl", canonicalGlucose)
                     .put("glucoseType", "Finger")
-                    .put("units", units)
+                    .put("units", if (useMmol) "mmol" else "mg/dl")
                 entry.note?.takeIf { it.isNotBlank() }?.let { json.put("notes", it) }
             }
             JournalEntryType.ACTIVITY -> {
@@ -231,7 +230,12 @@ object JournalTreatmentTransfer {
         stringResource: (Int) -> String
     ): ParsedTreatment? {
         val timestamp = treatment.optTreatmentTimestampMillis()
-        val baseId = treatment.sourceBaseId(timestamp) ?: return null
+        val insulinIdentity = if (source == JournalEntrySource.NIGHTSCOUT) {
+            NightscoutInsulinIdentity.fromTreatment(treatment)
+        } else {
+            null
+        }
+        val baseId = insulinIdentity?.baseId ?: treatment.sourceBaseId(timestamp) ?: return null
         val remoteId = treatment.optRemoteId()
         val nightscoutRemoteId = when (source) {
             JournalEntrySource.NIGHTSCOUT -> remoteId
@@ -344,7 +348,7 @@ object JournalTreatmentTransfer {
             }
         }
 
-        val glucoseMgdl = treatment.optGlucoseMgdl()
+        val glucoseMgdl = treatment.optGlucoseMgdl(reconcileNightscoutEdit = source == JournalEntrySource.NIGHTSCOUT)
         if (glucoseMgdl != null &&
             (explicitType == JournalEntryType.FINGERSTICK ||
                 eventKey.contains("bg check") ||
@@ -592,8 +596,34 @@ object JournalTreatmentTransfer {
         return JournalIntensity.fromStorage(value)
     }
 
-    private fun JSONObject.optGlucoseMgdl(): Float? {
-        firstFiniteField("glucoseValueMgDl", "glucose_mgdl", "mgdl", "mbg")?.let { return it }
+    private fun nightscoutDisplayGlucose(mgdl: Float, useMmol: Boolean): Double =
+        GlucoseFormatter.formatCsv(
+            GlucoseFormatter.displayFromMgDl(mgdl, useMmol),
+            if (useMmol) "mmol" else "mg/dl"
+        ).toDouble()
+
+    private fun matchesNightscoutGlucose(glucose: Float, canonicalMgdl: Float, useMmol: Boolean): Boolean =
+        glucose == nightscoutDisplayGlucose(canonicalMgdl, useMmol).toFloat() ||
+            glucose == GlucoseFormatter.displayFromMgDl(canonicalMgdl, useMmol)
+
+    private fun JSONObject.optGlucoseMgdl(reconcileNightscoutEdit: Boolean = false): Float? {
+        firstFiniteField("glucoseValueMgDl")?.let { canonical ->
+            if (!reconcileNightscoutEdit) return canonical
+            val glucose = firstFiniteField("glucose") ?: return canonical
+            val units = optNonBlankString("units", "unit")?.lowercase(Locale.US) ?: return canonical
+            val useMmol = when (units) {
+                "mmol", "mmol/l" -> true
+                "mg/dl", "mgdl" -> false
+                else -> return canonical
+            }
+            if (matchesNightscoutGlucose(glucose, canonical, useMmol)) return canonical
+            // Nightscout's report editor can relabel an unchanged value with the site's units.
+            if (optString("app") == "JugglucoNG" && matchesNightscoutGlucose(glucose, canonical, !useMmol)) {
+                return canonical
+            }
+            return if (useMmol) glucose * MGDL_PER_MMOLL else glucose
+        }
+        firstFiniteField("glucose_mgdl", "mgdl", "mbg")?.let { return it }
         firstFiniteField("glucose_mmol", "mmol")?.let { return it * MGDL_PER_MMOLL }
         val glucose = firstFiniteField("glucose") ?: return null
         val units = optNonBlankString("units", "unit")
