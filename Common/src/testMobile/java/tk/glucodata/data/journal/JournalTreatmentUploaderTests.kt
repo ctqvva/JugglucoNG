@@ -1,12 +1,14 @@
 package tk.glucodata.data.journal
 
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tk.glucodata.data.journal.JournalTreatmentUploader.MAX_DELETE_ATTEMPTS
 import tk.glucodata.data.journal.JournalTreatmentUploader.TombstoneAction
+import tk.glucodata.data.journal.JournalTreatmentUploader.TreatmentWrite
 import tk.glucodata.data.journal.JournalTreatmentUploader.tombstoneAction
 
 class JournalTreatmentUploaderTests {
@@ -387,6 +389,55 @@ class JournalTreatmentUploaderTests {
                 JournalTreatmentUploader.TreatmentWrite.UPDATE
             )
         )
+    }
+
+    @Test
+    fun aV3ConflictWhenRestoringTheRapidCopySavesTheLatestDoseWithPatch() {
+        val timestamp = 1_700_000_000_000L
+        val rapidId = JournalTreatmentUploader.datedIdentifier(423L, timestamp)
+        val basalId = JournalTreatmentUploader.datedIdentifier(423L, timestamp, basalInjection = true)
+        val write = JournalTreatmentUploader.treatmentWrite(basalId, rapidId)
+        val edit = JSONObject()
+            .put("date", timestamp)
+            .put("created_at", "2023-11-14T22:13:20.000Z")
+            .put("utcOffset", 0)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 3.5)
+            .put("notes", "Corrected dose")
+        val requests = mutableListOf<TreatmentWrite>()
+        val code = JournalTreatmentUploader.writeV3Treatment(edit, rapidId, write) { operation, body ->
+            requests.add(operation)
+            when (operation) {
+                TreatmentWrite.CREATE -> {
+                    assertEquals(rapidId, body.getString("identifier"))
+                    assertEquals(timestamp, body.getLong("date"))
+                    409
+                }
+                TreatmentWrite.UPDATE -> {
+                    for (field in listOf("date", "created_at", "utcOffset", "_id", "identifier")) {
+                        assertFalse(body.has(field))
+                    }
+                    assertEquals(3.5, body.getDouble("insulin"), 0.0)
+                    assertEquals("Corrected dose", body.getString("notes"))
+                    200
+                }
+            }
+        }
+        assertEquals(listOf(TreatmentWrite.CREATE, TreatmentWrite.UPDATE), requests)
+        assertTrue(JournalTreatmentUploader.isUploadOk(code))
+    }
+
+    @Test
+    fun aRefusedV3ConflictPatchLeavesTheEditUnacknowledged() {
+        for (refusal in listOf(403, 409)) {
+            val code = JournalTreatmentUploader.writeV3Treatment(
+                JSONObject(), "jng-j-1", TreatmentWrite.CREATE
+            ) { operation, _ ->
+                if (operation == TreatmentWrite.CREATE) 409 else refusal
+            }
+            assertEquals(refusal, code)
+            assertFalse(JournalTreatmentUploader.isUploadOk(code))
+        }
     }
 
     @Test

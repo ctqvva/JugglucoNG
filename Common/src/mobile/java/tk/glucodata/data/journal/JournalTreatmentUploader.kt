@@ -266,12 +266,8 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
     internal fun endpointPath(endpoint: String): String =
         runCatching { URL(endpoint).path }.getOrNull()?.takeIf { it.isNotBlank() } ?: endpoint
 
-    // Mirrors writetreatment(V3) acceptance: 200/201 always; 409 only on V3 (POST conflict).
-    private fun isUploadOk(code: Int, useV3: Boolean): Boolean {
-        if (code == HttpURLConnection.HTTP_OK || code == HttpURLConnection.HTTP_CREATED) return true
-        if (useV3 && code == HttpURLConnection.HTTP_CONFLICT) return true
-        return false
-    }
+    internal fun isUploadOk(code: Int): Boolean =
+        code == HttpURLConnection.HTTP_OK || code == HttpURLConnection.HTTP_CREATED
 
     /**
      * One pass at a time, whichever side asked. Two at once would both read the same pending
@@ -464,22 +460,14 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
                     localIdentifier
                 }
                 val result = if (useV3) {
-                    // A partial update belongs at the concrete document endpoint. Collection
-                    // POST is only for a create and requires date, while PATCH deliberately
-                    // omits the immutable time and identity fields.
                     val write = treatmentWrite(entry.nsRemoteId, remoteId)
-                    if (write == TreatmentWrite.UPDATE) {
-                        JournalTreatmentTransfer.stripImmutableForUpdate(json)
-                    } else {
-                        json.put("_id", remoteId).put("identifier", remoteId)
-                    }
-                    uploadViaNightPost(baseUrl, json, secretHashed, useV3, remoteId, write)
+                    uploadV3Treatment(baseUrl, json, secretHashed, remoteId, write)
                 } else {
                     json.put("identifier", localIdentifier)
                     postV1Treatment(baseUrl, rawSecret, json, localIdentifier, entry.timestamp, entry.nsRemoteId)
                 }
                 val now = System.currentTimeMillis()
-                if (!isUploadOk(result.code, useV3)) {
+                if (!isUploadOk(result.code)) {
                     Log.e(LOG_ID, "upload failed entry id=${entry.id} code=${failureText(result.code, result.message)}")
                     sendBackoff.recordFailure(entry.id, now)
                     uploadFailureCode = result.code
@@ -616,22 +604,38 @@ object JournalTreatmentUploader : JournalTreatmentUploadBridge {
             "/api/v1/treatments/$remoteId"
         }
 
-    private fun uploadViaNightPost(
+    private fun uploadV3Treatment(
         baseUrl: String,
         json: JSONObject,
         secretHashed: String?,
-        useV3: Boolean,
         remoteId: String,
-        write: TreatmentWrite = TreatmentWrite.CREATE
+        write: TreatmentWrite
     ): UploadResult {
-        val payload = json.toString().toByteArray(Charsets.UTF_8)
-        val code = if (useV3 && write == TreatmentWrite.UPDATE) {
-            NightPost.uploadPatch(treatmentWriteUrl(baseUrl, remoteId, write), payload, secretHashed)
-        } else {
-            NightPost.upload(treatmentWriteUrl(baseUrl, remoteId, write), payload, secretHashed, false)
+        val code = writeV3Treatment(json, remoteId, write) { operation, body ->
+            val url = treatmentWriteUrl(baseUrl, remoteId, operation)
+            val payload = body.toString().toByteArray(Charsets.UTF_8)
+            when (operation) {
+                TreatmentWrite.CREATE -> NightPost.upload(url, payload, secretHashed, false)
+                TreatmentWrite.UPDATE -> NightPost.uploadPatch(url, payload, secretHashed)
+            }
         }
-        val message = if (isUploadOk(code, useV3)) "" else serverMessage(NightPost.getLastPrimaryResponseBody())
+        val message = if (isUploadOk(code)) "" else serverMessage(NightPost.getLastPrimaryResponseBody())
         return UploadResult(code = code, remoteId = remoteId, message = message)
+    }
+
+    internal fun writeV3Treatment(
+        json: JSONObject,
+        remoteId: String,
+        write: TreatmentWrite,
+        send: (TreatmentWrite, JSONObject) -> Int
+    ): Int {
+        if (write == TreatmentWrite.CREATE) {
+            val code = send(write, json.put("_id", remoteId).put("identifier", remoteId))
+            if (code != HttpURLConnection.HTTP_CONFLICT) return code
+            // The identifier can belong to a surviving copy after a failed delete.
+            // A conflict alone gives no confirmation that this edit was saved.
+        }
+        return send(TreatmentWrite.UPDATE, JournalTreatmentTransfer.stripImmutableForUpdate(json))
     }
 
     internal fun treatmentWriteUrl(baseUrl: String, remoteId: String, write: TreatmentWrite): String =
