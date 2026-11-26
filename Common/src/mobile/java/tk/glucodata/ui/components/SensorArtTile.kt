@@ -203,7 +203,8 @@ private val SensorType.heroCompanion: HeroCompanion
         SensorType.LIBRE -> HeroCompanion.NFC
         SensorType.DEXCOM, SensorType.ICANHEALTH, SensorType.SIBIONICS,
         SensorType.ACCUCHEK, SensorType.CARESENS_AIR -> HeroCompanion.SCAN
-        SensorType.AIDEX, SensorType.ANYTIME, SensorType.MQ, SensorType.OTTAI, SensorType.MEDTRUM -> HeroCompanion.PAIR
+        SensorType.AIDEX, SensorType.ANYTIME, SensorType.MQ, SensorType.OTTAI, SensorType.MEDTRUM,
+        SensorType.BIOE, SensorType.SCGM, SensorType.NOVO -> HeroCompanion.PAIR
     }
 
 /** What the family's code is printed on, for the scanning heroes. */

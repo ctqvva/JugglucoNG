@@ -3511,4 +3511,27 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="floating_layout_camera_desc">Дээрх зүйлс камерын өмнө, бусад нь ард байрлана</string>
     <string name="floating_layout_hidden">Нуугдсан</string>
     <string name="floating_layout_order_desc">Зүйлийг зөөхийн тулд бариулаас чирнэ үү</string>
+    <string name="bioe_sensor_desc">Төхөөрөмжийн код болон мэдрэгчийн k/b коэффициентүүд</string>
+    <string name="bioe_device_code_label">Төхөөрөмжийн код</string>
+    <string name="bioe_k_label">Коэффициент k</string>
+    <string name="bioe_b_label">Коэффициент b</string>
+    <string name="bioe_token_label">Bioecare дансны токен</string>
+    <string name="bioe_load_from_server">Параметруудыг серверээс ачаалах</string>
+    <string name="bioe_server_loading">Ачааллаж байна…</string>
+    <string name="bioe_server_loaded">Параметрууд серверээс ачаалагдлаа</string>
+    <string name="bioe_server_load_failed">Параметруудыг серверээс ачаалж чадсангүй</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Серверээс хүчинтэй параметртай мэдрэгч олдсонгүй</string>
+    <string name="bioe_threshold_label">Бага гүйдлийн босго (нА, сонголтоор)</string>
+    <string name="bioe_setup_saved_title">Мэдрэгч хадгалагдлаа</string>
+    <string name="bioe_setup_saved_message">Мэдрэгч хадгалагдлаа. Апп холбогдож уншихийн тулд түүнийг ойр байлгана уу.</string>
+    <string name="bioe_setup_invalid">Төхөөрөмжийн код болон хязгаарлагдмал k/b утгуудыг оруулна уу (k эерэг байх ёстой)</string>
+    <string name="scgm_sensor_desc">Төхөөрөмжийн кодыг арван зургаатын хэлбэрээр болон мэдрэгчийн k/b коэффициентүүд</string>
+    <string name="scgm_device_code_label">Төхөөрөмжийн код (арван зургаатын, жижиг үсгээр)</string>
+    <string name="scgm_setup_invalid">Арван зургаатын төхөөрөмжийн код болон хязгаарлагдмал k/b утгуудыг оруулна уу (k эерэг байх ёстой)</string>
+    <string name="novo_sensor_desc">Туршилтын DN- драйвер: төхөөрөмжийн код болон мэдрэгчийн k/b коэффициентүүд</string>
+    <string name="novo_device_code_label">Төхөөрөмжийн код (DN-…)</string>
+    <string name="novo_password_low_label">Нууц үгийн бага байт (сонголтоор)</string>
+    <string name="novo_password_high_label">Нууц үгийн өндөр байт (сонголтоор)</string>
+    <string name="novo_setup_invalid">Төхөөрөмжийн код болон хязгаарлагдмал k/b утгуудыг оруулна уу (k эерэг байх ёстой)</string>
 </resources>

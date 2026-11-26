@@ -63,4 +63,13 @@ class ManagedSensorHandoffGuardTests {
         assertEquals(true, parts!!.managed)
         assertEquals(true, parts.dexcom)
     }
+
+    @Test
+    fun anIneligibleManagedSensorIsNotTakenAsAnEmptyHandoff() {
+        assertNull(handoffToApply("BIOE-X", null, reads(), managedEligible = false))
+        val parts = handoffToApply("BIOE-X", "DEXSERIAL", reads(), managedEligible = false)
+        assertNotNull(parts)
+        assertFalse(parts!!.managed)
+        assertTrue(parts.dexcom)
+    }
 }

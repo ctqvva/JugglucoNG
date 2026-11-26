@@ -67,6 +67,7 @@ object ManagedSensorHandoff {
         val ctx = context ?: Applic.app
         val candidates = collectManagedCandidates(ctx)
         val currentManaged = ManagedCurrentSensor.get()
+            ?.takeIf { id -> ManagedSensorIdentityRegistry.supportsHandoff(id) }
             ?.takeIf { id -> candidates.any { SensorIdentity.matches(it, id) } }
 
         val root = JSONObject()
@@ -114,10 +115,18 @@ object ManagedSensorHandoff {
             // its own.
             val managedSensor = root.optString("managedSensorId", "").trim()
                 .takeIf { it.isNotEmpty() && it != "null" }
+            val managedEligible = managedSensor?.let {
+                ManagedSensorIdentityRegistry.supportsHandoff(it)
+            } ?: true
             val dexcomSerial = DexcomWatchSetup.incomingSerial(root)
-            val parts = handoffToApply(managedSensor, dexcomSerial) { SensorOwnershipRuntime.readsLocally(it) }
+            val parts = handoffToApply(
+                managedSensor,
+                dexcomSerial,
+                managedEligible = managedEligible,
+                readsHere = { SensorOwnershipRuntime.readsLocally(it) },
+            )
             if (parts == null) {
-                Log.i(LOG_ID, "handoff ignored: already reading ${managedSensor ?: dexcomSerial} here")
+                Log.i(LOG_ID, "handoff ignored: ${managedSensor ?: dexcomSerial} is not taken here")
                 return@runCatching false
             }
             val entries = if (parts.managed) root.optJSONArray("entries") ?: JSONArray() else JSONArray()
@@ -190,13 +199,14 @@ object ManagedSensorHandoff {
     private fun collectManagedCandidates(context: Context?): Set<String> {
         val out = LinkedHashSet<String>()
         fun add(id: String?) {
-            id?.trim()?.takeIf { it.isNotEmpty() }?.let { sensorId ->
-                out.add(sensorId)
-                out.add(SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId)
-                out.add(SensorIdentity.resolveNativeSensorName(sensorId) ?: sensorId)
-                out.add(SensorIdentity.resolveRoomStorageSensorId(sensorId) ?: sensorId)
-                SensorIdentity.resolveNativeHistorySensorNames(sensorId).forEach(out::add)
-            }
+            val sensorId = id?.trim()?.takeIf {
+                it.isNotEmpty() && ManagedSensorIdentityRegistry.supportsHandoff(it)
+            } ?: return
+            out.add(sensorId)
+            out.add(SensorIdentity.resolveAppSensorId(sensorId) ?: sensorId)
+            out.add(SensorIdentity.resolveNativeSensorName(sensorId) ?: sensorId)
+            out.add(SensorIdentity.resolveRoomStorageSensorId(sensorId) ?: sensorId)
+            SensorIdentity.resolveNativeHistorySensorNames(sensorId).forEach(out::add)
         }
 
         val selected = SensorIdentity.resolveMainSensor()
@@ -371,8 +381,9 @@ internal fun handoffToApply(
     managedSensor: String?,
     dexcomSerial: String?,
     readsHere: (String) -> Boolean,
+    managedEligible: Boolean = true,
 ): HandoffApply? {
-    val managedHere = managedSensor != null && readsHere(managedSensor)
+    val managedHere = managedSensor != null && (!managedEligible || readsHere(managedSensor))
     val dexcomHere = dexcomSerial != null && readsHere(dexcomSerial)
     val namesSensor = managedSensor != null || dexcomSerial != null
     if (namesSensor && (managedSensor == null || managedHere) && (dexcomSerial == null || dexcomHere)) {

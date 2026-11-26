@@ -3,6 +3,7 @@ package tk.glucodata
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tk.glucodata.drivers.ManagedSensorIdentityRegistry
 
 /**
  * A handoff transfers a sensor by copying its stored record, auth material and
@@ -78,5 +79,13 @@ class ManagedSensorHandoffCoverageTests {
     fun anotherSensorsStateIsNotHandedOver() {
         assertFalse(ManagedSensorHandoff.exportsKeyForSensor("ottai_keya_6CA04230E260", serial))
         assertFalse(ManagedSensorHandoff.exportsKeyForSensor("sibionics_managed_protocol_OTHER123", serial))
+    }
+
+    @Test
+    fun familiesWithoutHandoffSetupAreKeptOutOfTakeover() {
+        assertFalse(ManagedSensorIdentityRegistry.supportsHandoff("BIOE-$serial"))
+        assertFalse(ManagedSensorIdentityRegistry.supportsHandoff("SCGM-$serial"))
+        assertFalse(ManagedSensorIdentityRegistry.supportsHandoff("NOVO-$serial"))
+        assertTrue(ManagedSensorIdentityRegistry.supportsHandoff("X-$serial"))
     }
 }

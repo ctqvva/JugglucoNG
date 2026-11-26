@@ -3418,4 +3418,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Les éléments au-dessus se placent avant la caméra, les autres après</string>
     <string name="floating_layout_hidden">Masqué</string>
     <string name="floating_layout_order_desc">Faites glisser une poignée pour déplacer un élément</string>
+    <string name="bioe_sensor_desc">Code de l’appareil et coefficients k/b de votre capteur</string>
+    <string name="bioe_device_code_label">Code de l’appareil</string>
+    <string name="bioe_k_label">Coefficient k</string>
+    <string name="bioe_b_label">Coefficient b</string>
+    <string name="bioe_token_label">Jeton du compte Bioecare</string>
+    <string name="bioe_load_from_server">Charger les paramètres depuis le serveur</string>
+    <string name="bioe_server_loading">Chargement…</string>
+    <string name="bioe_server_loaded">Paramètres chargés depuis le serveur</string>
+    <string name="bioe_server_load_failed">Impossible de charger les paramètres depuis le serveur</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Aucun capteur aux paramètres valides n’a été trouvé sur le serveur</string>
+    <string name="bioe_threshold_label">Seuil de courant faible (nA, facultatif)</string>
+    <string name="bioe_setup_saved_title">Capteur enregistré</string>
+    <string name="bioe_setup_saved_message">Le capteur est enregistré. Gardez-le à portée pour que l’application puisse se connecter et le lire.</string>
+    <string name="bioe_setup_invalid">Saisissez un code d’appareil et des valeurs k/b finies (k doit être positif)</string>
+    <string name="scgm_sensor_desc">Code de l’appareil en hexadécimal et coefficients k/b de votre capteur</string>
+    <string name="scgm_device_code_label">Code de l’appareil (hexadécimal, minuscules)</string>
+    <string name="scgm_setup_invalid">Saisissez un code hexadécimal et des valeurs k/b finies (k doit être positif)</string>
+    <string name="novo_sensor_desc">Pilote DN- expérimental : code de l’appareil et coefficients k/b de votre capteur</string>
+    <string name="novo_device_code_label">Code de l’appareil (DN-…)</string>
+    <string name="novo_password_low_label">Octet faible du mot de passe (facultatif)</string>
+    <string name="novo_password_high_label">Octet fort du mot de passe (facultatif)</string>
+    <string name="novo_setup_invalid">Saisissez un code d’appareil et des valeurs k/b finies (k doit être positif)</string>
 </resources>

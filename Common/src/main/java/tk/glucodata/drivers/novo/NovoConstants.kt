@@ -1,0 +1,108 @@
+package tk.glucodata.drivers.novo
+
+import tk.glucodata.drivers.ManagedSensorUiFamily
+
+object NovoConstants {
+    const val SCAN_NAME_PREFIX = "DN-"
+    const val SENSOR_ID_PREFIX = "NOVO-"
+
+    const val CCCD_UUID = "00002902-0000-1000-8000-00805f9b34fb"
+
+    const val SERVICE_GENERIC_ACCESS = "00001800-0000-1000-8000-00805f9b34fb"
+    const val SERVICE_GENERIC_ATTRIBUTE = "00001801-0000-1000-8000-00805f9b34fb"
+    const val SERVICE_DEVICE_INFORMATION = "0000180a-0000-1000-8000-00805f9b34fb"
+    const val SERVICE_BATTERY = "0000180f-0000-1000-8000-00805f9b34fb"
+    const val SERVICE_CGM = "0000181f-0000-1000-8000-00805f9b34fb"
+
+    const val CHAR_DEVICE_NAME = "00002a00-0000-1000-8000-00805f9b34fb"
+    const val CHAR_APPEARANCE = "00002a01-0000-1000-8000-00805f9b34fb"
+    const val CHAR_SERVICE_CHANGED = "00002a05-0000-1000-8000-00805f9b34fb"
+    const val CHAR_BATTERY_LEVEL = "00002a19-0000-1000-8000-00805f9b34fb"
+    const val CHAR_MODEL_NUMBER = "00002a24-0000-1000-8000-00805f9b34fb"
+    const val CHAR_SERIAL_NUMBER = "00002a25-0000-1000-8000-00805f9b34fb"
+    const val CHAR_FIRMWARE_REVISION = "00002a26-0000-1000-8000-00805f9b34fb"
+    const val CHAR_HARDWARE_REVISION = "00002a27-0000-1000-8000-00805f9b34fb"
+    const val CHAR_SOFTWARE_REVISION = "00002a28-0000-1000-8000-00805f9b34fb"
+    const val CHAR_MANUFACTURER_NAME = "00002a29-0000-1000-8000-00805f9b34fb"
+    const val CHAR_RECORD_ACCESS_CONTROL_POINT = "00002a52-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CGM_MEASUREMENT = "00002aa7-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CGM_FEATURE = "00002aa8-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CGM_STATUS = "00002aa9-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CGM_SESSION_START_TIME = "00002aaa-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CGM_SESSION_RUN_TIME = "00002aab-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CGM_SPECIFIC_OPS_CONTROL = "00002aac-0000-1000-8000-00805f9b34fb"
+    const val CHAR_CLIENT_SUPPORTED_FEATURES = "00002b29-0000-1000-8000-00805f9b34fb"
+    const val CHAR_DATABASE_HASH = "00002b2a-0000-1000-8000-00805f9b34fb"
+
+    const val AES_KEY_HEX = "2b7e151628aed2a6abf7158809cfacef"
+    const val BLOCK_SIZE = 16
+    const val SETUP_PASSWORD_SALT = "ABC1234"
+
+    const val OP_SETUP_PASSWORD = 0x7A
+    const val OP_VERIFY_PASSWORD = 0x7B
+    const val OP_STARTUP = 0x1A
+    const val OP_HISTORY_DATA = 0x01
+    const val CMD_CLEAR_HISTORY = 0x05
+    const val CMD_INQUIRE_FLASH_DATA = 0x09
+    const val CMD_GET_FLASH_DATA = 0x0A
+    const val CMD_LOCAL_PACKAGE = 0x04
+
+    const val RESP_DEVICE_NAME = 0x2A00
+    const val RESP_APPEARANCE = 0x2A01
+    const val RESP_SERVICE_CHANGED = 0x2A05
+    const val RESP_MODEL_NUMBER = 0x2A24
+    const val RESP_SERIAL_NUMBER = 0x2A25
+    const val RESP_FIRMWARE_REVISION = 0x2A26
+    const val RESP_HARDWARE_REVISION = 0x2A27
+    const val RESP_SOFTWARE_REVISION = 0x2A28
+    const val RESP_MANUFACTURER_NAME = 0x2A29
+    const val RESP_CGM_MEASUREMENT = 0x2AA7
+    const val RESP_CGM_FEATURE = 0x2AA8
+    const val RESP_CGM_STATUS = 0x2AA9
+    const val RESP_CGM_SESSION_START_TIME = 0x2AAA
+    const val RESP_CGM_SESSION_RUN_TIME = 0x2AAB
+    const val RESP_CGM_SPECIFIC_OPS_CONTROL = 0x2AAC
+    const val RESP_START_ACK = 0x1C01
+    const val RESP_STARTUP_ACK = 0x1C1A
+    const val RESP_HISTORY_ACK = 0x1C7A
+    const val RESP_VERIFY_ACK = 0x1C7B
+    const val RESP_LOCAL_PACKAGE = 0x1D00
+    const val RESP_CLIENT_SUPPORTED_FEATURES = 0x2B29
+    const val RESP_DATABASE_HASH = 0x2B2A
+    const val RESP_SETUP_OK = 0xAA00
+    const val RESP_SETUP_FAIL = 0xBB00
+
+    const val STATUS_OK = 0
+    const val STATUS_EXPIRED = 8
+    const val STATUS_POLARIZATION = 51
+    const val STATUS_HIGH_CURRENT_STOP = 36
+    const val STATUS_LOW_CURRENT_STOP = 37
+    const val STATUS_CV_STOP = 38
+    const val STATUS_HIGH_CURRENT = 65
+    const val STATUS_LOW_CURRENT = 66
+    const val STATUS_CV_ANOMALY = 67
+
+    const val SAMPLE_INTERVAL_MS = 60_000L
+    const val HISTORY_PAGE_SIZE = 100
+    const val TX_INTERVAL_MS = 100L
+    const val TX_PAUSE_EVERY = 10
+    const val TX_PAUSE_MS = 1_000L
+    const val DISCOVERY_DELAY_MS = 250L
+    const val LOW_POWER_MV = 1900
+
+    const val MGDL_PER_MMOL = 18.0182f
+    const val ADC_SCALE = 1.8
+    const val ADC_DIVISOR = 4096.0
+    const val ADC_OFFSET = 0.34
+    const val NA_DIVISOR = 30.0
+    const val NA_SCALE = 100.0
+
+    const val DEFAULT_K = 0.0
+    const val DEFAULT_B = 0.0
+    const val VENDOR_UNVERIFIED_K = 0.03989725
+    const val VENDOR_UNVERIFIED_B = -33.257442
+
+    const val SENSOR_GEN = 0
+
+    val UI_FAMILY: ManagedSensorUiFamily = ManagedSensorUiFamily.NOVO
+}

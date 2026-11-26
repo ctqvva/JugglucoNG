@@ -3479,4 +3479,27 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="floating_layout_camera_desc">A fölötte lévő elemek a kamera elé, a többi mögé kerül</string>
     <string name="floating_layout_hidden">Rejtett</string>
     <string name="floating_layout_order_desc">Húzzon egy fogantyút az elem áthelyezéséhez</string>
+    <string name="bioe_sensor_desc">Eszközkód és az érzékelő k/b együtthatói</string>
+    <string name="bioe_device_code_label">Eszközkód</string>
+    <string name="bioe_k_label">k együttható</string>
+    <string name="bioe_b_label">b együttható</string>
+    <string name="bioe_token_label">Bioecare-fiók token</string>
+    <string name="bioe_load_from_server">Paraméterek betöltése a szerverről</string>
+    <string name="bioe_server_loading">Betöltés…</string>
+    <string name="bioe_server_loaded">Paraméterek betöltve a szerverről</string>
+    <string name="bioe_server_load_failed">Nem sikerült betölteni a paramétereket a szerverről</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Nem található érvényes paraméterekkel rendelkező érzékelő a szerveren</string>
+    <string name="bioe_threshold_label">Alacsony áram küszöb (nA, opcionális)</string>
+    <string name="bioe_setup_saved_title">Érzékelő elmentve</string>
+    <string name="bioe_setup_saved_message">Az érzékelő el van mentve. Tartsa közel, hogy az alkalmazás csatlakozhasson és olvashassa.</string>
+    <string name="bioe_setup_invalid">Adjon meg eszközkódot és véges k/b értékeket (a k-nak pozitívnak kell lennie)</string>
+    <string name="scgm_sensor_desc">Eszközkód hexadecimálisan és az érzékelő k/b együtthatói</string>
+    <string name="scgm_device_code_label">Eszközkód (hexadecimális, kisbetűs)</string>
+    <string name="scgm_setup_invalid">Adjon meg hexadecimális eszközkódot és véges k/b értékeket (a k-nak pozitívnak kell lennie)</string>
+    <string name="novo_sensor_desc">Kísérleti DN- illesztő: eszközkód és az érzékelő k/b együtthatói</string>
+    <string name="novo_device_code_label">Eszközkód (DN-…)</string>
+    <string name="novo_password_low_label">Jelszó alacsony bájtja (opcionális)</string>
+    <string name="novo_password_high_label">Jelszó magas bájtja (opcionális)</string>
+    <string name="novo_setup_invalid">Adjon meg eszközkódot és véges k/b értékeket (a k-nak pozitívnak kell lennie)</string>
 </resources>

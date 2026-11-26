@@ -3473,4 +3473,27 @@
     <string name="floating_layout_camera_desc">Elementy powyżej są przed aparatem, pozostałe za nim</string>
     <string name="floating_layout_hidden">Ukryte</string>
     <string name="floating_layout_order_desc">Przeciągnij uchwyt, aby przenieść element</string>
+    <string name="bioe_sensor_desc">Kod urządzenia i współczynniki k/b czujnika</string>
+    <string name="bioe_device_code_label">Kod urządzenia</string>
+    <string name="bioe_k_label">Współczynnik k</string>
+    <string name="bioe_b_label">Współczynnik b</string>
+    <string name="bioe_token_label">Token konta Bioecare</string>
+    <string name="bioe_load_from_server">Wczytaj parametry z serwera</string>
+    <string name="bioe_server_loading">Wczytywanie…</string>
+    <string name="bioe_server_loaded">Parametry wczytane z serwera</string>
+    <string name="bioe_server_load_failed">Nie udało się wczytać parametrów z serwera</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Na serwerze nie znaleziono czujnika z prawidłowymi parametrami</string>
+    <string name="bioe_threshold_label">Próg niskiego prądu (nA, opcjonalnie)</string>
+    <string name="bioe_setup_saved_title">Czujnik zapisany</string>
+    <string name="bioe_setup_saved_message">Czujnik jest zapisany. Trzymaj go w pobliżu, aby aplikacja mogła się z nim połączyć i go odczytać.</string>
+    <string name="bioe_setup_invalid">Wpisz kod urządzenia i skończone wartości k/b (k musi być dodatnie)</string>
+    <string name="scgm_sensor_desc">Kod urządzenia w formacie szesnastkowym i współczynniki k/b czujnika</string>
+    <string name="scgm_device_code_label">Kod urządzenia (szesnastkowy, małe litery)</string>
+    <string name="scgm_setup_invalid">Wpisz szesnastkowy kod urządzenia i skończone wartości k/b (k musi być dodatnie)</string>
+    <string name="novo_sensor_desc">Eksperymentalny sterownik DN-: kod urządzenia i współczynniki k/b czujnika</string>
+    <string name="novo_device_code_label">Kod urządzenia (DN-…)</string>
+    <string name="novo_password_low_label">Niski bajt hasła (opcjonalnie)</string>
+    <string name="novo_password_high_label">Wysoki bajt hasła (opcjonalnie)</string>
+    <string name="novo_setup_invalid">Wpisz kod urządzenia i skończone wartości k/b (k musi być dodatnie)</string>
 </resources>

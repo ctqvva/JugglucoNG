@@ -34,6 +34,7 @@ object SettingsExporter {
      */
     internal val SECRET_PREFERENCE_FILES = setOf(
         "lumiflex_cloud", "ican_cloud", "dexcom_share", tk.glucodata.RestrictedMode.PREFS_NAME,
+        "tk.glucodata_bioe_secrets", "tk.glucodata_scgm_secrets", "tk.glucodata_novo_secrets",
     )
 
     internal fun isSecretPreferenceFile(name: String): Boolean =

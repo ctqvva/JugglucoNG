@@ -11,6 +11,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import tk.glucodata.data.SettingsExporter
+import tk.glucodata.drivers.bioe.BioeRegistry
+import tk.glucodata.drivers.novo.NovoRegistry
+import tk.glucodata.drivers.scgm.ScgmRegistry
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = SettingsExporterSecretPrefsTests.TestApplication::class)
@@ -29,7 +32,60 @@ class SettingsExporterSecretPrefsTests {
         assertTrue(SettingsExporter.isSecretPreferenceFile("ican_cloud"))
         assertTrue(SettingsExporter.isSecretPreferenceFile("dexcom_share"))
         assertTrue(SettingsExporter.isSecretPreferenceFile(tk.glucodata.RestrictedMode.PREFS_NAME))
+        assertTrue(SettingsExporter.isSecretPreferenceFile("tk.glucodata_bioe_secrets"))
+        assertTrue(SettingsExporter.isSecretPreferenceFile("tk.glucodata_scgm_secrets"))
+        assertTrue(SettingsExporter.isSecretPreferenceFile("tk.glucodata_novo_secrets"))
         assertFalse(SettingsExporter.isSecretPreferenceFile("tk.glucodata_preferences"))
+    }
+
+    @Test
+    fun newVendorSecretsAreStoredOnlyInExcludedFiles() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        BioeRegistry.setApiToken(context, "<token>")
+        ScgmRegistry.setApiToken(context, "<token>")
+        NovoRegistry.setPasswordBytes(context, 1, 2)
+
+        assertEquals("<token>", BioeRegistry.getApiToken(context))
+        assertEquals("<token>", ScgmRegistry.getApiToken(context))
+        assertEquals(1.toByte() to 2.toByte(), NovoRegistry.getPasswordBytes(context))
+        assertFalse(
+            context.getSharedPreferences("tk.glucodata_bioe_prefs", Context.MODE_PRIVATE)
+                .contains("bioe_api_token"),
+        )
+        assertFalse(
+            context.getSharedPreferences("tk.glucodata_scgm_prefs", Context.MODE_PRIVATE)
+                .contains("scgm_api_token"),
+        )
+        assertFalse(
+            context.getSharedPreferences("tk.glucodata_novo_prefs", Context.MODE_PRIVATE)
+                .contains("novo_password_lo"),
+        )
+    }
+
+    @Test
+    fun newVendorSecretPreferencesCannotBeRestoredFromABackup() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val secrets = listOf(
+            "tk.glucodata_bioe_secrets" to "bioe_api_token",
+            "tk.glucodata_scgm_secrets" to "scgm_api_token",
+            "tk.glucodata_novo_secrets" to "novo_password_lo",
+        )
+        val payload = JSONObject()
+        secrets.forEach { (name, key) ->
+            context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear().commit()
+            payload.put(
+                name,
+                JSONObject().put("values", JSONObject().put(key, stringEntry("s3cret"))),
+            )
+        }
+
+        SettingsExporter.importSharedPreferences(context, payload)
+
+        secrets.forEach { (name, key) ->
+            assertFalse(
+                context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(key),
+            )
+        }
     }
 
     @Test

@@ -3540,4 +3540,27 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Элементы выше стоят перед камерой, остальные — после</string>
     <string name="floating_layout_hidden">Скрыто</string>
     <string name="floating_layout_order_desc">Перетащите маркер, чтобы переместить элемент</string>
+    <string name="bioe_sensor_desc">Код устройства и коэффициенты k/b вашего датчика</string>
+    <string name="bioe_device_code_label">Код устройства</string>
+    <string name="bioe_k_label">Коэффициент k</string>
+    <string name="bioe_b_label">Коэффициент b</string>
+    <string name="bioe_token_label">Токен учётной записи Bioecare</string>
+    <string name="bioe_load_from_server">Загрузить параметры с сервера</string>
+    <string name="bioe_server_loading">Загрузка…</string>
+    <string name="bioe_server_loaded">Параметры загружены с сервера</string>
+    <string name="bioe_server_load_failed">Не удалось загрузить параметры с сервера</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">На сервере не найден датчик с корректными параметрами</string>
+    <string name="bioe_threshold_label">Порог низкого тока (нА, необязательно)</string>
+    <string name="bioe_setup_saved_title">Датчик сохранён</string>
+    <string name="bioe_setup_saved_message">Датчик сохранён. Держите его рядом, чтобы приложение могло подключиться и считывать данные.</string>
+    <string name="bioe_setup_invalid">Введите код устройства и конечные значения k/b (k должно быть положительным)</string>
+    <string name="scgm_sensor_desc">Код устройства в шестнадцатеричном формате и коэффициенты k/b вашего датчика</string>
+    <string name="scgm_device_code_label">Код устройства (шестнадцатеричный, строчными буквами)</string>
+    <string name="scgm_setup_invalid">Введите шестнадцатеричный код устройства и конечные значения k/b (k должно быть положительным)</string>
+    <string name="novo_sensor_desc">Экспериментальный драйвер DN-: код устройства и коэффициенты k/b вашего датчика</string>
+    <string name="novo_device_code_label">Код устройства (DN-…)</string>
+    <string name="novo_password_low_label">Младший байт пароля (необязательно)</string>
+    <string name="novo_password_high_label">Старший байт пароля (необязательно)</string>
+    <string name="novo_setup_invalid">Введите код устройства и конечные значения k/b (k должно быть положительным)</string>
 </resources>

@@ -3439,4 +3439,27 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="floating_layout_camera_desc">Üstündeki öğeler kameradan önce, diğerleri sonra yer alır</string>
     <string name="floating_layout_hidden">Gizli</string>
     <string name="floating_layout_order_desc">Bir öğeyi taşımak için tutamacı sürükleyin</string>
+    <string name="bioe_sensor_desc">Cihaz kodu ve sensörünüzün k/b katsayıları</string>
+    <string name="bioe_device_code_label">Cihaz kodu</string>
+    <string name="bioe_k_label">k katsayısı</string>
+    <string name="bioe_b_label">b katsayısı</string>
+    <string name="bioe_token_label">Bioecare hesap belirteci</string>
+    <string name="bioe_load_from_server">Parametreleri sunucudan yükle</string>
+    <string name="bioe_server_loading">Yükleniyor…</string>
+    <string name="bioe_server_loaded">Parametreler sunucudan yüklendi</string>
+    <string name="bioe_server_load_failed">Parametreler sunucudan yüklenemedi</string>
+    <string name="bioe_server_load_failed_http">%1$s (HTTP %2$d)</string>
+    <string name="bioe_server_no_device">Sunucuda geçerli parametrelere sahip bir sensör bulunamadı</string>
+    <string name="bioe_threshold_label">Düşük akım eşiği (nA, isteğe bağlı)</string>
+    <string name="bioe_setup_saved_title">Sensör kaydedildi</string>
+    <string name="bioe_setup_saved_message">Sensör kaydedildi. Uygulamanın bağlanıp okuyabilmesi için onu yakında tutun.</string>
+    <string name="bioe_setup_invalid">Bir cihaz kodu ve sonlu k/b değerleri girin (k pozitif olmalı)</string>
+    <string name="scgm_sensor_desc">Onaltılık cihaz kodu ve sensörünüzün k/b katsayıları</string>
+    <string name="scgm_device_code_label">Cihaz kodu (onalaltılık, küçük harf)</string>
+    <string name="scgm_setup_invalid">Onaltılık cihaz kodu ve sonlu k/b değerleri girin (k pozitif olmalı)</string>
+    <string name="novo_sensor_desc">Deneysel DN- sürücüsü: cihaz kodu ve sensörünüzün k/b katsayıları</string>
+    <string name="novo_device_code_label">Cihaz kodu (DN-…)</string>
+    <string name="novo_password_low_label">Şifrenin düşük baytı (isteğe bağlı)</string>
+    <string name="novo_password_high_label">Şifrenin yüksek baytı (isteğe bağlı)</string>
+    <string name="novo_setup_invalid">Bir cihaz kodu ve sonlu k/b değerleri girin (k pozitif olmalı)</string>
 </resources>
