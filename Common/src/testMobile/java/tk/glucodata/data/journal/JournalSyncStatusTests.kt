@@ -104,4 +104,55 @@ class JournalSyncStatusTests {
         assertEquals(5_000L, quiet.lastAttemptAt)
         assertFalse(quiet.isFailing)
     }
+
+    @Test
+    fun cycleOutcomePreservesUnresolvedDeleteDiagnosticsAcrossBackoffCycles() {
+        val afterFailure = applySyncCycleOutcome(
+            state = JournalSyncState(lastSuccessAt = 500L),
+            now = firstFailure,
+            acceptedDocument = false,
+            uploadFailureCode = null,
+            deleteFailureCode = 503,
+            unresolvedDeletes = DeleteDiagnostics(
+                pendingCount = 2,
+                nextRetryAt = firstFailure + 60_000L,
+                lastErrorCode = 503,
+                lastErrorMessage = "Service Unavailable",
+                oldestDeletedAt = firstFailure - 5_000L,
+            ),
+        )
+        assertTrue(afterFailure.isFailing)
+        assertEquals(2, afterFailure.pendingDeleteCount)
+        assertEquals(firstFailure + 60_000L, afterFailure.pendingDeleteNextRetryAt)
+
+        // A later cycle where tombstones are skipped due to backoff still surfaces them.
+        val whileCoolingOff = applySyncCycleOutcome(
+            state = afterFailure,
+            now = firstFailure + 10_000L,
+            acceptedDocument = true,
+            uploadFailureCode = null,
+            deleteFailureCode = null,
+            unresolvedDeletes = DeleteDiagnostics(
+                pendingCount = 2,
+                nextRetryAt = firstFailure + 60_000L,
+                lastErrorCode = 503,
+                lastErrorMessage = "Service Unavailable",
+                oldestDeletedAt = firstFailure - 5_000L,
+            ),
+        )
+        assertTrue(whileCoolingOff.isFailing)
+        assertTrue(whileCoolingOff.hasUnresolvedDeletes)
+        assertEquals(firstFailure + 10_000L, whileCoolingOff.lastSuccessAt)
+
+        val cleared = applySyncCycleOutcome(
+            state = whileCoolingOff,
+            now = firstFailure + 65_000L,
+            acceptedDocument = true,
+            uploadFailureCode = null,
+            deleteFailureCode = null,
+            unresolvedDeletes = DeleteDiagnostics(),
+        )
+        assertFalse(cleared.isFailing)
+        assertEquals(0, cleared.pendingDeleteCount)
+    }
 }

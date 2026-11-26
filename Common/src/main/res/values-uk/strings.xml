@@ -1530,6 +1530,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="nightscout_status_treatments_upload_failing">Лікування: надсилання не вдається з %1$s, остання спроба %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Лікування: видалення відхиляються з %1$s, остання спроба %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">немає відповіді</string>
+    <string name="nightscout_status_treatments_invalid_config">помилка конфігурації</string>
+    <string name="nightscout_status_pending_deletes_retry">Очікувані видалення: %1$d (наступна спроба %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Очікувані видалення: %1$d (призупинено — перевірте токен або права Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_config">Очікувані видалення: %1$d (призупинено — перевірте URL або версію API Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_queued">Очікувані видалення: %1$d</string>
     <string name="nightscout_status_iob_no_token">Надсилання IOB: пропущено - поки немає токена Nightscout</string>
     <string name="nightscout_status_iob_rejected">Надсилання IOB: відхилено (%1$s)</string>
     <string name="nightscout_sync_actions_title">Дії синхронізації</string>

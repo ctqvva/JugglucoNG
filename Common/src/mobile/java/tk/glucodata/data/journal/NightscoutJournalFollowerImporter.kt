@@ -60,6 +60,9 @@ object NightscoutJournalFollowerImporter : NightscoutTreatmentImportBridge {
             .getPendingNightscoutDeletes()
             .mapNotNull { it.nsRemoteId.trim().takeIf(String::isNotBlank) }
             .toSet()
+        // Documents an unanswered upload may have created. They are this device's own rows,
+        // which the server has not been heard to accept yet.
+        val inFlightRemoteIds = journalDao.getNightscoutUploads().map { it.remoteId }.toSet()
         // Remote IDs this device itself uploaded to Nightscout. Re-importing them
         // would duplicate the local rows they came from, so these — and only these
         // — are skipped. Therapy uploaded by other JugglucoNG devices, or fetched by
@@ -77,6 +80,7 @@ object NightscoutJournalFollowerImporter : NightscoutTreatmentImportBridge {
             val treatment = array.optJSONObject(index) ?: continue
             if (JournalTreatmentTransfer.hasAnyRemoteIdentifier(treatment, ownUploadedRemoteIds)) continue
             if (JournalTreatmentTransfer.hasAnyRemoteIdentifier(treatment, pendingDeleteRemoteIds)) continue
+            if (JournalTreatmentTransfer.hasAnyRemoteIdentifier(treatment, inFlightRemoteIds)) continue
             val parsed = JournalTreatmentTransfer.parseTreatment(
                 context = context,
                 treatment = treatment,

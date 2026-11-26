@@ -63,5 +63,48 @@ data class NightscoutTokenGrant(
             }.getOrNull()
             return message ?: trimmed.take(160)
         }
+
+        /**
+         * Normalizes a Nightscout base URL by lowercasing only the scheme and host (authority)
+         * while preserving base-path case, since reverse proxies and servers can treat paths
+         * such as `/nightscout` vs `/Nightscout` as case-sensitive.
+         */
+        @JvmStatic
+        fun normalizeServerUrlPreservingPathCase(rawUrl: String?): String {
+            val trimmed = rawUrl?.trim()?.trimEnd('/') ?: return ""
+            if (trimmed.isEmpty()) return ""
+            val schemeEnd = trimmed.indexOf("://")
+            if (schemeEnd < 0) {
+                val pathStart = trimmed.indexOf('/')
+                return if (pathStart < 0) {
+                    trimmed.lowercase(java.util.Locale.US)
+                } else {
+                    trimmed.substring(0, pathStart).lowercase(java.util.Locale.US) + trimmed.substring(pathStart)
+                }
+            }
+            val authorityStart = schemeEnd + 3
+            val pathStart = trimmed.indexOf('/', authorityStart)
+            return if (pathStart < 0) {
+                trimmed.lowercase(java.util.Locale.US)
+            } else {
+                trimmed.substring(0, pathStart).lowercase(java.util.Locale.US) + trimmed.substring(pathStart)
+            }
+        }
+
+        /**
+         * Verifies that a request URL still belongs to the exact configured Nightscout server
+         * origin and base path (requiring the request path to continue directly into `/api/`),
+         * preventing mid-pass credential leakage across servers or sub-path deployments.
+         */
+        @JvmStatic
+        fun urlMatchesServer(requestUrl: String?, serverUrl: String?): Boolean {
+            if (requestUrl == null || serverUrl == null) return false
+            val normalizedServer = normalizeServerUrlPreservingPathCase(serverUrl)
+            if (normalizedServer.isEmpty()) return false
+            val normalizedRequest = normalizeServerUrlPreservingPathCase(requestUrl)
+            if (!normalizedRequest.startsWith(normalizedServer)) return false
+            val remainder = normalizedRequest.substring(normalizedServer.length)
+            return remainder.isEmpty() || remainder.startsWith("/api/")
+        }
     }
 }

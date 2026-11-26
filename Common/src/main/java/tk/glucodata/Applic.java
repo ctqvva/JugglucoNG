@@ -599,10 +599,29 @@ public class Applic extends Application implements androidx.work.Configuration.P
         return ips.length > 0 && ips[ips.length - 1] != null;
     }
 
+    public static boolean hasActiveInternetNetwork(ConnectivityManager connectivityManager) {
+        if (connectivityManager == null) {
+            return false;
+        }
+        try {
+            final Network active = connectivityManager.getActiveNetwork();
+            if (active == null) {
+                return false;
+            }
+            final NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(active);
+            return capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        } catch (Throwable th) {
+            Log.stack(LOG_ID, "hasActiveInternetNetwork", th);
+            return false;
+        }
+    }
+
     // @RequiresApi(api = Build.VERSION_CODES.M)
     private static boolean hasonAvailable = false;
     private static final Set<Long> availableInternetNetworks = ConcurrentHashMap.newKeySet();
     private static final NetworkHandoverPolicy networkHandoverPolicy = new NetworkHandoverPolicy();
+    private static volatile ConnectivityRecoveryDetector connectivityRecoveryDetector =
+            new ConnectivityRecoveryDetector(true);
     private static final Object networkTransitionLock = new Object();
     private static ScheduledFuture<?> pendingNetworkAbsence;
     private static long networkAbsenceGeneration;
@@ -623,14 +642,21 @@ public class Applic extends Application implements androidx.work.Configuration.P
     }
 
     private static void applyNetworkAction(NetworkHandoverPolicy.Action action) {
+        final boolean recovered = connectivityRecoveryDetector.shouldNotifyRecovery(action);
         switch (action) {
             case PRESENT:
                 cancelPendingNetworkAbsence();
+                if (recovered) {
+                    JournalTreatmentUploadAccess.onConnectivityRecovered();
+                }
                 Natives.networkpresent();
                 Applic.wakemirrors();
                 break;
             case HANDOVER:
                 cancelPendingNetworkAbsence();
+                if (recovered) {
+                    JournalTreatmentUploadAccess.onConnectivityRecovered();
+                }
                 Natives.networkhandover();
                 Applic.wakemirrors();
                 break;
@@ -835,6 +861,8 @@ public class Applic extends Application implements androidx.work.Configuration.P
                         }
                     });
 
+            final boolean initialOnline = hasActiveInternetNetwork(connectivityManager);
+            connectivityRecoveryDetector = new ConnectivityRecoveryDetector(initialOnline);
             connectivityManager.registerDefaultNetworkCallback(
                     new ConnectivityManager.NetworkCallback() {
                         @Override

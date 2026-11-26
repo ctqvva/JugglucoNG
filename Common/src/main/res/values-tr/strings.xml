@@ -1544,6 +1544,11 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="nightscout_status_treatments_upload_failing">Tedaviler: gönderim %1$s tarihinden beri başarısız, son deneme %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Tedaviler: silmeler %1$s tarihinden beri reddediliyor, son deneme %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">yanıt yok</string>
+    <string name="nightscout_status_treatments_invalid_config">yapılandırma hatası</string>
+    <string name="nightscout_status_pending_deletes_retry">Bekleyen silmeler: %1$d (sonraki deneme %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Bekleyen silmeler: %1$d (duraklatıldı — Nightscout belirtecini veya izinlerini kontrol edin)</string>
+    <string name="nightscout_status_pending_deletes_config">Bekleyen silmeler: %1$d (duraklatıldı — Nightscout URL adresini veya API sürümünü kontrol edin)</string>
+    <string name="nightscout_status_pending_deletes_queued">Bekleyen silmeler: %1$d</string>
     <string name="nightscout_status_iob_no_token">IOB gönderimi: atlandı - henüz Nightscout belirteci yok</string>
     <string name="nightscout_status_iob_rejected">IOB gönderimi: reddedildi (%1$s)</string>
     <string name="nightscout_sync_actions_title">Senkronizasyon işlemleri</string>

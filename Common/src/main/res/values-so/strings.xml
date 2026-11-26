@@ -1559,6 +1559,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="nightscout_status_treatments_upload_failing">Daaweynta: dirista way fashilmaysaa tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Daaweynta: tirtiridda waa la diiday tan iyo %1$s, isku dayga ugu dambeeyay %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">jawaab ma jirto</string>
+    <string name="nightscout_status_treatments_invalid_config">khalad dejin</string>
+    <string name="nightscout_status_pending_deletes_retry">Tirtirid sugaysa: %1$d (isku dayga xiga %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Tirtirid sugaysa: %1$d (hakad — hubi token-ka ama ogolaanshaha Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_config">Tirtirid sugaysa: %1$d (hakad — hubi URL-ka ama nooca API-ga Nightscout)</string>
+    <string name="nightscout_status_pending_deletes_queued">Tirtirid sugaysa: %1$d</string>
     <string name="nightscout_status_iob_no_token">Dirista IOB: waa la booday - weli token Nightscout ma jiro</string>
     <string name="nightscout_status_iob_rejected">Dirista IOB: waa la diiday (%1$s)</string>
     <string name="nightscout_send_long_insulin">Ku dar insuliinta muddo dheer shaqaysa</string>

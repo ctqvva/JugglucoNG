@@ -1335,6 +1335,11 @@ OK дарснаар энэ утсан дээр холболт үүсч, өөр A
     <string name="nightscout_status_treatments_upload_failing">Эмчилгээ: %1$s-с хойш илгээлт амжилтгүй, сүүлд оролдсон %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Эмчилгээ: %1$s-с хойш устгалтууд татгалзсан, сүүлд оролдсон %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">хариу алга</string>
+    <string name="nightscout_status_treatments_invalid_config">тохиргооны алдаа</string>
+    <string name="nightscout_status_pending_deletes_retry">Хүлээгдэж буй устгалууд: %1$d (дараагийн оролдлого %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Хүлээгдэж буй устгалууд: %1$d (түр зогссон — Nightscout токен эсвэл эрхээ шалгана уу)</string>
+    <string name="nightscout_status_pending_deletes_config">Хүлээгдэж буй устгалууд: %1$d (түр зогссон — Nightscout URL эсвэл API хувилбараа шалгана уу)</string>
+    <string name="nightscout_status_pending_deletes_queued">Хүлээгдэж буй устгалууд: %1$d</string>
     <string name="nightscout_status_iob_no_token">IOB илгээлт: алгассан - Nightscout токен хараахан алга</string>
     <string name="nightscout_status_iob_rejected">IOB илгээлт: татгалзсан (%1$s)</string>
     <string name="nightscout_send_long_insulin">Урт үйлчилгээтэй инсулин оруулах</string>

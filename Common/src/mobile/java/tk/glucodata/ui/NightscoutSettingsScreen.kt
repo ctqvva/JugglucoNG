@@ -117,12 +117,20 @@ private enum class NightscoutHelp { GENERAL, POLLING }
 private val SHA1_SECRET_REGEX = Regex("^[0-9a-fA-F]{40}$")
 
 /** "HTTP 403" reads the same in every locale; a request that never got an answer does not. */
-private fun failureDetail(context: android.content.Context, code: Int): String =
-    if (code > 0) {
-        "HTTP $code"
-    } else {
-        context.getString(R.string.nightscout_status_treatments_no_response)
+internal fun failureDetail(context: android.content.Context, code: Int, message: String = ""): String {
+    val base = when {
+        code > 0 -> "HTTP $code"
+        code == NightPost.ERROR_INVALID_URL || code == NightPost.ERROR_CONFIG ->
+            context.getString(R.string.nightscout_status_treatments_invalid_config)
+        else -> context.getString(R.string.nightscout_status_treatments_no_response)
     }
+    val trimmed = message.trim()
+    return if (trimmed.isEmpty() || trimmed.equals(base, ignoreCase = true)) {
+        base
+    } else {
+        "$base, $trimmed"
+    }
+}
 /**
  * The test must probe the same API family the uploader is configured for: servers that
  * keep the two auth schemes apart refuse a v3 Bearer token on a v1 endpoint, which makes
@@ -202,7 +210,7 @@ internal fun setNightscoutActive(context: android.content.Context, active: Boole
     val uploadActive = active && mode == NightscoutModePreference.Mode.UPLOAD
     val followActive = active && mode == NightscoutModePreference.Mode.FOLLOW
 
-    Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, Natives.getnightscoutV3())
+    NightPost.saveNightUploaderConfig(url.trim(), secret.trim(), uploadActive, Natives.getnightscoutV3())
     // The stored failure describes the old settings; keep it off the screen until the next
     // attempt has run under the new ones.
     NightPost.clearDeviceStatusOutcome()
@@ -272,12 +280,17 @@ fun NightscoutSettingsScreen(navController: NavController) {
     }
 
     fun persistSettings(connectFollower: Boolean = false) {
+        val previousUrl = Natives.getnightuploadurl().orEmpty().trim()
+        val previousSecret = Natives.getnightuploadsecret().orEmpty().trim()
+        val previousV3 = Natives.getnightscoutV3()
+        val previousFollowerV3 = NightscoutFollowerRegistry.loadConfig(context).useV3
+
         NightscoutModePreference.save(context, mode)
         val uploadActive = isActive && mode == NightscoutModePreference.Mode.UPLOAD
         val followActive = isActive && mode == NightscoutModePreference.Mode.FOLLOW
         val normalizedUrl = NightscoutFollowerRegistry.normalizeUrl(url)
 
-        Natives.setNightUploader(url.trim(), secret.trim(), uploadActive, isV3)
+        NightPost.saveNightUploaderConfig(url.trim(), secret.trim(), uploadActive, isV3)
         // The old device-status failure describes the old settings; keep it off the screen
         // until the next attempt has run under the new ones.
         NightPost.clearDeviceStatusOutcome()
@@ -298,6 +311,16 @@ fun NightscoutSettingsScreen(navController: NavController) {
                 NightscoutFollowerRegistry.disableFollowerSensor(context)
             }
             NightscoutFollowerRegistry.saveConfig(context, enabled = false, url = normalizedUrl, secret = secret, useV3 = followerV3)
+        }
+        val effectiveV3 = if (mode == NightscoutModePreference.Mode.FOLLOW) followerV3 else isV3
+        val effectivePrevV3 = if (mode == NightscoutModePreference.Mode.FOLLOW) previousFollowerV3 else previousV3
+        val configChanged =
+            NightscoutTokenGrant.normalizeServerUrlPreservingPathCase(url) !=
+                NightscoutTokenGrant.normalizeServerUrlPreservingPathCase(previousUrl) ||
+                secret.trim() != previousSecret ||
+                effectiveV3 != effectivePrevV3
+        if (configChanged) {
+            JournalTreatmentUploadAccess.onDeleteRetryReset(wakeIfPending = true)
         }
     }
 
@@ -361,6 +384,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     val exchange = NightPost.refreshToken()
                     val grant = exchange.grant()
                     if (grant != null) {
+                        JournalTreatmentUploadAccess.onDeleteRetryReset(wakeIfPending = true)
                         TokenState.Ok(grant.expiresAtMillis, grant.permissions)
                     } else {
                         TokenState.Err(exchange.error().ifBlank { context.getString(R.string.status_connection_failed) })
@@ -429,11 +453,15 @@ fun NightscoutSettingsScreen(navController: NavController) {
         else -> context.getString(R.string.nightscout_status_waiting)
     }
 
+    val treatmentsChannelActive = isActive && journalEnabled && (
+        (mode == NightscoutModePreference.Mode.UPLOAD && sendTreatments) ||
+            (mode == NightscoutModePreference.Mode.FOLLOW && followerSendTreatments)
+    )
     // The lines above report the native entries uploader only, so they can read HTTP 200 while
     // the JVM-side treatment path has been rejected for days (issue #191).
     val treatmentSummary: String? = when {
         // Off with the journal: nothing is sent then, so an old failure would stay up for good.
-        !isActive || mode != NightscoutModePreference.Mode.UPLOAD || !journalEnabled || !sendTreatments -> null
+        !treatmentsChannelActive -> null
         treatmentSync.failure == JournalSyncFailure.UPLOAD -> context.getString(
             R.string.nightscout_status_treatments_upload_failing,
             formatStatusMillis(treatmentSync.failingSince),
@@ -443,14 +471,36 @@ fun NightscoutSettingsScreen(navController: NavController) {
         treatmentSync.failure == JournalSyncFailure.DELETE -> context.getString(
             R.string.nightscout_status_treatments_delete_failing,
             formatStatusMillis(treatmentSync.failingSince),
-            failureDetail(context, treatmentSync.failureCode),
+            failureDetail(context, treatmentSync.failureCode, treatmentSync.pendingDeleteLastError),
             formatStatusMillis(treatmentSync.lastAttemptAt)
         )
         treatmentSync.lastSuccessAt > 0L -> context.getString(
             R.string.nightscout_status_treatments_ok,
             formatStatusMillis(treatmentSync.lastSuccessAt)
         )
-        else -> context.getString(R.string.nightscout_status_treatments_never)
+        mode == NightscoutModePreference.Mode.UPLOAD -> context.getString(R.string.nightscout_status_treatments_never)
+        else -> null
+    }
+
+    val pendingDeletesSummary: String? = when {
+        !treatmentsChannelActive || !treatmentSync.hasUnresolvedDeletes -> null
+        treatmentSync.pendingDeleteAuthBlocked -> context.getString(
+            R.string.nightscout_status_pending_deletes_auth,
+            treatmentSync.pendingDeleteCount,
+        )
+        treatmentSync.pendingDeleteConfigBlocked -> context.getString(
+            R.string.nightscout_status_pending_deletes_config,
+            treatmentSync.pendingDeleteCount,
+        )
+        treatmentSync.pendingDeleteNextRetryAt > 0L -> context.getString(
+            R.string.nightscout_status_pending_deletes_retry,
+            treatmentSync.pendingDeleteCount,
+            formatStatusMillis(treatmentSync.pendingDeleteNextRetryAt),
+        )
+        else -> context.getString(
+            R.string.nightscout_status_pending_deletes_queued,
+            treatmentSync.pendingDeleteCount,
+        )
     }
 
     // The lines above report the native entries uploader only; the devicestatus channel
@@ -803,6 +853,56 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                 position = CardPosition.BOTTOM
                             )
                         }
+                        if (followerSendTreatments && (treatmentSync.isFailing || pendingDeletesSummary != null)) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                                shape = cardShape(CardPosition.SINGLE),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (treatmentSummary != null) {
+                                        Text(
+                                            text = treatmentSummary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    if (pendingDeletesSummary != null) {
+                                        Text(
+                                            text = pendingDeletesSummary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            persistSettings(connectFollower = isActive)
+                                            JournalTreatmentUploadAccess.onDeleteRetryReset(wakeIfPending = false)
+                                            JournalTreatmentUploadAccess.sendAsFollower()
+                                            refreshStatus()
+                                            Toast.makeText(context, context.getString(R.string.sending_now), Toast.LENGTH_SHORT).show()
+                                        },
+                                        enabled = isActive,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 56.dp),
+                                        shapes = ButtonDefaults.shapes(),
+                                        contentPadding = ButtonDefaults.ContentPadding
+                                    ) {
+                                        Icon(Symbols.SendFilled, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(stringResource(R.string.sendnow))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -854,6 +954,13 @@ fun NightscoutSettingsScreen(navController: NavController) {
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     }
+                                )
+                            }
+                            if (pendingDeletesSummary != null) {
+                                Text(
+                                    text = pendingDeletesSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                             if (deviceStatusSummary != null) {
@@ -973,6 +1080,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     Button(
                         onClick = {
                             persistSettings()
+                            JournalTreatmentUploadAccess.onDeleteRetryReset(wakeIfPending = false)
                             Natives.wakeuploader()
                             refreshStatus()
                             Toast.makeText(context, context.getString(R.string.sending_now), Toast.LENGTH_SHORT).show()
@@ -1000,6 +1108,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                     OutlinedButton(
                         onClick = {
                             persistSettings()
+                            JournalTreatmentUploadAccess.onDeleteRetryReset(wakeIfPending = false)
                             Natives.resetuploader()
                             refreshStatus()
                             Toast.makeText(context, context.getString(R.string.resend_triggered), Toast.LENGTH_SHORT).show()

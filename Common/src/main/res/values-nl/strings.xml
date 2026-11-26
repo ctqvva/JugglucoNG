@@ -1559,6 +1559,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="nightscout_status_treatments_upload_failing">Behandelingen: verzenden mislukt sinds %1$s, laatst geprobeerd %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Behandelingen: verwijderingen geweigerd sinds %1$s, laatst geprobeerd %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">geen antwoord</string>
+    <string name="nightscout_status_treatments_invalid_config">configuratiefout</string>
+    <string name="nightscout_status_pending_deletes_retry">Openstaande verwijderingen: %1$d (volgende poging %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Openstaande verwijderingen: %1$d (gepauzeerd — controleer Nightscout-token of machtigingen)</string>
+    <string name="nightscout_status_pending_deletes_config">Openstaande verwijderingen: %1$d (gepauzeerd — controleer Nightscout-URL of API-versie)</string>
+    <string name="nightscout_status_pending_deletes_queued">Openstaande verwijderingen: %1$d</string>
     <string name="nightscout_status_iob_no_token">IOB-upload: overgeslagen - nog geen Nightscout-token</string>
     <string name="nightscout_status_iob_rejected">IOB-upload: geweigerd (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synchronisatieacties</string>

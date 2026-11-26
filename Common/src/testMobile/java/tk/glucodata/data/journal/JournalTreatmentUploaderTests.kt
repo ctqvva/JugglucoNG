@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import tk.glucodata.data.journal.JournalTreatmentUploader.MAX_DELETE_ATTEMPTS
+import tk.glucodata.NightPost
 import tk.glucodata.data.journal.JournalTreatmentUploader.TombstoneAction
 import tk.glucodata.data.journal.JournalTreatmentUploader.tombstoneAction
 
@@ -154,34 +154,25 @@ class JournalTreatmentUploaderTests {
 
     @Test
     fun acceptedDeleteClearsTheTombstone() {
-        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 200, attemptsSoFar = 0))
-        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 204, attemptsSoFar = 3))
+        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 200))
+        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 204))
     }
 
     @Test
     fun aDocumentTheServerNoLongerHasCountsAsDeleted() {
-        // The old boolean path retried these forever: the delete can never succeed,
-        // and there is nothing left on the server to delete either.
-        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 404, attemptsSoFar = 0))
-        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 410, attemptsSoFar = 0))
+        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 404))
+        assertEquals(TombstoneAction.CLEAR, tombstoneAction(code = 410))
     }
 
     @Test
-    fun aRefusedDeleteIsRetriedUntilTheAttemptCapIsReached() {
-        // 403 is the reported case: a role with api:treatments:create but not :delete.
-        assertEquals(TombstoneAction.RETRY, tombstoneAction(code = 403, attemptsSoFar = 0))
-        assertEquals(
-            TombstoneAction.RETRY,
-            tombstoneAction(code = 403, attemptsSoFar = MAX_DELETE_ATTEMPTS - 2)
-        )
-        assertEquals(
-            TombstoneAction.GIVE_UP,
-            tombstoneAction(code = 403, attemptsSoFar = MAX_DELETE_ATTEMPTS - 1)
-        )
-        assertEquals(
-            TombstoneAction.GIVE_UP,
-            tombstoneAction(code = 403, attemptsSoFar = MAX_DELETE_ATTEMPTS)
-        )
+    fun authAndConfigRefusalsBackOffWithoutAbandoningTheTombstone() {
+        assertEquals(TombstoneAction.RETRY_AUTH, tombstoneAction(code = 401))
+        assertEquals(TombstoneAction.RETRY_AUTH, tombstoneAction(code = 403))
+        assertEquals(TombstoneAction.RETRY_AUTH, tombstoneAction(code = 407))
+        assertEquals(TombstoneAction.RETRY_CONFIG, tombstoneAction(code = NightPost.ERROR_INVALID_URL))
+        assertEquals(TombstoneAction.RETRY_CONFIG, tombstoneAction(code = NightPost.ERROR_CONFIG))
+        assertEquals(TombstoneAction.RETRY_CONFIG, tombstoneAction(code = 400))
+        assertEquals(TombstoneAction.RETRY_CONFIG, tombstoneAction(code = 405))
     }
 
     @Test
@@ -359,8 +350,11 @@ class JournalTreatmentUploaderTests {
 
     @Test
     fun aDeleteThatNeverGotAnAnswerIsRetriedToo() {
-        assertEquals(TombstoneAction.RETRY, tombstoneAction(code = -1, attemptsSoFar = 0))
-        assertEquals(TombstoneAction.RETRY, tombstoneAction(code = 500, attemptsSoFar = 0))
+        assertEquals(TombstoneAction.RETRY_TRANSIENT, tombstoneAction(code = -1))
+        assertEquals(TombstoneAction.RETRY_TRANSIENT, tombstoneAction(code = 408))
+        assertEquals(TombstoneAction.RETRY_TRANSIENT, tombstoneAction(code = 429))
+        assertEquals(TombstoneAction.RETRY_TRANSIENT, tombstoneAction(code = 500))
+        assertEquals(TombstoneAction.RETRY_TRANSIENT, tombstoneAction(code = 503))
     }
 
     // -- receive endpoint --------------------------------------------------
@@ -465,5 +459,55 @@ class JournalTreatmentUploaderTests {
         assertFalse(JournalTreatmentUploader.sameServer("https://other.example.org", followed))
         assertFalse(JournalTreatmentUploader.sameServer("", ""))
         assertFalse(JournalTreatmentUploader.sameServer(null, followed))
+    }
+
+    // -- what documents are named --------------------------------------------
+
+    @Test
+    fun aDatedNameGivesItsTimeBack() {
+        val dated = JournalTreatmentUploader.datedIdentifier(423L, 1_700_000_000_123L)
+        assertEquals(1_700_000_000_123L, JournalTreatmentUploader.timestampOfDatedIdentifier(dated))
+        val typed = JournalTreatmentUploader.typedIdentifier(dated, "Meal Bolus")
+        assertEquals("$dated-mealbolus", typed)
+        assertEquals(1_700_000_000_123L, JournalTreatmentUploader.timestampOfDatedIdentifier(typed))
+        val local = JournalTreatmentUploader.localIdentifier(423L)
+        assertEquals(null, JournalTreatmentUploader.timestampOfDatedIdentifier(local))
+        assertEquals(423L, JournalTreatmentUploader.entryIdOfLocalIdentifier(local))
+        assertEquals(null, JournalTreatmentUploader.entryIdOfLocalIdentifier(dated))
+        assertEquals(null, JournalTreatmentUploader.entryIdOfLocalIdentifier("5f0c0c0c0c0c0c0c0c0c0c0c"))
+    }
+
+    @Test
+    fun theTypedNameIsOnlyUsedWhereTheServerHasIt() {
+        val dated = JournalTreatmentUploader.datedIdentifier(7L, 1_700_000_000_000L)
+        val typed = JournalTreatmentUploader.typedIdentifier(dated, "Note")
+        assertEquals(dated, JournalTreatmentUploader.v3Identifier(null, dated, "Note"))
+        assertEquals(dated, JournalTreatmentUploader.v3Identifier(dated, dated, "Note"))
+        assertEquals(typed, JournalTreatmentUploader.v3Identifier(typed, dated, "Note"))
+        assertEquals(dated, JournalTreatmentUploader.v3Identifier(typed, dated, "Exercise"))
+    }
+
+    @Test
+    fun onlyARefusalIsKnownToHaveChangedNothing() {
+        for (code in listOf(400, 401, 403, 404, NightPost.ERROR_CONFIG)) assertTrue(JournalTreatmentUploader.changedNothing(code))
+        for (code in listOf(-1, 408, 500, 502, 504)) assertFalse(JournalTreatmentUploader.changedNothing(code))
+    }
+
+    @Test
+    fun bearerTokenServerGuardMatchesOnlyExactOriginAndBasePath() {
+        assertTrue(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/api/v3/treatments/1", "https://server-b.example.com"))
+        assertTrue(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://SERVER-B.example.com/api/v3/treatments/1", "https://server-b.example.com/"))
+        assertTrue(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/nightscout/api/v3/treatments/1", "https://server-b.example.com/nightscout"))
+        assertTrue(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/Nightscout/api/v3/devicestatus", "https://SERVER-B.example.com/Nightscout"))
+        assertFalse(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/nightscout/api/v3/treatments/1", "https://server-b.example.com/Nightscout"))
+        assertFalse(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/nightscout/api/v3/treatments/1", "https://server-b.example.com"))
+        assertFalse(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/api/v3/treatments/1", "https://server-b.example.com/nightscout"))
+        assertFalse(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-a.example.com/api/v3/treatments/1", "https://server-b.example.com"))
+        assertFalse(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com.evil/api/v3/treatments/1", "https://server-b.example.com"))
+        assertFalse(tk.glucodata.NightscoutTokenGrant.urlMatchesServer("https://server-b.example.com/api/v3/treatments/1", ""))
+        assertEquals(
+            "https://server-b.example.com/Nightscout",
+            tk.glucodata.NightscoutTokenGrant.normalizeServerUrlPreservingPathCase("HTTPS://Server-B.Example.COM/Nightscout/"),
+        )
     }
 }

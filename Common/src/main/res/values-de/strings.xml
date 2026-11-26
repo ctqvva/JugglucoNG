@@ -1634,6 +1634,11 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="nightscout_status_treatments_upload_failing">Behandlungen: Senden schlägt seit %1$s fehl, zuletzt versucht %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_delete_failing">Behandlungen: Löschungen seit %1$s abgelehnt, zuletzt versucht %3$s (%2$s)</string>
     <string name="nightscout_status_treatments_no_response">keine Antwort</string>
+    <string name="nightscout_status_treatments_invalid_config">Konfigurationsfehler</string>
+    <string name="nightscout_status_pending_deletes_retry">Ausstehende Löschungen: %1$d (nächster Versuch %2$s)</string>
+    <string name="nightscout_status_pending_deletes_auth">Ausstehende Löschungen: %1$d (pausiert — Nightscout-Token oder Berechtigungen prüfen)</string>
+    <string name="nightscout_status_pending_deletes_config">Ausstehende Löschungen: %1$d (pausiert — Nightscout-URL oder API-Version prüfen)</string>
+    <string name="nightscout_status_pending_deletes_queued">Ausstehende Löschungen: %1$d</string>
     <string name="nightscout_status_iob_no_token">IOB-Upload: übersprungen - noch kein Nightscout-Token</string>
     <string name="nightscout_status_iob_rejected">IOB-Upload: abgelehnt (%1$s)</string>
     <string name="nightscout_sync_actions_title">Synchronisierungsaktionen</string>
