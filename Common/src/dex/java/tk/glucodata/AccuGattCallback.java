@@ -245,6 +245,12 @@ static private boolean writer(BluetoothGatt mBluetoothGatt, BluetoothGattCharact
 
 
 private boolean connected=false;
+private volatile BluetoothGatt rssiConnectedGatt;
+
+@Override
+protected boolean isRssiLinkConnected(BluetoothGatt gatt) {
+    return rssiConnectedGatt == gatt;
+}
 
   private boolean isBonded=false;
 
@@ -252,6 +258,9 @@ private boolean connected=false;
 @Override
 public void onConnectionStateChange(BluetoothGatt bluetoothGatt, int status, int newState) {
     noteFirstGattCallback("onConnectionStateChange", bluetoothGatt);
+    if (bluetoothGatt == mBluetoothGatt) {
+        rssiConnectedGatt = newState == BluetoothProfile.STATE_CONNECTED ? bluetoothGatt : null;
+    }
     long tim = System.currentTimeMillis();
     if(stop) {
         constatchange[1] = tim; //Needed? ever displayed?

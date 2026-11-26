@@ -74,7 +74,7 @@ private static final String DEX_CONNECT_PREFS = "dex_connect";
 private static final String DIRECT_CONNECT_UNREACHABLE_PREFIX = "direct_unreachable_";
 private volatile boolean directConnectUnreachable;
 private volatile String persistedDeviceName;
-private BluetoothGatt connectedAttempt;
+private volatile BluetoothGatt connectedAttempt;
 private boolean known=false;
 private int authSlot;
     public DexGattCallback(String SerialNumber, long dataptr) {
@@ -997,11 +997,8 @@ public synchronized boolean changeAuthSlot(int slot) {
 
 
     @Override
-    public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-        {if(doLog) {Log.i(LOG_ID, "onReadRemoteRssi(BluetoothGatt," + rssi + "," + status + (status == GATT_SUCCESS ? " SUCCESS" : " FAILURE"));};};
-        if (status == GATT_SUCCESS) {
-            readrssi = rssi;
-        }
+    protected boolean isRssiLinkConnected(BluetoothGatt gatt) {
+        return connectedAttempt == gatt;
     }
 
 

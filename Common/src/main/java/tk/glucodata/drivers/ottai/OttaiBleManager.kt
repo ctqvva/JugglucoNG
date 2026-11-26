@@ -1362,10 +1362,7 @@ class OttaiBleManager(
         scheduleLivePoll()
     }
 
-    // Whether the sensor was out of range or the band was busy is not decidable from anything the
-    // app records today: there is no RSSI anywhere in the 2026-08-01 trace. Reads are only issued
-    // while streaming, and a read that cannot start is not retried — this is instrumentation, and
-    // a missing sample costs nothing.
+    // Optional telemetry while streaming. A missed read waits for the next scheduled poll.
     private val rssiPollRunnable = Runnable {
         if (stop) return@Runnable
         val gatt = mBluetoothGatt
@@ -1373,11 +1370,10 @@ class OttaiBleManager(
             scheduleRssiPoll()
             return@Runnable
         }
-        val started = runCatching { gatt.readRemoteRssi() }.getOrDefault(false)
         // Mark the attempt, not the answer: a read that never comes back must still not be
         // retried before the next slot, or a jammed link turns this into a busy loop.
         lastRssiReadAtMs = System.currentTimeMillis()
-        if (!started) logi(TAG) { "rssi read could not start" }
+        queueRssiRead(gatt)
         scheduleRssiPoll()
     }
 
@@ -5223,6 +5219,9 @@ class OttaiBleManager(
 
     /** [rssiPollRunnable] already reads the level on its own schedule. */
     override fun requestRssi() = Unit
+
+    override fun isRssiLinkConnected(gatt: BluetoothGatt): Boolean =
+        phase == Phase.STREAMING && super.isRssiLinkConnected(gatt)
 
     override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
         super.onReadRemoteRssi(gatt, rssi, status)
