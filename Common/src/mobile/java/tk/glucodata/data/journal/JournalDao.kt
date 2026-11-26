@@ -248,6 +248,16 @@ interface JournalDao {
     @Query("SELECT nsRemoteId FROM journal_entries WHERE nsUploadedAt IS NOT NULL AND nsRemoteId IS NOT NULL")
     suspend fun getOwnUploadedNightscoutRemoteIds(): List<String>
 
+    @Query("SELECT COUNT(*) FROM journal_entries WHERE nsRemoteId = :remoteId AND nsUploadedAt IS NOT NULL")
+    suspend fun countOwnUploadsOfNightscoutDocument(remoteId: String): Int
+
+    /** Makes the entry holding this document due again, as one that was never sent. */
+    @Query(
+        "UPDATE journal_entries SET nsRemoteId = NULL, nsUploadedAt = NULL " +
+            "WHERE nsRemoteId = :remoteId AND nsUploadedAt IS NOT NULL"
+    )
+    suspend fun releaseNightscoutDocument(remoteId: String): Int
+
     @Query("SELECT * FROM journal_entries WHERE entryType = :entryType AND source IN (:sources) AND sourceRecordId IS NOT NULL")
     suspend fun getImportedEntriesOfType(entryType: String, sources: List<String>): List<JournalEntryEntity>
 
@@ -261,8 +271,23 @@ interface JournalDao {
     )
     suspend fun getEntriesNeedingLibreviewUpload(sinceMillis: Long): List<JournalEntryEntity>
 
-    @Query("UPDATE journal_entries SET lvUploadedAt = :uploadedAt WHERE id IN (:ids)")
-    suspend fun markEntriesUploadedToLibreview(ids: List<Long>, uploadedAt: Long)
+    @Query("UPDATE journal_entries SET lvUploadedAt = :uploadedAt WHERE id = :id")
+    suspend fun markEntryUploadedToLibreview(id: Long, uploadedAt: Long)
+
+    @Query("SELECT * FROM journal_nightscout_uploads ORDER BY startedAt ASC, remoteId ASC")
+    suspend fun getNightscoutUploads(): List<JournalNightscoutUploadEntity>
+
+    @Query("SELECT * FROM journal_nightscout_uploads WHERE remoteId = :remoteId")
+    suspend fun getNightscoutUpload(remoteId: String): JournalNightscoutUploadEntity?
+
+    @Query("SELECT * FROM journal_nightscout_uploads WHERE entryId = :entryId AND entryCreatedAt = :entryCreatedAt")
+    suspend fun getNightscoutUploadsOf(entryId: Long, entryCreatedAt: Long): List<JournalNightscoutUploadEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun recordNightscoutUpload(upload: JournalNightscoutUploadEntity)
+
+    @Query("DELETE FROM journal_nightscout_uploads WHERE remoteId = :remoteId")
+    suspend fun clearNightscoutUpload(remoteId: String)
 
     @Query("SELECT * FROM journal_pending_deletes ORDER BY deletedAt ASC")
     suspend fun getPendingNightscoutDeletes(): List<JournalPendingDeleteEntity>
@@ -270,12 +295,18 @@ interface JournalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun enqueuePendingNightscoutDelete(tombstone: JournalPendingDeleteEntity)
 
-    @Query("DELETE FROM journal_pending_deletes WHERE entryId = :entryId")
-    suspend fun clearPendingNightscoutDelete(entryId: Long)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun enqueuePendingNightscoutDeleteIfAbsent(tombstone: JournalPendingDeleteEntity)
+
+    @Query("SELECT * FROM journal_pending_deletes WHERE nsRemoteId = :remoteId")
+    suspend fun getPendingNightscoutDelete(remoteId: String): JournalPendingDeleteEntity?
+
+    @Query("DELETE FROM journal_pending_deletes WHERE nsRemoteId = :remoteId")
+    suspend fun clearPendingNightscoutDelete(remoteId: String)
 
     @Query(
         "UPDATE journal_pending_deletes SET attempts = :attempts, lastAttemptAt = :attemptedAt " +
-            "WHERE entryId = :entryId"
+            "WHERE nsRemoteId = :remoteId"
     )
-    suspend fun recordFailedNightscoutDelete(entryId: Long, attempts: Int, attemptedAt: Long)
+    suspend fun recordFailedNightscoutDelete(remoteId: String, attempts: Int, attemptedAt: Long)
 }

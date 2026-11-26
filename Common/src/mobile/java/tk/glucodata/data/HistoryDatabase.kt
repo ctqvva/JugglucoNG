@@ -12,6 +12,7 @@ import tk.glucodata.data.journal.JournalDao
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
+import tk.glucodata.data.journal.JournalNightscoutUploadEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
 
 /**
@@ -61,6 +62,9 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *         (main v19, a Clone build at v20–v23, a test build at v24–v31) arrives
  *         here through the steps above, so this is the one place the tables
  *         are guaranteed rather than assumed.
+ *   v34 — Nightscout uploads on the way are recorded, and pending Nightscout deletes are
+ *         keyed by the document. v33 is taken by the food restore build (#1022) and has the
+ *         same two tables as v32, so both step straight here.
  */
 /**
  * The current schema version (plan task H5). The migration tests migrate from the
@@ -68,7 +72,7 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  * A version bump also needs its exported schema JSON committed — the CI schema
  * check in H1 catches that.
  */
-internal const val HISTORY_DATABASE_VERSION = 32
+internal const val HISTORY_DATABASE_VERSION = 34
 
 @Database(
     entities = [
@@ -80,6 +84,7 @@ internal const val HISTORY_DATABASE_VERSION = 32
         JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class,
+        JournalNightscoutUploadEntity::class,
         CloneJournalTombstoneEntity::class,
         CloneJournalRecoveryTombstoneEntity::class,
         CloneRecoveryImportEntity::class
@@ -722,6 +727,47 @@ abstract class HistoryDatabase : RoomDatabase() {
         }
 
         /**
+         * v32/v33 → v34: Nightscout deletes are keyed by the document they remove, since one
+         * entry can leave several behind, and uploads on the way get a table of their own.
+         * Every queued delete is kept.
+         */
+        private fun nightscoutLedgerToV34(from: Int) = object : Migration(from, 34) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS journal_nightscout_uploads (
+                        remoteId TEXT NOT NULL,
+                        entryId INTEGER NOT NULL,
+                        entryCreatedAt INTEGER NOT NULL,
+                        startedAt INTEGER NOT NULL,
+                        PRIMARY KEY(remoteId)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE journal_pending_deletes_v34 (
+                        entryId INTEGER NOT NULL,
+                        nsRemoteId TEXT NOT NULL,
+                        deletedAt INTEGER NOT NULL,
+                        attempts INTEGER NOT NULL,
+                        lastAttemptAt INTEGER NOT NULL,
+                        PRIMARY KEY(nsRemoteId)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "INSERT OR REPLACE INTO journal_pending_deletes_v34 " +
+                        "(entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt) " +
+                        "SELECT entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt " +
+                        "FROM journal_pending_deletes ORDER BY deletedAt ASC"
+                )
+                db.execSQL("DROP TABLE journal_pending_deletes")
+                db.execSQL("ALTER TABLE journal_pending_deletes_v34 RENAME TO journal_pending_deletes")
+            }
+        }
+
+        /**
          * The Clone-owned tables and the identity backfills, idempotently. Kept
          * separate from [ensureV30Compatibility] because that one is also what a
          * Clone-less build runs, and it must never start creating tables it does
@@ -810,7 +856,9 @@ abstract class HistoryDatabase : RoomDatabase() {
             bridgeCloneToV30(28),
             bridgeCloneToV30(29),
             MIGRATION_30_31,
-            MIGRATION_31_32
+            MIGRATION_31_32,
+            nightscoutLedgerToV34(32),
+            nightscoutLedgerToV34(33)
         )
 
         fun getInstance(context: Context): HistoryDatabase =

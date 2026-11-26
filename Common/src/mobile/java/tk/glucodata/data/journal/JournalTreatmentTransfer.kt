@@ -363,7 +363,21 @@ object JournalTreatmentTransfer {
 
     fun hasAnyRemoteIdentifier(treatment: JSONObject, remoteIds: Set<String>): Boolean {
         if (remoteIds.isEmpty()) return false
-        return treatment.remoteIdentifiers().any { id -> id in remoteIds }
+        if (treatment.remoteIdentifiers().any { id -> id in remoteIds }) return true
+        return datedIdentifierOf(treatment)?.let { it in remoteIds } == true
+    }
+
+    /**
+     * The dated name of a document written over v1. The server assigns its `_id` and it carries
+     * only the entry's name, which is the same for every time that entry has had; its own time
+     * says which of them this is.
+     */
+    internal fun datedIdentifierOf(treatment: JSONObject): String? {
+        val entryId = treatment.optNonBlankString("identifier")
+            ?.let(JournalTreatmentUploader::entryIdOfLocalIdentifier)
+            ?: return null
+        val timestamp = treatment.optTreatmentTimestampMillis() ?: return null
+        return JournalTreatmentUploader.datedIdentifier(entryId, timestamp)
     }
 
     fun sourceRecordIdsForTreatment(treatment: JSONObject, sourcePrefix: String): List<String> {

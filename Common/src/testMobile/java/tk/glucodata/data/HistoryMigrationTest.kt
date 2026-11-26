@@ -20,7 +20,7 @@ import org.robolectric.annotation.ConscryptMode
  * migration that drops a column or a table fails here.
  *
  * The starting points are the released schemas recovered in H2: v11
- * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v32 is the current version. The row tests
+ * (1.1.2-Alpha) and v12 (1.1.3-Alpha). v34 is the current version. The row tests
  * matter most: Room migrations are the one place a bug permanently destroys
  * user history.
  */
@@ -190,6 +190,59 @@ class HistoryMigrationTest {
             assertEquals(0, cursor.getInt(2))
         }
         migrated.close()
+    }
+
+    @Test
+    fun keepsQueuedNightscoutDeletesAndKeysThemByDocument() {
+        // v33 is the food restore build's: the same two tables, and one of its own.
+        for (from in listOf(32, 33)) {
+            val name = "nightscout-ledger-$from.db"
+            helper.createDatabase(name, 32).use { db ->
+                db.execSQL(
+                    "INSERT INTO journal_pending_deletes (entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt) " +
+                        "VALUES (3, 'remote-3', 8000, 4, 9000), (4, 'remote-4', 8100, 0, 0)"
+                )
+                db.execSQL(
+                    "INSERT INTO journal_entries (id, timestamp, entryType, title, source, createdAt, updatedAt) " +
+                        "VALUES (5, 5000, 'insulin', 'Dose', 'manual', 6000, 7000)"
+                )
+                if (from == 33) {
+                    db.execSQL(
+                        "CREATE TABLE journal_food_restore_commit (id INTEGER NOT NULL, token TEXT NOT NULL, PRIMARY KEY(id))"
+                    )
+                    db.version = 33
+                }
+            }
+
+            val migrated =
+                helper.runMigrationsAndValidate(name, HISTORY_DATABASE_VERSION, false, *HistoryDatabase.ALL_MIGRATIONS)
+
+            migrated.query(
+                "SELECT entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt FROM journal_pending_deletes ORDER BY deletedAt"
+            ).use { cursor ->
+                assertEquals("both deletes survived from v$from", 2, cursor.count)
+                cursor.moveToFirst()
+                assertEquals(3, cursor.getInt(0))
+                assertEquals("remote-3", cursor.getString(1))
+                assertEquals(8000, cursor.getInt(2))
+                assertEquals(4, cursor.getInt(3))
+                assertEquals(9000, cursor.getInt(4))
+            }
+            // One entry may leave more than one document behind.
+            migrated.execSQL(
+                "INSERT INTO journal_pending_deletes (entryId, nsRemoteId, deletedAt, attempts, lastAttemptAt) " +
+                    "VALUES (3, 'remote-3b', 8200, 0, 0)"
+            )
+            migrated.query("SELECT COUNT(*) FROM journal_entries").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(1, cursor.getInt(0))
+            }
+            migrated.query("SELECT COUNT(*) FROM journal_nightscout_uploads").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(0, cursor.getInt(0))
+            }
+            migrated.close()
+        }
     }
 
     @Test
