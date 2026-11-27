@@ -410,10 +410,12 @@ class Libre3BleManager(sensorId: String) :
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
         noteFirstGattCallback("onConnectionStateChange", gatt)
         if (!acceptConnectionAttemptCallback(gatt, newState)) {
-            if (!stop) {
-                if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
-                if (newState == BluetoothProfile.STATE_DISCONNECTED) runCatching { gatt.close() }
-            }
+            // A retired GATT, or this one while paused (an ownership release, the user's pause,
+            // teardown). A pause stops reconnecting, never cleanup: a GATT left open here is what
+            // the next connectDevice() takes for a live link.
+            if (newState == BluetoothProfile.STATE_CONNECTED) runCatching { gatt.disconnect() }
+            if (newState == BluetoothProfile.STATE_DISCONNECTED &&
+                !handler.post { onPausedOrRetiredDisconnect(gatt, status) }) runCatching { gatt.close() }
             return
         }
         super.onConnectionStateChange(gatt, status, newState)
@@ -457,6 +459,22 @@ class Libre3BleManager(sensorId: String) :
         classifyLinkLossDuringHandshake()
         Log.i(TAG, "$sensorId: disconnected status=$status in $phase")
         noteLossOfSignal(System.currentTimeMillis())
+        endLink()
+        scheduleReconnect()
+    }
+
+    /**
+     * Closes [gatt]. If it is still this driver's link, its per-link state goes too; the sensor
+     * reconnects only once nothing pauses the driver. A drop we asked for says nothing about
+     * reachability or credentials, so neither is judged here.
+     */
+    private fun onPausedOrRetiredDisconnect(gatt: BluetoothGatt, status: Int) {
+        if (mBluetoothGatt !== gatt) {
+            runCatching { gatt.close() }
+            return
+        }
+        Log.i(TAG, "$sensorId: disconnected while paused, status=$status in $phase")
+        closeGattTransport()
         endLink()
         scheduleReconnect()
     }
@@ -1194,7 +1212,7 @@ class Libre3BleManager(sensorId: String) :
     // ---- deadlines / reconnect ----
 
     private val setupDeadlineRunnable = Runnable {
-        if (phase != Phase.STREAMING && !stop) {
+        if (phase != Phase.STREAMING) {
             Log.w(TAG, "$sensorId: setup did not complete in $phase (handshake ${handshake?.stage})")
             dropLink("setup timeout")
         }
@@ -1208,7 +1226,7 @@ class Libre3BleManager(sensorId: String) :
     private fun clearSetupDeadline() = handler.removeCallbacks(setupDeadlineRunnable)
 
     private val watchdogRunnable = Runnable {
-        if (phase == Phase.STREAMING && !stop) dropLink("no glucose frame for ${STREAM_WATCHDOG_MS / 60_000} min")
+        if (phase == Phase.STREAMING) dropLink("no glucose frame for ${STREAM_WATCHDOG_MS / 60_000} min")
     }
 
     private fun armWatchdog() {
@@ -1274,6 +1292,21 @@ class Libre3BleManager(sensorId: String) :
     }
 
     // ---- managed lifecycle ----
+
+    /**
+     * An ownership release pauses the driver and then calls this. Android may report the drop
+     * late or never, so a paused driver retires its transport here rather than waiting for the
+     * callback: otherwise the resume's connectDevice() finds the old GATT and connects nothing.
+     * A late callback then finds a retired GATT and closes only that one.
+     */
+    override fun disconnect() {
+        if (!stop) {
+            super.disconnect()
+            return
+        }
+        closeGattTransport()
+        handler.post { if (mBluetoothGatt == null) endLink() }
+    }
 
     override fun softDisconnect() {
         setPause(true)

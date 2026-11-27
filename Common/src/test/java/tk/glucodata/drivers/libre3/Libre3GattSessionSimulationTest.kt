@@ -57,6 +57,7 @@ import tk.glucodata.HealthConnectAccess
 import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistoryRepositoryBridge
 import tk.glucodata.MainActivity
+import tk.glucodata.SensorOwnershipRuntime
 import tk.glucodata.SuperGattCallback
 
 /**
@@ -337,6 +338,67 @@ class Libre3GattSessionSimulationTest {
         assertEquals(3_000L, reconnectDelay())
     }
 
+    /** SensorOwnershipRuntime's own release(serial) and resume(serial, reason). */
+    private fun ownership(name: String, vararg args: String) = SensorOwnershipRuntime::class.java.declaredMethods
+        .single { it.name == name && it.parameterTypes.toList() == List(args.size) { String::class.java } }
+        .apply { isAccessible = true }.invoke(SensorOwnershipRuntime, *args)
+
+    /**
+     * Phone/watch ownership hands a streaming sensor to the other device with setPause(true) and
+     * disconnect(), and takes it back with setPause(false) and connectDevice(). Android reports the
+     * drop late, never, or only once the next GATT exists. Each time the old link is closed with
+     * its per-link state, nothing reconnects while the other device holds the sensor, the sensor
+     * connects again when taken back, and no late report closes the GATT that replaced it.
+     */
+    @Test fun aSensorTakenBackFromTheOtherDeviceConnectsAgain() {
+        tk.glucodata.SensorBluetooth.gattcallbacks.add(manager)
+        try {
+            var old = connect()
+            var next = life
+            for (report in listOf("late", "never", "after the next link")) {
+                assertEquals(report, Libre3BleManager.Phase.STREAMING, manager.phase)
+                ownership("release", sensorId)
+                settle()
+                assertTrue("$report: the released link is closed", old in sim.closed)
+                assertFalse(report, manager.hasLocallyConnectedGatt())
+                assertEquals(report, Libre3BleManager.Phase.IDLE, manager.phase)
+                if (report == "late") {
+                    manager.onConnectionStateChange(old, 0, BluetoothProfile.STATE_DISCONNECTED)
+                    settle()
+                }
+                assertFalse("$report: nothing reconnects while released", reconnectScheduled())
+                assertEquals(report, Libre3BleManager.Phase.IDLE, manager.phase)
+
+                ownership("resume", sensorId, "test")
+                assertEquals("$report: a connect went out", Libre3BleManager.Phase.CONNECTING, manager.phase)
+                sim.reconnect(nextLife = ++next, mgdl = 100 + next - life)
+                val current = connect()
+                if (report == "after the next link") {
+                    manager.onConnectionStateChange(old, 0, BluetoothProfile.STATE_DISCONNECTED)
+                    settle()
+                }
+                assertFalse("$report: the replacement stays open", current in sim.closed)
+                assertEquals(report, Libre3BleManager.Phase.STREAMING, manager.phase)
+                assertEquals(report, (100 + next - life).toFloat(), field("lastReadingMgdl").get(manager) as Float)
+                old = current
+            }
+
+            // Paused by something else, the link drops: cleaned up, and nothing reconnects until resumed.
+            manager.setPause(true)
+            manager.onConnectionStateChange(old, 8, BluetoothProfile.STATE_DISCONNECTED)
+            settle()
+            assertTrue(old in sim.closed)
+            assertEquals(Libre3BleManager.Phase.IDLE, manager.phase)
+            assertFalse(reconnectScheduled())
+            manager.setPause(false)
+            assertTrue(manager.connectDevice(60_000L))
+            assertEquals(Libre3BleManager.Phase.CONNECTING, manager.phase)
+        } finally {
+            ownership("resume", sensorId, "test")
+            tk.glucodata.SensorBluetooth.gattcallbacks.remove(manager)
+        }
+    }
+
     private val reconnectRunnable get() = field("reconnectRunnable").get(manager) as Runnable
     private fun reconnectScheduled() = (field("liveHandler").get(manager) as Handler).hasCallbacks(reconnectRunnable)
     private fun reconnectDelay() = Libre3BleManager::class.java.getDeclaredMethod("reconnectDelayMs")
@@ -387,6 +449,8 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
     var emptyDiscoveries = 0
     var errorData = 0
     var refreshes = 0
+    /** Every GATT the driver closed. */
+    val closed: MutableSet<BluetoothGatt> = Collections.newSetFromMap(java.util.IdentityHashMap())
     fun discover() { hidden = emptyDiscoveries > 0; if (hidden) emptyDiscoveries-- }
     private var hidden = false
     fun service(id: UUID): BluetoothGattService? = services[id].takeUnless { hidden }
@@ -567,7 +631,7 @@ class Libre3SimGattShadow {
     @Implementation fun getDevice(): BluetoothDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice("CC:22:DF:B8:F9:58")
     @Implementation fun connect(): Boolean = true
     @Implementation fun disconnect() {}
-    @Implementation fun close() {}
+    @Implementation fun close() { sim?.closed?.add(real) }
     @Implementation fun readRemoteRssi(): Boolean = true
     @Implementation fun requestConnectionPriority(priority: Int): Boolean = true
 }
