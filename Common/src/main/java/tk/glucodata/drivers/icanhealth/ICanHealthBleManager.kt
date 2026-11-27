@@ -28,7 +28,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
 import java.util.ArrayDeque
-import java.util.LinkedHashMap
+import java.util.BitSet
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -140,14 +140,6 @@ class ICanHealthBleManager(
         ORIGINAL,
     }
 
-    private data class PendingHistoryReading(
-        val sequenceNumber: Int,
-        var timestampMs: Long = 0L,
-        var glucoseMgdl: Float = Float.NaN,
-        var rawCurrent: Float = Float.NaN,
-        var temperatureC: Float = Float.NaN,
-    )
-
     @Volatile
     var phase: Phase = Phase.IDLE
         private set
@@ -220,6 +212,13 @@ class ICanHealthBleManager(
     @Volatile private var lastConnectionStartedAtMs = 0L
     @Volatile private var receivedGlucoseThisConnection = false
     @Volatile private var lastGlucoseReceiptRealtimeMs = 0L
+    @Volatile private var noDataDeadlineElapsedMs = 0L
+    private val decodedHistorySequences = BitSet()
+    @Volatile private var lastHistoryProgressElapsedMs = 0L
+
+    private data class MissingHistoryEdge(val sequence: Int, val timestampMs: Long)
+
+    @Volatile private var missingHistoryEdge: MissingHistoryEdge? = null
     // Survives transport resets; a timeout-free interval expires the failure streak.
     private var lastGattTimeoutElapsedMs: Long? = null
     private var gattTimeoutRetryFloorMs = 0L
@@ -289,7 +288,8 @@ class ICanHealthBleManager(
     @Volatile override var vendorFirmwareVersion: String = ""
         private set
     @Volatile private var vendorSoftwareVersion: String = ""
-    private val pendingHistoryBatch = LinkedHashMap<Int, PendingHistoryReading>()
+    private val historyImport = ICanHealthHistoryImport()
+    @Volatile private var historyPersistRetryAtMs = 0L
     // A rebuild clears the native stream and writes it again; no reading may be written in between.
     private val nativeStreamLock = Any()
     private data class LiveNativeReading(val sensorId: String, val timestampMs: Long, val glucoseMgdl: Float)
@@ -356,21 +356,21 @@ class ICanHealthBleManager(
     }
 
     private val noDataWatchdog: Runnable = Runnable {
-        if (phase == Phase.STREAMING && lastGlucoseReceiptRealtimeMs > 0L) {
-            val elapsed = System.currentTimeMillis() - lastGlucoseReceiptRealtimeMs
-            if (elapsed > NO_DATA_WATCHDOG_MS) {
-                Log.w(TAG, "No glucose data for ${elapsed / 1000}s — triggering reconnect")
-                setUiStatus(UiStatusKind.NO_DATA_TIMEOUT)
-                try {
-                    mBluetoothGatt?.disconnect()
-                } catch (_: Throwable) {
-                }
-            } else {
-                handler.postDelayed(
-                    noDataWatchdog,
-                    (NO_DATA_WATCHDOG_MS - elapsed).coerceAtLeast(1_000L)
-                )
+        val gatt = mBluetoothGatt ?: return@Runnable
+        if (noDataDeadlineElapsedMs <= 0L || !expectsLiveGlucose()) return@Runnable
+        val deadline = currentNoDataDeadline()
+        val remainingMs = deadline - SystemClock.elapsedRealtime()
+        if (remainingMs > 0L) {
+            handler.postDelayed(noDataWatchdog, remainingMs)
+        } else if (gatt === mBluetoothGatt) {
+            if (deadline != currentNoDataDeadline()) {
+                scheduleNoDataWatchdogIfNeeded()
+                return@Runnable
             }
+            Log.w(TAG, "No advancing live glucose for ${NO_DATA_WATCHDOG_MS / 1000}s; triggering reconnect")
+            setUiStatus(UiStatusKind.NO_DATA_TIMEOUT)
+            runCatching { gatt.disconnect() }
+                .onFailure { Log.stack(TAG, "noDataWatchdog(disconnect)", it) }
         }
     }
 
@@ -403,6 +403,12 @@ class ICanHealthBleManager(
         Log.i(TAG, "Requesting mirror history merge for iCan follower shell $SerialNumber")
         HistorySyncAccess.mergeFullSyncForSensor(SerialNumber)
         UiRefreshBus.requestDataRefresh()
+    }
+
+    private val historyPersistRetryRunnable = Runnable {
+        if (!stop) {
+            persistUnsavedHistory()
+        }
     }
 
     private val sensorInfoFallbackRunnable = Runnable {
@@ -619,7 +625,7 @@ class ICanHealthBleManager(
         if (!historyBackfillRequested || historyBackfillPhase == HistoryBackfillPhase.NONE) {
             return
         }
-        val visibleCount = glucoseHistoryImportedRecordCount + pendingHistoryBatch.size
+        val visibleCount = glucoseHistoryImportedRecordCount + historyImport.incomingCount
         val bucket = visibleCount / HISTORY_SYNC_STATUS_STEP
         if (bucket == lastHistorySyncStatusBucket) {
             return
@@ -707,7 +713,9 @@ class ICanHealthBleManager(
 
     private fun clearSoftDisconnectState() {
         cancelScheduledReconnect()
-        handler.removeCallbacks(noDataWatchdog)
+        resetNoDataWatchdog()
+        resetHistoryTransferProgress()
+        missingHistoryEdge = null
         handler.removeCallbacks(foregroundNotificationRefreshRunnable)
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
@@ -719,7 +727,7 @@ class ICanHealthBleManager(
         historyBackfillPhase = HistoryBackfillPhase.NONE
         awaitingFreshStatusForHistoryBackfill = false
         pendingHistoryBackfillReason = null
-        pendingHistoryBatch.clear()
+        historyImport.discardIncoming()
         awaitingMtuNegotiation = false
         serviceDiscoveryStarted = false
         serviceDiscoveryHandled = false
@@ -806,6 +814,8 @@ class ICanHealthBleManager(
         uiPaused = true
         clearPendingCalibration()
         clearSoftDisconnectState()
+        historyImport.clear()
+        handler.removeCallbacks(historyPersistRetryRunnable)
         setPause(true)
         val currentBeforeTerminate = runCatching { Natives.lastsensorname() }.getOrNull()
         val shouldRehomeCurrent = ICanHealthConstants.matchesCanonicalOrKnownNativeAlias(
@@ -1190,6 +1200,7 @@ class ICanHealthBleManager(
     }
 
     private fun shouldSkipHistoryOverlap(sequenceNumber: Int, sampleTimeMs: Long): Boolean {
+        if (historyBackfillRequested && missingHistoryEdge?.sequence == sequenceNumber) return false
         loadPersistedCoveredEdge()
         val coveredTimestampMs = maxOf(persistedHistoryTailTimestampMs, persistedCoveredTimestampMs)
         return ICanHealthHistoryPolicy.shouldSkipHistoryOverlap(
@@ -1636,7 +1647,7 @@ class ICanHealthBleManager(
                 awaitingMtuNegotiation = false
                 glucoseHistoryImportedRecordCount = 0
                 pendingHistoryBackfillReason = null
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 lastAuthChallenge = null
                 resetCorrectCodeState()
                 receivedGlucoseThisConnection = false
@@ -1935,6 +1946,7 @@ class ICanHealthBleManager(
                     trackCounterProgress(observedSequence)
                     repairState.statusProbeRequested(SystemClock.elapsedRealtime())
                     maybeRepairUnresponsiveProvisioning()
+                    if (phase == Phase.STREAMING) scheduleNoDataWatchdogIfNeeded()
                 }
                 if (awaitingFreshStatusForHistoryBackfill) {
                     continuePendingHistoryBackfill("after fresh status read")
@@ -2205,7 +2217,16 @@ class ICanHealthBleManager(
         if (provisionalSensorIdForAdoption == null && ICanHealthConstants.isProvisionalSensorId(previousId)) {
             provisionalSensorIdForAdoption = previousId
         }
-        SerialNumber = canonicalSerial
+        val isSameSensor = ICanHealthConstants.isProvisionalSensorId(previousId) ||
+            ICanHealthConstants.matchesCanonicalOrKnownNativeAlias(canonicalSerial, previousId)
+        // History being written goes by SerialNumber from start to end, so it must not change meanwhile.
+        historyImport.changeSensor(isSameSensor) {
+            if (!isSameSensor) {
+                missingHistoryEdge = null
+                resetHistoryTransferProgress()
+            }
+            SerialNumber = canonicalSerial
+        }
         ensureNativeDataptr(canonicalSerial)
         if (previousId != canonicalSerial) {
             clearLegacyAuthBypassState(previousId)
@@ -2294,15 +2315,13 @@ class ICanHealthBleManager(
 
         val nowMs = System.currentTimeMillis()
         val anchoredCurrentSequence = currentSequenceNumber
-        val sampleTimeMs = resolveSampleTimestampMs(reading.sequenceNumber, nowMs)
         val historySampleTimeMs = resolveHistoryTimestampMs(reading.sequenceNumber, nowMs)
-        val cappedHistoryTransfer =
-            historyBackfillRequested &&
-                historyBackfillPhase == HistoryBackfillPhase.GLUCOSE &&
-                canUseHistoryPastEndedStatusCap()
-        val liveSequence = !cappedHistoryTransfer &&
-            isLiveSequence(reading.sequenceNumber, sampleTimeMs, nowMs, anchoredCurrentSequence)
-        if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE && !liveSequence) {
+        val glucoseTransfer = historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE
+        val targetedRecovery = glucoseTransfer && missingHistoryEdge?.sequence == reading.sequenceNumber
+        val liveSequence = !targetedRecovery && !(glucoseTransfer && canUseHistoryPastEndedStatusCap()) &&
+            isLiveSequence(reading.sequenceNumber, historySampleTimeMs ?: nowMs, nowMs, anchoredCurrentSequence)
+        if (glucoseTransfer && !liveSequence) {
+            trackHistoryTransferProgress(reading.sequenceNumber)
             if (historySampleTimeMs == null) {
                 logSkippedUnanchoredHistory(reading.sequenceNumber, "2AA7 glucose")
             } else if (!shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs)) {
@@ -2316,11 +2335,13 @@ class ICanHealthBleManager(
             }
         }
         if (liveSequence) {
+            // Check for replay before resolving a live timestamp. Live timestamp recovery can
+            // invalidate an old edge and stamp a reading with the current time.
+            val duplicate = reading.sequenceNumber <= lastHandledLiveSequence
+            val covered = shouldSkipHistoryOverlap(reading.sequenceNumber, historySampleTimeMs ?: 0L)
+            val sampleTimeMs = if (duplicate || covered) null else resolveSampleTimestampMs(reading.sequenceNumber, nowMs)
             receivedGlucoseThisConnection = true
-            lastGlucoseReceiptRealtimeMs = nowMs
             forceSessionMetadataRefresh = false
-            latestCurrentRaw = reading.currentValue
-            latestTemperatureC = reading.temperatureC
             if (reading.sequenceNumber >= 0 &&
                 (anchoredCurrentSequence < 0 || reading.sequenceNumber >= anchoredCurrentSequence)
             ) {
@@ -2328,27 +2349,20 @@ class ICanHealthBleManager(
                 currentSequenceObservedAtMs = nowMs
             }
             trackCounterProgress(reading.sequenceNumber)
-            if (historyBackfillRequested && historyBackfillPhase == HistoryBackfillPhase.GLUCOSE) {
-                logd(TAG) {
-                    "Delivering live seq=${reading.sequenceNumber} while iCan history backfill continues"
+            if (sampleTimeMs == null) {
+                if (!duplicate && covered) {
+                    lastHandledLiveSequence = reading.sequenceNumber
+                    lastHandledLiveTimestampMs = maxOf(historySampleTimeMs ?: 0L, persistedCoveredTimestampMs)
                 }
-            }
-            val historyCoveredLiveEdge = historySampleTimeMs?.let {
-                shouldSkipHistoryOverlap(reading.sequenceNumber, it)
-            } ?: false
-            if (reading.sequenceNumber == lastHandledLiveSequence) {
                 phase = Phase.STREAMING
                 setUiStatus(UiStatusKind.CONNECTED)
-                scheduleNoDataWatchdog()
+                scheduleNoDataWatchdogIfNeeded()
                 return
             }
-            if (historyCoveredLiveEdge) {
-                phase = Phase.STREAMING
-                setUiStatus(UiStatusKind.CONNECTED)
-                lastHandledLiveSequence = reading.sequenceNumber
-                lastHandledLiveTimestampMs = maxOf(sampleTimeMs, persistedCoveredTimestampMs)
-                scheduleNoDataWatchdog()
-                return
+            latestCurrentRaw = reading.currentValue
+            latestTemperatureC = reading.temperatureC
+            if (glucoseTransfer) {
+                logd(TAG) { "Delivering live seq=${reading.sequenceNumber} while iCan history backfill continues" }
             }
             rememberDriverCurrentReading(reading.glucoseMgdl, sampleTimeMs)
             storeMeasurement(reading.glucoseMgdl, sampleTimeMs)
@@ -2356,6 +2370,9 @@ class ICanHealthBleManager(
             setUiStatus(UiStatusKind.CONNECTED)
             val packed = packGlucoseResult(reading.glucoseMgdl)
             handleGlucoseResult(packed, sampleTimeMs, resolveRawLaneValue(reading.currentValue, reading.glucoseMgdl))
+            lastGlucoseReceiptRealtimeMs = nowMs
+            noDataDeadlineElapsedMs = SystemClock.elapsedRealtime() + NO_DATA_WATCHDOG_MS
+            scheduleNoDataWatchdogIfNeeded()
             val previousLiveSequence = lastHandledLiveSequence
             lastHandledLiveSequence = reading.sequenceNumber
             lastHandledLiveTimestampMs = sampleTimeMs
@@ -2363,12 +2380,13 @@ class ICanHealthBleManager(
             updatePersistedHistoryTailTimestamp(sampleTimeMs)
             rememberCoveredEdge(reading.sequenceNumber, sampleTimeMs)
             retryNativeRebuildIfDue()
+            historyImport.alignWithLiveReading(reading.sequenceNumber, sampleTimeMs)
+            retryUnsavedHistoryIfDue()
             scheduleForegroundNotificationRefresh()
             rearmHistoryBackfillForLiveGap(previousLiveSequence, reading.sequenceNumber, nowMs)
             if (isAuthenticated && shouldRequestAuthenticatedHistoryBackfill && !historyBackfillRequested) {
                 requestHistoryBackfill()
             }
-            scheduleNoDataWatchdog()
             if (!isAuthenticated) {
                 handler.removeCallbacks(postMeasurementDisconnectRunnable)
                 handler.postDelayed(postMeasurementDisconnectRunnable, POST_MEASUREMENT_DISCONNECT_DELAY_MS)
@@ -2391,6 +2409,7 @@ class ICanHealthBleManager(
             warmupMinutes = warmupMinutes(),
         ) ?: return false
 
+        trackHistoryTransferProgress(record.sequenceNumber)
         return when (record.subtype) {
             ICanHealthConstants.SN_HISTORY_SUBTYPE_GLUCOSE -> {
                 val glucoseMgdl = record.glucoseMgdl ?: return false
@@ -2405,7 +2424,6 @@ class ICanHealthBleManager(
                     return true
                 }
                 receivedGlucoseThisConnection = true
-                lastGlucoseReceiptRealtimeMs = nowMs
                 if (shouldSkipHistoryOverlap(record.sequenceNumber, sampleTimeMs)) {
                     Log.d(TAG, "Skipping overlapping encrypted history record seq=${record.sequenceNumber}")
                     return true
@@ -2481,6 +2499,7 @@ class ICanHealthBleManager(
                 var skippedUnanchoredCount = 0
                 var skippedCoveredCount = 0
                 for (record in batch.records) {
+                    trackHistoryTransferProgress(record.sequenceNumber)
                     val glucoseMgdl = record.glucoseMgdl
                     if (glucoseMgdl == null ||
                         glucoseMgdl !in ICanHealthConstants.MIN_VALID_GLUCOSE_MGDL..ICanHealthConstants.MAX_VALID_GLUCOSE_MGDL) {
@@ -2527,6 +2546,7 @@ class ICanHealthBleManager(
                 var importedCount = 0
                 var skippedUnanchoredCount = 0
                 for (record in batch.records) {
+                    trackHistoryTransferProgress(record.sequenceNumber)
                     val sampleTimeMs = resolveHistoryTimestampMs(record.sequenceNumber, nowMs)
                     if (sampleTimeMs == null) {
                         skippedUnanchoredCount++
@@ -2644,6 +2664,9 @@ class ICanHealthBleManager(
     private fun resolveHistoryTimestampMs(sequenceNumber: Int, fallbackNowMs: Long): Long? {
         if (sequenceNumber < 0) {
             return null
+        }
+        if (historyBackfillRequested) {
+            missingHistoryEdge?.takeIf { it.sequence == sequenceNumber }?.let { return it.timestampMs }
         }
         return resolveSequenceTimelineTimestampMs(
             sequenceNumber = sequenceNumber,
@@ -3328,26 +3351,30 @@ class ICanHealthBleManager(
     private fun resolveAutomaticGlucoseHistoryStartSequence(): Int? {
         val nowMs = System.currentTimeMillis()
         val readingInterval = readingIntervalMinutes()
+        missingHistoryEdge = null
         if (canUseHistoryPastEndedStatusCap()) {
             // Ended sessions keep their own capped windowing; the repair is not worth
             // second-guessing a sequence cap on a sensor that has stopped producing data.
             return resolveCappedEndedHistoryStartSequence(nowMs, readingInterval)
         }
-        if (historyTimezoneRepairPending()) {
+        val anchorTimeMs = resolveSequenceAnchorTimeMs(nowMs)
+        missingHistoryEdge = findMissingPersistedHistoryEdge(anchorTimeMs, readingInterval)
+        if (!Applic.isWearable && historyTimezoneRepairPending()) {
             // Ask for the whole session: the stored tail cannot be trusted to mark real coverage
             // while skew-era records are still mixed into it.
             Log.i(TAG, "Requesting full iCan glucose history from first slot for timezone repair")
             return readingInterval
         }
-        val anchorTimeMs = resolveSequenceAnchorTimeMs(nowMs)
         val persistedTailSequence = estimatePersistedTailSequence(anchorTimeMs)
         val latestKnownSequence = maxOf(lastHandledLiveSequence, persistedTailSequence ?: -1)
-        val startSequence = ICanHealthHistoryPolicy.automaticGlucoseHistoryStartSequence(
+        val normalStart = ICanHealthHistoryPolicy.automaticGlucoseHistoryStartSequence(
             readingIntervalMinutes = readingInterval,
             currentSequence = currentSequenceNumber,
             latestKnownSequence = latestKnownSequence,
             pendingLiveGap = pendingLiveHistoryGap,
         )
+        val recoveryStart = missingHistoryEdge?.sequence
+        val startSequence = if (recoveryStart == null) normalStart else minOf(recoveryStart, normalStart ?: recoveryStart)
         if (startSequence == null) {
             Log.i(
                 TAG,
@@ -3363,6 +3390,26 @@ class ICanHealthBleManager(
             )
         }
         return startSequence
+    }
+
+    private fun findMissingPersistedHistoryEdge(anchorTimeMs: Long, readingInterval: Int): MissingHistoryEdge? {
+        val sequence = persistedCoveredSequence
+        val timestamp = persistedCoveredTimestampMs
+        if (Applic.isWearable || sequence !in readingInterval..currentSequenceNumber ||
+            !isPlausibleHistoryAnchor(timestamp, anchorTimeMs)
+        ) return null
+
+        // Room retains one row per sensor minute. A user deletion or an unavailable query is
+        // insufficient evidence of missing data and must leave the normal overlap rules in place.
+        val minuteStart = (timestamp / SEQUENCE_UNIT_MS) * SEQUENCE_UNIT_MS
+        val stored = HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
+            SerialNumber, minuteStart, minuteStart + SEQUENCE_UNIT_MS - 1,
+        )
+        if (stored?.isEmpty() != true) return null
+        if (HistoryRepositoryAccess.isMinuteDeletedByUserOrNull(SerialNumber, timestamp) != false) return null
+
+        Log.w(TAG, "Re-requesting unstored iCan covered edge seq=$sequence at its original timestamp $timestamp")
+        return MissingHistoryEdge(sequence, timestamp)
     }
 
     private fun resolveCappedEndedHistoryStartSequence(nowMs: Long, readingInterval: Int): Int? {
@@ -3468,6 +3515,7 @@ class ICanHealthBleManager(
 
             HistoryBackfillPhase.NONE -> return false
         }
+        resetHistoryTransferProgress()
         historyBackfillRequested = true
         historyBackfillPhase = phase
         sawUnsupportedSnHistoryBatch = false
@@ -3475,7 +3523,7 @@ class ICanHealthBleManager(
         setUiStatus(UiStatusKind.SYNCING)
         requestHighConnectionPriority("history ${phase.name.lowercase()}")
         if (phase == HistoryBackfillPhase.GLUCOSE) {
-            pendingHistoryBatch.clear()
+            historyImport.discardIncoming()
         }
         val family = when (phase) {
             HistoryBackfillPhase.GLUCOSE -> if (useModernGlucoseHistoryCommand) "F1" else "01"
@@ -3496,28 +3544,29 @@ class ICanHealthBleManager(
     private fun finalizeHistoryBackfillAfterOriginalPhase() {
         historyBackfillRequested = false
         historyBackfillPhase = HistoryBackfillPhase.NONE
-        pendingHistoryBatch.clear()
+        historyImport.discardIncoming()
         if (phase == Phase.STREAMING) {
             setUiStatus(UiStatusKind.CONNECTED)
         }
         val importedGlucoseHistory = glucoseHistoryImportedRecordCount
         val unsupportedBatch = sawUnsupportedSnHistoryBatch
         sawUnsupportedSnHistoryBatch = false
-        if (importedGlucoseHistory > 0) {
+        val awaitingStorage = !unsupportedBatch && historyImport.hasUnsaved()
+        if (importedGlucoseHistory > 0 || awaitingStorage) {
             val cappedHistoryPolling = canUseHistoryPastEndedStatusCap()
             val liveGapStillPending = pendingLiveHistoryGap != null
             suppressAutomaticHistoryBackfill = false
             shouldRequestAuthenticatedHistoryBackfill = cappedHistoryPolling || liveGapStillPending
             receivedGlucoseThisConnection = true
-            lastGlucoseReceiptRealtimeMs = System.currentTimeMillis()
             phase = Phase.STREAMING
             setUiStatus(UiStatusKind.CONNECTED)
             scheduleForegroundNotificationRefresh()
-            scheduleNoDataWatchdog()
+            scheduleNoDataWatchdogIfNeeded()
             Log.i(
                 TAG,
                 "Authenticated glucose-history cycle completed with $importedGlucoseHistory imported records" +
                     when {
+                        awaitingStorage -> "; storing the rest is being retried"
                         liveGapStillPending -> "; live-gap repair remains pending"
                         cappedHistoryPolling -> "; capped history polling remains enabled"
                         else -> ""
@@ -3535,24 +3584,50 @@ class ICanHealthBleManager(
     }
 
     private fun flushImportedGlucoseHistory() {
-        val importedHistoryCount = pendingHistoryBatch.size
-        if (importedHistoryCount > 0) {
-            glucoseHistoryImportedRecordCount += importedHistoryCount
-        }
-        val storedDirectlyInRoom = flushHistoryBackfillBatch()
-        if (importedHistoryCount > 0 && SerialNumber.isNotBlank()) {
-            if (!storedDirectlyInRoom) {
-                Log.w(
-                    TAG,
-                    "Direct iCan Room history import failed; falling back to native/full sensor merge for $SerialNumber"
-                )
-                HistorySyncAccess.mergeFullSyncForSensor(SerialNumber)
-            } else {
-                if (hasObservedLiveMeasurement()) {
-                    scheduleForegroundNotificationRefresh()
-                }
+        historyImport.completeTransfer()
+        persistUnsavedHistory()
+    }
+
+    /** Returns how many records were stored; whatever could not be stored is kept and retried. */
+    private fun persistUnsavedHistory(): Int {
+        var repairOutcome: HistoryReplaceOutcome? = null
+        val savedCount = historyImport.persist(
+            write = { batch ->
+                repairOutcome = null
+                storeHistoryBatch(batch.records) { repairOutcome = it }
+            },
+            onPersisted = { batch ->
+                onHistoryBatchStored(batch.records, repairOutcome)
+                glucoseHistoryImportedRecordCount += batch.records.size
+            },
+        )
+        if (savedCount > 0) {
+            if (hasObservedLiveMeasurement()) {
+                scheduleForegroundNotificationRefresh()
             }
             UiRefreshBus.requestDataRefresh()
+        }
+        scheduleHistoryPersistRetry()
+        return savedCount
+    }
+
+    private fun scheduleHistoryPersistRetry() {
+        handler.removeCallbacks(historyPersistRetryRunnable)
+        if (stop || !historyImport.hasUnsaved()) {
+            return
+        }
+        val failures = historyImport.consecutiveFailures
+        val delayMs = ICanHealthHistoryPolicy.persistRetryDelayMs(failures)
+        historyPersistRetryAtMs = SystemClock.elapsedRealtime() + delayMs
+        Log.w(TAG, "iCan history for $SerialNumber is not stored yet (failures=$failures); retrying in ${delayMs / 1000L}s")
+        handler.postDelayed(historyPersistRetryRunnable, delayMs)
+    }
+
+    /** The handler's clock stops in deep sleep; a live reading proves the phone is awake. */
+    private fun retryUnsavedHistoryIfDue() {
+        if (historyImport.hasUnsaved() && SystemClock.elapsedRealtime() >= historyPersistRetryAtMs) {
+            handler.removeCallbacks(historyPersistRetryRunnable)
+            handler.post(historyPersistRetryRunnable)
         }
     }
 
@@ -3598,7 +3673,7 @@ class ICanHealthBleManager(
 
             HistoryBackfillPhase.NONE -> {
                 historyBackfillRequested = false
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 Log.d(TAG, "RACP response arrived with no active history phase")
             }
@@ -3614,7 +3689,7 @@ class ICanHealthBleManager(
             HistoryBackfillPhase.GLUCOSE -> {
                 historyBackfillRequested = false
                 historyBackfillPhase = HistoryBackfillPhase.NONE
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 if (useModernGlucoseHistoryCommand) {
                     useModernGlucoseHistoryCommand = false
@@ -3668,7 +3743,7 @@ class ICanHealthBleManager(
             HistoryBackfillPhase.ORIGINAL -> {
                 historyBackfillRequested = false
                 historyBackfillPhase = HistoryBackfillPhase.NONE
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 if (useModernOriginalHistoryCommand) {
                     useModernOriginalHistoryCommand = false
@@ -3686,7 +3761,7 @@ class ICanHealthBleManager(
 
             HistoryBackfillPhase.NONE -> {
                 historyBackfillRequested = false
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 suppressAutomaticHistoryBackfill = false
                 shouldRequestAuthenticatedHistoryBackfill = glucoseHistoryImportedRecordCount <= 0
@@ -3700,7 +3775,7 @@ class ICanHealthBleManager(
             HistoryBackfillPhase.GLUCOSE -> {
                 historyBackfillRequested = false
                 historyBackfillPhase = HistoryBackfillPhase.NONE
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 if (useModernGlucoseHistoryCommand) {
                     useModernGlucoseHistoryCommand = false
@@ -3718,7 +3793,7 @@ class ICanHealthBleManager(
             HistoryBackfillPhase.ORIGINAL -> {
                 historyBackfillRequested = false
                 historyBackfillPhase = HistoryBackfillPhase.NONE
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 if (useModernOriginalHistoryCommand) {
                     useModernOriginalHistoryCommand = false
@@ -3735,7 +3810,7 @@ class ICanHealthBleManager(
 
             HistoryBackfillPhase.NONE -> {
                 historyBackfillRequested = false
-                pendingHistoryBatch.clear()
+                historyImport.discardIncoming()
                 sawUnsupportedSnHistoryBatch = false
                 suppressAutomaticHistoryBackfill = true
                 shouldRequestAuthenticatedHistoryBackfill = false
@@ -3817,7 +3892,11 @@ class ICanHealthBleManager(
         if (historyBackfillRequested || charRacp == null) {
             return
         }
-        pendingHistoryBatch.clear()
+        historyImport.discardIncoming()
+        // Before the start sequence is chosen: what is still owed to Room need not be read again.
+        if (historyImport.hasUnsaved()) {
+            persistUnsavedHistory()
+        }
         sawUnsupportedSnHistoryBatch = false
         if (!canStartAuthenticatedHistoryBackfill()) {
             Log.i(TAG, "Deferring authenticated history fetch until active session metadata is available")
@@ -3879,84 +3958,62 @@ class ICanHealthBleManager(
         if (SerialNumber.isBlank() || sequenceNumber < 0) {
             return
         }
-        val entry = pendingHistoryBatch.getOrPut(sequenceNumber) { PendingHistoryReading(sequenceNumber = sequenceNumber) }
-        if (sampleTimeMs > 0L && entry.timestampMs <= 0L) {
-            entry.timestampMs = sampleTimeMs
+        historyImport.record(sequenceNumber, sampleTimeMs, glucoseMgdl, rawCurrent, temperatureC)
+    }
+
+    private fun storeHistoryBatch(
+        ordered: List<ICanHealthHistoryReading>,
+        onRepairOutcome: (HistoryReplaceOutcome?) -> Unit,
+    ): Boolean {
+        if (Applic.isWearable) {
+            return writeHistoryBatchToNative(ordered)
         }
-        if (glucoseMgdl.isFinite() && glucoseMgdl > 0f) {
-            entry.glucoseMgdl = glucoseMgdl
+
+        val timestamps = LongArray(ordered.size) { ordered[it].timestampMs }
+        val values = FloatArray(ordered.size) { ordered[it].glucoseMgdl }
+        val rawValues = FloatArray(ordered.size) { index ->
+            val record = ordered[index]
+            resolveRawLaneValue(record.rawCurrent, record.glucoseMgdl)
+                .takeIf { it.isFinite() && it > 0f } ?: 0f
         }
-        if (rawCurrent.isFinite() && rawCurrent > 0f) {
-            entry.rawCurrent = rawCurrent
+        Log.i(TAG, "Persisting ${ordered.size} direct RACP history readings to Room")
+        val intervals = timezoneRepairIntervals(timestamps)
+        val outcome = if (intervals.isEmpty()) {
+            null
+        } else {
+            replaceHistoryForTimezoneRepair(ordered, timestamps, values, rawValues, intervals)
         }
-        if (temperatureC.isFinite() && temperatureC > 0f) {
-            entry.temperatureC = temperatureC
+        onRepairOutcome(outcome)
+        return when (outcome) {
+            HistoryReplaceOutcome.FAILED -> false
+            HistoryReplaceOutcome.REPLACED, HistoryReplaceOutcome.NOTHING_TO_STORE -> true
+            null -> HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
         }
     }
 
-    private fun flushHistoryBackfillBatch(): Boolean {
-        if (SerialNumber.isBlank() || pendingHistoryBatch.isEmpty()) {
-            pendingHistoryBatch.clear()
-            return true
+    private fun onHistoryBatchStored(
+        ordered: List<ICanHealthHistoryReading>,
+        repairOutcome: HistoryReplaceOutcome?,
+    ) {
+        val lastRecord = ordered.last()
+        updatePersistedHistoryTailTimestamp(lastRecord.timestampMs)
+        rememberCoveredEdge(lastRecord.sequenceNumber, lastRecord.timestampMs)
+        if (!Applic.isWearable && repairOutcome == null) {
+            writeHistoryBatchToNative(ordered)
         }
-        val ordered = pendingHistoryBatch.values
-            .asSequence()
-            .filter { record ->
-                val hasTimestamp = record.timestampMs > 0L
-                val hasAuto = record.glucoseMgdl.isFinite() && record.glucoseMgdl > 0f
-                hasTimestamp && hasAuto
-            }
-            .sortedWith(compareBy<PendingHistoryReading> { it.timestampMs }.thenBy { it.sequenceNumber })
-            .toList()
-        pendingHistoryBatch.clear()
-        if (ordered.isEmpty()) {
-            return true
+        val liveGap = pendingLiveHistoryGap
+        if (liveGap != null && liveGap.isFullyCoveredBy(ordered.mapTo(HashSet<Int>()) { it.sequenceNumber })) {
+            pendingLiveHistoryGap = null
+            Log.i(
+                TAG,
+                "Filled iCan live gap ${liveGap.startSequence}..<${liveGap.endSequenceExclusive} " +
+                    "(${liveGap.readingCount} reading(s))"
+            )
         }
-        val timestamps = LongArray(ordered.size)
-        val values = FloatArray(ordered.size)
-        val rawValues = FloatArray(ordered.size)
-        ordered.forEachIndexed { index, record ->
-            timestamps[index] = record.timestampMs
-            values[index] = record.glucoseMgdl.takeIf { it.isFinite() && it > 0f } ?: 0f
-            rawValues[index] = resolveRawLaneValue(record.rawCurrent, record.glucoseMgdl)
-                .takeIf { it.isFinite() && it > 0f }
-                ?: 0f
+        if (repairOutcome == HistoryReplaceOutcome.REPLACED) {
+            markHistoryTimezoneRepairApplied()
+            runNativeRebuild()
         }
-        Log.i(TAG, "Persisting ${timestamps.size} direct RACP history readings to Room")
-        val repairIntervals = timezoneRepairIntervals(timestamps)
-        val repairOutcome = if (repairIntervals.isEmpty()) {
-            null
-        } else {
-            replaceHistoryForTimezoneRepair(ordered, timestamps, values, rawValues, repairIntervals)
-        }
-        val replaced = repairOutcome == HistoryReplaceOutcome.REPLACED
-        val stored = if (repairOutcome != null) {
-            repairOutcome != HistoryReplaceOutcome.FAILED
-        } else {
-            HistorySyncAccess.storeSensorHistoryBatchBlocking(SerialNumber, timestamps, values, rawValues)
-        }
-        if (stored) {
-            updatePersistedHistoryTailTimestamp(timestamps.last())
-            val lastRecord = ordered.last()
-            rememberCoveredEdge(lastRecord.sequenceNumber, lastRecord.timestampMs)
-            if (repairOutcome == null) {
-                mirrorHistoryBatchIntoNative(ordered)
-            }
-            val liveGap = pendingLiveHistoryGap
-            if (liveGap != null && liveGap.isFullyCoveredBy(ordered.mapTo(HashSet<Int>()) { it.sequenceNumber })) {
-                pendingLiveHistoryGap = null
-                Log.i(
-                    TAG,
-                    "Filled iCan live gap ${liveGap.startSequence}..<${liveGap.endSequenceExclusive} " +
-                        "(${liveGap.readingCount} reading(s))"
-                )
-            }
-            if (replaced) {
-                markHistoryTimezoneRepairApplied()
-                runNativeRebuild()
-            }
-        }
-        return stored
     }
 
     /**
@@ -3965,7 +4022,7 @@ class ICanHealthBleManager(
      * native stream that has to follow could not be recorded: the batch is an ordinary import then.
      */
     private fun replaceHistoryForTimezoneRepair(
-        ordered: List<PendingHistoryReading>,
+        ordered: List<ICanHealthHistoryReading>,
         timestamps: LongArray,
         values: FloatArray,
         rawValues: FloatArray,
@@ -3985,39 +4042,43 @@ class ICanHealthBleManager(
             outcome
         }
 
-    private fun mirrorHistoryBatchIntoNative(ordered: List<PendingHistoryReading>) {
+    private fun writeHistoryBatchToNative(ordered: List<ICanHealthHistoryReading>): Boolean {
         if (ordered.isEmpty() || SerialNumber.isBlank()) {
-            return
+            return false
         }
-        runCatching {
+        return runCatching {
             ensureNativeDataptr(SerialNumber)
             applyNativeSensorMetadata()
             val nativeWriteName = resolveExistingNativeSensorName(SerialNumber)
                 ?: nativeCreationSensorName(SerialNumber)
-            val newestTimestampSec = ordered.last().timestampMs / 1000L
-            synchronized(nativeStreamLock) {
-                val windowStartSec = prepareNativeMirrorWindow(nativeWriteName, newestTimestampSec)
-                val replayable = if (windowStartSec > 0L) {
-                    ordered.filter { (it.timestampMs / 1000L) >= windowStartSec }
-                } else {
-                    ordered
+            val accepted = synchronized(nativeStreamLock) {
+                val windowStartSec = prepareNativeMirrorWindow(
+                    nativeWriteName, ordered.last().timestampMs / 1000L, mayRebase = !Applic.isWearable,
+                )
+                val replayable = ordered.filter { it.timestampMs / 1000L >= windowStartSec }
+                fun write(record: ICanHealthHistoryReading): Boolean = Natives.addGlucoseStreamWithTemp(
+                    record.timestampMs / 1000L,
+                    record.glucoseMgdl / 10f,
+                    record.temperatureC,
+                    nativeWriteName,
+                )
+
+                val refused = replayable.filterNot(::write)
+                val accepted = replayable.isEmpty() || refused.size < replayable.size
+                if (Applic.isWearable && accepted && refused.isNotEmpty()) {
+                    // Retry any rows refused before the native store recovered mid-batch.
+                    val dropped = refused.count { !write(it) }
+                    if (dropped > 0) {
+                        Log.w(TAG, "Native store for $nativeWriteName refused $dropped history reading(s)")
+                    }
                 }
-                for (record in replayable) {
-                    if (record.timestampMs <= 0L) continue
-                    val glucoseMgdl = record.glucoseMgdl
-                    if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0f) continue
-                    Natives.addGlucoseStreamWithTemp(
-                        record.timestampMs / 1000L,
-                        glucoseMgdl / 10f,
-                        record.temperatureC,
-                        nativeWriteName
-                    )
-                }
+                accepted
             }
             finishNativeHistoryWrite(nativeWriteName)
+            accepted
         }.onFailure {
-            Log.stack(TAG, "mirrorHistoryBatchIntoNative", it)
-        }
+            Log.stack(TAG, "writeHistoryBatchToNative", it)
+        }.getOrDefault(false)
     }
 
     private fun finishNativeHistoryWrite(nativeWriteName: String) {
@@ -4034,7 +4095,7 @@ class ICanHealthBleManager(
     }
 
     /** Records that the native stream has to be rebuilt, and the temperatures [ordered] brought for it. */
-    private fun oweNativeRebuild(ordered: List<PendingHistoryReading>): Boolean {
+    private fun oweNativeRebuild(ordered: List<ICanHealthHistoryReading>): Boolean {
         val context = Applic.app ?: return false
         val temperatures = HashMap(ICanHealthNativeRebuild.load(context, SerialNumber).orEmpty())
         for (record in ordered) {
@@ -4136,7 +4197,7 @@ class ICanHealthBleManager(
     }
 
     /** What a rebuilt native stream holds, oldest first. Null when the stored readings could not be read. */
-    private fun storedReadingsForNativeRebuild(): List<PendingHistoryReading>? {
+    private fun storedReadingsForNativeRebuild(): List<ICanHealthHistoryReading>? {
         val windowMs = NATIVE_MIRROR_STREAM_WINDOW_SEC * 1000L
         val newestMs = HistorySyncAccess.getHistoryTimestampsForSensorOrNull(SerialNumber, 1L, Long.MAX_VALUE)
             ?.let { it.maxOrNull() ?: return emptyList() }
@@ -4146,7 +4207,7 @@ class ICanHealthBleManager(
             ?.filter { it.value.isFinite() && it.value > 0f }
             ?.sortedBy { it.timestamp }
             ?.mapTo(ArrayList()) {
-                PendingHistoryReading(sequenceNumber = -1, timestampMs = it.timestamp, glucoseMgdl = it.value)
+                ICanHealthHistoryReading(sequenceNumber = -1, timestampMs = it.timestamp, glucoseMgdl = it.value)
             }
         if (readings.isNullOrEmpty()) return null
         // Room is written asynchronously by the live path, after the stream. A reading missing there may
@@ -4159,7 +4220,7 @@ class ICanHealthBleManager(
             val deleted = HistoryRepositoryAccess.isMinuteDeletedByUserOrNull(SerialNumber, live.timestampMs)
                 ?: return null
             if (!deleted) {
-                readings += PendingHistoryReading(
+                readings += ICanHealthHistoryReading(
                     sequenceNumber = -1,
                     timestampMs = live.timestampMs,
                     glucoseMgdl = live.glucoseMgdl,
@@ -4762,7 +4823,11 @@ class ICanHealthBleManager(
         return if (startMs > 0L) startMs / 1000L else 0L
     }
 
-    private fun prepareNativeMirrorWindow(nativeName: String, anchorTimestampSec: Long): Long {
+    private fun prepareNativeMirrorWindow(
+        nativeName: String,
+        anchorTimestampSec: Long,
+        mayRebase: Boolean = true,
+    ): Long {
         if (nativeName.isBlank() || anchorTimestampSec <= 0L) {
             return 0L
         }
@@ -4770,6 +4835,9 @@ class ICanHealthBleManager(
             (anchorTimestampSec - (NATIVE_MIRROR_STREAM_WINDOW_SEC - SEQUENCE_UNIT_MS / 1000L)).coerceAtLeast(0L)
         if (windowStartSec <= 0L) {
             return 0L
+        }
+        if (!mayRebase) {
+            return windowStartSec
         }
         val sensorPtr = resolveNativeSensorPtr(SerialNumber)
         val currentNativeStartSec = if (sensorPtr != 0L) {
@@ -5297,7 +5365,9 @@ class ICanHealthBleManager(
         gattOpActive = false
         gattOpInFlight = null
         gattWriteInFlight = null
-        handler.removeCallbacks(noDataWatchdog)
+        resetNoDataWatchdog()
+        resetHistoryTransferProgress()
+        missingHistoryEdge = null
         handler.removeCallbacks(postMeasurementDisconnectRunnable)
         handler.removeCallbacks(sensorInfoFallbackRunnable)
         handler.removeCallbacks(mtuRequestTimeoutRunnable)
@@ -5330,7 +5400,7 @@ class ICanHealthBleManager(
         awaitingFreshStatusForHistoryBackfill = false
         glucoseHistoryImportedRecordCount = 0
         pendingHistoryBackfillReason = null
-        pendingHistoryBatch.clear()
+        historyImport.discardIncoming()
         lastAuthChallenge = null
         resetCorrectCodeState()
         clearPendingCalibration()
@@ -5430,17 +5500,53 @@ class ICanHealthBleManager(
         return service?.getCharacteristic(uuid)
     }
 
-    private fun scheduleNoDataWatchdog() {
-        handler.removeCallbacks(noDataWatchdog)
-        handler.postDelayed(noDataWatchdog, NO_DATA_WATCHDOG_MS)
+    private fun expectsLiveGlucose(): Boolean =
+        phase == Phase.STREAMING && !stop && !uiPaused &&
+            launcherState != ICanHealthConstants.LAUNCHER_STATE_WARMUP &&
+            (launcherState != ICanHealthConstants.LAUNCHER_STATE_ENDED ||
+                (canUseHistoryPastEndedStatusCap() && hasRecentOperationalData())) &&
+            hasConfirmedLiveSession()
+
+    private fun currentNoDataDeadline(): Long {
+        // An active RACP transfer can legitimately keep live notifications quiet. Give it
+        // time while new records arrive, without treating the transfer as live glucose.
+        val historyProgress = lastHistoryProgressElapsedMs
+        return if (historyBackfillRequested && historyProgress > 0L) {
+            maxOf(noDataDeadlineElapsedMs, historyProgress + NO_DATA_WATCHDOG_MS)
+        } else {
+            noDataDeadlineElapsedMs
+        }
+    }
+
+    private fun trackHistoryTransferProgress(sequenceNumber: Int) {
+        synchronized(decodedHistorySequences) {
+            if (!historyBackfillRequested || sequenceNumber < 0 || decodedHistorySequences[sequenceNumber]) return
+            decodedHistorySequences.set(sequenceNumber)
+            lastHistoryProgressElapsedMs = SystemClock.elapsedRealtime()
+        }
+    }
+
+    private fun resetHistoryTransferProgress() {
+        synchronized(decodedHistorySequences) {
+            decodedHistorySequences.clear()
+            lastHistoryProgressElapsedMs = 0L
+        }
     }
 
     private fun scheduleNoDataWatchdogIfNeeded() {
-        if (hasConfirmedLiveSession()) {
-            scheduleNoDataWatchdog()
-        } else {
-            handler.removeCallbacks(noDataWatchdog)
+        if (!expectsLiveGlucose()) {
+            resetNoDataWatchdog()
+            return
         }
+        val now = SystemClock.elapsedRealtime()
+        if (noDataDeadlineElapsedMs == 0L) noDataDeadlineElapsedMs = now + NO_DATA_WATCHDOG_MS
+        handler.removeCallbacks(noDataWatchdog)
+        handler.postDelayed(noDataWatchdog, (currentNoDataDeadline() - now).coerceAtLeast(0L))
+    }
+
+    private fun resetNoDataWatchdog() {
+        handler.removeCallbacks(noDataWatchdog)
+        noDataDeadlineElapsedMs = 0L
     }
 
     fun destroy() {

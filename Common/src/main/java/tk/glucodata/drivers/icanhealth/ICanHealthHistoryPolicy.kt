@@ -50,6 +50,8 @@ internal object ICanHealthHistoryPolicy {
         (NATIVE_REBUILD_RETRY_BASE_MS shl (consecutiveFailures - 1).coerceIn(0, 5))
             .coerceAtMost(NATIVE_REBUILD_RETRY_MAX_MS)
 
+    fun persistRetryDelayMs(consecutiveFailures: Int): Long = nativeRebuildRetryDelayMs(consecutiveFailures)
+
     fun liveGapBetween(
         previousSequence: Int,
         currentSequence: Int,
