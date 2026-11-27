@@ -46,6 +46,29 @@ instead, which leaves about 15 % of sweep records unclaimed.
 - **D1 and D2 mismatches.** Re-fit them with the phase fixed.
 - **The noise-break half.** It comes from task 02; do not decode it here. Until task 02 lands, keep `exact = false` for the noise part. Candidate: any record where task 02's partial model cannot rule the break out.
 
+## Upstream glucose dependency for Task 01
+
+In the mixed replay with vendor revised current supplied, 59 of 900 runs
+still differed in the error-16 plasma statistic. Every condition and latch
+matched. The plasma filter uses rounded glucose. On seed 202, run 197,
+input 528 (sequence 2030), the same filter produced 177 from the vendor's
+rounded readings and 176 from the open engine's. See the
+[Task 01 replay results](../error-16-evidence.md#replay-after-the-statistic-and-rule-fixes).
+
+Task 05 owns investigation of the upstream glucose calculation. Compare
+which accepted records contribute to the day 3–7 sensitivity reference,
+then check its sum and count at the day-seven transition. Follow any
+divergence through sensitivity compensation, corrected current and final
+glucose. The reference skip and post-day-seven phase are starting points
+for the investigation. The replay establishes the glucose input difference,+and the first differing upstream stage remains open.
+
+From the repository root, with the oracle environment set up as in Task 00:
+
+```sh
+python3 tools/caresens-oracle/research/err16_replay.py \
+  --sweep-case 202 197 --revised-current --details
+```
+
 ## Datasets and scripts
 
 - `c0runs.pkl` (`e273.py`, 80 noisy-dropout runs) holds D, C, raw max/mean, 5min, R and init per record.
