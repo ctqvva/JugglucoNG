@@ -53,13 +53,13 @@ Confirmed:
 
 Confirmed:
 
-- **Inputs** (e213, e214, e220, e222; 100 % on 5 scenarios including gaps):
+- **Inputs** (e213, e214, e220, e222 and the [source experiment](error-16-evidence.md#the-actual-isf-input)):
   - `W` = .19203786935092992, .16522460111444, .11844988518211, .0716100935714, .03473077453465, .01186996852659, .00419148479069, .01186996852659, .03473077453465, .0716100935714, .11844988518211, .16522460111444 (newest first, sum 1; `err16lib.py`).
   - `P` (`err16_CGM_plasma`) = round(Σ W·round(R)) over the last 12 accepted records.
-  - `ISF` (`err16_CGM_ISF_smooth`) = round(Σ W·5min·100/slope100).
+  - `ISF` (`err16_CGM_ISF_smooth`) = round(Σ W·revised current·100/slope100). Black-box replay identifies the revised-current history at offset 48888 from the error-128 path. It differs from the ordinary 5-minute current on low-signal recovery records.
   - Both are NaN unless those 12 records have consecutive sequence numbers; on rejected records the debug shows 0.
   - P is not affected by the history smoothing (`smooth_sig_in`).
-  - ISF does not depend on the plasma history, the Kalman state or `err_glu_arr`.
+  - Direct perturbation identifies the revised-current array as the filter input. The earlier tests on regular signals could not establish whether stages upstream of that array depend on glucose.
 - **Update cadence** (e201): plasma and ISF update every record from seq 12. Other statistics start updating at:
 
   | Statistic | From seq |
@@ -70,7 +70,7 @@ Confirmed:
   | `roc_steady`, `roc_min` | 1101 |
   | mean slope and rsq | 968 |
 
-- **Conditions.** `err16_condi[7]` is evaluated every record. Only conditions 0, 1 and 2 were ever seen, in 160 decaying-sensitivity runs (`err16_ds.npz`, `err16_tr.pkl`). Conditions 0 and 2 start from seq 1728 (day 6), condition 1 from seq 2019 (day 7).
+- **Conditions.** Only conditions 0, 1 and 2 fired on empty-list replay. They use the newest 24 entries in the statistic histories and the pre-record diabetes profile. [Task 01 evidence](error-16-evidence.md) gives the recovered rules and remaining history differences. Conditions 0 and 2 were observed from seq 1728, and condition 1 was observed at seq 2018.
 - **Where it fires** (`err_survey.py`, `err_survey.json`): naturally in 7 of 268 runs:
   - fixtures `life-lot2-sensitivity-loss` (first record 2637), `holdout-life-other-lot1` (1893) and `holdout-late-takeover-lows` (1948)
   - random runs 67, 101 and 175 of the survey
@@ -90,11 +90,10 @@ Rejected:
   - condition 0 ≈ `trend_min_ratio` ≤ −45.5 ∧ `trend_mean_diff` ≤ −77.8 …
 - Many transitions in `err16_tr.pkl` coincide with no threshold crossing of any exposed scalar.
 
-Not explored:
+Still open:
 
-- How each statistic (`trend_min/mode/mean`, `roc_*`, `*_max(_early)`, slope, rsq, ratio, diff) is computed from the 865-entry state arrays.
-- Perturbing the `err6_CGM_*` device parameters. Defaults: rpd 0.55, slp −0.2, low3d 24/0.32, low1d 24/0.3, prct 30/50/70, day 1/3, BLE_bad 12/96, poly2 0.7. They look like error 16's thresholds.
-- Conditions 3–6. The state names (`err16_cal_cons_*`, `err16_cal_day_*`) and `err6_cal_*` point at user calibrations; JugglucoNG passes no calibration list.
+- Reproducing the upstream revised current and the statistic updates during irregular history in the open engine.
+- Conditions 3–6 stayed inactive with empty lists. The state names (`err16_cal_cons_*`, `err16_cal_day_*`) and `err6_cal_*` point at user calibrations. Their behavior with a calibration list remains unknown.
 
 ## Error 4 (signal lost), conditions other than 0, and the delay flags
 

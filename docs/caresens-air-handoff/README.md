@@ -30,13 +30,13 @@ in `tasks/`.
 | # | Task | Bit / output | Status | Depends on |
 |---|---|---|---|---|
 | 00 | [Shared infrastructure](tasks/00-shared-infrastructure.md): device-parameter survey, per-bit sweep, engine conventions | all | complete; bits 8 and 128 unexercised | — |
-| 01 | [Error 16](tasks/01-error-16.md), sensitivity / end of life | 16 | inputs exact, rules open | 00 A (`err6_*`), 00 C |
+| 01 | [Error 16](tasks/01-error-16.md), sensitivity / end of life | 16 | rules verified, research prototype; mixed replay still differs | 00, revised-current stage in 07 |
 | 02 | [Error 1](tasks/02-error-1.md), noise, plus the noise break | 1, type 4 input | triggers known | 00 A (`err1_*`), 00 C |
 | 03 | [Error 2](tasks/03-error-2.md), sustained high | 2 | partly known | 00 A (`err2_*`), 00 C |
 | 04 | [Error 4 conditions 1–4](tasks/04-error-4-conditions.md) | 4 | condition 0 done | 00 C |
 | 05 | [Data type 4](tasks/05-data-type-4.md) and the error 4 delay tests | type 4, sensitivity reference | identity exact, phase-3 open | 02 (noise break), 00 C |
 | 06 | [Error 8](tasks/06-error-8.md) | 8 | never triggered | 00 A (`err345_*`) |
-| 07 | [Error 128](tasks/07-error-128.md) | 128 | never triggered | 00 A (`cal_noise`, `errcode_version`) |
+| 07 | [Error 128](tasks/07-error-128.md) | 128 | bit never triggered; revised current is active | 00 A (`cal_noise`, `errcode_version`) |
 | 08 | [Record filling](tasks/08-record-filling.md) after a 480–1379 s step | extra outputs | trigger and linearity known | — (API change, see below) |
 | 09 | [Takeover during dropouts](tasks/09-takeover-during-dropouts.md) | minute currents | one sweep run differs | — |
 
@@ -89,7 +89,11 @@ Remove a stand-in only in the task that replaces it.
   - The `filled` cut-off belongs to task 08.
 - Fixtures: add new names; never change existing specs. Regenerate only the new files and `index.txt`.
 
-**9. Docs.** Each task updates its own row in the status table of `../caresens-air-open-calibration.md` and its section in `findings.md`.
+**9. Revised current.** Task 07 owns the current-revision stage. Task 01
+consumes its per-record current for the ISF filter. The stage can revise
+current on a type-0 record while bit 128 stays clear.
+
+**10. Docs.** Each task updates its own row in the status table of `../caresens-air-open-calibration.md` and its section in `findings.md`.
 
 Tasks 01, 02, 03, 04, 06, 07, 08 and 09 can be investigated in parallel; their
 investigation needs only the harness. Engine changes should land after task
@@ -122,7 +126,9 @@ suppresses for physical reasons.
 ### Optional: vendor parity only
 
 - **Error 2** (sustained high above about 800 mg/dL). It is far above the displayed range, so an own "out of range" handling suffices.
-- **Errors 8 and 128.** They were never triggered with the default device block. Parity matters only if real device blocks or logs show them; check the shadow logs first.
+- **Emitted bits 8 and 128.** Neither bit appeared in the tests. Error-16
+  vendor parity still needs the upstream revised-current behavior from
+  Task 07, independently of whether bit 128 is emitted.
 - **Record filling.** The vendor's interpolated readings for missed records after a 480–1379 s step are not measurements. Needed: the engine must stay stable and sane after such a step, which the sweep does not yet compare (task 08, items 3–4). Exact fill values are optional.
 - Error 4 conditions 1–4 and the exact D-test phases, beyond the conservative stand-ins.
 - Bit-exact sample currents (±4 ulp today).

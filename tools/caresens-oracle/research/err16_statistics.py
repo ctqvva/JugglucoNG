@@ -13,7 +13,8 @@ def percentile_bounds(samples):
         return np.nan, np.nan
     rank = lambda pct: max(0, (len(values) * pct + 50) // 100 - 1)
     low, high = values[rank(20)], values[rank(80)]
-    mean = values[(values >= low) & (values <= high)].mean()
+    band = values if low == high else values[(values >= low) & (values <= high)]
+    mean = band.mean()
     return values[rank(10)], mean
 
 
@@ -79,10 +80,11 @@ def verify_fixture(name):
     for key, count in compared.items():
         bad = differences.get(key, [])
         print(f'  {key:20} {len(bad)}/{count} mismatches', f'first {bad[:5]}' if bad else '')
+    return not differences
 
 
 def verify_rate_probe():
-    replay = Replay(98, 1728)
+    replay = Replay.from_decay(98, 1728)
     _, debug, state = replay.step([(PREFIX + 'smooth', 862, 500.0)])
     signal = state[PREFIX + 'smooth'][-7:]
     assert debug[PREFIX + 'roc_value'] == np.ptp(signal)
@@ -96,9 +98,9 @@ def main():
     if REF.sha256 not in co.KNOWN_REFERENCE:
         parser.error(f'unexpected reference SHA-256: {REF.sha256}')
     verify_rate_probe()
-    for name in args.fixtures:
-        verify_fixture(name)
+    passed = [verify_fixture(name) for name in args.fixtures]
+    return 0 if all(passed) else 1
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

@@ -10,7 +10,13 @@ EARLY_PROFILE = 'diabetes_before_7days_flag'
 
 
 class Replay:
-    def __init__(self, run, sequence):
+    def __init__(self, device, state, record):
+        self.device = device
+        self.state = state
+        self.input = record
+
+    @classmethod
+    def from_decay(cls, run, sequence):
         spec = list(decay_specs())[run]
         device = co.default_device()
         for name in ('slope100', 'vref', 'eapp'):
@@ -18,9 +24,8 @@ class Replay:
         inputs = co.records(*scenarios.generate(**spec))[:sequence]
         if len(inputs) == 0 or inputs[-1]['seq_number'] != sequence:
             raise ValueError(f'Sequence {sequence} is outside decay run {run}')
-        _, _, _, self.state, _ = REF.run(device, inputs[:-1])
-        self.device = device
-        self.input = inputs[-1:]
+        _, _, _, state, _ = REF.run(device, inputs[:-1])
+        return cls(device, state, inputs[-1:])
 
     def step(self, changes=()):
         state = self.state.copy()
@@ -39,7 +44,7 @@ def main():
     args = parser.parse_args()
     if REF.sha256 not in co.KNOWN_REFERENCE:
         parser.error(f'unexpected reference SHA-256: {REF.sha256}')
-    replay = Replay(args.run, args.sequence)
+    replay = Replay.from_decay(args.run, args.sequence)
     output, debug, after = replay.step()
     original = debug['err16_condi']
     print(f'run {args.run} seq {args.sequence}: {original.tolist()}, bit 16 = {bool(output["errcode"] & 16)}')

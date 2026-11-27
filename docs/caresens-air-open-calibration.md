@@ -46,20 +46,21 @@ The details, rejected hypotheses and scripts are in
   The [device-parameter survey](caresens-air-handoff/device-parameters.md)
   found no changes in the six exercised bits. Bits 8 and 128 never fired in
   the survey.
-- **Error 16** (sensitivity, from day 6): its inputs are exact. Two 12-tap
+- **Error 16** (sensitivity, from day 6): two 12-tap
   filters over the last 12 accepted, consecutive records with weights
   .19204, .16522, .11845, .07161, .03473, .01187, .00419, .01187, .03473,
   .07161, .11845, .16522 (newest first): over rounded glucose ("plasma"), and
-  over the 5-minute current × 100 / slope100 ("ISF"), both rounded. Seven
-  conditions over three-day statistics of these (minimum, mode, mean, rate);
-  only three were seen. Their decision rules were not separable from the
-  exposed statistics.
+  over the noise-revised current × 100 / slope100 ("ISF"), both rounded.
+  Three conditions fire without calibrations in the recorded tests. The
+  [Task 01 evidence](caresens-air-handoff/error-16-evidence.md) verifies
+  their decision rules from the vendor histories and documents differences
+  in the Kotlin research prototype when it generates those histories.
 - **Error 2** fired only for a sustained signal above about 800 mg/dL
   with a 12-record CV below about 10 %.
 - **Error 1** (noise) and its break flag follow a noise statistic against
   adaptive thresholds; not decoded. The break flag also sets data type 4.
-- **Errors 8 and 128**: no input found that triggers them (signal shapes,
-  temperature −5 to 50 °C, sequence and clock faults).
+- **Errors 8 and 128**: no input found that emits either bit. The
+  error-128 path can still revise the current used by error 16.
 
 ## How it was verified
 
@@ -67,8 +68,8 @@ The reference is the arm64 `libCALCULATION.so` the app ships
 (sha256 `0bc4e28b…02d4cf`), run in-process on an arm64 Mac by
 `tools/caresens-oracle`. It is supplied locally and never committed.
 
-- **Fixtures** (`Common/src/test/resources/caresens`, 760 KB): vendor outputs
-  for 20 scenarios, regenerated inputs: three 15-day wears (both lot types,
+- **Fixtures** (`Common/src/test/resources/caresens`): vendor outputs
+  for 21 scenarios, regenerated inputs: four 15-day wears (both lot types,
   varying temperature, sensitivity loss), sustained lows and highs, fast
   swings, temperature steps, gaps with clock jitter, contact spikes, a clock
   jump, start in the middle of a wear, warm-up, invalid factory values, signal

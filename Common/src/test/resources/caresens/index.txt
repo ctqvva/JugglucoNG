@@ -13,6 +13,7 @@ development warmup-fast-changes
 development invalid-parameters
 holdout holdout-life-other-lot1
 holdout holdout-life-lot2-decay
+holdout holdout-err16-decay
 holdout holdout-fast-swings
 holdout holdout-gaps-spikes
 holdout holdout-late-takeover-lows

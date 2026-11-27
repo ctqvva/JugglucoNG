@@ -56,8 +56,9 @@ class Comparison:
     withheld_error: int
 
 
-def engine_jar():
-    sources = sorted(os.path.join(ENGINE, f) for f in os.listdir(ENGINE) if f.endswith('.kt') and f != SHADOW) + [CLI]
+def engine_jar(cli=CLI, extra_sources=()):
+    engine_sources = sorted(os.path.join(ENGINE, f) for f in os.listdir(ENGINE) if f.endswith('.kt') and f != SHADOW)
+    sources = [*engine_sources, cli, *extra_sources]
     digest = hashlib.sha1(b''.join(open(s, 'rb').read() for s in sources)).hexdigest()[:12]
     jar = os.path.join(tempfile.gettempdir(), 'caresens-engine-%s.jar' % digest)
     if not os.path.exists(jar):
@@ -69,18 +70,18 @@ def engine_jar():
     return jar
 
 
-def run_engine(jar, params, recs, vendor_state=None):
+def run_engine(jar, params, recs, vendor_state=None, *, main_class='EngineCliKt', result_type=RESULT):
     header = struct.pack('<fffii', *params, len(recs), 0 if vendor_state is None else 1)
     data = header + (b'' if vendor_state is None else vendor_state.tobytes()) + recs.tobytes()
     java_home = os.environ.get('JAVA_HOME')
     java = os.environ.get('JAVA') or (os.path.join(java_home, 'bin', 'java') if java_home else 'java')
-    proc = subprocess.run([java, '-cp', jar, 'EngineCliKt'], input=data, capture_output=True)
+    proc = subprocess.run([java, '-cp', jar, main_class], input=data, capture_output=True)
     if proc.returncode:
         raise RuntimeError(f'Engine CLI exited with {proc.returncode}: {proc.stderr.decode(errors="replace")}')
     out = proc.stdout
-    if len(out) != len(recs) * RESULT.itemsize:
+    if len(out) != len(recs) * result_type.itemsize:
         raise ValueError(f'Engine CLI returned {len(out)} bytes for {len(recs)} records')
-    return np.frombuffer(out, RESULT)
+    return np.frombuffer(out, result_type)
 
 
 def random_spec(r):
