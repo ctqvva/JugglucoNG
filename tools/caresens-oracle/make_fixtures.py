@@ -14,6 +14,7 @@ The holdout set uses seeds, factory values and scenario mixes that were not
 used while the engine was written. Check it only to confirm a change; do not
 tune against it.
 """
+import argparse
 import gzip
 import hashlib
 import os
@@ -114,13 +115,19 @@ def write_vendor_states(ref):
 
 
 def main():
+    specs = DEVELOPMENT | HOLDOUT
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--fixture', action='append', choices=tuple(specs),
+                        help='generate only this fixture and update the index (repeatable)')
+    args = parser.parse_args()
     ref = co.Reference()
     if ref.sha256 not in co.KNOWN_REFERENCE:
         print('warning: reference library %s is not the one the fixtures were made with' % ref.sha256)
     os.makedirs(OUT, exist_ok=True)
-    for name, spec in list(DEVELOPMENT.items()) + list(HOLDOUT.items()):
-        write(ref, name, spec)
-    write_vendor_states(ref)
+    for name in args.fixture or specs:
+        write(ref, name, specs[name])
+    if args.fixture is None:
+        write_vendor_states(ref)
     with open(os.path.join(OUT, 'index.txt'), 'w') as f:
         for name in DEVELOPMENT:
             f.write('development %s\n' % name)

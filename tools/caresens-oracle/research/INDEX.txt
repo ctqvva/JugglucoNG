@@ -1,5 +1,5 @@
 # Auto-generated topic index: script, harness it imports, keywords found, first line.
-# harness sc = current (tools/caresens-oracle), legacy = lab.py/gen.py (older loader, oracle.c).
+# harness sc = current (tools/caresens-oracle), legacy = lab.py/gen.py via the current oracle loader.
 e1.py            legacy type4,takeover,kalman,trend,loess/minutes,temperature,rescale,drift,rejection np.set_printoptions(linewidth=200,precision=8,suppress=True)
 e2.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=170,precision=8,suppress=True)
 e3.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=190,precision=6,suppress=True)
@@ -302,6 +302,7 @@ ref.py           legacy takeover,kalman,level,trend,loess/minutes,temperature,re
 rules.py         -      takeover                                                     def conj(X,y,names,steps=4):
 sc.py            -      takeover                                                     assert os.environ.get('CARESENS_REFERENCE_LIB'), 'set CARESENS_REFERENCE_LIB to the arm64 
 state_map.py     -      takeover                                                     """Prints the byte offset, type and length of every field of the vendor's
+device_parameter_survey.py sc all error bits                                         Perturb one packed device parameter at a time and report bit sensitivity.
 stress.py        sc     takeover                                                     BASE=dict(seed=21,readings=1500,start=1,lo=80,hi=200,knot_min=30,knot_max=120,noise=12)
 stress2.py       sc     takeover                                                     def runT(fn):
 t.py             -      takeover                                                     v=Vend(); e=Algo(); v.reset(defdev()); e.reset(defdev())

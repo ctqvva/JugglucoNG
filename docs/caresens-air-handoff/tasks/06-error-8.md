@@ -33,7 +33,10 @@ calibration list, and records from BLE.
 
 ## Suggested next steps
 
-1. **Read task 00 A's table.** If an `err345_*` field changes bit 8 or `err8_condi`, the sentinel defaults may disable it. Set `err345_range` ≥ 0 or `err345_md` > 0 and look for firing.
+1. The [task 00 survey](../device-parameters.md) saw no bit-8 trigger. It
+   perturbed `err345_md` around zero and scaled the negative default
+   `err345_range`. A nonnegative `err345_range` and changes to the debug
+   conditions `err8_condi` remain avenues for a targeted trigger search.
 2. **Perturb the state.** Set `err8_result_prev = 1` and see whether the latch is permanent or shared, which shows its family. Also set the `err4_*` histories to extreme values.
 3. **Try signal shapes not yet tried:**
    - a frozen ADC (an identical value for hours)

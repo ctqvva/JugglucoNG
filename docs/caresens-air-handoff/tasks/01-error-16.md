@@ -82,13 +82,14 @@ summaries; that is a guess from the size.
   | BLE_bad | {12, 96} |
   | poly2 | 0.7 |
 
-  The names fit the statistics: percentiles, low over 3 days and over 1 day, a quadratic. Task 00 A answers which of them are read. Do that first.
+  The names fit the statistics: percentiles, low over 3 days and over 1 day, a quadratic. The [task 00 survey](../device-parameters.md) found unchanged bit-16 traces for every `err6_*` variation.
 - **Calibration list.** Conditions 3–6 probably need one; JugglucoNG never passes it.
 - Not data type 4: ISF uses the 5-minute current, which type 4 does not change.
 
 ## Suggested next steps
 
-1. **Read task 00 A's table** for `err6_*`. If the parameters are read, bisect each threshold on a firing fixture by moving the parameter until the first firing record moves.
+1. Use the `err6_*` defaults as candidate thresholds. Revisit device-parameter
+   sensitivity if a new case changes an internal condition or the emitted bit.
 2. **Decode each statistic from its state array** by state perturbation, the same way plasma was decoded:
    - take a snapshot before record k
    - set one element of, for example, `err16_CGM_ISF_trend_min_value_arr`

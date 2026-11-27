@@ -12,6 +12,7 @@ import hashlib
 import os
 import re
 import subprocess
+import tempfile
 
 import numpy as np
 
@@ -72,6 +73,7 @@ class Reference:
         lib.oracle_error.restype = ctypes.c_char_p
         lib.oracle_error.argtypes = [ctypes.c_void_p]
         lib.oracle_run.argtypes = [ctypes.c_void_p] * 9 + [ctypes.c_int]
+        lib.oracle_run.restype = None
         self.handle = lib.oracle_open(path.encode())
         err = lib.oracle_error(self.handle)
         if err:
@@ -85,7 +87,10 @@ class Reference:
         src = os.path.join(HERE, 'oracle_host.c')
         out = os.path.join(cache, 'liboracle-%s.so' % hashlib.sha1(open(src, 'rb').read()).hexdigest()[:12])
         if not os.path.exists(out):
-            subprocess.run(['cc', '-O1', '-shared', '-fPIC', '-o', out, src, '-lm'], check=True)
+            with tempfile.TemporaryDirectory(dir=cache) as work:
+                temporary_lib = os.path.join(work, 'liboracle.so')
+                subprocess.run(['cc', '-O1', '-shared', '-fPIC', '-o', temporary_lib, src, '-lm'], check=True)
+                os.replace(temporary_lib, out)
         return ctypes.CDLL(out)
 
     def run(self, device, records, state=None, snapshots=False):

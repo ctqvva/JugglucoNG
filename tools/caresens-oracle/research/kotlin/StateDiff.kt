@@ -13,7 +13,7 @@ fun main(a: Array<String>) {
         val adc = IntArray(30) { b.short.toInt() and 0xffff }
         e.process(CareSensAirCalibration.Record(seq, time, adc, b.double))
     }
-    val v = CareSensAirVendorState.read(File(a[1]).readBytes())
+    val v = CareSensAirVendorState.read(File(a[1]).readBytes(), p)
     for (f in CareSensAirCalibrationState::class.java.declaredFields) {
         f.isAccessible = true
         val x = f.get(e.state); val y = f.get(v)

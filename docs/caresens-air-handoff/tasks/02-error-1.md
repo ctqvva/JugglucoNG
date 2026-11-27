@@ -56,7 +56,8 @@ Debug (989–1112): `err1_i_sse_d_mean`, the thresholds, `err1_is_contact_bad`,
   | multi | {10, 10} |
   | current_avg_diff | 1e-15 |
 
-  Task 00 A first.
+  The [task 00 survey](../device-parameters.md) found unchanged bit-1 traces
+  for these variations on its noise trigger. The noise-break sub-test remains open.
 - **Minute buffers.** `err1_SG_1min` / `err1_inA_1min` hold 180 minutes (36 records) of per-minute values, probably the engine's `minuteCurrents` and a per-minute glucose. Check which.
 - **Thresholds.** `th_sse_d_mean1/2` adapt over 4 h (`i_sse_d_mean4h[100]`).
 

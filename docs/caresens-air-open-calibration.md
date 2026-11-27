@@ -43,8 +43,9 @@ The details, rejected hypotheses and scripts are in
 - **All error bits** are evaluated per record. Errors 1, 2 and 4 stay set
   only while records are accepted and consecutive; errors 16 and 32 stay set
   to the end (a rejected record reports no error 16, but error 32).
-  Thresholds in the device block's `err*` fields (sent by the transmitter)
-  were changed without effect on errors 4 and 32; the others were not tested.
+  The [device-parameter survey](caresens-air-handoff/device-parameters.md)
+  found no changes in the six exercised bits. Bits 8 and 128 never fired in
+  the survey.
 - **Error 16** (sensitivity, from day 6): its inputs are exact. Two 12-tap
   filters over the last 12 accepted, consecutive records with weights
   .19204, .16522, .11845, .07161, .03473, .01187, .00419, .01187, .03473,
@@ -80,7 +81,7 @@ The reference is the arm64 `libCALCULATION.so` the app ships
 - **Randomised sweep** (`tools/caresens-oracle/differential.py`): random factory
   values over the whole accepted range, noise, glucose shapes, temperature
   modes, gaps, jitter, clock jumps, spikes, sensitivity loss and start
-  sequence and signal dropouts. Last sweeps, on 47549cd25:
+  sequence and signal dropouts. The previous larger sweeps, on 47549cd25:
   - **Fresh runs**, seeds 101 and 202: 1 of 600 differs. The trend is withheld by the noise part of the low-signal flag, which is not reproduced.
   - **Runs taking over vendor state** at a random record, seeds 7 and 8: 1 of 300 differs. The minute currents differ after a takeover during dropouts; not investigated.
   - **Not claimed exact:** about 15 % of records, mostly the part after day 7 of dropout runs, where the low-signal flag may have changed the sensitivity reference.
@@ -88,11 +89,12 @@ The reference is the arm64 `libCALCULATION.so` the app ships
   Two rules were found this way after the fixtures passed: the diabetes level
   thresholds and the unit of the timing-error window.
 
-  The sweep's verdict leaves out a lot:
-  - It compares only error bits 4, 32 and 64, so errors 1, 2, 8, 16 and 128, and the readings the vendor withholds under them, are not counted.
-  - It skips records the engine reports as not exact.
-  - It stops at the first filled record.
-  - It stops comparing bit 4 once one of its unreproduced conditions has fired.
+  The updated [task 00 sweep](caresens-air-handoff/tasks/00-shared-infrastructure.md)
+  reports all eight bits and vendor-withheld, engine-publication-eligible
+  inputs. By default only bits 4, 32 and 64 affect the bit verdict. Inexact
+  records remain in the bit and publication counts, but are excluded from
+  exact numerical checks. All comparisons stop at the first filled record.
+  Unreproduced error 4 conditions exclude only bit 4 from scoring.
 - **Intermediates**: the harness compares minute currents, corrected current,
   factory glucose, rescaled glucose, history and trend separately, so a
   difference points at the stage that causes it.

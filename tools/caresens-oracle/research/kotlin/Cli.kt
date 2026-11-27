@@ -9,7 +9,10 @@ fun main() {
     val p = CareSensAirFactoryParameters(b.float, b.float, b.float); val n = b.int; val restoreAt = b.int
     val vendorAt = b.int
     var e = CareSensAirCalibration(p)
-    if (vendorAt >= 0) { val st = ByteArray(117312); b.get(st); e = CareSensAirCalibration(p, CareSensAirVendorState.read(st)) }
+    if (vendorAt >= 0) {
+        val st = ByteArray(CareSensAirVendorState.SIZE); b.get(st)
+        e = CareSensAirCalibration(p, CareSensAirVendorState.read(st, p))
+    }
     val out = ByteBuffer.allocate(n * 200).order(ByteOrder.LITTLE_ENDIAN)
     for (k in 0 until n) {
         if (k == restoreAt) e = CareSensAirCalibration(p, CareSensAirCalibrationState.fromBytes(e.state.toBytes())!!)

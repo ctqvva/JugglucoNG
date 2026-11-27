@@ -26,9 +26,9 @@ reachable.
 
 ## Known
 
-These experiments use the legacy harness: `lab.py` and `o.py` with
-`oracle_step`, which builds `liboracle.dylib` from `oracle.c`. They are in
-`tools/caresens-oracle/research`:
+These experiments use `lab.py`, `o.py` and `oracle_step` via the shared
+loader. See the [research setup](../../../tools/caresens-oracle/research/README.md).
+The scripts are in `tools/caresens-oracle/research`:
 
 | Script | What it does |
 |---|---|

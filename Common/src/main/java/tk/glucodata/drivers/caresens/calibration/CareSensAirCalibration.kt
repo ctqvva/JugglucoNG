@@ -102,11 +102,10 @@ class CareSensAirCalibration(
         if (s.contactCheckStart != 0 && s.count >= s.contactCheckStart && contactLost(record.adc)) {
             timing(record, s)
             s.rejectedSinceAccepted = true
-            // Errors held from record to record end at a rejected record.
-            s.lowError = false
-            s.lowRawCount = 0
+            // Rejection hook for detectors with per-accepted-record state.
+            CareSensAirError4.reject(s)
             return Result(
-                record.sequence, record.sequence, record.timeSeconds, 0.0, 0.0, if (s.timingError) ERROR_TIMING else 0, 2,
+                record.sequence, record.sequence, record.timeSeconds, 0.0, 0.0, detectorErrors(s, accepted = false), 2,
                 IntArray(6), DoubleArray(6), true, EMPTY_INTERMEDIATES,
             )
         }
@@ -189,22 +188,10 @@ class CareSensAirCalibration(
         s.lastGlucose = glucose
         s.hasLastGlucose = true
 
-        // Error 4 (signal lost): the highest raw 10 s current of the last four
-        // accepted records with consecutive sequence numbers stays below a
-        // limit, stricter in the first three days. It stays set while records
-        // keep following each other; a rejected record or a missed sequence
-        // number ends it.
+        // Accepted-record detector hook, after Kalman and before rotating history.
         var rawMax = currents[0]
         for (v in currents) if (v > rawMax) rawMax = v
-        if (!consecutive) s.lowRawCount = 0
-        System.arraycopy(s.lowRawMax, 1, s.lowRawMax, 0, 3)
-        s.lowRawMax[3] = rawMax
-        s.lowRawCount = min(4, s.lowRawCount + 1)
-        var highest = Double.NEGATIVE_INFINITY
-        for (v in s.lowRawMax) if (v > highest) highest = v
-        val ratio = highest / parameters.slope100.toDouble()
-        val lowCurrent = s.lowRawCount == 4 && if (seq < 865) highest < 0.5 && ratio < 0.1 else highest < 0.7 && ratio < 0.2
-        s.lowError = lowCurrent || (s.lowError && consecutive)
+        CareSensAirError4.update(s, seq, consecutive, rawMax, parameters.slope100)
 
         // The reference's low-signal flag (data type 4) is only partly known.
         // Every decoded part of it needs one of these, so without them the
@@ -238,13 +225,15 @@ class CareSensAirCalibration(
         s.previousSequence = seq
         s.previousTime = record.timeSeconds
         s.count++
-        val errorCode = (if (s.timingError) ERROR_TIMING else 0) or (if (s.lowError) ERROR_LOW else 0)
         return Result(
-            seq, seq, record.timeSeconds, glucose, trend, errorCode, 0,
+            seq, seq, record.timeSeconds, glucose, trend, detectorErrors(s, accepted = true), 0,
             s.historySequence.copyOfRange(3, 9), s.history.copyOfRange(3, 9), exact,
             Intermediates(minute, corrected, driftCurrent, factory, rescaled, s.diabetesLevel),
         )
     }
+
+    private fun detectorErrors(s: CareSensAirCalibrationState, accepted: Boolean): Int =
+        (if (s.timingError) ERROR_TIMING else 0) or (if (accepted && s.lowError) ERROR_LOW else 0)
 
     private fun sensitivityCompensated(corrected: Double, seq: Int, s: CareSensAirCalibrationState): Double {
         if (seq in 5..24) {
@@ -347,6 +336,7 @@ class CareSensAirCalibration(
 
     /** Interruption check: the transmitter's time ran ahead of its sequence. */
     private fun timing(record: Record, s: CareSensAirCalibrationState) {
+        var triggered = false
         if (s.timingStarted && record.sequence == s.timingSequence + 1) {
             val dt = record.timeSeconds - s.timingTime
             // The window counts accepted records, not sequence numbers: the
@@ -354,14 +344,15 @@ class CareSensAirCalibration(
             val index = s.count + 1
             if (dt >= 23 * 60) {
                 s.pushGap23(index)
-                if (s.gap23Count >= 4 && index - s.gap23[0] <= 864) s.timingError = true
+                triggered = s.gap23Count >= 4 && index - s.gap23[0] <= 864
             }
             if (dt >= 60 * 60) {
                 s.pushGap60(index)
-                if (s.gap60Count >= 2 && index - s.gap60[0] <= 864) s.timingError = true
+                triggered = triggered || (s.gap60Count >= 2 && index - s.gap60[0] <= 864)
             }
-            if (dt >= 600 * 60) s.timingError = true
+            triggered = triggered || dt >= 600 * 60
         }
+        s.timingError = CareSensAirDetectorLatch.permanent(s.timingError, triggered)
         s.timingStarted = true
         s.timingSequence = record.sequence
         s.timingTime = record.timeSeconds

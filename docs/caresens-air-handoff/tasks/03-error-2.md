@@ -51,13 +51,13 @@ trimmed means, pre_condi[3], condi[3], flag), `err2_cummax`,
   | ycept | 2 |
   | alpha | 2 |
 
-  `ycept` and `alpha` look like the slope100-dependent current limit, `crt_current`. A candidate is current > ycept + alpha·slope100, or similar. Task 00 A first.
+  `ycept` and `alpha` look like the slope100-dependent current limit, `crt_current`. A candidate is current > ycept + alpha·slope100, or similar. The [task 00 survey](../device-parameters.md) found unchanged bit-2 traces for these variations on `high3` and `sat`.
 - **Phase.** Probably active only from `err2_start_seq` 289 (day 1); check it.
 - **Delay sub-test.** The 575-record histories (2 days) hold rate of change, sharp slope and glucose, so the delay part is a separate test over 2 days.
 
 ## Suggested next steps
 
-1. Bisect `crt_current` on plateaus at several slope100 values, and with `err2_ycept` / `err2_alpha` perturbed.
+1. Bisect `crt_current` on near-threshold plateaus at several slope100 values. Compare this debug flag under `err2_ycept` / `err2_alpha` perturbations if the plateaus expose a dependency the survey could not see.
 2. Confirm `crt_glu` and `crt_cv`. Check:
    - whether the glucose is R, init or the rescaled value
    - whether the CV uses 12 records (`err2_seq[1]`+1?) or `err2_seq[0]`

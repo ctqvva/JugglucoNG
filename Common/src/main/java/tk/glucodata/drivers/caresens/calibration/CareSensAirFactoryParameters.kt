@@ -13,10 +13,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * The factory values the engine uses. The transmitter sends a 446-byte
- * parameter block; differential tests over every field found that only these
- * three change glucose, trend or error results (the rest feed calibration
- * against fingersticks, which JugglucoNG does not use).
+ * The factory values the engine reads from the 446-byte transmitter block.
+ * The detector-parameter survey in docs/caresens-air-handoff records which
+ * error bits were exercised and how they responded to changes in that block.
  */
 data class CareSensAirFactoryParameters(val slope100: Float, val vref: Float, val eapp: Float) {
     /** Outside these the reference rejects the record with error 64. NaN passes, as there. */

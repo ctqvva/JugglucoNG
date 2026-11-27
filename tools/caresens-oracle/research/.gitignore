@@ -9,6 +9,11 @@ d1Y.npy
 d2rows.npy
 cur_rows.pkl
 tran_rows.pkl
+dt2.npy
+lvl.npy
+lvl2.npy
+sd_recs.bin
+sd_state.bin
 liboracle.dylib
 eng.jar
 __pycache__/

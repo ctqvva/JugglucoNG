@@ -13,6 +13,7 @@ What is missing is listed below. Each item has a self-contained specification
 in `tasks/`.
 
 - `findings.md`: everything confirmed, rejected or untried, with the script behind each result.
+- `device-parameters.md`: task 00's per-field, per-bit device block survey.
 - `../caresens-air-open-calibration.md`: the engine as implemented, verification, provenance.
 - `../../tools/caresens-oracle/research/`: every experiment script, small datasets, the state offset map and dataset generators.
 
@@ -28,7 +29,7 @@ in `tasks/`.
 
 | # | Task | Bit / output | Status | Depends on |
 |---|---|---|---|---|
-| 00 | [Shared infrastructure](tasks/00-shared-infrastructure.md): device-parameter survey, per-bit sweep, engine conventions | all | not started | — |
+| 00 | [Shared infrastructure](tasks/00-shared-infrastructure.md): device-parameter survey, per-bit sweep, engine conventions | all | complete; bits 8 and 128 unexercised | — |
 | 01 | [Error 16](tasks/01-error-16.md), sensitivity / end of life | 16 | inputs exact, rules open | 00 A (`err6_*`), 00 C |
 | 02 | [Error 1](tasks/02-error-1.md), noise, plus the noise break | 1, type 4 input | triggers known | 00 A (`err1_*`), 00 C |
 | 03 | [Error 2](tasks/03-error-2.md), sustained high | 2 | partly known | 00 A (`err2_*`), 00 C |
@@ -43,13 +44,12 @@ in `tasks/`.
 
 **1. Device block (task 00 A, one owner, first).** The transmitter overwrites the device block, `err*` thresholds included.
 
-- Tasks 01, 02, 03, 06 and 07 all need to know which fields their detector reads.
-- Running the survey once, as one table, avoids five agents each perturbing the block.
-- If any detector reads it, the engine API changes once (task 00 D), not per task.
+- The [survey](device-parameters.md) found no change in emitted bits 1, 2, 4, 16, 32 and 64 across the tested cases. It could not establish dependencies for bits 8 and 128.
+- Detector tasks can use the existing factory parameter API. Revisit device-block plumbing together if a new triggering case demonstrates a dependency.
 
 **2. Latch and hook points.** Errors 1, 2 and 4 share one latch rule; errors 16 and 32 latch permanently.
 
-- Task 00 C factors the latch and fixes the hook in `CareSensAirCalibration.process` and the `errorCode` line.
+- Task 00 C provides the shared latch, accepted and rejected hooks in `CareSensAirCalibration.process`, and the common `detectorErrors` mask.
 - Detector tasks add one call and one OR term each, in their own file.
 
 **3. State serialisation.** `CareSensAirCalibrationState` has one `VERSION`.
@@ -84,7 +84,7 @@ Remove a stand-in only in the task that replaces it.
 
 **8. Sweep and fixtures.**
 
-- `differential.py` comparison logic belongs to task 00 B. Tasks edit only the `MODELLED` constant and their own exclusion.
+- `differential.py` comparison logic belongs to task 00 B. Use `--modelled` while developing a detector. Update the default `MODELLED` constant and its corresponding test mask when the detector lands.
   - `other_low` belongs to task 04.
   - The `filled` cut-off belongs to task 08.
 - Fixtures: add new names; never change existing specs. Regenerate only the new files and `index.txt`.

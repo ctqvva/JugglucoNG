@@ -3,8 +3,8 @@
 These are the experiment scripts behind `docs/caresens-air-open-calibration.md`
 and the task specifications in `docs/caresens-air-handoff/`. They were run one
 at a time while studying the vendor library's behaviour (black-box only) and
-are kept unchanged apart from removing absolute paths. They are not tests, and
-most of them print numbers that only make sense together with the notes in
+are kept as historical experiments, with paths and shared harnesses repaired
+where needed. Most print numbers that only make sense with the notes in
 `checkpoint-2026-11-27.md` or the handoff findings.
 
 ## Setup
@@ -16,7 +16,7 @@ The library and the tool versions are the same as for the main oracle
 export CARESENS_REFERENCE_LIB=/abs/path/arm64-v8a/libCALCULATION.so   # sha256 0bc4e28b…02d4cf
 export JAVA_HOME=/path/to/jdk17          # differential.engine_jar / run_engine
 cd tools/caresens-oracle/research
-python3 stress.py                        # smoke test: trigger table for 18 signal transforms
+python3 -c 'import stress, lab; print(stress.REF.sha256)'
 ```
 
 You need an arm64 host (Apple silicon or arm64 Linux), Python 3 with numpy,
@@ -28,17 +28,38 @@ early scripts.
 | Harness | Modules | Used by |
 |---|---|---|
 | current | `sc.py` (imports `../caresens_oracle.py`, `../scenarios.py`, `../differential.py`) | `e178`–`e292`, `stress*.py`, `craft.py`, `err_survey.py`, `dg*.py`, `c0*.py` |
-| legacy | `lab.py` + `o.py` (loads `liboracle.dylib`, built from `oracle.c`), `gen.py`, `ref.py`, `kt.py` | `e1`–`e177` (calibration chain, filling, timing error) |
+| legacy | `lab.py` + `o.py` (uses the current oracle loader), `gen.py`, `ref.py`, `kt.py` | `e1`–`e177` (calibration chain, filling, timing error) |
 
 `sc.REF` is `caresens_oracle.Reference()`. `REF.run(dev, recs, state=…,
 snapshots=…)` returns `(count, out, dbg, state, snaps)` and **mutates the
 `state` you pass** — always pass a copy. `count[i] > 1` means the library
 filled missed records for input `i` (up to four outputs).
 
-The legacy harness is kept for the record. To run it:
+The legacy wrappers return the first slot per input. They reserve four slots
+for the library so a filled record cannot overwrite the next input's output.
+`e89.py` reads all slots explicitly. `oracle.c` is the original loader
+archived with the experiments.
 
-- build `liboracle.dylib` with `cc -O2 -shared -o liboracle.dylib oracle.c`
-- build `eng.jar` from `kotlin/Cli.kt` plus the engine sources for `kt.py`
+The Kotlin helpers compile against the current engine. From the repo root:
+
+```sh
+research=tools/caresens-oracle/research
+engine=Common/src/main/java/tk/glucodata/drivers/caresens/calibration
+kotlinc $(find "$engine" -name '*.kt' ! -name CareSensAirOpenCalibrationShadow.kt) \
+    "$research/kotlin/Cli.kt" "$research/kotlin/StateDiff.kt" \
+    -include-runtime -d "$research/eng.jar"
+```
+
+`CARESENS_LEGACY_JAR` can point `kt.py` to a jar elsewhere. Run the numbered
+scripts from the research directory so local dataset and script paths resolve.
+`t.py` is a historical cross-check that needs the separate early emulator
+under `../../h`. That emulator was outside the handoff.
+
+Task 00 syntax-checked all 307 Python scripts and matched the regenerated
+state-offset map byte for byte. Both oracle wrappers agreed on a smoke input
+with a filled call and a subsequent record. The relocated legacy CLI passed
+engine save/restore and vendor-state takeover on that same input. Individual
+historical experiments were left for the tasks that use them.
 
 `lab.dev()` now takes the default device block from `caresens_oracle`
 (originally a scratch C build of the same defaults). `ref.py` is an early
@@ -50,6 +71,7 @@ Python model of the calibration chain; the Kotlin engine supersedes it.
 |---|---|
 | `sc.py` | `runspec(spec, snap)`: generate a scenario, run the vendor, return inputs, outputs, debug and snapshots |
 | `stress.py` | base scenario (seed 21, 1500 records) plus 18 transforms on records 500–700; `python3 stress.py` prints first/count/last per error bit |
+| `device_parameter_survey.py` | task 00's one-field-at-a-time sweep; emits the tables in `docs/caresens-air-handoff/device-parameters.md` |
 | `stress2.py` | temperature, sequence wrap, clock backwards, duplicate sequence, start at seq 4000 (err8/err128 search) |
 | `craft.py` | `adc_for(current)`, `run_plateau(current, K, a, n)`: flat-current plateaus at a chosen record |
 | `err_survey.py` | which bits fire in all fixtures plus 250 random specs; writes `err_survey.json` |
@@ -84,6 +106,10 @@ handoff, so these sha256 values identify the copies that were analysed:
 | `d2rows.npy` | 10.8 MB | `2c6779f5` | `e263.py` | D-test rows across phases |
 | `fillB.npy`, `kern.npy` (committed) | 1 / 4 KB | | `e98.py`; `e22.py` | filling unit responses (task 08); a calibration-chain kernel from the early phase |
 | `cur_rows.pkl`, `tran_rows.pkl` | 74 / 527 KB | `b608b7c5`, `febf2a08` | `e184.py`, `e186.py` | ADC-to-current rounding candidates (sample current ±4 ulp) |
+
+Some legacy consumers also use local intermediate files. `e73.py` writes
+`dt2.npy` for `e74.py`. `e119.py` and `e176.py` write `lvl.npy` and
+`lvl2.npy`. `e181.py` writes the inputs for the legacy `StateDiffKt` CLI.
 
 ## Where results are written up
 

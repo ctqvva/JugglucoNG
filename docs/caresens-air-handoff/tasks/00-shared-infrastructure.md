@@ -1,103 +1,98 @@
-# Task 00: shared infrastructure (do first; one owner)
+# Task 00: shared infrastructure
 
-Every error task needs three things that do not exist yet:
+Task 00 is complete. Detector implementations, type 4, filling, and
+takeover during dropouts remain in their own tasks.
 
-- a sweep that compares bits 1, 2, 8, 16 and 128
-- knowledge of which device-block parameters each detector reads
-- one agreed way to add detector state to the engine
+## Setup
 
-If several agents build these separately, they will conflict in the same
-files. One agent should own this task, and merge it before the per-error
-tasks touch engine code. Investigations can start in parallel; they need
-only the harness.
+Run from the repository root with an arm64 host, Python 3.9 or later with
+NumPy, a C compiler, Kotlin, and JDK 17. See the
+[research README](../../../tools/caresens-oracle/research/README.md) for
+the legacy helpers and dataset prerequisites.
 
-## Setup (all tasks)
-
-```
-export CARESENS_REFERENCE_LIB=/abs/path/arm64-v8a/libCALCULATION.so   # sha256 0bc4e28b…02d4cf
+```sh
+export CARESENS_REFERENCE_LIB=/abs/path/arm64-v8a/libCALCULATION.so
 export JAVA_HOME=/path/to/jdk17
 export ANDROID_HOME=/path/to/android/sdk
-cd tools/caresens-oracle/research && python3 stress.py     # harness smoke test
-./gradlew :Common:testMobileDebugUnitTest :Common:testWearDebugUnitTest   # needs JDK 17
+python3 tools/caresens-oracle/research/device_parameter_survey.py
+python3 -m unittest discover -s tools/caresens-oracle -p test_differential.py
+python3 tools/caresens-oracle/differential.py --runs 30 --seed 1041
+python3 tools/caresens-oracle/differential.py --runs 20 --seed 1042 --import-state
+./gradlew :Common:testMobileDebugUnitTest :Common:testWearDebugUnitTest
 ```
 
-You need an arm64 host. The library is never committed. Read first:
+## A. Device parameters
 
-- `docs/caresens-air-open-calibration.md`
-- `docs/caresens-air-handoff/findings.md`
-- `tools/caresens-oracle/research/README.md`
+[Survey results and method](../device-parameters.md). All 89 target elements
+were perturbed across nine scenarios. None changed an emitted bit trace.
+Bits 8 and 128 never fired, so the survey leaves their dependencies open.
+Use the report's per-bit coverage when interpreting any specific field.
 
-## A. Device-parameter sensitivity survey (investigation; no engine change)
+## B. Differential comparisons
 
-**Why.** The transmitter overwrites the device block, `err*` thresholds
-included (`airSaveSensorInfo2`, `Common/src/main/cpp/air/java.cpp`).
+The sweep counts all eight bits from the engine's start or takeover to
+the next filled input. The table shows vendor set counts, raw mismatch
+counts and scored mismatch counts. `--modelled` accepts a decimal or hexadecimal mask. The
+default stays 4, 32 and 64. Only scored bit mismatches affect the verdict,
+alongside the existing rejection and numerical checks and the output sequence
+check. The exclusion for error 4 conditions 1–4 applies solely to bit 4 scoring.
+It covers the suffix after the first such condition, including when it fired
+before the engine took over.
 
-- Errors 4 and 32 ignore their parameters (e237, e230).
-- For errors 1, 2, 8, 16 and 128 it is unknown.
-- Several measured thresholds equal `DeviceInfo2Obj` defaults: `err2_glu` 800, `err2_cv[0]` 10, `err2_seq[1]` 11, `err345_raw`.
+The publication count uses the native error and range gate: output present,
+no error, and a glucose value strictly between 35 and 505 mg/dL. It reports
+how many inputs the vendor withheld that an engine output would pass, and how
+many of those had a nonzero vendor error. This is an offline estimate that
+includes inexact records. Later runtime delivery checks are outside its scope.
 
-If a detector reads the block, its rule must read it too. The engine API
-would then need the real block, not just slope100, vref and eapp.
+Task 00 ran 30 fresh scenarios and 20 takeover scenarios from the commands
+above. All passed the scored checks. The fresh sweep saw 23 raw bit-4
+mismatches in its excluded range and 2,844 bit-16 mismatches. The same 2,844
+inputs were vendor-withheld and engine publication-eligible. There were 12,627
+inexact usable records in the fresh sweep and 1,880 in takeover. Neither
+random seed reached filling. Mobile and Wear unit suites passed, with
+6,328 and 4,532 cases respectively, including 1 and 9 skips. The comparison
+unit tests separately verify the fill cut-off, bit mask isolation and
+one-sided NaN detection.
 
-**Do.**
+Use `--fixture NAME` to limit a run to one or more fixture specs. Each
+detector task adds a new triggering spec to `make_fixtures.py` and can generate
+just that payload and the index with `make_fixtures.py --fixture NAME`.
+Established fixture specs and payloads should stay intact. Add the completed
+bit to the Python default `MODELLED` and Kotlin fixture `modelledErrors`
+together when its implementation lands.
 
-- Take a set of trigger scenarios:
-  - `stress.py` transforms: `noise200`, `high3`, `sat`, `low30`, `step_down`
-  - the error 16 fixtures: `life-lot2-sensitivity-loss`, `holdout-life-other-lot1`
-- Copy `co.default_device()` and perturb one `err*` field (or one array element) at a time. Use ×0.5 and ×2; for byte fields, ±1 and 0.
-- Record per field and per bit whether the first firing record or the firing count changes. Also check `errcode_version`, `cal_noise` and `sensor_version`.
-- Write the table to `docs/caresens-air-handoff/device-parameters.md`, with the script that produced it.
+## C. Detector hooks and state
 
-This is a batch of a few hundred runs, about ten minutes. It tells each
-error task which thresholds are parameters.
+- Put each detector in `CareSensAirErrorN.kt`. Follow error 4's update hook
+  after Kalman and before history rotation. Capture inputs at the stage a
+  detector uses, including pre-rotation state where required.
+- The contact rejection path has its own hook. Use it to reset or advance
+  the detector's state as the vendor does. Timing observes both paths.
+- Use `CareSensAirDetectorLatch.consecutive` for errors 1, 2 and 4. An
+  accepted trigger starts the latch. It persists on consecutive accepted
+  sequence numbers and clears on rejection or a sequence gap without a new
+  trigger. Use `permanent` for 16 and 32. Error 16's latch persists through
+  rejection, but the bit is masked for that record. Error 32 remains visible.
+- Add each emitted bit to `CareSensAirCalibration.detectorErrors`, which
+  serves accepted and rejected results. Invalid factory data still exits
+  before the detector hooks with error 64.
+- Append each state group to `CareSensAirCalibrationState`'s serialized
+  format. On a schema change, bump `VERSION`, preserve reads of previously
+  supported versions, and test defaults for the newly appended fields. The
+  baseline is version 2. Task 00 changed no fields or bytes. Rebase and
+  renumber if another detector has used the next version.
+- Import detector state in `CareSensAirVendorState.read`. Cite the field and
+  offset from `tools/caresens-oracle/research/state-offsets.txt`.
+- Mark affected records `exact = false` where an undecoded condition could
+  change the result. The sweep's numerical exactness checks use this flag.
+  During development keep the partial bit diagnostic or use a specific
+  evidence-backed exclusion for its undecoded condition.
 
-**Done when:** every `err*` field in the device block is classified, per error bit, as read or ignored.
+## D. Device-block plumbing
 
-## B. Differential comparison for all bits (tools only)
-
-`differential.py` compares only `MODELLED = 4|32|64`. Extend it:
-
-- Report per bit (1, 2, 4, 8, 16, 32, 64, 128) the records where engine and vendor differ, as counts, not a failure, until the bit is modelled.
-- Report "vendor withheld, engine published" separately; that is what users would see.
-- Keep the exit status driven by the modelled bits only.
-- Make `MODELLED` a command-line option or a single constant that tasks edit.
-
-**Done when:** a sweep prints a per-bit mismatch table. Existing modelled bits keep passing.
-
-## C. Engine conventions for new detectors (decide once, document here)
-
-Agree and write down the following before the first detector lands. The
-defaults below follow the existing error 4 code.
-
-- **Code.**
-  - Each detector goes in its own file, `CareSensAirErrorN.kt`, in `Common/src/main/java/tk/glucodata/drivers/caresens/calibration/`.
-  - It provides an update step called from `CareSensAirCalibration.process` after the Kalman step.
-  - On rejected records it is called through the existing rejection path, which clears the 1/2/4 latches.
-- **The latch** (`cond || (prev && consecutive && accepted)` for 1, 2 and 4; permanent for 16 and 32) is shared. Factor it once.
-- **Error code.** `errorCode` is the OR of the detector bits at the single existing line.
-- **State.**
-  - Fields go in `CareSensAirCalibrationState`, grouped per detector, each group appended at the end of the serialised form.
-  - `VERSION` is bumped once per merged task. A task rebasing onto another's merge renumbers its own bump; old versions keep restoring.
-- **Takeover.** Each detector imports its vendor fields in `CareSensAirVendorState.read`. Use the offsets in `tools/caresens-oracle/research/state-offsets.txt`, and cite the offset in a comment.
-- **Tests.**
-  - Add bits to `modelledErrors` in `CareSensAirReferenceFixtureTest` and to `MODELLED` in `differential.py`.
-  - Add a triggering fixture to `make_fixtures.py`. Use a new name; never change existing fixture specs.
-  - Regenerate only new fixture files and `index.txt`.
-- **Exactness.** A detector that is only partly decoded must set `exact = false` where its undecoded part could fire. It must not raise a bit it cannot predict exactly.
-
-## D. Device-block plumbing (only if A finds parameters that matter)
-
-- Extend `CareSensAirFactoryParameters`, or add a device-parameter object, with the fields A marks as read. Defaults stay the `DeviceInfo2Obj` values.
-- Pass them in `EngineCli.kt`, `differential.py`, `make_fixtures.py` (fixture header) and `CareSensAirOpenCalibrationShadow`.
-- Do not wire the driver (BLE integration is out of scope); the shadow already gets the vendor's block.
-
-## Shared files and owners
-
-| File | Owner | Others |
-|---|---|---|
-| `differential.py` comparison and `MODELLED` | task 00 | edit only the `MODELLED` constant and their own exclusion line |
-| `CareSensAirCalibration.process` hook points, `errorCode` line | task 00 | add one call and one OR term each |
-| `CareSensAirCalibrationState` serialisation, `VERSION` | task 00 | append own group, bump on merge |
-| `CareSensAirVendorState.read` | each task | own fields only |
-| `make_fixtures.py` `DEVELOPMENT` / `HOLDOUT` | each task | add entries; never edit existing ones |
-| `docs/caresens-air-open-calibration.md` status table | each task | own row only |
+The survey found no field requiring new plumbing for the exercised bits.
+`EngineCli.kt`, fixtures and the shadow continue to use the existing three
+factory values. If a future detector demonstrates a dependency, extend the
+parameter API, CLI, fixture header and shadow together. BLE driver wiring is
+outside these tasks.

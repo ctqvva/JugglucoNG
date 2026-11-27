@@ -4,7 +4,8 @@ def base():
     seq,t,adc,T=[np.array(x) for x in scenarios.generate(**BASE)]
     return seq,t.astype(np.int64),adc.astype(np.int64),T.astype(float)
 rng=np.random.default_rng(1)
-def tf(name,adc,a,b):
+def tf(name,adc,a,b,random=None):
+    random = rng if random is None else random
     x=adc.copy(); w=x[a:b]
     if name=='flat': x[a:b]=int(w.mean())
     elif name=='flat_rec': x[a:b]=w.mean(1,keepdims=True).astype(int)
@@ -13,8 +14,8 @@ def tf(name,adc,a,b):
     elif name=='high3': x[a:b]=np.minimum(w*3,65535)
     elif name=='zero': x[a:b]=0
     elif name=='sat': x[a:b]=4095*10
-    elif name=='noise200': x[a:b]=w+rng.integers(-200,200,w.shape)
-    elif name=='noise1000': x[a:b]=np.maximum(w+rng.integers(-1000,1000,w.shape),0)
+    elif name=='noise200': x[a:b]=w+random.integers(-200,200,w.shape)
+    elif name=='noise1000': x[a:b]=np.maximum(w+random.integers(-1000,1000,w.shape),0)
     elif name=='alt': x[a:b]=(w*np.where(np.arange(b-a)%2,1.3,0.7)[:,None]).astype(int)
     elif name=='spike1': y=w.copy(); y[:,15]*=2; x[a:b]=y
     elif name=='ramp_in_rec': x[a:b]=(w*(0.8+0.4*np.arange(30)/29)[None,:]).astype(int)

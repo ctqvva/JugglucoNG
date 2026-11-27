@@ -21,6 +21,9 @@ def run(d,wo,temp,seq=None,t=None,args=None,cal=None,snap=False):
     i['workout']=wo; i['temperature']=temp
     a=state() if args is None else args
     c=np.zeros(1,CAL) if cal is None else cal
-    o=np.zeros(n,OUT);g=np.zeros(n,DBG);r=np.zeros(n,'u1'); s=np.zeros(n,ARGS) if snap else None
+    # The loader reserves four slots per input even though legacy callers
+    # consume the first slot only. e89.py exposes the full list for fill work.
+    o=np.zeros((n,4),OUT);g=np.zeros((n,4),DBG);r=np.zeros(n,'u1'); s=np.zeros(n,ARGS) if snap else None
     L.oracle_run(H,p(d),p(i),p(c),p(a),p(o),p(g),p(r),p(s) if snap else None,n)
+    o,g=o[:,0].copy(),g[:,0].copy()
     return (r,o,g,a,s) if snap else (r,o,g,a)

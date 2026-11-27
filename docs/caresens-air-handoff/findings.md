@@ -38,8 +38,8 @@ Confirmed:
 - **Shared glucose buffer.** `err_glu_arr[288]` (offset 17144) holds round(R) for the last 288 records (24 h), with `time_standard_arr[288]` (456) alongside. It is filled per record (e209, e210). It feeds error 16's plasma filter; whether the other detectors read it was not tested.
 - **`err_delay_arr[7]`** (17132) exists; not studied.
 - **Device block.** The transmitter overwrites the whole device block from its BLE info packets: `airSaveSensorInfo2` in `air/java.cpp` copies 125–205 bytes into `DeviceInfo3Obj`. That block carries `err1_*`, `err2_*`, `err345_*`, `err6_*` and `err32_*` parameters (defaults in `DeviceInfo2Obj`). Real sensors may therefore send non-default thresholds.
-  - Errors 4 and 32 ignore their device parameters (e237, e230): their thresholds are hard-coded.
-  - The other detectors' dependence on the block was **not tested**.
+  - The prior targeted probes for errors 4 and 32 (e237, e230) found no effect.
+  - The [task 00 survey](device-parameters.md) found no changes in emitted bits 1, 2, 4, 16, 32 and 64 across 89 field elements. Bits 8 and 128 stayed inactive, so their dependencies remain unknown.
   - The defaults match measured thresholds in several places:
     - `err2_glu = 800` (the error 2 glucose limit)
     - `err2_cv[0] = 10` (the error 2 CV limit)
