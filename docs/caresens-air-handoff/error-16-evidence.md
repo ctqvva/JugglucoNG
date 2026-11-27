@@ -26,3 +26,40 @@ sequence 3732.
 
 The history dependence explains why fitting conditions to only the last
 reported scalar per statistic missed transitions.
+
+## Recovered statistics and condition inputs
+
+```sh
+python3 err16_statistics.py
+python3 err16_state_probe.py --profiles 123 2017
+python3 err16_state_probe.py --profiles 0 2018
+python3 err16_rules.py --fixtures
+```
+
+The mature calculations matched 5,186 accepted records on the lot-2
+sensitivity-loss fixture and the lot-1 holdout. The rate statistic is the
+range of the newest seven ISF points. The steady percentage counts rates at
+most 1 among available rates in the newest 289 entries. The minimum trend
+chooses the 10th percentile by rounded one-based rank. Mean trend averages
+all values between the 20th and 80th percentile bounds, including ties.
+Minimum trend regressions use the newest 12 points sampled every third
+slot and up to 73 points sampled every twelfth slot. Mean trend regression
+uses the newest 24 points sampled every twelfth slot. Slopes are per day.
+
+The condition rules consume the newest 24 entries in those statistic
+histories. Their branches depend on the **pre-record** value of
+`diabetes_before_7days_flag` at state offset 10914. In run 123 at sequence
+2017, the flag is 6 on entry and 1 on return, and condition 2 fires. Replaying
+the same input with flag 1 on entry fires condition 1. The time guard used
+by condition 2 and one condition-0 branch compares the current time with
+the ISF time six accepted records earlier, with a 40-minute upper limit.
+Changing only that history point past the limit suppresses the condition.
+
+On the 160 decay specs and committed fixture specs, the direct rule
+comparison identified one threshold discrepancy before applying measured
+long-slope rounding. Replaying that near-threshold case measured the
+transition at a half-step of 5e−11 away from the decimal slope threshold.
+The same run saw no activation of conditions 3–6 with empty calibration
+lists. This identifies the classifications in the measured corpus. The
+verification script reads statistic histories from vendor snapshots, so
+full engine parity also requires reproducing how those histories update.

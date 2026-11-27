@@ -6,6 +6,7 @@ from sc import REF, co, np, scenarios
 
 
 PREFIX = 'err16_CGM_ISF_'
+EARLY_PROFILE = 'diabetes_before_7days_flag'
 
 
 class Replay:
@@ -34,13 +35,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('run', type=int)
     parser.add_argument('sequence', type=int)
+    parser.add_argument('--profiles', action='store_true', help='change only the pre-record diabetes flag')
     args = parser.parse_args()
     if REF.sha256 not in co.KNOWN_REFERENCE:
         parser.error(f'unexpected reference SHA-256: {REF.sha256}')
     replay = Replay(args.run, args.sequence)
-    output, debug, _ = replay.step()
+    output, debug, after = replay.step()
     original = debug['err16_condi']
     print(f'run {args.run} seq {args.sequence}: {original.tolist()}, bit 16 = {bool(output["errcode"] & 16)}')
+    if args.profiles:
+        print(f'{EARLY_PROFILE}: {replay.state[EARLY_PROFILE][0]} -> {after[EARLY_PROFILE]}')
+        for profile in (0, 1, 2, 3, 4, 5, 6, 100):
+            _, result, _ = replay.step([(EARLY_PROFILE, Ellipsis, profile)])
+            print(profile, result['err16_condi'][:3].tolist())
+        return
     for name in co.STATE.names:
         if not name.startswith(PREFIX):
             continue
