@@ -84,7 +84,7 @@ services used are the generic managed-sensor mirror and lifecycle services.
 
 - NFC A1/A0/A8 bytes match legacy `dp_activation.hpp` vectors; malformed metadata
   and nonzero implausible activation times are rejected. A zero-time rescan keeps
-  the known activation start, anchor and progress.
+  the known activation start, grid and progress.
 - Full and cached handshakes have simulated-sensor tests, plus captured
   certificate/frame and synthetic crypto vectors. A simulated peer does not prove
   compatibility with a physical sensor's firmware.
@@ -95,14 +95,22 @@ services used are the generic managed-sensor mirror and lifecycle services.
 - Backfill timeout closes the link. Room success is required before durable
   progress advances; failed writes and failed timestamp queries retain batches.
   Live minutes join the blocking flush so progress cannot precede their storage.
-  Live and recovered timestamps use the same fixed activation grid: life count L
-  is the minute that ends at activation + (L + 1) min, when the sensor sends it
-  (traced frames arrive 1-5 s before that boundary; the removed native driver
-  dated live minutes at arrival). If NFC takeover has no known activation time,
-  the first live frame fixes an estimate before history recovery starts. Builds
-  before this rule saved such an estimate as the start of life count 0
-  ("anchor"); it is read back one minute earlier, so its stored times stay put. Pause retains pending batches until Resume can
-  flush them.
+  Live and recovered timestamps use one grid per sensor: the time of its life
+  count 0, stored once (`lifeZero.<serial>`) and kept across restarts, NFC
+  rescans (one reporting a corrected start), removal and re-add, and the watch
+  handoff. Room, native slots, five-minute fill-ins and LibreView record numbers
+  all hold minutes at the times it gives. A sensor first paired by this build
+  gets activation + 1 min, so life count L is dated when its minute ends, at
+  activation + (L + 1) min, when the sensor sends it (traced frames arrive 1-5 s
+  before that boundary; the removed native driver dated live minutes at
+  arrival). If NFC takeover has no known activation time, the first live frame
+  fixes the grid before history recovery starts. A sensor an earlier preview
+  build stored keeps that build's grid (its learned "anchor", else the NFC
+  start: minute L at start + L min, one minute early), because a replay dated
+  by the new rule lands on the next minute's time: native overwrites that
+  minute with the replayed value and Room drops the replay or doubles the last
+  minute. Their stored readings are not rewritten. Pause retains pending batches
+  until Resume can flush them.
 - Libre 3 gap fills rewind the Health Connect cursor under the poll-write lock.
   An export acknowledgement cannot overwrite a concurrent rewind; invalidated
   batches retry with stable per-minute client IDs. One worker coalesces pending

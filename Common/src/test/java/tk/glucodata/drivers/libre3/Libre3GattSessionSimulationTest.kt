@@ -121,6 +121,9 @@ class Libre3GattSessionSimulationTest {
         val identity = Libre3AppIdentity.create("app", ByteArray(30) + byteArrayOf(0x44, 0x44), Libre3Bytes.parseHex(CERT_HEX)!!)
         // Life count L is sent as its minute ends, at activation + (L + 1) min: now.
         val start = System.currentTimeMillis() - (lifeCount + 1) * 60_000L
+        // Each case is another sensor under the same serial; a sensor's grid is otherwise kept for good.
+        Libre3Persistence.removeSensor(context, sensorId)
+        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().remove("lifeZero.$sensorId").commit()
         Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensorId, address, pin, start, 60, wearMinutes, 0x6f0d8378L, "1.4.2.30", 1))
         sim = SimulatedLibre3Sensor(identity.staticPublicKey, pin, lifeCount)
         Libre3SimGattShadow.sim = sim

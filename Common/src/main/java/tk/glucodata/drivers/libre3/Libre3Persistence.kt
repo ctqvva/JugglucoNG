@@ -374,9 +374,16 @@ object Libre3Persistence {
         // legacy native record clears haskAuth on each scan for the same reason). Backfill marks
         // survive a rescan of the same activation and are reset only for a different one.
         edit.remove("$k.kauth")
+        // The grid is set once per sensor and outlives a rescan with a corrected start, a removal
+        // and a re-add: what is stored under it stays where it is.
+        if (!p.contains(lifeZeroKey(k))) {
+            val zero = previous?.let { Libre3LifeCount.legacyZero(p.getLong("$k.anchor", 0L), it.startTimeMs) }
+                ?.takeIf { it > 0L } ?: Libre3LifeCount.zeroForActivation(record.startTimeMs)
+            if (zero > 0L) edit.putLong(lifeZeroKey(k), zero)
+        }
+        edit.remove("$k.anchor")
         if (previous == null || previous.startTimeMs != record.startTimeMs) {
             edit.remove("$k.lastLife").remove("$k.lastHist").remove("$k.identity")
-                .remove("$k.anchor").remove("$k.activation")
         }
         edit.apply()
     }
@@ -451,20 +458,29 @@ object Libre3Persistence {
         prefs(context).edit().putString("$sensorId.fillers", Libre3BackfillMerge.encode(fillers)).apply()
     }
 
+    // Outside the "$sensorId." keys, so removeSensor leaves it: a re-added sensor's readings are
+    // still stored under it.
+    private fun lifeZeroKey(sensorId: String) = "lifeZero.$sensorId"
+
     /**
-     * The activation estimated when the driver took over a sensor without one (its first arrival
-     * less [Libre3LifeCount.endMs]). Earlier builds kept the time of life count 0's *start* under
-     * "anchor", which is the same grid one minute later; it is read back as such, so readings
-     * already stored keep their times.
+     * The time of this sensor's life count 0 ([Libre3LifeCount]), or 0 while it is not known. A
+     * record an earlier build saved has none stored; it gets the grid that build dated it by.
      */
-    fun getAnchor(context: Context, sensorId: String): Long {
+    fun lifeZero(context: Context, sensorId: String): Long {
         val p = prefs(context)
-        p.getLong("$sensorId.activation", 0L).takeIf { it > 0L }?.let { return it }
-        return Libre3LifeCount.activationFromLegacyAnchor(p.getLong("$sensorId.anchor", 0L))
+        p.getLong(lifeZeroKey(sensorId), 0L).takeIf { it > 0L }?.let { return it }
+        val record = loadSensor(context, sensorId) ?: return 0L
+        val zero = Libre3LifeCount.legacyZero(p.getLong("$sensorId.anchor", 0L), record.startTimeMs)
+        if (zero > 0L) p.edit().putLong(lifeZeroKey(sensorId), zero).remove("$sensorId.anchor").apply()
+        return zero
     }
 
-    fun setAnchor(context: Context, sensorId: String, anchorMs: Long) {
-        prefs(context).edit().putLong("$sensorId.activation", anchorMs).remove("$sensorId.anchor").apply()
+    /** Sets the grid if none is stored yet, and returns the one in force. */
+    fun learnLifeZero(context: Context, sensorId: String, zeroMs: Long): Long {
+        val known = lifeZero(context, sensorId)
+        if (known > 0L || zeroMs <= 0L) return known
+        prefs(context).edit().putLong(lifeZeroKey(sensorId), zeroMs).apply()
+        return zeroMs
     }
 
     fun isEnded(context: Context, sensorId: String): Boolean = prefs(context).getBoolean("$sensorId.ended", false)
@@ -506,9 +522,9 @@ object Libre3Persistence {
             .put("product", record.productType)
             .put("lastLife", getLastLifeCount(context, sensorId))
             .put("lastHist", getLastHistoricLifeCount(context, sensorId))
-            .put("activation", getAnchor(context, sensorId))
-            // What a watch on an earlier build reads.
-            .put("anchor", Libre3LifeCount.legacyAnchor(getAnchor(context, sensorId)))
+            .put("lifeZero", lifeZero(context, sensorId))
+            // An earlier build reads a learned grid here, the same quantity.
+            .put("anchor", lifeZero(context, sensorId))
             .put("fillers", p.getString("$sensorId.fillers", "") ?: "")
             .put("ended", isEnded(context, sensorId))
             .put("selected", selected ?: org.json.JSONObject.NULL)
@@ -533,11 +549,19 @@ object Libre3Persistence {
         }
         json.optString("selected").takeIf { it.isNotEmpty() && it != "null" }
             ?.let { runCatching { selectIdentityVersion(context, it) } }
+        // The phone's grid, unless this watch already stores the sensor under one. A phone on an
+        // earlier build sends none: its grid is its learned anchor, else the start.
+        val start = json.optLong("start")
+        val phoneZero = json.optLong("lifeZero").takeIf { it > 0L }
+            ?: if (json.has("lifeZero")) 0L else Libre3LifeCount.legacyZero(json.optLong("anchor"), start)
+        if (phoneZero > 0L && !prefs(context).contains(lifeZeroKey(sensorId))) {
+            check(prefs(context).edit().putLong(lifeZeroKey(sensorId), phoneZero).commit()) { "could not persist the sensor's grid" }
+        }
         saveSensor(context, Libre3SensorRecord(
             sensorId = sensorId,
             bleAddress = address,
             blePin = pin,
-            startTimeMs = json.optLong("start"),
+            startTimeMs = start,
             warmupMinutes = json.optInt("warmup", 60),
             wearMinutes = json.optInt("wear"),
             receiverId = json.optLong("receiver"),
@@ -551,9 +575,6 @@ object Libre3Persistence {
             .putInt("$sensorId.lastHist", json.optInt("lastHist"))
             .putString("$sensorId.fillers", json.optString("fillers"))
             .putBoolean("$sensorId.ended", json.optBoolean("ended"))
-        (json.optLong("activation").takeIf { it > 0L }
-            ?: Libre3LifeCount.activationFromLegacyAnchor(json.optLong("anchor")).takeIf { it > 0L })
-            ?.let { edit.putLong("$sensorId.activation", it).remove("$sensorId.anchor") }
         check(edit.commit()) { "could not persist the sensor from the phone" }
         val key = Libre3Bytes.parseHex(json.optString("kauth"))
         val label = json.optString("kauthIdentity").takeIf { it.isNotEmpty() }

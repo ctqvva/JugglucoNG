@@ -5,19 +5,36 @@
 // before that boundary, with no drift. The removed native driver dated a live minute with its
 // arrival and recovered minutes back from the newest arrival, which is the same grid. Clinical
 // records and five-minute history carry the same life counts, so one rule dates all of them.
+//
+// A sensor's grid is the time of its life count 0, kept per sensor (Libre3Persistence.lifeZero)
+// and never moved: Room, the native slots, the five-minute fill-ins and LibreView's record numbers
+// all hold minutes at the times it gave. Preview builds before this rule dated minute L at the NFC
+// start + L min; a sensor they stored keeps that grid, since a replay dated by the new one lands on
+// the next minute's time and overwrites it natively while Room drops it as a duplicate.
 package tk.glucodata.drivers.libre3
 
 internal object Libre3LifeCount {
     private const val MINUTE_MS = 60_000L
 
-    /** When the minute with [lifeCount] ended. */
-    fun endMs(activationMs: Long, lifeCount: Int): Long = activationMs + (lifeCount + 1L) * MINUTE_MS
+    /** When [lifeCount] is dated on the grid whose life count 0 falls at [zeroMs]. */
+    fun timeMs(zeroMs: Long, lifeCount: Int): Long = zeroMs + lifeCount * MINUTE_MS
 
-    /** The activation implied by a minute that arrived at [arrivalMs]. */
-    fun activationFromArrival(arrivalMs: Long, lifeCount: Int): Long = arrivalMs - (lifeCount + 1L) * MINUTE_MS
+    /** The grid of a session first seen by this build: minute L ends at activation + (L + 1) min. */
+    fun zeroForActivation(activationMs: Long): Long = if (activationMs > 0L) activationMs + MINUTE_MS else 0L
 
-    /** Earlier builds saved the start of life count 0 for a learned grid: the same grid. */
-    fun activationFromLegacyAnchor(anchorMs: Long): Long = if (anchorMs > 0L) anchorMs - MINUTE_MS else 0L
+    /** The grid learned from a live frame with no activation known: the frame is dated at its arrival. */
+    fun zeroFromArrival(arrivalMs: Long, lifeCount: Int): Long = arrivalMs - lifeCount * MINUTE_MS
 
-    fun legacyAnchor(activationMs: Long): Long = if (activationMs > 0L) activationMs + MINUTE_MS else 0L
+    /**
+     * The grid an earlier build stored a sensor under: its learned anchor (the same quantity as a
+     * life count 0 time), else the NFC start.
+     */
+    fun legacyZero(anchorMs: Long, startMs: Long): Long = when {
+        anchorMs > 0L -> anchorMs
+        startMs > 0L -> startMs
+        else -> 0L
+    }
+
+    /** The activation a grid implies under the current rule, for a sensor with no NFC start. */
+    fun activationForZero(zeroMs: Long): Long = if (zeroMs > 0L) zeroMs - MINUTE_MS else 0L
 }

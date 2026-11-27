@@ -125,8 +125,7 @@ class Libre3ReviewRegressionTest {
         // The live frame is 20 seconds late. The recovered minute is only 40
         // seconds after receipt, but a full minute after the sensor's live sample.
         val liveAt = System.currentTimeMillis() - 20_000L
-        val anchor = liveAt - (lifeCount + 1) * 60_000L
-        set("anchorStartMs", anchor)
+        set("lifeZeroMs", liveAt - lifeCount * 60_000L)
         set("lastLifeCount", lifeCount - 1)
         invoke("onRealtime", Libre3RealtimeReading(lifeCount, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         invoke("flushBackfill")
@@ -142,7 +141,7 @@ class Libre3ReviewRegressionTest {
 
     @Test fun aPreviewReceiptTimestampDoesNotHideTheAdjacentRecoveredMinute() {
         val nextMinute = System.currentTimeMillis() - 30_000L
-        set("anchorStartMs", nextMinute - 102 * 60_000L)
+        set("lifeZeroMs", nextMinute - 101 * 60_000L)
         timestamps = longArrayOf(nextMinute - 40_000L)
         invoke("onClinical", Libre3ClinicalRecord(101, 124, 0))
         invoke("flushBackfill")
@@ -152,16 +151,16 @@ class Libre3ReviewRegressionTest {
     /**
      * Life count L is the minute that ends at activation + (L + 1) min, which is when the sensor
      * sends it: a 15-day sensor's frames for life 3056 to 3901 arrived 1 to 5 s before that
-     * boundary. The live frame, its five-minute history value and a clinical replay of the same
-     * minute all get their time from that one rule, as the removed driver's did.
+     * boundary. For a sensor first paired by this build, the live frame, its five-minute history
+     * value and a clinical replay of the same minute all get their time from that one rule, as the
+     * removed driver's did.
      */
-    @Test fun aLifeCountIsDatedByTheEndOfItsMinuteOnEveryPath() {
+    @Test fun aNewSensorsLifeCountIsDatedByTheEndOfItsMinuteOnEveryPath() {
         val life = 3_900
         val arrival = System.currentTimeMillis()
         val activation = arrival + 4_000L - (life + 1) * 60_000L
         Libre3Persistence.saveSensor(context, pairing().copy(startTimeMs = activation))
-        set("record", Libre3Persistence.loadSensor(context, sensor))
-        set("anchorStartMs", activation)
+        restartDriver()
         set("lastLifeCount", life - 1)
         invoke("onRealtime", Libre3RealtimeReading(life, 123, 0, 0, 0, life - 20, 118, 0, 0, 0, 0))
         invoke("flushBackfill")
@@ -171,6 +170,7 @@ class Libre3ReviewRegressionTest {
         assertTrue("live minute in Room", roomWrites.contains(end))
         assertTrue("live minute in native", Libre3ReviewNatives.nativeSeconds.contains(end / 1000L))
         assertTrue("history value in Room", roomWrites.contains(activation + (life - 19) * 60_000L))
+        assertEquals(activation, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
 
         // The sensor replays the same minute: it is the reading already stored, not the next one.
         roomWrites.clear()
@@ -181,35 +181,52 @@ class Libre3ReviewRegressionTest {
     }
 
     /**
-     * Earlier builds saved the start of life count 0 when they learned the grid from an arrival,
-     * which dated each minute at its arrival already. Read back, that grid must not move, or every
-     * minute stored under it would get a neighbour a minute away.
+     * A sensor an earlier build stored keeps that build's grid: minute L at the NFC start + L min,
+     * or at its learned anchor + L min. Read back under the newer rule, a replay of L would take
+     * L + 1's time.
      */
-    @Test fun aGridLearnedByAnEarlierBuildKeepsTheTimesItStored() {
+    @Test fun aSensorStoredByAnEarlierBuildKeepsItsGrid() {
         val life = 100
+        val legacy = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        // An NFC start and no anchor.
+        Libre3Persistence.saveSensor(context, pairing())
+        legacy.edit().remove("lifeZero.$sensor").commit()
+        restartDriver()
+        invoke("onClinical", Libre3ClinicalRecord(life, 124, 0))
+        invoke("flushBackfill")
+        assertEquals(listOf(now + life * 60_000L), roomWrites)
+        assertEquals(now, Libre3Persistence.lifeZero(context, sensor))
+
+        // A grid learned from an arrival, saved as "anchor": the time of life count 0.
+        roomWrites.clear()
         val firstArrival = System.currentTimeMillis()
+        Libre3Persistence.removeSensor(context, sensor)
+        legacy.edit().clear().commit()
         Libre3Persistence.saveSensor(context, pairing().copy(startTimeMs = 0))
-        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putLong("$sensor.anchor", firstArrival - life * 60_000L).commit()
+        legacy.edit().remove("lifeZero.$sensor").putLong("$sensor.anchor", firstArrival - life * 60_000L).commit()
+        restartDriver()
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(60))
+        invoke("onRealtime", Libre3RealtimeReading(life + 1, 124, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        invoke("flushBackfill")
+        // What the earlier build stored for life + 1: its arrival a minute after the first.
+        assertEquals(listOf(firstArrival + 60_000L), roomWrites)
+        assertEquals(firstArrival - life * 60_000L, Libre3Persistence.lifeZero(context, sensor))
+
+        // A phone on an earlier build hands the watch the grid it stored under.
+        for ((anchor, start) in listOf(firstArrival - life * 60_000L to 0L, 0L to now)) {
+            legacy.edit().clear().commit()
+            Libre3Persistence.importFromPhone(context, org.json.JSONObject()
+                .put("sensor", sensor).put("pin", "01020304").put("address", "AA:BB:CC:DD:EE:FF")
+                .put("start", start).put("anchor", anchor))
+            assertEquals(if (anchor > 0L) anchor else start, Libre3Persistence.lifeZero(context, sensor))
+        }
+    }
+
+    private fun restartDriver() {
         manager.setPause(true)
         manager.close()
         manager = Libre3BleManager(sensor)
         set("nativeWindowChecked", true)
-        ShadowSystemClock.advanceBy(Duration.ofSeconds(60))
-        invoke("onRealtime", Libre3RealtimeReading(life + 1, 124, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        invoke("flushBackfill")
-
-        // What the earlier build stored for life + 1: its arrival a minute after the first.
-        assertEquals(listOf(firstArrival + 60_000L), roomWrites)
-        assertEquals(firstArrival - (life + 1) * 60_000L, Libre3Persistence.getAnchor(context, sensor))
-        assertEquals(firstArrival - (life + 1) * 60_000L, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
-
-        // A phone on an earlier build hands the watch the same grid.
-        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE).edit().clear().commit()
-        Libre3Persistence.importFromPhone(context, org.json.JSONObject()
-            .put("sensor", sensor).put("pin", "01020304").put("address", "AA:BB:CC:DD:EE:FF")
-            .put("anchor", firstArrival - life * 60_000L))
-        assertEquals(firstArrival - (life + 1) * 60_000L, Libre3Persistence.getAnchor(context, sensor))
     }
 
     @Test fun takeoverWithoutActivationTimeLearnsItsGridOnlyOnce() {
@@ -218,16 +235,16 @@ class Libre3ReviewRegressionTest {
         invoke("onClinical", Libre3ClinicalRecord(101, 124, 0))
         assertTrue(minutes().isEmpty())
         invoke("onRealtime", Libre3RealtimeReading(100, 123, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-        val learned = Libre3Persistence.getAnchor(context, sensor)
+        val learned = Libre3Persistence.lifeZero(context, sensor)
         val first = manager.getManagedCurrentSnapshot(0)!!.timeMillis
-        assertEquals(first - 101 * 60_000L, learned)
-        assertEquals(learned, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
+        assertEquals(first - 100 * 60_000L, learned)
+        assertEquals(learned - 60_000L, manager.getManagedUiSnapshot(sensor)!!.startTimeMs)
         invoke("flushBackfill")
         ShadowSystemClock.advanceBy(Duration.ofSeconds(80))
         invoke("onRealtime", Libre3RealtimeReading(101, 124, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         invoke("flushBackfill")
         assertEquals(listOf(first, first + 60_000L), roomWrites)
-        assertEquals(learned, Libre3Persistence.getAnchor(context, sensor))
+        assertEquals(learned, Libre3Persistence.lifeZero(context, sensor))
     }
 
     private fun awaitDriverHandler() {
@@ -418,18 +435,18 @@ class Libre3ReviewRegressionTest {
 
     @Test fun libreViewNumbersHistoryFromTheDriversLifeCountOrigin() {
         // LibreView record numbers are sensor lifeCounts, so native needs the origin the driver uses.
-        set("record", Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
-        set("anchorStartMs", now + 30_000L)
+        Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now, 60, 21600, 1, "test", 1))
+        restartDriver()
         set("nativeWindowChecked", false)
         invoke("ensureNativeWindow")
         // Life count 0 is the minute that ends a minute after activation.
-        assertEquals((now + 90_000L) / 1000L, Libre3ReviewNatives.activationSec)
+        assertEquals((now + 60_000L) / 1000L, Libre3ReviewNatives.activationSec)
 
-        // An NFC rescan that moves the activation hands the new origin over too.
+        // A rescan reporting another start keeps the numbers already uploaded.
         Libre3Persistence.saveSensor(context, Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", ByteArray(4), now - 600_000L, 60, 21600, 1, "test", 1))
         manager.onNfcRecordUpdated()
         invoke("ensureNativeWindow")
-        assertEquals((now - 540_000L) / 1000L, Libre3ReviewNatives.activationSec)
+        assertEquals((now + 60_000L) / 1000L, Libre3ReviewNatives.activationSec)
     }
 
     @Test fun watchHandoffCarriesTheSensorItsCredentialsAndCachedKey() {
@@ -443,7 +460,6 @@ class Libre3ReviewRegressionTest {
             val record = Libre3SensorRecord(sensor, "AA:BB:CC:DD:EE:FF", byteArrayOf(1, 2, 3, 4), now, 60, 21600, 77, "1.4.2.30", 1)
             Libre3Persistence.saveSensor(context, record)
             Libre3Persistence.setBackfillMarks(context, sensor, 700, 690)
-            Libre3Persistence.setAnchor(context, sensor, now + 5_000)
             val kAuth = ByteArray(16) { 7 }
             assertTrue(Libre3Persistence.saveCachedAuth(context, sensor, kAuth, "v1/app", Libre3Persistence.credentialRevision(context)))
             ManagedCurrentSensor.set(sensor)
@@ -461,7 +477,7 @@ class Libre3ReviewRegressionTest {
             assertEquals(record, Libre3Persistence.loadSensor(context, sensor))
             assertEquals(700, Libre3Persistence.getLastLifeCount(context, sensor))
             assertEquals(690, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
-            assertEquals(now + 5_000, Libre3Persistence.getAnchor(context, sensor))
+            assertEquals(now + 60_000, Libre3Persistence.lifeZero(context, sensor))
             val cached = Libre3Persistence.loadCachedAuth(context, sensor)!!
             assertArrayEquals(kAuth, cached.first)
             assertEquals("v1/app", cached.second)
@@ -501,7 +517,7 @@ class Libre3ReviewRegressionTest {
         // A captured frame with life count, rate and trend bits replaced: the rate says falling
         // whatever the class, so a class rebuilt from the rate or the values would not match.
         val frame = "e3386200d6ff0000f023d1386c000b62006c00200a9e03113d03100000"
-        set("anchorStartMs", System.currentTimeMillis() - 14_571 * 60_000L)
+        set("lifeZeroMs", System.currentTimeMillis() - 14_570 * 60_000L)
         for (bits in 0..7) {
             val lifeCount = 14_563 + bits
             val plain = Libre3Bytes.parseHex(frame)!!
@@ -816,6 +832,8 @@ class Libre3ReviewNatives {
         var stockWrites = 0
         var resolvedWrites = 0
         val nativeSeconds = sortedSetOf<Long>()
+        /** Every (second, mg/dL) the driver handed native storage, in order. */
+        val nativeWrites = mutableListOf<Pair<Long, Float>>()
         val nativeTrends = mutableListOf<Pair<Long, Int>>()
         var refusedSeconds = emptySet<Long>()
         var activeNames = emptyArray<String>()
@@ -823,7 +841,7 @@ class Libre3ReviewNatives {
         val finishedNames = mutableSetOf<String>()
         fun reset() {
             libreviewWakes = 0; cloneWakes = 0
-            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); nativeTrends.clear(); refusedSeconds = emptySet(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
+            stockWrites = 0; resolvedWrites = 0; nativeSeconds.clear(); nativeWrites.clear(); nativeTrends.clear(); refusedSeconds = emptySet(); wearDays = 0; activationSec = 0L; wakes.clear(); accountNumber = 0L
             activeNames = emptyArray(); selectedName = null; finishedNames.clear()
             legacyAddress = null; legacyPin = null; legacyStartMs = 0L; legacyEndMs = 0L; freed.clear()
         }
@@ -870,6 +888,7 @@ class Libre3ReviewNatives {
         @JvmStatic @Implementation fun getSensorStartmsecFromSensorptr(ptr: Long): Long = System.currentTimeMillis() - 86_400_000L
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithRawTemp(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, serial: String): Int {
             val accepted = t.filterNot { it in refusedSeconds }
+            t.indices.filter { t[it] !in refusedSeconds }.forEach { nativeWrites += t[it] to g[it] }
             stockWrites += accepted.size; nativeSeconds.addAll(accepted); return accepted.size
         }
         @JvmStatic @Implementation fun addGlucoseStreamBatchWithTrend(t: LongArray, g: FloatArray, r: FloatArray, temp: FloatArray, trends: IntArray, serial: String): Int {

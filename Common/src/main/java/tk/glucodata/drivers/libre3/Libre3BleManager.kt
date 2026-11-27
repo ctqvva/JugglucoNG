@@ -147,10 +147,11 @@ class Libre3BleManager(sensorId: String) :
     private var highestHistoricSeen = 0
 
     /**
-     * The activation the sensor counts life from: the NFC start, or an estimate saved when the
-     * driver took over without one. Life count L is the minute that ends at anchor + (L + 1) min.
+     * When this sensor's life count 0 is dated ([Libre3LifeCount]): set once per sensor from its
+     * NFC start, or learned from the first live frame when the driver took over without one, and
+     * kept across restarts, rescans and the watch handoff. 0 until known.
      */
-    @Volatile private var anchorStartMs: Long = 0L
+    @Volatile private var lifeZeroMs: Long = 0L
 
     // ---- per-link state (handler thread) ----
 
@@ -211,8 +212,7 @@ class Libre3BleManager(sensorId: String) :
     init {
         mActiveDeviceAddress = record?.bleAddress
         mActiveBluetoothDevice = knownDevice()
-        anchorStartMs = Applic.app?.let { Libre3Persistence.getAnchor(it, sensorId) }?.takeIf { it > 0L }
-            ?: record?.startTimeMs ?: 0L
+        lifeZeroMs = Applic.app?.let { Libre3Persistence.lifeZero(it, sensorId) } ?: 0L
         sensorstartmsec = activationTimeMs()
         if (ended) phase = Phase.ENDED
     }
@@ -357,7 +357,8 @@ class Libre3BleManager(sensorId: String) :
         val previousStart = record?.startTimeMs
         val updated = Libre3Persistence.loadSensor(ctx, sensorId)
         if (updated?.startTimeMs != previousStart) {
-            anchorStartMs = updated?.startTimeMs ?: 0L
+            // A corrected start does not move the grid: readings are stored under it.
+            lifeZeroMs = Libre3Persistence.lifeZero(ctx, sensorId)
             nativeWindowChecked = false
         }
         record = updated
@@ -755,18 +756,12 @@ class Libre3BleManager(sensorId: String) :
         }
     }
 
-    /**
-     * When the minute with this life count ended, which is when the sensor sends it. Life count L
-     * covers minute L after activation: the removed driver stamped each live minute with its
-     * arrival, and a sensor's frames arrive 1-5 s before activation + (L + 1) min (traces, days 2
-     * to 3). Dating it at the start of that minute put every reading a minute early.
-     */
-    private fun lifeCountTimeMs(lifeCount: Int): Long {
-        val base = anchorStartMs.takeIf { it > 0L } ?: record?.startTimeMs ?: 0L
-        return if (base > 0L) Libre3LifeCount.endMs(base, lifeCount) else 0L
-    }
+    /** The time this life count is stored under, on the sensor's grid; 0 while the grid is unknown. */
+    private fun lifeCountTimeMs(lifeCount: Int): Long =
+        if (lifeZeroMs > 0L) Libre3LifeCount.timeMs(lifeZeroMs, lifeCount) else 0L
 
-    private fun activationTimeMs(): Long = record?.startTimeMs?.takeIf { it > 0L } ?: anchorStartMs
+    private fun activationTimeMs(): Long =
+        record?.startTimeMs?.takeIf { it > 0L } ?: Libre3LifeCount.activationForZero(lifeZeroMs)
 
     private fun inWarmup(lifeCount: Int): Boolean = lifeCount < (record?.warmupMinutes ?: 60)
 
@@ -778,13 +773,13 @@ class Libre3BleManager(sensorId: String) :
     private fun onRealtime(r: Libre3RealtimeReading) {
         val now = System.currentTimeMillis()
         armWatchdog()
-        val learnedAnchor = anchorStartMs <= 0L && record != null
+        val learnedAnchor = lifeZeroMs <= 0L && record != null
         if (learnedAnchor) {
             // A takeover with no known activation time can only estimate it.
             // Capture a single origin; receipt jitter cannot move later minutes.
-            anchorStartMs = Libre3LifeCount.activationFromArrival(now, r.lifeCount)
+            val learned = Libre3LifeCount.zeroFromArrival(now, r.lifeCount)
+            lifeZeroMs = Applic.app?.let { Libre3Persistence.learnLifeZero(it, sensorId, learned) } ?: learned
             sensorstartmsec = activationTimeMs()
-            Applic.app?.let { Libre3Persistence.setAnchor(it, sensorId, anchorStartMs) }
         }
         r.historicalMgdl?.let { hist ->
             if (r.historicalLifeCount > 0) addHistoric(r.historicalLifeCount, hist)
@@ -921,7 +916,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onClinical(rec: Libre3ClinicalRecord) {
-        if (anchorStartMs <= 0L) return
+        if (lifeZeroMs <= 0L) return
         highestClinicalSeen = maxOf(highestClinicalSeen, rec.lifeCount)
         markMinuteReceived(rec.lifeCount)
         val time = lifeCountTimeMs(rec.lifeCount)
@@ -935,7 +930,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun onHistoricPage(page: Libre3HistoricalPage) {
-        if (anchorStartMs <= 0L) return
+        if (lifeZeroMs <= 0L) return
         highestHistoricSeen = maxOf(highestHistoricSeen, page.lastLifeCount)
         page.samples().forEach { (life, mgdl) -> addHistoric(life, mgdl) }
         scheduleBackfillFlush()
@@ -958,7 +953,7 @@ class Libre3BleManager(sensorId: String) :
     }
 
     private fun planBackfill(currentLifeCount: Int) {
-        if (anchorStartMs <= 0L) return
+        if (lifeZeroMs <= 0L) return
         if (session == null || controlInFlight != null || controlQueue.isNotEmpty()) return
         if (currentLifeCount <= 0) return
         if (lastLifeCount < currentLifeCount - 1) {

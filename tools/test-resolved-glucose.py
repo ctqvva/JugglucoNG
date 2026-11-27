@@ -450,6 +450,41 @@ int main() {
         batchSensor = nullptr;
     }
     {
+        // A Libre 3 replays minutes it already sent. Dated on the grid they were stored under,
+        // every replay leaves each minute's own value in its own slot; dated a minute later (an
+        // earlier build's sensor read back under the newer life count rule), a replay of minute
+        // L takes L + 1's slot and overwrites its value.
+        SensorGlucoseData libre3{"libre3grid"};
+        libre3.capacity = 128;
+        libre3.info.family = 9;
+        batchSensor = &libre3;
+        const jlong start = libre3.getstarttime();
+        vector<jlong> times; vector<float> values, zeros(6);
+        for (int i = 0; i < 6; ++i) {
+            times.push_back(start + (50 + i) * 60);
+            values.push_back(10.0f + 1.5f * i); // 100, 115, ... mg/dL: neighbours differ
+        }
+        const auto slotsHold = [&](const vector<float> &expected) {
+            for (int i = 0; i < 6; ++i) {
+                assert(libre3.getPollsData()[50 + i].getmgdL() == static_cast<int>(expected[i] * 10));
+                assert(libre3.getPollsData()[50 + i].gettime() == static_cast<uint32_t>(times[i]));
+            }
+        };
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false) == 6);
+        slotsHold(values);
+        for (int replay = 0; replay < 2; ++replay) {
+            addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros, libre3.id.c_str(), false);
+            slotsHold(values);
+        }
+        vector<jlong> shifted;
+        for (const auto time : times) shifted.push_back(time + 60);
+        addGlucoseStreamBatchWithRawTempInternal(&env, &shifted, &values, &zeros, &zeros, libre3.id.c_str(), false);
+        assert(libre3.getPollsData()[51].getmgdL() == 100); // minute 50's value in minute 51
+        assert(libre3.getPollsData()[51].gettime() == static_cast<uint32_t>(times[1]));
+        batchSensor = nullptr;
+    }
+    {
         SensorGlucoseData managed{"SIBI:0111801JGS9"};
         filesystem::create_directory(managed.id);
         batchSensor = &managed;
