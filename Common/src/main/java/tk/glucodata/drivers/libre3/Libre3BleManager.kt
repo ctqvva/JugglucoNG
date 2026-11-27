@@ -185,6 +185,47 @@ class Libre3BleManager(sensorId: String) :
 
     @Volatile private var linkUp = false
 
+    // ---- link lifecycle ----
+    //
+    // One link at a time. Its state above belongs to the driver thread, and a link that is
+    // retired has all of it cleared there before a replacement can begin: connections start
+    // only on the driver thread (beginLink), never straight from connectDevice(). A link
+    // retired on the driver thread is cleared in place (closeGattTransport() then endLink()).
+    // One retired from any other thread (an ownership release, a connection deadline) closes
+    // its GATT at once, and its teardown goes to the front of the driver thread's queue,
+    // ahead of any connection request; beginLink() also runs a teardown still outstanding.
+
+    /** A retired link's state is still to be cleared. Guarded by this. */
+    private var teardownPending = false
+    private val teardownRunnable = Runnable { retireOutstandingLink() }
+
+    private fun onDriverThread(): Boolean = Looper.myLooper() === handler.looper
+
+    /** Any thread: the current link was retired; clear its state before anything else runs. */
+    private fun requestTeardown() {
+        synchronized(this) {
+            teardownPending = true
+            handler.removeCallbacks(teardownRunnable)
+            handler.postAtFrontOfQueue(teardownRunnable)
+        }
+    }
+
+    /** Driver thread: clears a retired link's state, if one is outstanding. */
+    private fun retireOutstandingLink() {
+        val pending = synchronized(this) {
+            handler.removeCallbacks(teardownRunnable)
+            teardownPending.also { teardownPending = false }
+        }
+        if (!pending) return
+        handler.removeCallbacks(reconnectRunnable)
+        endLink()
+    }
+
+    /** Whichever entry point closes the GATT, its link goes with it. */
+    override fun onClosingGattTransport() {
+        if (!onDriverThread()) requestTeardown()
+    }
+
     // ---- authorization bookkeeping ----
 
     /** Index into the installed identities for the next full authorization. */
@@ -387,24 +428,44 @@ class Libre3BleManager(sensorId: String) :
 
     override fun useAutoConnect(): Boolean = super.useAutoConnect() || directConnectUnreachable
 
-    @Synchronized
+    private fun waitsForUser(): Boolean = identityRejected || missingIdentity || deviceRejected
+
+    /** Any thread. The connection itself begins on the driver thread, after any teardown queued there. */
     override fun connectDevice(delayMillis: Long): Boolean {
         if (stop || ended) return false
-        if (identityRejected || missingIdentity || deviceRejected) {
+        if (waitsForUser()) {
             Log.i(TAG, "$sensorId: not connecting (${getDetailedBleStatus()}); waiting for the user")
             return false
         }
-        if (phase != Phase.IDLE && phase != Phase.ERROR) {
+        if (tk.glucodata.CloneSensorRegistry.isCloneSensor(SerialNumber) ||
+            tk.glucodata.SensorOwnershipRuntime.blocksLocalConnection(SerialNumber)) return false
+        return handler.post { beginLink(delayMillis) }
+    }
+
+    /** Driver thread: starts a connection once no state of an earlier link is left. */
+    private fun beginLink(delayMillis: Long) {
+        retireOutstandingLink()
+        // A GATT given up without a teardown of its own (the link already ended, IDLE or ERROR).
+        if (mBluetoothGatt != null && (phase == Phase.IDLE || phase == Phase.ERROR)) {
+            closeGattTransport()
+            endLink()
+        }
+        synchronized(this) {
+            // Retired from another thread since the teardown above: it runs first, then this.
+            if (teardownPending) {
+                handler.post { beginLink(delayMillis) }
+                return
+            }
+            if (stop || ended || waitsForUser()) return
             if (mBluetoothGatt != null) {
                 Log.d(TAG, "$sensorId: skipping duplicate connect in $phase")
-                return true
+                return
             }
+            if (mActiveBluetoothDevice == null) mActiveBluetoothDevice = knownDevice()
+            phase = Phase.CONNECTING
+            if (!super.connectDevice(delayMillis) && phase == Phase.CONNECTING) phase = Phase.IDLE
         }
-        if (mActiveBluetoothDevice == null) mActiveBluetoothDevice = knownDevice()
-        phase = Phase.CONNECTING
-        val scheduled = super.connectDevice(delayMillis)
-        if (!scheduled && phase == Phase.CONNECTING) phase = Phase.IDLE
-        return scheduled
+        UiRefreshBus.requestStatusRefresh()
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -1295,26 +1356,27 @@ class Libre3BleManager(sensorId: String) :
 
     /**
      * An ownership release pauses the driver and then calls this. Android may report the drop
-     * late or never, so a paused driver retires its transport here rather than waiting for the
-     * callback: otherwise the resume's connectDevice() finds the old GATT and connects nothing.
-     * A late callback then finds a retired GATT and closes only that one.
+     * late or never, so a paused driver retires the link here rather than waiting for the
+     * callback: the GATT closes now, and its state is cleared before the resume's connection
+     * begins. A late callback finds a retired GATT and closes only that one.
      */
     override fun disconnect() {
         if (!stop) {
             super.disconnect()
             return
         }
-        closeGattTransport()
-        handler.post { if (mBluetoothGatt == null) endLink() }
+        retireLink()
     }
 
     override fun softDisconnect() {
         setPause(true)
-        handler.post {
-            handler.removeCallbacks(reconnectRunnable)
-            closeGattTransport()
-            endLink()
-        }
+        retireLink()
+    }
+
+    /** Any thread: closes the GATT now and clears the link's state before any replacement begins. */
+    private fun retireLink() {
+        closeGattTransport()
+        requestTeardown()
     }
 
     override fun softReconnect() {
@@ -1336,6 +1398,7 @@ class Libre3BleManager(sensorId: String) :
     override fun onBluetoothAdapterUnavailable() {
         handler.post {
             handler.removeCallbacks(reconnectRunnable)
+            closeGattTransport()
             endLink()
         }
     }
@@ -1357,7 +1420,7 @@ class Libre3BleManager(sensorId: String) :
 
     override fun close() {
         linkUp = false
-        if (stop) quitHandlerThread() else handler.post { endLink() }
+        if (stop) quitHandlerThread() else requestTeardown()
         super.close()
     }
 }

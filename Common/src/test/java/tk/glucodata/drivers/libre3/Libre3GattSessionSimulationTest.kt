@@ -82,6 +82,8 @@ class Libre3GattSessionSimulationTest {
     private lateinit var manager: Libre3BleManager
     private lateinit var sim: SimulatedLibre3Sensor
     private val roomWrites = Collections.synchronizedList(mutableListOf<Long>())
+    /** Runs on the driver thread inside a Room history write, before it returns. */
+    @Volatile private var onRoomStore: (() -> Unit)? = null
     private var oldBridge: Any? = null
     private var oldHealth: Any? = null
 
@@ -103,7 +105,10 @@ class Libre3GattSessionSimulationTest {
             HistoryRepositoryBridge::class.java.classLoader, arrayOf(HistoryRepositoryBridge::class.java),
         ) { _, method, args -> when (method.name) {
             "getHistoryTimestampsForSensorBlocking" -> roomWrites.toLongArray()
-            "storeHistoryBatchWithSourceBlocking" -> true.also { roomWrites.addAll((args!![1] as LongArray).toList()) }
+            "storeHistoryBatchWithSourceBlocking" -> true.also {
+                onRoomStore?.invoke()
+                roomWrites.addAll((args!![1] as LongArray).toList())
+            }
             "getHistoryForNotificationForSensor" -> emptyList<GlucosePoint>()
             else -> null
         } } as HistoryRepositoryBridge)
@@ -370,6 +375,7 @@ class Libre3GattSessionSimulationTest {
                 assertEquals(report, Libre3BleManager.Phase.IDLE, manager.phase)
 
                 ownership("resume", sensorId, "test")
+                settle()
                 assertEquals("$report: a connect went out", Libre3BleManager.Phase.CONNECTING, manager.phase)
                 sim.reconnect(nextLife = ++next, mgdl = 100 + next - life)
                 val current = connect()
@@ -392,8 +398,85 @@ class Libre3GattSessionSimulationTest {
             assertFalse(reconnectScheduled())
             manager.setPause(false)
             assertTrue(manager.connectDevice(60_000L))
+            settle()
             assertEquals(Libre3BleManager.Phase.CONNECTING, manager.phase)
         } finally {
+            ownership("resume", sensorId, "test")
+            tk.glucodata.SensorBluetooth.gattcallbacks.remove(manager)
+        }
+    }
+
+    /**
+     * The other device hands the sensor back while the driver thread is still writing history to
+     * Room: release and resume both land in that write, with nothing run on the driver thread in
+     * between. The old link had a backfill request in flight, unanswered, and its timers armed.
+     * The connect path itself creates the replacement GATT, and only once the old link's state is
+     * gone: the replacement authorizes, asks for its own backfill, outlasts the old request's
+     * timeout and the old setup deadline, and late callbacks of the old GATT change nothing.
+     */
+    @Config(shadows = [Libre3SimDeviceShadow::class])
+    @Test fun takingASensorBackWhileHistoryIsSavedStartsTheReplacementClean() {
+        tk.glucodata.SensorBluetooth.gattcallbacks.add(manager)
+        val oldBlue = tk.glucodata.SensorBluetooth.blueone
+        tk.glucodata.SensorBluetooth.blueone = tk.glucodata.SensorBluetooth()
+        shadowOf(BluetoothAdapter.getDefaultAdapter()).setEnabled(true)
+        try {
+            sim.answerControls = false
+            val old = connect()
+            assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
+            assertEquals("the old link's backfill request is in flight", 1, sim.controls.size)
+
+            var handedBack: Throwable? = null
+            onRoomStore = {
+                onRoomStore = null
+                // Another thread, as SensorOwnershipRuntime's; this one is busy storing.
+                Thread {
+                    runCatching {
+                        ownership("release", sensorId)
+                        ownership("resume", sensorId, "test")
+                        // Past the resume's 200 ms connect delay, still inside the write.
+                        Thread.sleep(600L)
+                    }.onFailure { handedBack = it }
+                }.apply { start(); join(10_000L) }
+            }
+            advance(2_500) // the backfill flush, and with it the release and the resume
+            handedBack?.let { throw it }
+            assertTrue("the released link is closed", old in sim.closed)
+
+            val deadline = System.currentTimeMillis() + 5_000L
+            while (sim.created.isEmpty() && System.currentTimeMillis() < deadline) Thread.sleep(10L)
+            assertEquals("one replacement GATT", 1, sim.created.size)
+            val replacement = sim.created.single()
+            assertTrue(replacement !== old)
+            sim.reconnect(nextLife = life + 1, mgdl = 104)
+            sim.answerControls = true
+            sim.gatt = replacement
+            manager.onConnectionStateChange(replacement, BluetoothGatt.GATT_SUCCESS, BluetoothProfile.STATE_CONNECTED)
+            settle()
+            advance(300)
+            assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
+            assertEquals(104f, field("lastReadingMgdl").get(manager) as Float)
+            assertEquals("cached authorization on the replacement", listOf(0x11, 0x08), sim.commands)
+            assertTrue("the replacement asks for its own backfill", sim.controls.isNotEmpty())
+
+            // Late callbacks of the old GATT.
+            val control = BluetoothGattCharacteristic(Libre3Gatt.PATCH_CONTROL, BluetoothGattCharacteristic.PROPERTY_WRITE, 0)
+            manager.onCharacteristicWrite(old, control, BluetoothGatt.GATT_SUCCESS)
+            manager.onCharacteristicChanged(old, control, ByteArray(7))
+            manager.onDescriptorWrite(old, BluetoothGattDescriptor(Libre3Gatt.CCCD, 0).also { control.addDescriptor(it) }, 133)
+            manager.onServicesDiscovered(old, 129)
+            manager.onConnectionStateChange(old, 0, BluetoothProfile.STATE_CONNECTED)
+            manager.onConnectionStateChange(old, 19, BluetoothProfile.STATE_DISCONNECTED)
+            settle()
+            // Past the old request's 30 s timeout and the old link's 60 s setup deadline.
+            advance(61_000)
+            assertFalse("the replacement stays open", replacement in sim.closed)
+            assertEquals(Libre3BleManager.Phase.STREAMING, manager.phase)
+            assertTrue(manager.hasLocallyConnectedGatt())
+            assertEquals(1, sim.created.size)
+        } finally {
+            onRoomStore = null
+            tk.glucodata.SensorBluetooth.blueone = oldBlue
             ownership("resume", sensorId, "test")
             tk.glucodata.SensorBluetooth.gattcallbacks.remove(manager)
         }
@@ -449,6 +532,10 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
     var emptyDiscoveries = 0
     var errorData = 0
     var refreshes = 0
+    /** Every GATT the connect path created (Libre3SimDeviceShadow). */
+    val created: MutableList<BluetoothGatt> = Collections.synchronizedList(mutableListOf())
+    /** False: requests are recorded and left unanswered. */
+    @Volatile var answerControls = true
     /** Every GATT the driver closed. */
     val closed: MutableSet<BluetoothGatt> = Collections.newSetFromMap(java.util.IdentityHashMap())
     fun discover() { hidden = emptyDiscoveries > 0; if (hidden) emptyDiscoveries-- }
@@ -582,6 +669,7 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
         val seq = Libre3Bytes.u16le(frame, frame.size - 2)
         val plaintext = Libre3AesCcm(kEnc).decrypt(session.nonce(seq, 0), frame.copyOf(frame.size - 2), 4)
         controls += plaintext
+        if (!answerControls) return
         when (plaintext[1].toInt()) {
             0x01 -> for (minute in listOf(life - 2, life - 1)) { // clinical: the two minutes before now
                 val rec = ByteArray(Libre3ClinicalRecord.SIZE)
@@ -599,6 +687,14 @@ class SimulatedLibre3Sensor(private val appStaticPub: ByteArray, private val pin
         }
         notify(Libre3Gatt.PATCH_CONTROL, session.encryptInbound(Libre3Channel.PATCH_CONTROL, ByteArray(7), inbound++))
     }
+}
+
+/** The connect path's GATT: what Android's connectGatt returns, recorded by the simulated sensor. */
+@Implements(BluetoothDevice::class)
+class Libre3SimDeviceShadow : org.robolectric.shadows.ShadowBluetoothDevice() {
+    @Implementation
+    public override fun connectGatt(context: Context, autoConnect: Boolean, callback: android.bluetooth.BluetoothGattCallback, transport: Int): BluetoothGatt =
+        Shadow.newInstanceOf(BluetoothGatt::class.java).also { Libre3SimGattShadow.sim?.created?.add(it) }
 }
 
 /** The driver's BluetoothGatt, wired to [Libre3SimGattShadow.sim] instead of a radio. */

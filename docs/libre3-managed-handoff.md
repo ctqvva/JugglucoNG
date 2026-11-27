@@ -121,6 +121,11 @@ services used are the generic managed-sensor mirror and lifecycle services.
   disconnect report Android may send late or never; a late report finds a
   retired GATT and closes only that one. The setup deadline and the stream
   watchdog drop a paused link too.
+- One link at a time: a retired link's operations, control requests and timers
+  are cleared on the driver thread before a replacement begins. Connections
+  start only there; a link retired from another thread (release, connection
+  deadline) queues its teardown ahead of any connection request, so taking a
+  sensor back while the driver thread is still writing history starts clean.
 - Libre 3 gap fills rewind the Health Connect cursor under the poll-write lock.
   An export acknowledgement cannot overwrite a concurrent rewind; invalidated
   batches retry with stable per-minute client IDs. One worker coalesces pending
