@@ -163,6 +163,10 @@ services used are the generic managed-sensor mirror and lifecycle services.
   cached authorization in the device-local store. The regular Libre 3 identity
   download does not supply it. First pairing uses upstream's receiver ID 1001.
   Live readings prefer the sensor's uncapped glucose, as upstream Juggluco does.
+  Its minutes are dated by the Libre 3 life count rule and grid above, with no
+  Lingo-specific timing. That is assumed, not verified: the only Lingo capture is
+  a single frame without its arrival time, so no multi-frame hardware trace shows
+  a Lingo sending minute L at activation + (L + 1) min.
   The source port and decoder tests do not establish fresh activation, takeover from
   Abbott's Lingo app, cached reconnect, or live and historical delivery on hardware.
 

@@ -743,13 +743,13 @@ class Libre3ReviewRegressionTest {
      * its life counts, and each live reading wakes the upload.
      */
     @Test fun aLingoReadingReachesTheLibreViewRecordOnItsOwnLifeCounts() {
-        // Life 63 is the minute that ends now.
+        // Life 63 is the minute that ends now, if a Lingo counts minutes as a Libre 3 does: its only
+        // capture is this one frame, with no arrival time to check the rule against.
         val start = (System.currentTimeMillis() / 1000L - 64 * 60L) * 1000L
         Libre3Persistence.saveSensor(context, pairing().copy(
             startTimeMs = start, wearMinutes = 14 * 24 * 60, receiverId = Libre3Lingo.RECEIVER_ID,
             securityVersion = Libre3Lingo.SECURITY_VERSION, productType = Libre3Lingo.PRODUCT_TYPE))
-        set("record", Libre3Persistence.loadSensor(context, sensor))
-        set("anchorStartMs", start)
+        restartDriver()
         set("nativeWindowChecked", false)
         // The captured frame of Libre3LingoTest: life 63, 208 mg/dL uncapped.
         val frame = Libre3Bytes.parseHex(
