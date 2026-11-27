@@ -109,8 +109,18 @@ services used are the generic managed-sensor mirror and lifecycle services.
   start: minute L at start + L min, one minute early), because a replay dated
   by the new rule lands on the next minute's time: native overwrites that
   minute with the replayed value and Room drops the replay or doubles the last
-  minute. Their stored readings are not rewritten. Pause retains pending batches
-  until Resume can flush them.
+  minute. Their stored readings are not rewritten. When the phone and watch
+  store a sensor on different grids, neither is moved: the handoff is refused
+  (its backfill marks and fill-ins name minutes by the other grid) and WearSync2
+  keeps the other device's readings out, logging why. Chunks carry the sender's
+  grid after the triples; for an earlier build that sends none, the grid from
+  its last handoff decides. A device with no grid for the sensor yet takes the
+  other device's. Pause retains pending batches until Resume can flush them.
+- A pause (ownership release, the user's pause, teardown) stops reconnecting,
+  never cleanup. A release closes the GATT at once instead of waiting for a
+  disconnect report Android may send late or never; a late report finds a
+  retired GATT and closes only that one. The setup deadline and the stream
+  watchdog drop a paused link too.
 - Libre 3 gap fills rewind the Health Connect cursor under the poll-write lock.
   An export acknowledgement cannot overwrite a concurrent rewind; invalidated
   batches retry with stable per-minute client IDs. One worker coalesces pending

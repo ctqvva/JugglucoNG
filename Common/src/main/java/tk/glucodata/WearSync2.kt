@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
+import tk.glucodata.drivers.libre3.Libre3Persistence
 import tk.glucodata.Log.doLog
 
 /**
@@ -33,6 +34,9 @@ object WearSync2 {
     private const val MAX_SERVED_SENSORS = 4
     private const val VERSION = 1
     private const val MAX_TRIPLES_PER_CHUNK = 360 // ~8.6KB; smaller messages survive better
+    // After the triples: "L3GZ" and the Libre 3 grid the readings are dated on (Libre3LifeCount).
+    // Earlier builds read exactly the triples and ignore it.
+    private const val LIBRE3_GRID_TRAILER = 0x4C33475A
     private const val TAIL_TRIPLES = 8
     private const val PUSH_THROTTLE_MS = 45_000L
     // A sensor runs for weeks; a 24h horizon meant the watch could never show
@@ -293,6 +297,7 @@ object WearSync2 {
                 .takeIf { GlucoseValuePlausibility.isPlausibleMgdl(it) }
                 ?.let { wireValue(it) } ?: 0L
         }
+        val libre3Grid = Applic.app?.let { runCatching { Libre3Persistence.historyGrid(it, serial) }.getOrDefault(0L) } ?: 0L
         val total = points.size
         var index = 0
         var chunks = 0L
@@ -303,7 +308,7 @@ object WearSync2 {
             // drops, stop here; the receiver's next incremental request resumes
             // from the contiguous prefix instead of leaving holes behind a
             // newer last timestamp.
-            if (!sendChunk(serial, triples, index, count, final)) {
+            if (!sendChunk(serial, triples, index, count, final, libre3Grid)) {
                 Log.w(LOG_ID, "history send stopped for $serial at $index/$total")
                 break
             }
@@ -320,10 +325,14 @@ object WearSync2 {
     @JvmStatic
     fun serveStatus(): ServeStatus = ServeStatus(lastServedMs.get(), lastServedChunkCount.get())
 
-    private fun sendChunk(serial: String, triples: LongArray, offset: Int, count: Int, final: Boolean): Boolean {
+    private fun sendChunk(serial: String, triples: LongArray, offset: Int, count: Int, final: Boolean, libre3Grid: Long): Boolean =
+        MessageSender.sendSyncMessageAwait(WearMessagePath.SYNC2_CHUNK, encodeChunk(serial, triples, offset, count, final, libre3Grid), timeoutSeconds = 5L)
+
+    internal fun encodeChunk(serial: String, triples: LongArray, offset: Int, count: Int, final: Boolean, libre3Grid: Long): ByteArray {
         val canonical = SensorIdentity.canonicalSensorId(serial) ?: serial
         val serialBytes = canonical.toByteArray(Charsets.UTF_8)
-        val buf = ByteBuffer.allocate(1 + 1 + 2 + 1 + serialBytes.size + count * 16)
+        val trailer = if (libre3Grid > 0L) 12 else 0
+        val buf = ByteBuffer.allocate(1 + 1 + 2 + 1 + serialBytes.size + count * 16 + trailer)
         buf.put(VERSION.toByte())
         buf.put(if (final) 1 else 0)
         buf.putShort(count.toShort())
@@ -342,7 +351,8 @@ object WearSync2 {
             val raw10 = triples[base + 2].toInt()
             buf.putInt(if (GlucoseValuePlausibility.isPlausibleMgdl(raw10 / 10f)) raw10 else 0)
         }
-        return MessageSender.sendSyncMessageAwait(WearMessagePath.SYNC2_CHUNK, buf.array(), timeoutSeconds = 5L)
+        if (libre3Grid > 0L) buf.putInt(LIBRE3_GRID_TRAILER).putLong(libre3Grid)
+        return buf.array()
     }
 
 
@@ -478,6 +488,17 @@ object WearSync2 {
                 val serial = existingSensorNameFor(wireSerial) ?: wireSerial
                 if (shouldIgnoreRemovedSensor(serial)) {
                     if (doLog) Log.i(LOG_ID, "ignored stale chunk for removed sensor $serial")
+                    return@execute
+                }
+                // A Libre 3 whose readings the two devices date on different grids keeps two
+                // histories: merged, minute L from there would overwrite another minute here.
+                val trailerAt = buf.position() + count * 16
+                val peerLibre3Grid = if (buf.limit() - trailerAt >= 12 && buf.getInt(trailerAt) == LIBRE3_GRID_TRAILER) {
+                    buf.getLong(trailerAt + 4)
+                } else 0L
+                val context = Applic.app
+                if (context != null && !Libre3Persistence.acceptsPeerHistory(context, serial, peerLibre3Grid)) {
+                    if (doLog) Log.i(LOG_ID, "ignored chunk for $serial: another Libre 3 timestamp grid")
                     return@execute
                 }
                 // A managed watch can acquire live readings before its phone

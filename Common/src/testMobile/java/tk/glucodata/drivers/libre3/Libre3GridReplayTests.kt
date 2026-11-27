@@ -11,6 +11,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.ConscryptMode
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
 import tk.glucodata.Applic
 import tk.glucodata.GlucoseReadingSource
 import tk.glucodata.HistoryRepositoryAccess
@@ -139,6 +141,48 @@ class Libre3GridReplayTests {
         exerciseEveryPath(serial, timeOf)
     }
 
+    /**
+     * The watch's readings reach the phone through WearSync2 only on the phone's grid. Here the
+     * phone holds a preview sensor (start + L min) and the watch an upgraded one dated a minute
+     * later: its handoff is refused, and neither its chunks that name that grid nor those of a
+     * build that names none join the phone's history. A chunk on the phone's own grid does.
+     */
+    @Config(shadows = [Libre3WearCompanionOn::class])
+    @Test fun theWatchsReadingsJoinThePhonesHistoryOnlyOnTheSameGrid() {
+        val serial = "0D1234SYN"
+        // The companion switch (Applic.useWearos).
+        context.packageManager.setComponentEnabledSetting(android.content.ComponentName(context, "tk.glucodata.MessageReceiver"),
+            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+        val phoneTime = { life: Int -> start + life * 60_000L }
+        val watchTime = { life: Int -> start + (life + 1) * 60_000L }
+        Libre3Persistence.saveSensor(context, record(serial))
+        prefs().edit().remove("lifeZero.$serial").commit() // as an earlier build left it
+        assertTrue(HistoryRepositoryAccess.storeHistoryBatchWithSourceBlocking(
+            serial, lives.map(phoneTime).toLongArray(), lives.map { mgdl(it).toFloat() }.toFloatArray(),
+            FloatArray(lives.count()), GlucoseReadingSource.SENSOR,
+        ))
+        val handoff = Libre3Persistence.exportForWatch(context, serial)!!
+            .put("lifeZero", watchTime(0)).put("anchor", watchTime(0)).put("lastLife", lives.last)
+        assertEquals(null, Libre3Persistence.importFromPhone(context, handoff))
+
+        fun chunk(minutes: IntRange, time: (Int) -> Long, mgdl: (Int) -> Int, grid: Long) = minutes
+            .flatMap { listOf(time(it) / 1000L, mgdl(it) * 10L, 0L) }.toLongArray()
+            .let { tk.glucodata.WearSync2.encodeChunk(serial, it, 0, minutes.count(), true, grid) }
+        val theirs = { life: Int -> mgdl(life) + 50 }
+        tk.glucodata.WearSync2.onChunk(chunk(lives, watchTime, theirs, watchTime(0)))
+        tk.glucodata.WearSync2.onChunk(chunk(lives, watchTime, theirs, 0L)) // a build that names no grid
+        val later = lives.last + 1..lives.last + 3
+        tk.glucodata.WearSync2.onChunk(chunk(later, phoneTime, ::mgdl, phoneTime(0)))
+
+        val expected = (lives.first..later.last).associate { phoneTime(it) to mgdl(it).toFloat() }
+        val deadline = System.currentTimeMillis() + 10_000L
+        while (room(serial).size < expected.size && System.currentTimeMillis() < deadline) Thread.sleep(20L)
+        assertEquals(expected, room(serial))
+        val native = later.associate { phoneTime(it) / 1000L to VirtualSensorNativeMirror.nativeGlucose(mgdl(it).toFloat()) }
+        assertEquals(native.toList(), Libre3ReviewNatives.nativeWrites)
+        assertEquals("the refused handoff's progress", 0, Libre3Persistence.getLastLifeCount(context, serial))
+    }
+
     /** A sensor first seen by this build: minute L is dated when it ends, a minute after start + L min. */
     @Test fun aNewSensorsLiveMinuteAndItsReplaysShareTheMinuteEnd() {
         val serial = "0D1234NEW"
@@ -149,5 +193,13 @@ class Libre3GridReplayTests {
         invoke("flushBackfill")
         assertStored(serial, timeOf, "the live frames")
         exerciseEveryPath(serial, timeOf)
+    }
+}
+
+/** Play services, which the phone's Wear OS companion needs before WearSync2 takes the watch's readings. */
+@Implements(value = tk.glucodata.GoogleServices::class, callThroughByDefault = true)
+class Libre3WearCompanionOn {
+    companion object {
+        @JvmStatic @Implementation fun isPlayServicesAvailable(context: Context?): Boolean = true
     }
 }

@@ -222,6 +222,65 @@ class Libre3ReviewRegressionTest {
         }
     }
 
+    /**
+     * Two devices that store a sensor's readings on different grids do not hand it over: the
+     * other device's backfill marks and fill-ins name minutes by its grid, and its readings would
+     * land on other minutes here. Matching grids hand over as before, from an earlier build's
+     * payload too, and a record an earlier build left here is judged by the grid it is stored on.
+     */
+    @Test fun aHandoffBetweenDifferentGridsIsRefused() {
+        val prefs = context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+        val filler = now + 5 * 60_000L
+        // A record a preview build left, with no grid stored: its readings sit at start + L min.
+        Libre3Persistence.saveSensor(context, pairing())
+        prefs.edit().remove("lifeZero.$sensor").commit()
+        Libre3Persistence.setBackfillMarks(context, sensor, 700, 690)
+        Libre3Persistence.setHistoryFillers(context, sensor, listOf(filler))
+        val moved = pairing().copy(bleAddress = "AA:BB:CC:DD:EE:02", blePin = byteArrayOf(5, 6, 7, 8))
+        fun payload(vararg grid: Pair<String, Long>) = org.json.JSONObject()
+            .put("sensor", sensor).put("pin", "05060708").put("address", moved.bleAddress).put("start", now)
+            .put("warmup", 60).put("wear", 21_600).put("receiver", 123).put("firmware", "test").put("secver", 1)
+            .put("lastLife", 900).put("lastHist", 890).put("fillers", Libre3BackfillMerge.encode(listOf(filler + 60_000L)))
+            .apply { grid.forEach { (key, value) -> put(key, value) } }
+        fun assertRefused(case: String, json: org.json.JSONObject, there: Long) {
+            assertNull(case, Libre3Persistence.importFromPhone(context, json))
+            assertEquals(case, pairing(), Libre3Persistence.loadSensor(context, sensor))
+            assertEquals(case, 700, Libre3Persistence.getLastLifeCount(context, sensor))
+            assertEquals(case, 690, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+            assertEquals(case, setOf(filler), Libre3Persistence.getHistoryFillers(context, sensor))
+            assertEquals(case, now, Libre3Persistence.lifeZero(context, sensor))
+            // Its readings stay out too, sent by a build that says its grid or by one that does not.
+            assertFalse(case, Libre3Persistence.acceptsPeerHistory(context, sensor, there))
+            assertFalse(case, Libre3Persistence.acceptsPeerHistory(context, sensor, 0L))
+        }
+        assertRefused("a new sensor's grid", payload("lifeZero" to now + 60_000L), now + 60_000L)
+        // An earlier build sends its learned anchor, which here is another grid.
+        assertRefused("an earlier build's anchor", payload("anchor" to now + 3_000L), now + 3_000L)
+
+        // The same grid, from an earlier build that sends only its start, then from this build.
+        for ((case, json) in listOf("an earlier build" to payload(), "this build" to payload("lifeZero" to now))) {
+            assertEquals(case, sensor, Libre3Persistence.importFromPhone(context, json))
+            assertEquals(case, moved, Libre3Persistence.loadSensor(context, sensor))
+            assertEquals(case, 900, Libre3Persistence.getLastLifeCount(context, sensor))
+            assertEquals(case, 890, Libre3Persistence.getLastHistoricLifeCount(context, sensor))
+            assertEquals(case, setOf(filler + 60_000L), Libre3Persistence.getHistoryFillers(context, sensor))
+            assertEquals(case, now, Libre3Persistence.lifeZero(context, sensor))
+            assertTrue(case, Libre3Persistence.acceptsPeerHistory(context, sensor, now))
+            assertTrue(case, Libre3Persistence.acceptsPeerHistory(context, sensor, 0L))
+            assertFalse(case, Libre3Persistence.acceptsPeerHistory(context, sensor, now + 60_000L))
+            Libre3Persistence.saveSensor(context, pairing())
+            Libre3Persistence.setBackfillMarks(context, sensor, 700, 690)
+        }
+
+        // A sensor with no grid here takes the other device's, readings and handoff alike.
+        prefs.edit().clear().commit()
+        assertTrue(Libre3Persistence.acceptsPeerHistory(context, sensor, now + 60_000L))
+        Libre3Persistence.saveSensor(context, pairing().copy(startTimeMs = 0L))
+        assertTrue(Libre3Persistence.acceptsPeerHistory(context, sensor, now + 60_000L))
+        assertEquals(now + 60_000L, Libre3Persistence.lifeZero(context, sensor))
+        assertEquals(sensor, Libre3Persistence.importFromPhone(context, payload("lifeZero" to now + 60_000L)))
+    }
+
     private fun restartDriver() {
         manager.setPause(true)
         manager.close()

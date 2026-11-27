@@ -483,6 +483,45 @@ object Libre3Persistence {
         return zeroMs
     }
 
+    // ---- the grid on the other device ----
+
+    // The grid the other device last said it stores this sensor's readings under.
+    private fun peerLifeZeroKey(sensorId: String) = "peerLifeZero.$sensorId"
+
+    private val gridConflictsReported = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** This device's id for [serial] in any spelling, counting a removed sensor whose grid is kept. */
+    private fun gridSensorId(context: Context, serial: String): String? {
+        val ids = sensorIds(context) +
+            prefs(context).all.keys.filter { it.startsWith("lifeZero.") }.map { it.removePrefix("lifeZero.") }
+        return ids.firstOrNull { it.equals(serial, ignoreCase = true) }
+            ?: ids.firstOrNull { runCatching { tk.glucodata.SensorIdentity.matches(it, serial) }.getOrDefault(false) }
+    }
+
+    /** The grid this device stores [serial]'s readings under, sent with them to the other device; 0 if none. */
+    fun historyGrid(context: Context, serial: String): Long =
+        gridSensorId(context, serial)?.let { lifeZero(context, it) } ?: 0L
+
+    /**
+     * Whether readings the other device stored on the grid [peerZeroMs] (0 when it did not say,
+     * as earlier builds do not) may join this device's history of [serial]. Not when the two
+     * grids differ: minute L from there lands on another minute's time here, which native storage
+     * overwrites and Room keeps beside its own. Neither device's readings are moved; the other
+     * device's are left out. A sensor with no grid here yet takes the other device's.
+     */
+    fun acceptsPeerHistory(context: Context, serial: String, peerZeroMs: Long): Boolean {
+        val id = gridSensorId(context, serial) ?: return true
+        val peer = peerZeroMs.takeIf { it > 0L } ?: prefs(context).getLong(peerLifeZeroKey(id), 0L)
+        if (peer <= 0L) return true
+        val local = learnLifeZero(context, id, peer)
+        if (local == peer) return true
+        if (gridConflictsReported.add("$id/$peer")) {
+            Log.w("Libre3Persistence", "$id: not taking the other device's readings: they are dated on " +
+                "another grid (life count 0 at $peer there, $local here)")
+        }
+        return false
+    }
+
     fun isEnded(context: Context, sensorId: String): Boolean = prefs(context).getBoolean("$sensorId.ended", false)
 
     fun setEnded(context: Context, sensorId: String, ended: Boolean) {
@@ -539,6 +578,26 @@ object Libre3Persistence {
         val sensorId = json.optString("sensor").trim().takeIf { it.isNotEmpty() } ?: return null
         val pin = Libre3Bytes.parseHex(json.optString("pin"))?.takeIf { it.size == 4 } ?: return null
         val address = json.optString("address").takeIf { it.isNotBlank() } ?: return null
+        // The phone's grid; a phone on an earlier build sends none, and its grid is its learned
+        // anchor, else the start. This watch's own, an unmigrated record's included, comes first:
+        // if the two differ, their readings would collide, and so would the backfill marks and
+        // fill-ins, which name minutes by the phone's grid. Nothing is taken then, and WearSync2
+        // keeps the two histories apart (acceptsPeerHistory).
+        val start = json.optLong("start")
+        val phoneZero = json.optLong("lifeZero").takeIf { it > 0L }
+            ?: if (json.has("lifeZero")) 0L else Libre3LifeCount.legacyZero(json.optLong("anchor"), start)
+        val localZero = lifeZero(context, sensorId)
+        if (phoneZero > 0L) {
+            check(prefs(context).edit().putLong(peerLifeZeroKey(sensorId), phoneZero).commit()) { "could not persist the other device's grid" }
+        }
+        if (phoneZero > 0L && localZero > 0L && phoneZero != localZero) {
+            Log.w("Libre3Persistence", "$sensorId from the other device not taken: its readings are dated on " +
+                "another grid (life count 0 at $phoneZero there, $localZero here)")
+            return null
+        }
+        if (phoneZero > 0L && localZero <= 0L) {
+            check(prefs(context).edit().putLong(lifeZeroKey(sensorId), phoneZero).commit()) { "could not persist the sensor's grid" }
+        }
         val sets = json.optJSONArray("identities") ?: org.json.JSONArray()
         for (i in 0 until sets.length()) {
             val set = sets.optJSONObject(i) ?: continue
@@ -549,14 +608,6 @@ object Libre3Persistence {
         }
         json.optString("selected").takeIf { it.isNotEmpty() && it != "null" }
             ?.let { runCatching { selectIdentityVersion(context, it) } }
-        // The phone's grid, unless this watch already stores the sensor under one. A phone on an
-        // earlier build sends none: its grid is its learned anchor, else the start.
-        val start = json.optLong("start")
-        val phoneZero = json.optLong("lifeZero").takeIf { it > 0L }
-            ?: if (json.has("lifeZero")) 0L else Libre3LifeCount.legacyZero(json.optLong("anchor"), start)
-        if (phoneZero > 0L && !prefs(context).contains(lifeZeroKey(sensorId))) {
-            check(prefs(context).edit().putLong(lifeZeroKey(sensorId), phoneZero).commit()) { "could not persist the sensor's grid" }
-        }
         saveSensor(context, Libre3SensorRecord(
             sensorId = sensorId,
             bleAddress = address,
