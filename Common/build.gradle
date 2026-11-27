@@ -208,7 +208,7 @@ android {
         releasedub {
             versionNameSuffix = 'DUB'
             applicationIdSuffix = ".dub"
-            resValue "string", "app_name", "JugglucoNG Dub"
+            resValue "string", "app_name", "Glucy Dub"
             signingConfig = signingConfigs.alg
             minifyEnabled = true
             shrinkResources = true
@@ -227,7 +227,7 @@ android {
         releasedub2 {
             versionNameSuffix = 'DUB2'
             applicationIdSuffix = ".dub2"
-            resValue "string", "app_name", "JugglucoNG Dub 2"
+            resValue "string", "app_name", "Glucy Dub 2"
             signingConfig = signingConfigs.alg
             minifyEnabled = true
             shrinkResources = true
