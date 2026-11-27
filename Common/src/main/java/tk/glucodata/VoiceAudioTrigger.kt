@@ -25,6 +25,7 @@ import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
 import android.os.OperationCanceledException
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
@@ -125,8 +126,10 @@ object VoiceAudioTrigger {
     private var carProjectionRefreshInFlight = false
     private var carProjectionRefreshPending = false
     private var carProjectionQueryGeneration = 0L
+    private var carProjectionGraceGeneration = 0L
     private var carProjectionRetryCount = 0
     private var carProjectionRetryTask: ScheduledFuture<*>? = null
+    private var carProjectionExpiryTask: ScheduledFuture<*>? = null
     private val carProjectionThreadSeq = AtomicInteger(0)
     // Bounded 0..2 daemon pool so normal single-flight uses 1 thread (0 when idle), while a single
     // hung Binder provider that ignores CancellationSignal cannot permanently jam future queries.
@@ -141,12 +144,29 @@ object VoiceAudioTrigger {
             isDaemon = true
         }
     }
+    private val carProjectionCancelThreadSeq = AtomicInteger(0)
+    // Dedicated daemon executor for best-effort CancellationSignal.cancel() so a blocking remote
+    // Binder cancel call can never stall Applic.scheduler or delay the logical timeout transition.
+    private val carProjectionCancelExecutor: ExecutorService = ThreadPoolExecutor(
+        0,
+        2,
+        30L,
+        TimeUnit.SECONDS,
+        SynchronousQueue(),
+        { runnable ->
+            Thread(runnable, "VoiceCarCancel-${carProjectionCancelThreadSeq.incrementAndGet()}").apply {
+                isDaemon = true
+            }
+        },
+        ThreadPoolExecutor.DiscardPolicy(),
+    )
     private val stateFlow = MutableStateFlow(Snapshot())
     val state: StateFlow<Snapshot> = stateFlow.asStateFlow()
 
     private const val CAR_PROJECTION_RECHECK_MS = 30_000L
     private const val CAR_PROJECTION_QUERY_TIMEOUT_MS = 5_000L
     private const val DEFAULT_CAR_PROJECTION_GRACE_MS = 90_000L
+    private const val UNSET_MONOTONIC_MS = -1L
     private val DEFAULT_CAR_PROJECTION_RETRY_DELAYS_MS = longArrayOf(2_000L, 5_000L, 10_000L)
     @Volatile
     internal var carProjectionQueryTimeoutMs: Long = CAR_PROJECTION_QUERY_TIMEOUT_MS
@@ -154,6 +174,8 @@ object VoiceAudioTrigger {
     internal var carProjectionGraceMs: Long = DEFAULT_CAR_PROJECTION_GRACE_MS
     @Volatile
     internal var carProjectionRetryDelaysMs: LongArray = DEFAULT_CAR_PROJECTION_RETRY_DELAYS_MS
+    @Volatile
+    internal var monotonicClockMs: () -> Long = { SystemClock.elapsedRealtime() }
 
     private var appContext: Context? = null
     private var monitoringRegistered = false
@@ -179,7 +201,7 @@ object VoiceAudioTrigger {
     @Volatile
     private var carProjectionState: Int = CONNECTION_TYPE_NOT_CONNECTED
     @Volatile
-    internal var carProjectionConfirmedAtMs: Long = 0L
+    internal var carProjectionConfirmedAtMs: Long = UNSET_MONOTONIC_MS
     @Volatile
     private var lastCarProjectionQuerySucceeded: Boolean = false
     @Volatile
@@ -198,6 +220,9 @@ object VoiceAudioTrigger {
     /** Independent A2DP and HFP connected-device caches populated via profile proxies and broadcasts. */
     private val a2dpConnectedDevices = LinkedHashMap<String, VoiceAudioPolicy.ConnectedDevice>()
     private val hfpConnectedDevices = LinkedHashMap<String, VoiceAudioPolicy.ConnectedDevice>()
+    private var a2dpProfileRevision: Long = 0L
+    private var hfpProfileRevision: Long = 0L
+    private var profileProxyGeneration: Long = 0L
     private var a2dpProxy: BluetoothProfile? = null
     private var hfpProxy: BluetoothProfile? = null
     private var a2dpProxyRequested = false
@@ -844,10 +869,9 @@ object VoiceAudioTrigger {
                 carProjectionReceiver = null
                 a2dpConnectedDevices.clear()
                 hfpConnectedDevices.clear()
-                carProjectionStatus = CarProjectionStatus.UNKNOWN
-                carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
-                carProjectionConfirmedAtMs = 0L
-                lastCarProjectionQuerySucceeded = false
+                a2dpProfileRevision++
+                hfpProfileRevision++
+                profileProxyGeneration++
             } else {
                 return
             }
@@ -966,8 +990,8 @@ object VoiceAudioTrigger {
             refreshBondedCacheAsync(app)
         } else if (unregisterNow) {
             Log.i(LOG_ID, "monitoring unregistered")
-            cancelCarProjectionRetry()
-            releaseBluetoothProfileProxies(app)
+            resetCarProjectionStateAndTasks(resetTuning = false)
+            releaseBluetoothProfileProxies(app, clearCaches = false)
             if (oldCallback != null) {
                 try {
                     val audioManager = app.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -994,11 +1018,7 @@ object VoiceAudioTrigger {
                 val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
                 if (state == BluetoothAdapter.STATE_OFF || state == BluetoothAdapter.STATE_TURNING_OFF) {
                     Log.i(LOG_ID, "btBroadcast adapterState=$state clearing profile/bonded cache")
-                    releaseBluetoothProfileProxies(app)
-                    synchronized(lock) {
-                        a2dpConnectedDevices.clear()
-                        hfpConnectedDevices.clear()
-                    }
+                    releaseBluetoothProfileProxies(app, clearCaches = true)
                     cachedBluetoothEnabled = false
                     cachedBondedMetas = emptyList()
                     refreshState(app, reason = "bt_adapter_off")
@@ -1062,8 +1082,10 @@ object VoiceAudioTrigger {
     private fun acquireOrReconcileSingleProxy(app: Context, adapter: BluetoothAdapter, profile: Int) {
         val existingProxy: BluetoothProfile?
         val shouldRequest: Boolean
+        val requestGen: Long
         synchronized(lock) {
             if (!monitoringRegistered) return
+            requestGen = profileProxyGeneration
             when (profile) {
                 BluetoothProfile.A2DP -> {
                     existingProxy = a2dpProxy
@@ -1079,7 +1101,7 @@ object VoiceAudioTrigger {
             }
         }
         if (existingProxy != null) {
-            reconcileProfileProxyAsync(app, profile, existingProxy)
+            reconcileProfileProxyAsync(app, profile, existingProxy, requestGen)
             return
         }
         if (!shouldRequest) return
@@ -1088,7 +1110,8 @@ object VoiceAudioTrigger {
             override fun onServiceConnected(connectedProfile: Int, proxy: BluetoothProfile) {
                 val keep: Boolean
                 synchronized(lock) {
-                    keep = monitoringRegistered
+                    val sameGen = profileProxyGeneration == requestGen
+                    keep = monitoringRegistered && sameGen
                     if (keep) {
                         when (connectedProfile) {
                             BluetoothProfile.A2DP -> {
@@ -1100,7 +1123,7 @@ object VoiceAudioTrigger {
                                 hfpProxyRequested = false
                             }
                         }
-                    } else {
+                    } else if (sameGen) {
                         when (connectedProfile) {
                             BluetoothProfile.A2DP -> a2dpProxyRequested = false
                             BluetoothProfile.HEADSET -> hfpProxyRequested = false
@@ -1111,12 +1134,13 @@ object VoiceAudioTrigger {
                     closeProfileProxySafely(adapter, connectedProfile, proxy)
                     return
                 }
-                reconcileProfileProxyAsync(app, connectedProfile, proxy)
+                reconcileProfileProxyAsync(app, connectedProfile, proxy, requestGen)
             }
 
             override fun onServiceDisconnected(disconnectedProfile: Int) {
                 Log.i(LOG_ID, "btProxy disconnected profile=${profileName(disconnectedProfile)}")
                 synchronized(lock) {
+                    if (profileProxyGeneration != requestGen) return
                     when (disconnectedProfile) {
                         BluetoothProfile.A2DP -> {
                             a2dpProxy = null
@@ -1139,24 +1163,33 @@ object VoiceAudioTrigger {
         }
         if (!accepted) {
             synchronized(lock) {
-                when (profile) {
-                    BluetoothProfile.A2DP -> a2dpProxyRequested = false
-                    BluetoothProfile.HEADSET -> hfpProxyRequested = false
+                if (profileProxyGeneration == requestGen) {
+                    when (profile) {
+                        BluetoothProfile.A2DP -> a2dpProxyRequested = false
+                        BluetoothProfile.HEADSET -> hfpProxyRequested = false
+                    }
                 }
             }
         }
     }
 
-    private fun releaseBluetoothProfileProxies(app: Context) {
+    private fun releaseBluetoothProfileProxies(app: Context, clearCaches: Boolean = false) {
         val oldA2dp: BluetoothProfile?
         val oldHfp: BluetoothProfile?
         synchronized(lock) {
+            profileProxyGeneration++
             oldA2dp = a2dpProxy
             oldHfp = hfpProxy
             a2dpProxy = null
             hfpProxy = null
             a2dpProxyRequested = false
             hfpProxyRequested = false
+            if (clearCaches) {
+                a2dpConnectedDevices.clear()
+                hfpConnectedDevices.clear()
+                a2dpProfileRevision++
+                hfpProfileRevision++
+            }
         }
         val adapter = getBluetoothAdapter(app) ?: return
         if (oldA2dp != null) closeProfileProxySafely(adapter, BluetoothProfile.A2DP, oldA2dp)
@@ -1171,10 +1204,23 @@ object VoiceAudioTrigger {
         }
     }
 
-    private fun reconcileProfileProxyAsync(app: Context, profile: Int, proxy: BluetoothProfile) {
+    internal fun profileRevisionForTests(profile: Int): Long = synchronized(lock) {
+        when (profile) {
+            BluetoothProfile.A2DP -> a2dpProfileRevision
+            BluetoothProfile.HEADSET -> hfpProfileRevision
+            else -> -1L
+        }
+    }
+
+    private fun reconcileProfileProxyAsync(
+        app: Context,
+        profile: Int,
+        proxy: BluetoothProfile,
+        expectedProxyGeneration: Long,
+    ) {
         try {
             Applic.scheduler.execute {
-                reconcileProfileProxyNow(app, profile, proxy)
+                reconcileProfileProxyNow(app, profile, proxy, expectedProxyGeneration)
             }
         } catch (t: Throwable) {
             Log.stack(LOG_ID, "reconcileProfileProxyAsync", t)
@@ -1182,8 +1228,23 @@ object VoiceAudioTrigger {
     }
 
     @SuppressLint("MissingPermission")
-    internal fun reconcileProfileProxyNow(app: Context, profile: Int, proxy: BluetoothProfile) {
+    internal fun reconcileProfileProxyNow(
+        app: Context,
+        profile: Int,
+        proxy: BluetoothProfile,
+        expectedProxyGeneration: Long? = null,
+    ) {
         if (!hasBluetoothConnectPermission(app)) return
+        val baselineRevision: Long
+        synchronized(lock) {
+            if (!monitoringRegistered) return
+            if (expectedProxyGeneration != null && profileProxyGeneration != expectedProxyGeneration) return
+            baselineRevision = when (profile) {
+                BluetoothProfile.A2DP -> a2dpProfileRevision
+                BluetoothProfile.HEADSET -> hfpProfileRevision
+                else -> return
+            }
+        }
         val devices = try {
             proxy.connectedDevices.orEmpty()
         } catch (se: SecurityException) {
@@ -1193,7 +1254,13 @@ object VoiceAudioTrigger {
             Log.w(LOG_ID, "btProxy ${profileName(profile)} getConnectedDevices failed: ${t.javaClass.simpleName}: ${t.message}")
             return
         }
-        reconcileConnectedProfileDevices(app, profile, devices)
+        reconcileConnectedProfileDevices(
+            app = app,
+            profile = profile,
+            devices = devices,
+            expectedRevision = baselineRevision,
+            expectedProxyGeneration = expectedProxyGeneration,
+        )
     }
 
     @SuppressLint("MissingPermission")
@@ -1201,6 +1268,8 @@ object VoiceAudioTrigger {
         app: Context,
         profile: Int,
         devices: List<BluetoothDevice>,
+        expectedRevision: Long? = null,
+        expectedProxyGeneration: Long? = null,
     ) {
         val nextMap = LinkedHashMap<String, VoiceAudioPolicy.ConnectedDevice>()
         for (device in devices) {
@@ -1220,20 +1289,34 @@ object VoiceAudioTrigger {
             }
         }
         val changed: Boolean
-        val stillMonitoring: Boolean
+        var discardedStale = false
         synchronized(lock) {
-            stillMonitoring = monitoringRegistered
-            if (!stillMonitoring) return
-            val target = when (profile) {
-                BluetoothProfile.A2DP -> a2dpConnectedDevices
-                BluetoothProfile.HEADSET -> hfpConnectedDevices
+            if (!monitoringRegistered) return
+            if (expectedProxyGeneration != null && profileProxyGeneration != expectedProxyGeneration) return
+            val currentRevision = when (profile) {
+                BluetoothProfile.A2DP -> a2dpProfileRevision
+                BluetoothProfile.HEADSET -> hfpProfileRevision
                 else -> return
             }
-            changed = target != nextMap
-            if (changed) {
-                target.clear()
-                target.putAll(nextMap)
+            if (expectedRevision != null && currentRevision != expectedRevision) {
+                discardedStale = true
+                changed = false
+            } else {
+                val target = when (profile) {
+                    BluetoothProfile.A2DP -> a2dpConnectedDevices
+                    BluetoothProfile.HEADSET -> hfpConnectedDevices
+                    else -> return
+                }
+                changed = target != nextMap
+                if (changed) {
+                    target.clear()
+                    target.putAll(nextMap)
+                }
             }
+        }
+        if (discardedStale) {
+            Log.i(LOG_ID, "btProxy stale reconciliation discarded profile=${profileName(profile)}")
+            return
         }
         if (changed) {
             val summary = nextMap.values.joinToString(",") { formatIdentity(it.name, it.address) }.ifEmpty { "none" }
@@ -1284,8 +1367,14 @@ object VoiceAudioTrigger {
             if (key.isEmpty()) return
             synchronized(lock) {
                 val target = when (profile) {
-                    BluetoothProfile.A2DP -> a2dpConnectedDevices
-                    BluetoothProfile.HEADSET -> hfpConnectedDevices
+                    BluetoothProfile.A2DP -> {
+                        a2dpProfileRevision++
+                        a2dpConnectedDevices
+                    }
+                    BluetoothProfile.HEADSET -> {
+                        hfpProfileRevision++
+                        hfpConnectedDevices
+                    }
                     else -> return
                 }
                 when (state) {
@@ -1335,7 +1424,8 @@ object VoiceAudioTrigger {
     private fun maybeScheduleStaleCarProjectionRefresh(app: Context) {
         if (!loadConfig(app).includeCarMode) return
         val now = System.currentTimeMillis()
-        if (now - lastCarProjectionCheckMs >= CAR_PROJECTION_RECHECK_MS) {
+        val last = lastCarProjectionCheckMs
+        if (now < last || now - last >= CAR_PROJECTION_RECHECK_MS) {
             lastCarProjectionCheckMs = now
             refreshCarProjectionAsync(app)
         }
@@ -1488,12 +1578,17 @@ object VoiceAudioTrigger {
         val timeoutTask: ScheduledFuture<*>? = try {
             Applic.scheduler.schedule(
                 {
-                    try {
-                        cancellationSignal.cancel()
-                    } catch (_: Throwable) {
-                    }
                     if (attemptGeneration != null) {
                         onCarProjectionAttemptTimedOut(appCtx, attemptGeneration, timeoutMs)
+                    }
+                    try {
+                        carProjectionCancelExecutor.execute {
+                            try {
+                                cancellationSignal.cancel()
+                            } catch (_: Throwable) {
+                            }
+                        }
+                    } catch (_: Throwable) {
                     }
                 },
                 timeoutMs,
@@ -1541,61 +1636,124 @@ object VoiceAudioTrigger {
     internal fun applyCarProjectionResult(
         app: Context,
         result: CarProjectionQueryResult,
-        nowMs: Long = System.currentTimeMillis(),
+        nowMs: Long = monotonicClockMs(),
     ) {
-        lastCarProjectionCheckMs = nowMs
+        val appCtx = app.applicationContext
+        lastCarProjectionCheckMs = System.currentTimeMillis()
         when (result) {
             is CarProjectionQueryResult.Definitive -> {
-                cancelCarProjectionRetry()
-                carProjectionLock.withLock {
-                    carProjectionRetryCount = 0
-                }
-                lastCarProjectionQuerySucceeded = true
                 val isConnected = result.state == CONNECTION_TYPE_PROJECTION ||
                     result.state == CONNECTION_TYPE_NATIVE
                 val nextStatus = if (isConnected) CarProjectionStatus.CONNECTED else CarProjectionStatus.DISCONNECTED
                 val nextState = if (isConnected) result.state else CONNECTION_TYPE_NOT_CONNECTED
+                val oldRetry: ScheduledFuture<*>?
+                val oldExpiry: ScheduledFuture<*>?
+                val statusOrStateChanged: Boolean
+                carProjectionLock.withLock {
+                    oldRetry = carProjectionRetryTask
+                    carProjectionRetryTask = null
+                    oldExpiry = carProjectionExpiryTask
+                    carProjectionExpiryTask = null
+                    carProjectionRetryCount = 0
+                    carProjectionGraceGeneration++
+                    lastCarProjectionQuerySucceeded = true
+                    val prevStatus = carProjectionStatus
+                    val prevState = carProjectionState
+                    carProjectionStatus = nextStatus
+                    carProjectionState = nextState
+                    carProjectionConfirmedAtMs = if (isConnected) nowMs else UNSET_MONOTONIC_MS
+                    statusOrStateChanged = nextStatus != prevStatus || nextState != prevState
+                }
+                oldRetry?.cancel(false)
+                oldExpiry?.cancel(false)
                 val outcomeKey = "definitive=${nextStatus.name}(${result.state})"
                 if (outcomeKey != lastCarProjectionOutcomeKey) {
                     lastCarProjectionOutcomeKey = outcomeKey
                     Log.i(LOG_ID, "carProjection $outcomeKey")
                 }
-                val prevStatus = carProjectionStatus
-                val prevState = carProjectionState
-                carProjectionStatus = nextStatus
-                carProjectionState = nextState
-                carProjectionConfirmedAtMs = if (isConnected) nowMs else 0L
-                if (nextStatus != prevStatus || nextState != prevState || (isConnected && !isMatchedDeviceConnected(app))) {
-                    refreshState(app, reason = "car_projection")
+                if (statusOrStateChanged || (isConnected && !isMatchedDeviceConnected(appCtx))) {
+                    refreshState(appCtx, reason = "car_projection")
                 }
             }
             is CarProjectionQueryResult.Failure -> {
-                lastCarProjectionQuerySucceeded = false
-                val prevStatus = carProjectionStatus
-                val withinGrace = prevStatus == CarProjectionStatus.CONNECTED &&
-                    carProjectionConfirmedAtMs > 0L &&
-                    nowMs - carProjectionConfirmedAtMs < carProjectionGraceMs
-                val expired = prevStatus == CarProjectionStatus.CONNECTED && !withinGrace
-                if (expired) {
-                    carProjectionStatus = CarProjectionStatus.UNKNOWN
-                    carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
-                    carProjectionConfirmedAtMs = 0L
-                } else if (prevStatus != CarProjectionStatus.CONNECTED) {
-                    carProjectionStatus = CarProjectionStatus.UNKNOWN
-                    carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
+                val withinGrace: Boolean
+                val expired: Boolean
+                val statusAfter: CarProjectionStatus
+                var oldExpiryToCancel: ScheduledFuture<*>? = null
+                carProjectionLock.withLock {
+                    lastCarProjectionQuerySucceeded = false
+                    val prevStatus = carProjectionStatus
+                    val confirmedAt = carProjectionConfirmedAtMs
+                    val elapsed = if (confirmedAt >= 0L) (nowMs - confirmedAt).coerceAtLeast(0L) else Long.MAX_VALUE
+                    withinGrace = prevStatus == CarProjectionStatus.CONNECTED &&
+                        confirmedAt >= 0L &&
+                        elapsed < carProjectionGraceMs
+                    expired = prevStatus == CarProjectionStatus.CONNECTED && !withinGrace
+                    if (withinGrace) {
+                        val remainingMs = (carProjectionGraceMs - elapsed).coerceAtLeast(1L)
+                        scheduleCarProjectionGraceExpiryLocked(appCtx, remainingMs)
+                    } else {
+                        carProjectionGraceGeneration++
+                        oldExpiryToCancel = carProjectionExpiryTask
+                        carProjectionExpiryTask = null
+                        carProjectionStatus = CarProjectionStatus.UNKNOWN
+                        carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
+                        carProjectionConfirmedAtMs = UNSET_MONOTONIC_MS
+                    }
+                    statusAfter = carProjectionStatus
                 }
-                val outcomeKey = "failure=${result.reason},status=${carProjectionStatus.name},grace=$withinGrace"
+                oldExpiryToCancel?.cancel(false)
+                val outcomeKey = "failure=${result.reason},status=${statusAfter.name},grace=$withinGrace"
                 if (outcomeKey != lastCarProjectionOutcomeKey) {
                     lastCarProjectionOutcomeKey = outcomeKey
                     Log.w(LOG_ID, "carProjection $outcomeKey")
                 }
                 if (expired) {
-                    refreshState(app, reason = "car_projection_expired")
+                    refreshState(appCtx, reason = "car_projection_expired")
                 }
                 if (result.retryable) {
-                    scheduleCarProjectionRetry(app)
+                    scheduleCarProjectionRetry(appCtx)
                 }
             }
+        }
+    }
+
+    private fun scheduleCarProjectionGraceExpiryLocked(appCtx: Context, delayMs: Long) {
+        val existing = carProjectionExpiryTask
+        if (existing != null && !existing.isDone) return
+        val expectedGraceGen = carProjectionGraceGeneration
+        try {
+            carProjectionExpiryTask = Applic.scheduler.schedule(
+                {
+                    val expired = carProjectionLock.withLock {
+                        if (expectedGraceGen != carProjectionGraceGeneration ||
+                            carProjectionStatus != CarProjectionStatus.CONNECTED ||
+                            lastCarProjectionQuerySucceeded
+                        ) {
+                            false
+                        } else {
+                            carProjectionExpiryTask = null
+                            carProjectionGraceGeneration++
+                            carProjectionStatus = CarProjectionStatus.UNKNOWN
+                            carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
+                            carProjectionConfirmedAtMs = UNSET_MONOTONIC_MS
+                            true
+                        }
+                    }
+                    if (expired) {
+                        val outcomeKey = "grace_expired,status=UNKNOWN"
+                        if (outcomeKey != lastCarProjectionOutcomeKey) {
+                            lastCarProjectionOutcomeKey = outcomeKey
+                            Log.w(LOG_ID, "carProjection $outcomeKey")
+                        }
+                        refreshState(appCtx, reason = "car_projection_expired")
+                    }
+                },
+                delayMs.coerceAtLeast(1L),
+                TimeUnit.MILLISECONDS,
+            )
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "scheduleCarProjectionGraceExpiry", t)
         }
     }
 
@@ -1629,13 +1787,31 @@ object VoiceAudioTrigger {
         }
     }
 
-    private fun cancelCarProjectionRetry() {
-        val task: ScheduledFuture<*>? = carProjectionLock.withLock {
-            val existing = carProjectionRetryTask
+    private fun resetCarProjectionStateAndTasks(resetTuning: Boolean) {
+        val retryTask: ScheduledFuture<*>?
+        val expiryTask: ScheduledFuture<*>?
+        carProjectionLock.withLock {
+            retryTask = carProjectionRetryTask
             carProjectionRetryTask = null
-            existing
+            expiryTask = carProjectionExpiryTask
+            carProjectionExpiryTask = null
+            carProjectionGraceGeneration++
+            carProjectionRefreshPending = false
+            carProjectionRetryCount = 0
+            carProjectionStatus = CarProjectionStatus.UNKNOWN
+            carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
+            carProjectionConfirmedAtMs = UNSET_MONOTONIC_MS
+            lastCarProjectionQuerySucceeded = false
+            if (resetTuning) {
+                lastCarProjectionCheckMs = 0L
+                carProjectionQueryTimeoutMs = CAR_PROJECTION_QUERY_TIMEOUT_MS
+                carProjectionGraceMs = DEFAULT_CAR_PROJECTION_GRACE_MS
+                carProjectionRetryDelaysMs = DEFAULT_CAR_PROJECTION_RETRY_DELAYS_MS
+                monotonicClockMs = { SystemClock.elapsedRealtime() }
+            }
         }
-        task?.cancel(false)
+        retryTask?.cancel(false)
+        expiryTask?.cancel(false)
     }
 
     private data class CarModeResult(
@@ -1649,12 +1825,21 @@ object VoiceAudioTrigger {
         // Always read the cached Android Auto / AAOS projection state so glucose processing
         // never performs synchronous cross-process IPC against an external content provider.
         // A previously confirmed CONNECTED state remains valid across transient provider errors
-        // only within carProjectionGraceMs so speech never stays stuck on indefinitely.
-        val status = carProjectionStatus
-        val cachedProjection = carProjectionState
+        // only within carProjectionGraceMs (tracked on a monotonic clock with an enforced expiry
+        // timer) so speech never stays stuck on indefinitely.
+        val status: CarProjectionStatus
+        val cachedProjection: Int
+        val confirmedAt: Long
+        val lastSucceeded: Boolean
+        carProjectionLock.withLock {
+            status = carProjectionStatus
+            cachedProjection = carProjectionState
+            confirmedAt = carProjectionConfirmedAtMs
+            lastSucceeded = lastCarProjectionQuerySucceeded
+        }
         val confirmedStillValid = status == CarProjectionStatus.CONNECTED &&
-            (lastCarProjectionQuerySucceeded ||
-                (carProjectionConfirmedAtMs > 0L && System.currentTimeMillis() - carProjectionConfirmedAtMs < carProjectionGraceMs))
+            (lastSucceeded ||
+                (confirmedAt >= 0L && (monotonicClockMs() - confirmedAt).coerceAtLeast(0L) < carProjectionGraceMs))
         val projectionActive = confirmedStillValid &&
             (cachedProjection == CONNECTION_TYPE_PROJECTION || cachedProjection == CONNECTION_TYPE_NATIVE)
         // Retain UiModeManager car mode as a separate signal for car docks and Android 8–11.
@@ -2286,11 +2471,7 @@ object VoiceAudioTrigger {
 
     internal fun resetForTests() {
         cancelPendingConnectAnnouncement()
-        cancelCarProjectionRetry()
-        carProjectionLock.withLock {
-            carProjectionRefreshPending = false
-            carProjectionRetryCount = 0
-        }
+        resetCarProjectionStateAndTasks(resetTuning = true)
         awaitCarProjectionIdleForTests(2_000L)
         synchronized(lock) {
             monitoringRegistered = false
@@ -2303,6 +2484,9 @@ object VoiceAudioTrigger {
             hfpProxy = null
             a2dpProxyRequested = false
             hfpProxyRequested = false
+            profileProxyGeneration++
+            a2dpProfileRevision++
+            hfpProfileRevision++
             appContext = null
             lastMatch = VoiceAudioPolicy.ActiveMatch.NONE
             lastPausedMatch = null
@@ -2311,14 +2495,6 @@ object VoiceAudioTrigger {
             sessionMuted = false
             lastDisconnectedAtMs = 0L
             lastSpokenAtMs = 0L
-            carProjectionStatus = CarProjectionStatus.UNKNOWN
-            carProjectionState = CONNECTION_TYPE_NOT_CONNECTED
-            carProjectionConfirmedAtMs = 0L
-            lastCarProjectionQuerySucceeded = false
-            lastCarProjectionCheckMs = 0L
-            carProjectionQueryTimeoutMs = CAR_PROJECTION_QUERY_TIMEOUT_MS
-            carProjectionGraceMs = DEFAULT_CAR_PROJECTION_GRACE_MS
-            carProjectionRetryDelaysMs = DEFAULT_CAR_PROJECTION_RETRY_DELAYS_MS
             cachedBondedMetas = emptyList()
             cachedBluetoothEnabled = false
             lastDiagnosticSignature = null

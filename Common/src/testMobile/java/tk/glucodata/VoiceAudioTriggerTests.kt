@@ -1151,6 +1151,204 @@ class VoiceAudioTriggerTests {
         Thread.sleep(50L)
         assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
     }
+
+    @Test
+    fun staleProfileReconciliation_doesNotOverwriteNewerBroadcastEvent() {
+        val btManager = app.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+        val shadowAdapter = shadowOf(adapter)
+        shadowAdapter.setEnabled(true)
+        shadowOf(app).grantPermissions(android.Manifest.permission.BLUETOOTH_CONNECT)
+
+        val selectedMac = "AA:BB:CC:DD:EE:21"
+        val otherMac = "AA:BB:CC:DD:EE:22"
+        val selectedCar = adapter.getRemoteDevice(selectedMac)
+        val otherCar = adapter.getRemoteDevice(otherMac)
+        shadowOf(selectedCar).setName("Car Multimedia")
+        shadowOf(selectedCar).setBondState(android.bluetooth.BluetoothDevice.BOND_BONDED)
+        shadowOf(otherCar).setName("Car Multimedia")
+        shadowOf(otherCar).setBondState(android.bluetooth.BluetoothDevice.BOND_BONDED)
+        shadowAdapter.setBondedDevices(setOf(selectedCar, otherCar))
+
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice(
+                id = "mac:$selectedMac",
+                address = selectedMac,
+                name = "Car Multimedia",
+                isCar = true,
+            ),
+        )
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, false)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        VoiceAudioTrigger.refreshBondedCacheNow(app)
+
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("", "Car Multimedia", AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)))
+
+        // 1) Snapshot starts before a newer CONNECTED broadcast arrives -> empty stale snapshot must NOT wipe it out.
+        val revBeforeConnect = VoiceAudioTrigger.profileRevisionForTests(android.bluetooth.BluetoothProfile.A2DP)
+        VoiceAudioTrigger.updateProfileCache(
+            app,
+            android.bluetooth.BluetoothProfile.A2DP,
+            selectedCar,
+            android.bluetooth.BluetoothProfile.STATE_CONNECTED,
+        )
+        VoiceAudioTrigger.refreshState(app, "after_connect_broadcast")
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        VoiceAudioTrigger.reconcileConnectedProfileDevices(
+            app = app,
+            profile = android.bluetooth.BluetoothProfile.A2DP,
+            devices = emptyList(),
+            expectedRevision = revBeforeConnect,
+        )
+        VoiceAudioTrigger.refreshState(app, "after_stale_empty_reconcile")
+        assertTrue(
+            "Stale empty proxy snapshot must not overwrite newer CONNECTED broadcast",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+
+        // 2) Snapshot starts before a newer DISCONNECTED broadcast arrives -> stale connected snapshot must NOT resurrect it.
+        val revBeforeDisconnect = VoiceAudioTrigger.profileRevisionForTests(android.bluetooth.BluetoothProfile.A2DP)
+        VoiceAudioTrigger.updateProfileCache(
+            app,
+            android.bluetooth.BluetoothProfile.A2DP,
+            selectedCar,
+            android.bluetooth.BluetoothProfile.STATE_DISCONNECTED,
+        )
+        VoiceAudioTrigger.refreshState(app, "after_disconnect_broadcast")
+        assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        VoiceAudioTrigger.reconcileConnectedProfileDevices(
+            app = app,
+            profile = android.bluetooth.BluetoothProfile.A2DP,
+            devices = listOf(selectedCar),
+            expectedRevision = revBeforeDisconnect,
+        )
+        VoiceAudioTrigger.refreshState(app, "after_stale_connected_reconcile")
+        assertFalse(
+            "Stale connected proxy snapshot must not resurrect a newer DISCONNECTED broadcast",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+    }
+
+    @Test
+    fun timeoutCallback_completesLogicalTimeoutEvenWhenCancellationSignalBlocks() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.carProjectionQueryTimeoutMs = 50L
+        VoiceAudioTrigger.carProjectionRetryDelaysMs = longArrayOf()
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+
+        val queryEntered = java.util.concurrent.CountDownLatch(1)
+        val cancelEntered = java.util.concurrent.CountDownLatch(1)
+        val releaseAll = java.util.concurrent.CountDownLatch(1)
+        FakeCarConnectionProvider.onQuery = { signal ->
+            signal?.setOnCancelListener {
+                // Simulate a wedged remote ICancellationSignal.cancel() Binder call.
+                cancelEntered.countDown()
+                releaseAll.await(5L, java.util.concurrent.TimeUnit.SECONDS)
+            }
+            queryEntered.countDown()
+            releaseAll.await(5L, java.util.concurrent.TimeUnit.SECONDS)
+        }
+
+        try {
+            VoiceAudioTrigger.refreshCarProjectionAsync(app)
+            assertTrue(queryEntered.await(2L, java.util.concurrent.TimeUnit.SECONDS))
+            assertTrue(
+                "Dedicated cancel worker should invoke CancellationSignal.cancel()",
+                cancelEntered.await(2L, java.util.concurrent.TimeUnit.SECONDS),
+            )
+            // Logical timeout must already have completed even while CancellationSignal.cancel() is still blocked.
+            assertTrue(
+                "Logical timeout must release single-flight even while remote cancel blocks",
+                VoiceAudioTrigger.awaitCarProjectionIdleForTests(2_000L),
+            )
+            assertEquals(VoiceAudioTrigger.CarProjectionStatus.UNKNOWN, VoiceAudioTrigger.carProjectionStatus)
+
+            // Shared Applic.scheduler must remain completely unblocked while the remote cancel blocks.
+            val schedulerProbe = java.util.concurrent.CountDownLatch(1)
+            Applic.scheduler.execute { schedulerProbe.countDown() }
+            assertTrue(
+                "Shared Applic.scheduler must not block on remote CancellationSignal.cancel()",
+                schedulerProbe.await(1L, java.util.concurrent.TimeUnit.SECONDS),
+            )
+        } finally {
+            releaseAll.countDown()
+        }
+    }
+
+    @Test
+    fun carProjectionGracePeriod_enforcesScheduledExpirationAutomaticallyAndCancelsOnRecovery() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        var fakeMonotonicMs = 10_000L
+        VoiceAudioTrigger.monotonicClockMs = { fakeMonotonicMs }
+        VoiceAudioTrigger.carProjectionGraceMs = 100L
+        VoiceAudioTrigger.carProjectionRetryDelaysMs = longArrayOf()
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // 1) Failure schedules expiry, then recovery cancels it before deadline -> stays CONNECTED.
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Failure("timeout(5000ms)", retryable = false),
+            nowMs = fakeMonotonicMs,
+        )
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
+        fakeMonotonicMs += 20L
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Definitive(VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION),
+            nowMs = fakeMonotonicMs,
+        )
+        Thread.sleep(160L)
+        assertEquals(
+            "Definitive recovery must cancel any pending grace-expiry timer",
+            VoiceAudioTrigger.CarProjectionStatus.CONNECTED,
+            VoiceAudioTrigger.carProjectionStatus,
+        )
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // 2) Persistent failure with ZERO subsequent refreshes automatically expires at deadline.
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Failure("timeout(5000ms)", retryable = false),
+            nowMs = fakeMonotonicMs,
+        )
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
+        assertTrue(VoiceAudioTrigger.state.value.autoActive)
+
+        val deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(2L)
+        while (VoiceAudioTrigger.carProjectionStatus == VoiceAudioTrigger.CarProjectionStatus.CONNECTED &&
+            System.nanoTime() < deadline
+        ) {
+            Thread.sleep(20L)
+        }
+        assertEquals(
+            "Scheduled grace expiration must transition CONNECTED -> UNKNOWN without needing another query",
+            VoiceAudioTrigger.CarProjectionStatus.UNKNOWN,
+            VoiceAudioTrigger.carProjectionStatus,
+        )
+        assertFalse("Published stateFlow must deactivate on scheduled grace expiry", VoiceAudioTrigger.state.value.autoActive)
+        assertFalse("Auto speech must deactivate on scheduled grace expiry", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+    }
 }
 
 class FakeCarConnectionProvider : ContentProvider() {
