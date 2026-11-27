@@ -80,13 +80,9 @@ class CareSensAirReferenceFixtureTest {
             assertEquals("$at sequence", want.sequenceFinal, got.sequenceFinal)
             assertEquals("$at modelled error bits", want.errorCode and modelledErrors, got.errorCode)
             (want.errorCode and modelledErrors.inv()).takeIf { it != 0 }?.let { unmodelled.merge(it, 1, Int::plus) }
-            assertEquals("$at rejected record", want.dataType == 2, got.dataType == 2)
+            assertEquals("$at data type", want.dataType, got.dataType)
             if (want.dataType == 2 || want.errorCode and CareSensAirCalibration.ERROR_PARAMETERS != 0) return@forEachIndexed
-            // Inexact marks values that rest on the reference's low-signal flag.
-            if (!got.exact) {
-                unmodelled.merge(-1, 1, Int::plus)
-                return@forEachIndexed
-            }
+            assertTrue("$at should be exact before filling", got.exact)
             close("$at factory glucose", want.factoryGlucose, got.intermediates.factoryGlucose)
             close("$at glucose", want.glucose, got.glucose)
             close("$at trend", want.trend, got.trend)
@@ -129,6 +125,7 @@ class CareSensAirReferenceFixtureTest {
             val b = resumed.process(record)
             assertEquals("glucose at ${i + 1}", a.glucose, b.glucose, 0.0)
             assertEquals("trend at ${i + 1}", a.trend, b.trend, 0.0)
+            assertEquals("dataType at ${i + 1}", a.dataType, b.dataType)
             assertArrayEquals("history at ${i + 1}", a.history, b.history, 0.0)
         }
         assertArrayEquals(straight.state.toBytes(), resumed.state.toBytes())
@@ -149,10 +146,11 @@ class CareSensAirReferenceFixtureTest {
                 val want = fixture.expected[i]
                 val got = engine.process(records[i])
                 val at = "${fixture.name} from vendor state after $after, record ${i + 1}"
-                assertEquals("$at rejected record", want.dataType == 2, got.dataType == 2)
+                assertEquals("$at data type", want.dataType, got.dataType)
                 if (want.dataType == 2) continue
                 close("$at glucose", want.glucose, got.glucose)
-                if (got.exact) close("$at trend", want.trend, got.trend)
+                assertTrue("$at should be exact", got.exact)
+                close("$at trend", want.trend, got.trend)
                 close("$at oldest history value", want.oldestHistory, got.history[0])
             }
         }

@@ -398,7 +398,7 @@ def run_perturbations():
         assert Replay(dev30, st_m, inp_m).step()[1]['err4_delay_flag'] == exp_f4d
     print('  [ok] err4_delay_flag drop gate (>=21/<=23, >=40 & <100, <21 D3 >50 fallback, seq<865 & prev_f4d bypass)')
 
-    # 3. Sensitivity reference [0.5, 50.0] band across slopes & lots
+    # 3. Sensitivity reference & initial-value [0.5, 50.0] band across slopes & lots
     dev202, inp202, _, _, _, _, st202 = run_spec(sweep_case(202, 127, False)[0], snapshots=True)
     r_mdc = 979
     prev_cnt = int(st202[r_mdc - 1]['sum_curr_cnt_for_mdc'])
@@ -412,7 +412,14 @@ def run_perturbations():
             inp_m = inp202[r_mdc:r_mdc + 1].copy(); inp_m['workout'][0, :] = adc
             _, g, s = Replay(dev_m, st202[r_mdc - 1:r_mdc], inp_m).step()
             assert (0.5 <= float(g['corrected_re_current']) <= 50.0) == (int(s['sum_curr_cnt_for_mdc']) > prev_cnt)
-    print('  [ok] sum_curr_for_mdc band 0.5 <= corrected_re_current <= 50.0 (slope-independent)')
+    dev198, inp198, _, _, _, _, st198 = run_spec(sweep_case(101, 198, False)[0], snapshots=True)
+    r_init = 18
+    prev_icnt = int(st198[r_init - 1]['sum_curr_cnt_for_init_value'])
+    for adc, exp_inc in ((2527, 0), (2528, 1), (18397, 1), (18398, 0)):
+        inp_m = inp198[r_init:r_init + 1].copy(); inp_m['workout'][0, :] = adc
+        _, g, s = Replay(dev198, st198[r_init - 1:r_init], inp_m).step()
+        assert int(s['sum_curr_cnt_for_init_value']) - prev_icnt == exp_inc
+    print('  [ok] sum_curr_for_mdc & sum_curr_for_init_value band 0.5 <= corrected_re_current <= 50.0')
 
     # 4. Trend withholding via err_delay_arr[7]
     valid_tr = np.flatnonzero(out_dl['trendrate'] != 100.0)

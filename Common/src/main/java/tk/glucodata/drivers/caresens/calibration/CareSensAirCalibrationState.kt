@@ -71,8 +71,19 @@ class CareSensAirCalibrationState {
     val lowRawMax = DoubleArray(4)
     var lowRawCount = 0
     var lowError = false
-    val historyMaybeFlagged = BooleanArray(10)
-    var referenceMaybeFlagged = false
+
+    // Low-signal delay tests (data type 4) and trend-withholding window.
+    val delaySequence = IntArray(24)
+    val delayGlucose = DoubleArray(24) { Double.NaN }
+    val delayPlasma = DoubleArray(12) { Double.NaN }
+    val delayTrendFlags = BooleanArray(7)
+    var previousDelayFlag = false
+    var delayPreviousRawMax = Double.NaN
+    var delayProfile = 100
+    var delayProfileCount = 0
+    var delayProfileSum = 0.0
+    var delayProfileAbove = 0.0
+    var delayProfileInRange = 0.0
 
     // Interruption check.
     var timingStarted = false
@@ -140,19 +151,24 @@ class CareSensAirCalibrationState {
             gap23.forEach(o::writeInt); o.writeInt(gap23Count); gap60.forEach(o::writeInt); o.writeInt(gap60Count)
             o.writeBoolean(timingError)
             lowRawMax.forEach(o::writeDouble); o.writeInt(lowRawCount); o.writeBoolean(lowError)
-            historyMaybeFlagged.forEach(o::writeBoolean); o.writeBoolean(referenceMaybeFlagged)
+            delaySequence.forEach(o::writeInt); delayGlucose.forEach(o::writeDouble)
+            delayPlasma.forEach(o::writeDouble); delayTrendFlags.forEach(o::writeBoolean)
+            o.writeBoolean(previousDelayFlag); o.writeDouble(delayPreviousRawMax)
+            o.writeInt(delayProfile); o.writeInt(delayProfileCount)
+            o.writeDouble(delayProfileSum); o.writeDouble(delayProfileAbove); o.writeDouble(delayProfileInRange)
         }
         return bytes.toByteArray()
     }
 
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
 
         /** Restores [toBytes]; null for another format version or a damaged copy. */
         fun fromBytes(data: ByteArray): CareSensAirCalibrationState? = runCatching {
             val s = CareSensAirCalibrationState()
             DataInputStream(ByteArrayInputStream(data)).use { i ->
-                if (i.readInt() != VERSION) return null
+                val version = i.readInt()
+                if (version != VERSION && version != 2) return null
                 s.count = i.readInt(); s.previousSequence = i.readInt(); s.previousTime = i.readLong(); s.contactCheckStart = i.readInt(); s.rejectedSinceAccepted = i.readBoolean()
                 fill(s.rawTail, i); fill(s.cleanTail, i); for (k in s.flags.indices) s.flags[k] = i.readInt()
                 fill(s.history60, i); for (k in s.history60Time.indices) s.history60Time[k] = i.readLong(); fill(s.previousMedians, i)
@@ -172,8 +188,35 @@ class CareSensAirCalibrationState {
                 for (k in s.gap60.indices) s.gap60[k] = i.readInt(); s.gap60Count = i.readInt()
                 s.timingError = i.readBoolean()
                 fill(s.lowRawMax, i); s.lowRawCount = i.readInt(); s.lowError = i.readBoolean()
-                for (k in 0 until 10) s.historyMaybeFlagged[k] = i.readBoolean()
-                s.referenceMaybeFlagged = i.readBoolean()
+                if (version == 2) {
+                    val maybeFlagged = BooleanArray(10) { i.readBoolean() }
+                    i.readBoolean() // legacy referenceMaybeFlagged
+                    for (k in 0 until 7) s.delayTrendFlags[k] = maybeFlagged[3 + k]
+                    for (k in 0 until 10) {
+                        s.delaySequence[14 + k] = s.historySequence[k]
+                        val raw = s.historyRaw[k]
+                        s.delayGlucose[14 + k] = if (raw.isNaN()) Double.NaN else CareSensAirDelayFlag.roundAwayFromZero(raw)
+                    }
+                    s.previousDelayFlag = maybeFlagged[9]
+                    s.delayPreviousRawMax = if (s.lowRawCount > 0) s.lowRawMax[3] else Double.NaN
+                    s.delayProfile = when {
+                        s.diabetesLevelDone && s.diabetesCount > 288 -> s.diabetesLevel
+                        s.previousSequence >= 864 -> 0
+                        else -> 100
+                    }
+                } else {
+                    for (k in s.delaySequence.indices) s.delaySequence[k] = i.readInt()
+                    fill(s.delayGlucose, i)
+                    fill(s.delayPlasma, i)
+                    for (k in s.delayTrendFlags.indices) s.delayTrendFlags[k] = i.readBoolean()
+                    s.previousDelayFlag = i.readBoolean()
+                    s.delayPreviousRawMax = i.readDouble()
+                    s.delayProfile = i.readInt()
+                    s.delayProfileCount = i.readInt()
+                    s.delayProfileSum = i.readDouble()
+                    s.delayProfileAbove = i.readDouble()
+                    s.delayProfileInRange = i.readDouble()
+                }
                 if (i.read() != -1) return null
             }
             s
@@ -258,9 +301,20 @@ object CareSensAirVendorState {
         while (run < minOf(4, s.count) && u16(1610 + 2 * (864 - run)) == u16(1610 + 2 * (864 - run + 1)) - 1) run++
         s.lowRawCount = run
         s.lowError = u8(48824) != 0
-        // The block records the low-signal decisions of the last 576 records.
-        for (k in 0 until 10) s.historyMaybeFlagged[k] = u8(48248 + 566 + k) != 0
-        // The reference sums taken over are the vendor's own, flagged records already left out.
+        // Low-signal delay tests (D0-D4), rapid-drop window, and 7-record trend-withholding FIFO.
+        for (k in 0 until 24) {
+            s.delaySequence[k] = u16(1610 + 2 * (841 + k))
+            s.delayGlucose[k] = f64(17144 + 8 * (264 + k))
+        }
+        for (k in 0 until 12) s.delayPlasma[k] = f64(58568 + 8 * (24 + k))
+        for (k in 0 until 7) s.delayTrendFlags[k] = u8(17132 + k) != 0
+        s.previousDelayFlag = u8(48248 + 575) != 0
+        s.delayPreviousRawMax = if (s.count > 0) s.lowRawMax[3] else Double.NaN
+        s.delayProfileCount = u16(10912)
+        s.delayProfile = u8(10914)
+        s.delayProfileSum = f64(10920)
+        s.delayProfileAbove = f64(10936)
+        s.delayProfileInRange = f64(10944)
         s.timingTime = u32(117284); s.timingSequence = u16(117288); s.timingStarted = s.timingTime != 0L
         for (k in 0 until 4) u16(117290 + 2 * k).takeIf { it != 0 }?.let { s.pushGap23(it) }
         for (k in 0 until 2) u16(117298 + 2 * k).takeIf { it != 0 }?.let { s.pushGap60(it) }
