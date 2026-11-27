@@ -79,7 +79,7 @@ def main(path, t_from, t_to):
             if cid != 0x0004 or not pdu:
                 continue
             pending.pop(key, None)
-            op = pdu[0] & 0x3f
+            op = pdu[0]
             if op in (0x12, 0x52, 0x1b, 0x1d):
                 if len(pdu) >= 3:
                     hh = struct.unpack('<H', pdu[1:3])[0]

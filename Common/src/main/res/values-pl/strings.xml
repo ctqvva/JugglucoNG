@@ -3317,6 +3317,37 @@
     <string name="tts_trend_decreasing">spada</string>
     <string name="tts_trend_rising_quickly">szybko rośnie</string>
     <string name="tts_trend_falling_quickly">szybko spada</string>
+    <string name="ican_health_title">Chmura iCan Health</string>
+    <string name="ican_health_desc">Przesyłanie odczytów do SinoCare iCan Health</string>
+    <string name="ican_health_settings_title">Chmura iCan Health</string>
+    <string name="ican_health_active">Przesyłaj do iCan Health</string>
+    <string name="ican_health_active_desc">Wysyłaj odczyty na żywo z tego telefonu do SinoCare iCan Health</string>
+    <string name="ican_health_section_account">Konto</string>
+    <string name="ican_health_account">Konto (e-mail)</string>
+    <string name="ican_health_password">Hasło</string>
+    <string name="ican_health_sign_in">Zaloguj się</string>
+    <string name="ican_health_signing_in">Logowanie…</string>
+    <string name="ican_health_logged_in">Zalogowano</string>
+    <string name="ican_health_login_failed">Błąd logowania: %1$s</string>
+    <string name="ican_health_credentials_required">Podaj konto i hasło</string>
+    <string name="ican_health_last_sync">Ostatnia synchronizacja: %1$s</string>
+    <string name="ican_health_never">nigdy</string>
+    <string name="ican_health_manage_followers">Zarządzaj obserwującymi</string>
+    <string name="ican_health_followers_title">Obserwujący iCan Health</string>
+    <string name="ican_health_invite_follower">Zaproś obserwującego</string>
+    <string name="ican_health_follower_email">E-mail</string>
+    <string name="ican_health_follower_phone">Telefon</string>
+    <string name="ican_health_follower_name">Imię</string>
+    <string name="ican_health_send_invite">Wyślij zaproszenie</string>
+    <string name="ican_health_followers">Obserwujący</string>
+    <string name="ican_health_invited">Zaproszono</string>
+    <string name="ican_health_invite_failed">Błąd zaproszenia: %1$s</string>
+    <string name="ican_health_follower_load_failed">Nie udało się wczytać obserwujących: %1$s</string>
+    <string name="ican_health_remove">Usuń</string>
+    <string name="ican_health_follower_status">Stan: %1$s</string>
+    <string name="ican_health_show_password">Pokaż hasło</string>
+    <string name="ican_health_hide_password">Ukryj hasło</string>
+    <string name="ican_health_secure_storage_failed">Nie udało się bezpiecznie zapisać sesji iCan Health</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Tryb ograniczony</string>

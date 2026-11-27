@@ -3330,6 +3330,37 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="tts_trend_decreasing">csökken</string>
     <string name="tts_trend_rising_quickly">gyorsan emelkedik</string>
     <string name="tts_trend_falling_quickly">gyorsan csökken</string>
+    <string name="ican_health_title">iCan Health felhő</string>
+    <string name="ican_health_desc">Mérések feltöltése a SinoCare iCan Health szolgáltatásba</string>
+    <string name="ican_health_settings_title">iCan Health felhő</string>
+    <string name="ican_health_active">Feltöltés az iCan Health szolgáltatásba</string>
+    <string name="ican_health_active_desc">Élő mérések küldése erről a telefonról a SinoCare iCan Health szolgáltatásba</string>
+    <string name="ican_health_section_account">Fiók</string>
+    <string name="ican_health_account">Fiók (e-mail)</string>
+    <string name="ican_health_password">Jelszó</string>
+    <string name="ican_health_sign_in">Bejelentkezés</string>
+    <string name="ican_health_signing_in">Bejelentkezés…</string>
+    <string name="ican_health_logged_in">Bejelentkezve</string>
+    <string name="ican_health_login_failed">Bejelentkezés sikertelen: %1$s</string>
+    <string name="ican_health_credentials_required">Adja meg a fiókot és a jelszót</string>
+    <string name="ican_health_last_sync">Utolsó szinkronizálás: %1$s</string>
+    <string name="ican_health_never">soha</string>
+    <string name="ican_health_manage_followers">Követők kezelése</string>
+    <string name="ican_health_followers_title">iCan Health követők</string>
+    <string name="ican_health_invite_follower">Követő meghívása</string>
+    <string name="ican_health_follower_email">E-mail</string>
+    <string name="ican_health_follower_phone">Telefon</string>
+    <string name="ican_health_follower_name">Név</string>
+    <string name="ican_health_send_invite">Meghívó küldése</string>
+    <string name="ican_health_followers">Követők</string>
+    <string name="ican_health_invited">Meghívva</string>
+    <string name="ican_health_invite_failed">Meghívás sikertelen: %1$s</string>
+    <string name="ican_health_follower_load_failed">A követők betöltése nem sikerült: %1$s</string>
+    <string name="ican_health_remove">Eltávolítás</string>
+    <string name="ican_health_follower_status">Állapot: %1$s</string>
+    <string name="ican_health_show_password">Jelszó megjelenítése</string>
+    <string name="ican_health_hide_password">Jelszó elrejtése</string>
+    <string name="ican_health_secure_storage_failed">Az iCan Health munkamenetet nem sikerült biztonságosan menteni</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">Korlátozott mód</string>

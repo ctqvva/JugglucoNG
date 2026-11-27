@@ -3270,6 +3270,37 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="tts_trend_decreasing">下降</string>
     <string name="tts_trend_rising_quickly">快速上升</string>
     <string name="tts_trend_falling_quickly">快速下降</string>
+    <string name="ican_health_title">iCan Health 云端</string>
+    <string name="ican_health_desc">将读数上传至 SinoCare iCan Health</string>
+    <string name="ican_health_settings_title">iCan Health 云端</string>
+    <string name="ican_health_active">上传到 iCan Health</string>
+    <string name="ican_health_active_desc">将此手机的实时读数发送到 SinoCare iCan Health</string>
+    <string name="ican_health_section_account">账户</string>
+    <string name="ican_health_account">账户（邮箱）</string>
+    <string name="ican_health_password">密码</string>
+    <string name="ican_health_sign_in">登录</string>
+    <string name="ican_health_signing_in">正在登录…</string>
+    <string name="ican_health_logged_in">已登录</string>
+    <string name="ican_health_login_failed">登录失败：%1$s</string>
+    <string name="ican_health_credentials_required">请输入账户和密码</string>
+    <string name="ican_health_last_sync">上次同步：%1$s</string>
+    <string name="ican_health_never">从未</string>
+    <string name="ican_health_manage_followers">管理关注者</string>
+    <string name="ican_health_followers_title">iCan Health 关注者</string>
+    <string name="ican_health_invite_follower">邀请关注者</string>
+    <string name="ican_health_follower_email">邮箱</string>
+    <string name="ican_health_follower_phone">电话</string>
+    <string name="ican_health_follower_name">姓名</string>
+    <string name="ican_health_send_invite">发送邀请</string>
+    <string name="ican_health_followers">关注者</string>
+    <string name="ican_health_invited">已邀请</string>
+    <string name="ican_health_invite_failed">邀请失败：%1$s</string>
+    <string name="ican_health_follower_load_failed">无法加载关注者：%1$s</string>
+    <string name="ican_health_remove">移除</string>
+    <string name="ican_health_follower_status">状态：%1$s</string>
+    <string name="ican_health_show_password">显示密码</string>
+    <string name="ican_health_hide_password">隐藏密码</string>
+<string name="ican_health_secure_storage_failed">无法安全保存 iCan Health 会话</string>
 
     <!-- Restricted mode -->
     <string name="restricted_mode_title">受限模式</string>
