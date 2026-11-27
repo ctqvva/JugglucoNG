@@ -56,6 +56,10 @@ private static final double MGDL_PER_MMOLL=18.0182;
 		var extras=intent.getExtras();
 		if(doLog) Natives.log(tostring(extras));
 		var function=extras.getString("FUNCTION","");
+		if("cancel_alarm".equals(function)||"snooze_alarm".equals(function)) {
+			acknowledgeAlarm(extras,"snooze_alarm".equals(function));
+			return;
+			}
 		if("update_bg_force".equals(function)) {
 			String key=extras.getString("PACKAGE",null);
 			if(key==null) {
@@ -68,7 +72,7 @@ private static final double MGDL_PER_MMOLL=18.0182;
 					Log.e(LOG_ID,"settings==null");
 					return;
 				}
-			WearInt.mapsettings.put(key,settings);
+			WearInt.registerClient(key,settings);
 			var current=CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
 			if(current!=null) {
 				double mgdl=Applic.unit==1?current.getPrimaryValue()*MGDL_PER_MMOLL:current.getPrimaryValue();
@@ -94,6 +98,46 @@ private static final double MGDL_PER_MMOLL=18.0182;
 			}
 
         	}
+/**
+ * A registered client (e.g. Gadgetbridge after the watch rejected the alarm call) stops
+ * (cancel_alarm) or snoozes (snooze_alarm) the alarm that is ringing, the same way the
+ * alarm screen does. Only packages that registered via update_bg_force are accepted.
+ */
+private static void acknowledgeAlarm(Bundle extras,boolean snooze) {
+	String key=extras.getString("PACKAGE",null);
+	if(key==null||!WearInt.mapsettings.containsKey(key)) {
+		Log.e(LOG_ID,"alarm acknowledgement from unregistered package "+key);
+		return;
+		}
+	final int kind=Notify.resolveAlertKind(-1);
+	Log.i(LOG_ID,(snooze?"snooze_alarm":"cancel_alarm")+" from "+key+" kind="+kind);
+	if(kind>=0) {
+		Integer minutes=null;
+		if(snooze) {
+			int requested=extras.getInt("SNOOZE_MINUTES",-1);
+			minutes=requested>0?requested:tk.glucodata.alerts.AlertActions.defaultSnoozeMinutes(kind,null);
+			}
+		WearInt.cancelOrigin=key;
+		try {
+			tk.glucodata.alerts.AlertActions.handle(kind,null,minutes);
+		} finally {
+			WearInt.cancelOrigin=null;
+		}
+		tk.glucodata.ui.AlarmActivityAccess.INSTANCE.acknowledge(kind);
+		}
+	else {
+		Notify.stopalarm();
+		Notify.cancelAlertNotification();
+		}
+	WearInt.cancelOrigin=key;
+	try {
+		WearInt.cancelAlarm(); // other clients; no-op if handle() already sent it
+	} finally {
+		WearInt.cancelOrigin=null;
+	}
+	WearInt.sendReply(key,"OK");
+	}
+
 static private watchdrip receiver=null;
 @SuppressLint("UnspecifiedRegisterReceiverFlag")
 static void register() {
@@ -119,9 +163,12 @@ static void unregister() {
 public static void set(boolean val) {
 	SuperGattCallback.doWearInt=val;
 	if(val) {
+		WearInt.loadClients();
 		register();
 		}
-	else
+	else {
 		unregister();
+		WearInt.forgetClients();
+		}
 	}
 }

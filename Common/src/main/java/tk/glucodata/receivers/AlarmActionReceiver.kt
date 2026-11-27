@@ -54,6 +54,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
                     CustomAlertAccess.ignoreAlert(customAlertId)
                 }
                 Notify.cancelAlertNotification()
+                tk.glucodata.WearInt.cancelAlarm()
             }
         }
     }

@@ -82,17 +82,28 @@ private static void sendglucose(WeatherSpec weatherSpec,String glstr,float gl,fl
 
             Intent intent = new Intent();
             intent.putExtra(WEATHER_EXTRA,weatherSpec);
-            intent.setPackage("nodomain.freeyourgadget.gadgetbridge");
             intent.setFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             intent.setAction(WEATHER_ACTION);
-           Applic.app.sendBroadcast(intent);
+            // Gadgetbridge ships under several application ids (release, nightly, Bangle.js);
+            // an explicit package is required, so target each one. Absent packages receive nothing.
+            for (final String pkg : GADGETBRIDGE_PACKAGES) {
+                intent.setPackage(pkg);
+                Applic.app.sendBroadcast(intent);
+            }
         }
+
+    static final String[] GADGETBRIDGE_PACKAGES = {
+            "nodomain.freeyourgadget.gadgetbridge",
+            "nodomain.freeyourgadget.gadgetbridge.nightly",
+            "nodomain.freeyourgadget.gadgetbridge.nightly_nopebble",
+            "com.espruino.gadgetbridge.banglejs",
+    };
 
 static void sendglucose(ExchangeGlucosePayload payload) {
     if(Applic.isWearable)
         return;
     sendglucose(new WeatherSpec(), payload.primaryText, (float)payload.primaryDisplayValue,
-        payload.trendRate, payload.timeMillis, librecode(payload.trendIndex));
+        payload.trendRate, payload.timeMillis, librecode(payload.trendRate));
 }
 
 private static final int Undetermined=0;

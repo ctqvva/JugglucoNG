@@ -43,6 +43,9 @@ object AlertActions {
         if (customId != null || kind < 0 || Notify.isPresentedStandardAlert(kind)) {
             Notify.stopalarm()
             Notify.cancelAlertNotification()
+            // Watchdrip clients (e.g. Gadgetbridge ringing a watch) stop too — but only
+            // with the alarm this action is for, never a newer unrelated one.
+            tk.glucodata.WearInt.cancelAlarm()
         }
     }
 
@@ -62,6 +65,7 @@ object AlertActions {
         if (Notify.isCurrentStandardAlert(action.kind)) {
             Notify.stopalarmnotsend(false)
             Notify.cancelAlertNotification()
+            tk.glucodata.WearInt.cancelAlarm()
         }
         AlarmActivityAccess.acknowledge(action.kind)
     }
