@@ -48,6 +48,29 @@ internal class Error16Prototype {
     var conditions = 0
         private set
 
+    // Column order follows STATS in err16_replay.py. Leave tails visible on rejections.
+    fun writeStatistics(output: ByteBuffer) {
+        output.putDouble(firstTime.toDouble())
+        output.putDouble(minutes.last())
+        output.putDouble(isf.last())
+        output.putDouble(plasma.last())
+        output.putDouble(rates.last())
+        output.putDouble(steady.last())
+        steadyReference.writeStatistics(output)
+        steadyChange.writeStatistics(output)
+        output.putDouble(minimumTrend.last())
+        output.putDouble(meanTrend.last())
+        shortMinimumFit.writeStatistics(output)
+        longMinimumFit.writeStatistics(output)
+        meanFit.writeStatistics(output)
+        minimumReference.writeStatistics(output)
+        meanReference.writeStatistics(output)
+        minimumDrop.writeStatistics(output)
+        meanDrop.writeStatistics(output)
+        output.putDouble(profile.toDouble())
+        output.putDouble(profileCount.toDouble())
+    }
+
     fun update(sequence: Int, time: Long, current5Min: Double, reading: Double, slope100: Float, diabetesLevel: Int) {
         if (firstTime == 0L) firstTime = time
         sequences.copyInto(sequences, endIndex = sequences.size, startIndex = 1)
@@ -185,6 +208,11 @@ internal class Error16Prototype {
         }
         fun atLeast(drop: Int): Boolean =
             difference.all { it <= -drop } && percent.all { it <= -drop }
+
+        fun writeStatistics(output: ByteBuffer) {
+            output.putDouble(difference.last())
+            output.putDouble(percent.last())
+        }
     }
 
     private class Fit {
@@ -229,12 +257,23 @@ internal class Error16Prototype {
 
         fun falling(limit: Double, margin: Double = 0.0): Boolean =
             slope.all { if (margin == 0.0) it < -limit else it <= -limit - margin } && rSquared.all { it > 0.8 }
+
+        fun writeStatistics(output: ByteBuffer) {
+            output.putDouble(slope.last())
+            output.putDouble(rSquared.last())
+        }
     }
 
     private class RunningReference(private val tolerance: Double, private val maximum: Boolean) {
         var value = Double.NaN
         var count = 0
         val candidates = history(DAYS_3 + 1)
+
+        fun writeStatistics(output: ByteBuffer) {
+            output.putDouble(count.toDouble())
+            output.putDouble(candidates.last())
+            output.putDouble(value)
+        }
 
         fun update(observed: Double, active: Boolean, sequence: Int, sequences: IntArray, buffer: DoubleArray) {
             val candidate = when {
@@ -310,6 +349,7 @@ internal class Error16Prototype {
     }
 
     companion object {
+        const val STAT_COUNT = 31
         private const val DAYS_3 = 864
         private const val PERSISTENCE = 24
         private const val LONG_SLOPE_HALF_STEP = 5e-11

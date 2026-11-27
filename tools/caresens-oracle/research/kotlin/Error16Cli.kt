@@ -5,7 +5,7 @@ import tk.glucodata.drivers.caresens.calibration.CareSensAirFactoryParameters
 import tk.glucodata.drivers.caresens.calibration.CareSensAirVendorState
 import tk.glucodata.drivers.caresens.calibration.Error16Prototype
 
-/** Uses the standard oracle CLI input layout and emits the research detector's flags only. */
+/** Adds a revised-current flag and double to each input, and emits the detector's state tails. */
 fun main() {
     val input = ByteBuffer.wrap(System.`in`.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
     val parameters = CareSensAirFactoryParameters(input.float, input.float, input.float)
@@ -16,22 +16,27 @@ fun main() {
         detector.restoreVendor(ByteBuffer.wrap(vendor).order(ByteOrder.LITTLE_ENDIAN))
         CareSensAirCalibration(parameters, CareSensAirVendorState.read(vendor, parameters))
     } else CareSensAirCalibration(parameters)
-    val output = ByteBuffer.allocate(count * 8).order(ByteOrder.LITTLE_ENDIAN)
+    val output = ByteBuffer.allocate(count * (12 + Error16Prototype.STAT_COUNT * 8)).order(ByteOrder.LITTLE_ENDIAN)
     repeat(count) {
         val sequence = input.short.toInt() and 0xffff
         val time = input.int.toLong() and 0xffffffffL
         val adc = IntArray(30) { input.short.toInt() and 0xffff }
-        val reading = engine.process(CareSensAirCalibration.Record(sequence, time, adc, input.double))
-        if (reading.dataType == 2 || !parameters.valid) {
-            output.putInt(0)
-            output.putInt(0)
-        } else {
-            val minute = reading.intermediates.minuteCurrents
-            val rawCurrent = (minute.sum() - minute.min() - minute.max()) / (minute.size - 2)
-            detector.update(sequence, time, rawCurrent, reading.glucose, parameters.slope100, reading.intermediates.diabetesLevel)
-            output.putInt(detector.conditions)
-            output.putInt(if (detector.latched) 16 else 0)
+        val temperature = input.double
+        val useRevisedCurrent = input.get().toInt() != 0
+        val revisedCurrent = input.double
+        val reading = engine.process(CareSensAirCalibration.Record(sequence, time, adc, temperature))
+        val accepted = reading.dataType != 2 && parameters.valid
+        if (accepted) {
+            val current = if (useRevisedCurrent) revisedCurrent else {
+                val minute = reading.intermediates.minuteCurrents
+                (minute.sum() - minute.min() - minute.max()) / (minute.size - 2)
+            }
+            detector.update(sequence, time, current, reading.glucose, parameters.slope100, reading.intermediates.diabetesLevel)
         }
+        output.putInt(if (accepted) detector.conditions else 0)
+        output.putInt(if (accepted && detector.latched) 16 else 0)
+        output.putInt(if (accepted) 1 else 0)
+        detector.writeStatistics(output)
     }
     System.out.write(output.array())
 }

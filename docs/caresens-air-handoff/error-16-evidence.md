@@ -127,3 +127,28 @@ some gapped traces. Sweep seed 7, run 19 imports state after input 581 and
 first disagrees at input 4148 (sequence 4218), where the prototype sets
 condition 0. Two useful checks in that case are the sampled regression
 coordinates and the cadence of the steady-rate reference.
+
+## Isolating statistic updates from revised current
+
+`err16_replay.py --revised-current` supplies the last value of the vendor's
+post-input `err128_CGM_c_noise_revised_value` history to the research
+prototype on each input. The open calibration engine still supplies its
+own acceptance result, glucose and diabetes level. Takeover retains the
+ordinary snapshot import. The comparison ends at the existing pre-fill
+boundary in both current modes.
+
+Each run reports the first state-tail divergence, first condition
+divergence and first emitted-latch divergence separately. `--details`
+reports the earliest mismatch for each observed statistic. A false-positive
+failure means only the prototype emitted bit 16 within the compared span;
+a missed failure means only the vendor did. If both emitted bit 16, an
+early or late detection compares their first output positions. Latch
+record counts include all records while the two emitted bits differ.
+
+```sh
+python3 err16_replay.py --sweep-case 7 19 --import-state --revised-current --details
+python3 err16_replay.py --sweep 101 --runs 300 --revised-current
+python3 err16_replay.py --sweep 202 --runs 300 --revised-current
+python3 err16_replay.py --sweep 7 --runs 150 --import-state --revised-current
+python3 err16_replay.py --sweep 8 --runs 150 --import-state --revised-current
+```
