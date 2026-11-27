@@ -8,6 +8,139 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JournalTreatmentTransferTests {
+    private fun journalEntry(type: JournalEntryType) = JournalEntryEntity(
+        timestamp = 1_786_794_604_000L,
+        sensorSerial = null,
+        entryType = type.storageValue,
+        title = "Journal entry",
+        note = null,
+        amount = null,
+        glucoseValueMgDl = null,
+        durationMinutes = null,
+        intensity = null,
+        insulinPresetId = null,
+        source = JournalEntrySource.MANUAL.storageValue,
+        sourceRecordId = null,
+        createdAt = 1_786_794_604_000L,
+        updatedAt = 1_786_794_604_000L
+    )
+
+    private fun parseNightscout(
+        document: JSONObject,
+        presets: List<JournalInsulinPreset> = emptyList()
+    ) = JournalTreatmentTransfer.parseTreatment(
+        treatment = document,
+        source = JournalEntrySource.NIGHTSCOUT,
+        sourcePrefix = "nightscout:test",
+        insulinPresets = presets,
+        stringResource = { "Journal entry" }
+    )!!.inputs.single()
+
+    private fun insulinPreset(
+        id: Long,
+        name: String,
+        profile: JournalBuiltInCurveProfile,
+        countsTowardIob: Boolean,
+        archived: Boolean = false
+    ) = JournalInsulinPreset(
+        id = id,
+        displayName = name,
+        onsetMinutes = 15,
+        durationMinutes = 360,
+        accentColor = 0,
+        curveJson = "",
+        isBuiltIn = true,
+        isArchived = archived,
+        countsTowardIob = countsTowardIob,
+        sortOrder = id.toInt(),
+        curveProfileId = profile.storageValue
+    )
+
+    @Test
+    fun nightscoutFingersticksUseDisplayPrecisionAndKeepCanonicalGlucose() {
+        val entry = journalEntry(JournalEntryType.FINGERSTICK).copy(glucoseValueMgDl = 165.76744f)
+
+        for ((useMmol, expected) in listOf(false to 166.0, true to 9.2)) {
+            val document = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol)!!
+
+            assertEquals("BG Check", document.getString("eventType"))
+            assertEquals("Finger", document.getString("glucoseType"))
+            assertEquals(if (useMmol) "mmol" else "mg/dl", document.getString("units"))
+            assertEquals(expected, document.getDouble("glucose"), 0.0)
+            assertEquals(165.76744, document.getDouble("glucoseValueMgDl"), 0.0)
+            assertEquals(entry.glucoseValueMgDl!!, parseNightscout(document).glucoseValueMgDl!!, 0f)
+
+            document.remove("glucoseValueMgDl")
+            assertEquals(166f, parseNightscout(document).glucoseValueMgDl!!, 0.3f)
+        }
+
+        val clone = JournalTreatmentTransfer.buildTreatmentJson(entry, "journal:1", null, null, useV3 = true)!!
+        assertEquals("mg/dl", clone.getString("units"))
+        assertEquals(entry.glucoseValueMgDl!!.toDouble(), clone.getDouble("glucose"), 0.0)
+    }
+
+    @Test
+    fun aNightscoutFingerstickCorrectionSupersedesStaleCanonicalMetadata() {
+        val entry = journalEntry(JournalEntryType.FINGERSTICK).copy(glucoseValueMgDl = 165.76744f)
+        val mmol = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = true)!!
+        val mgdl = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = false)!!
+
+        assertEquals(144.1456f, parseNightscout(mmol.put("glucose", "8.0")).glucoseValueMgDl!!, 0.001f)
+        assertEquals(145f, parseNightscout(mgdl.put("glucose", 145)).glucoseValueMgDl!!, 0f)
+    }
+
+    @Test
+    fun aNightscoutUnitLabelChangeAloneKeepsTheOriginalCanonicalValue() {
+        val canonicalMgdl = 165.76744f
+        val entry = journalEntry(JournalEntryType.FINGERSTICK).copy(glucoseValueMgDl = canonicalMgdl)
+        val mmol = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = true)!!
+        val mgdl = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = false)!!
+
+        assertEquals(canonicalMgdl, parseNightscout(mmol.put("units", "mg/dl")).glucoseValueMgDl!!, 0f)
+        assertEquals(canonicalMgdl, parseNightscout(mgdl.put("units", "mmol")).glucoseValueMgDl!!, 0f)
+    }
+
+    @Test
+    fun basalNoteCarriesDoseAndRestoresTheNamedPreset() {
+        val entry = journalEntry(JournalEntryType.INSULIN).copy(
+            title = "Tresiba",
+            amount = 5.2f,
+            note = "Evening dose",
+            insulinCurveProfileId = JournalBuiltInCurveProfile.DEGLUDEC.storageValue
+        )
+        val document = JournalTreatmentTransfer.buildNightscoutTreatmentJson(entry, null, null, useMmol = false)!!
+        assertEquals("Note", document.getString("eventType"))
+        assertEquals("insulin", document.getString("type"))
+        assertFalse(document.has("insulin"))
+        assertEquals(5.2, document.getDouble("amount"), 0.0)
+        assertEquals("Tresiba", document.getString("insulinType"))
+        assertEquals("Basal injection: Tresiba 5.2 U | Evening dose", document.getString("notes"))
+
+        val generic = insulinPreset(1, "Long acting", JournalBuiltInCurveProfile.LONG_BASAL_GENERIC, false)
+        val tresiba = insulinPreset(2, "TRESIBA", JournalBuiltInCurveProfile.DEGLUDEC, false, archived = true)
+        val imported = parseNightscout(document, listOf(generic, tresiba))
+        assertEquals(JournalEntryType.INSULIN, imported.type)
+        assertEquals(5.2f, imported.amount!!, 0f)
+        assertEquals(tresiba.id, imported.insulinPresetId)
+        assertEquals(null, parseNightscout(document, listOf(generic)).insulinPresetId)
+    }
+
+    @Test
+    fun aNamedBolusUsesItsOwnPresetAndABasalMarkerCannotSelectARapidPreset() {
+        val generic = insulinPreset(1, "Rapid acting", JournalBuiltInCurveProfile.RAPID_GENERIC, true)
+        val fiasp = insulinPreset(2, "Fiasp", JournalBuiltInCurveProfile.FIASP, true)
+        val document = JSONObject()
+            .put("date", 1_786_794_604_000L)
+            .put("eventType", "Correction Bolus")
+            .put("insulin", 3)
+            .put("insulinType", " fiasp ")
+        assertEquals(fiasp.id, parseNightscout(document, listOf(generic, fiasp)).insulinPresetId)
+        assertEquals(
+            null,
+            parseNightscout(document.put("isBasalInsulin", true), listOf(generic, fiasp)).insulinPresetId
+        )
+    }
+
     @Test
     fun xdripMbgEntryBecomesNightscoutFingerstickJournalEntry() {
         val document = JSONObject()

@@ -73,10 +73,30 @@ object NightscoutJournalFollowerImporter : NightscoutTreatmentImportBridge {
         var deleted = 0
         val context = Applic.app
 
-        for (index in 0 until array.length()) {
-            val treatment = array.optJSONObject(index) ?: continue
+        val treatments = (0 until array.length()).mapNotNull(array::optJSONObject)
+            .map { it to NightscoutInsulinIdentity.fromTreatment(it) }
+        // A failed remote delete can leave multiple revisions visible. Compare both the
+        // current batch and the dose already stored from a previous poll.
+        val newestInsulinRevisions = mutableMapOf<String, Long>()
+        for ((_, identity) in treatments) {
+            if (identity == null) continue
+            newestInsulinRevisions.merge(identity.baseId, identity.revision, ::maxOf)
+        }
+        val sourceIds = newestInsulinRevisions.keys.associateWith { baseId ->
+            JournalTreatmentTransfer.sourceRecordIdForBaseId(sourcePrefix, baseId, JournalEntryType.INSULIN)
+        }
+        val storedInsulinIdentities = sourceIds.values.chunked(500)
+            .flatMap { journalDao.getEntriesBySourceRecordIds(it) }
+            .associate { it.sourceRecordId to NightscoutInsulinIdentity.parse(it.nsRemoteId) }
+
+        for ((treatment, identity) in treatments) {
             if (JournalTreatmentTransfer.hasAnyRemoteIdentifier(treatment, ownUploadedRemoteIds)) continue
             if (JournalTreatmentTransfer.hasAnyRemoteIdentifier(treatment, pendingDeleteRemoteIds)) continue
+            if (identity != null) {
+                if (identity.revision < newestInsulinRevisions.getValue(identity.baseId)) continue
+                val stored = storedInsulinIdentities[sourceIds.getValue(identity.baseId)]
+                if (stored?.baseId == identity.baseId && stored.revision > identity.revision) continue
+            }
             val parsed = JournalTreatmentTransfer.parseTreatment(
                 context = context,
                 treatment = treatment,
