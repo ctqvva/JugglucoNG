@@ -152,7 +152,8 @@ class Downloads(unittest.TestCase):
             (root / helper.BUTTON_PATH).parent.mkdir(parents=True)
             (root / helper.BUTTON_PATH).write_text(BUTTON)
             (root / 'README.md').write_text(README)
-            with patch.object(helper, 'ROOT', root), patch.object(helper, 'api', return_value=[[OLDER_RELEASE, newer]]):
+            with patch.dict('os.environ', {'GITHUB_REPOSITORY': helper.REPO}), \
+                 patch.object(helper, 'ROOT', root), patch.object(helper, 'api', return_value=[[OLDER_RELEASE, newer]]):
                 helper.update(local=True)
             text = (root / 'README.md').read_text()
             self.assertIn('Download JugglucoNG 1.2.5-Alpha for Android', text)

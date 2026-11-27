@@ -492,27 +492,22 @@ fun JournalEntrySheet(
             activeInsulinUnits = activeInsulinUnits
         )?.totalInsulinUnits
     }
-    // Computed for this moment, so it goes into the field and can be saved as it stands.
     val suggestedAmount = when {
         existingEntry != null -> null
-        draft.type == JournalEntryType.INSULIN && usesCalculation ->
-            openingHint?.takeIf { it.kind == StateDoseHintKind.INSULIN }?.amount
+        draft.type == JournalEntryType.INSULIN -> when {
+            selectedInsulinPreset == null || openingHint?.kind == StateDoseHintKind.CARBS -> null
+            usesCalculation && openingHint?.kind == StateDoseHintKind.INSULIN -> openingHint.amount
+            else -> uncoveredMealDose ?: insulinHabit.usual
+        }
         draft.type == JournalEntryType.CARBS ->
             openingHint?.takeIf { it.kind == StateDoseHintKind.CARBS }?.amount
         else -> null
     }
-    // Only a guess: it sits dim in the empty field and takes a press of the stepper to become
-    // an amount. The meal case stays here too, because it can't tell a meal from a hypo
-    // treatment. Leave the insulin starting amount empty while the hint asks for carbs.
-    val amountStart = when {
-        existingEntry != null -> null
-        draft.type == JournalEntryType.CARBS -> carbHabit.usual
-        draft.type != JournalEntryType.INSULIN -> null
-        openingHint?.kind == StateDoseHintKind.CARBS -> null
-        else -> uncoveredMealDose ?: insulinHabit.usual
-    }
+    val carbStart = carbHabit.usual.takeIf { existingEntry == null }
+    // Clearing a dose is an edit too. A later history refresh must leave the field empty.
+    var insulinAmountEdited by remember(initialDraft, draft.type) { mutableStateOf(false) }
     LaunchedEffect(existingEntry?.id, draft.type, suggestedAmount) {
-        if (existingEntry == null) {
+        if (existingEntry == null && !insulinAmountEdited) {
             draft = draft.withSuggestedAmount(suggestedAmount?.let(::formatFloatForEditor))
         }
     }
@@ -720,17 +715,20 @@ fun JournalEntrySheet(
                     journalSheetItem(formFocus, key = "insulin_amount") {
                         JournalStepperField(
                             value = draft.amountText,
-                            onValueChange = { draft = draft.copy(amountText = it, amountSuggested = false) },
+                            onValueChange = {
+                                insulinAmountEdited = true
+                                draft = draft.copy(amountText = it, amountSuggested = false)
+                            },
                             onStep = { delta ->
+                                insulinAmountEdited = true
                                 draft = draft.copy(
-                                    amountText = adjustDecimalDraft(draft.amountText, delta, insulinHabit.step, amountStart),
+                                    amountText = adjustDecimalDraft(draft.amountText, delta, insulinHabit.step),
                                     amountSuggested = false
                                 )
                             },
                             label = stringResource(R.string.journal_type_insulin),
                             suffix = stringResource(R.string.unit_insulin_short),
                             prominent = true,
-                            placeholder = amountStart?.let(::formatFloatForEditor),
                             caption = stringResource(R.string.journal_amount_suggested),
                             showCaption = draft.amountSuggested
                         )
@@ -777,7 +775,7 @@ fun JournalEntrySheet(
                             onValueChange = { draft = draft.copy(amountText = it, amountSuggested = false, recordFoodUses = false) },
                             onStep = { delta ->
                                 draft = draft.copy(
-                                    amountText = adjustDecimalDraft(draft.amountText, delta, carbHabit.step, amountStart),
+                                    amountText = adjustDecimalDraft(draft.amountText, delta, carbHabit.step, carbStart),
                                     amountSuggested = false,
                                     recordFoodUses = false
                                 )
@@ -785,7 +783,7 @@ fun JournalEntrySheet(
                             label = stringResource(R.string.journal_type_food),
                             suffix = stringResource(R.string.unit_carbs_short),
                             prominent = true,
-                            placeholder = amountStart?.let(::formatFloatForEditor),
+                            placeholder = carbStart?.let(::formatFloatForEditor),
                             caption = stringResource(R.string.journal_amount_suggested),
                             showCaption = draft.amountSuggested
                         )
@@ -3350,8 +3348,9 @@ private class SelectAllOnFocusField(text: String) {
         val keepSelection = keepSelectionOnce && newValue.text == value.text
         keepSelectionOnce = false
         if (keepSelection) return
+        val textChanged = newValue.text != value.text
         value = newValue
-        onTextChange(newValue.text)
+        if (textChanged) onTextChange(newValue.text)
     }
 }
 
