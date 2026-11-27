@@ -62,7 +62,8 @@ class CareSensAirReferenceFixtureTest {
 
     /** Error checks the engine reproduces; the others are listed in the documentation. */
     private val modelledErrors =
-        CareSensAirCalibration.ERROR_LOW or CareSensAirCalibration.ERROR_TIMING or CareSensAirCalibration.ERROR_PARAMETERS
+        CareSensAirCalibration.ERROR_LOW or CareSensAirCalibration.ERROR_SENSITIVITY or
+            CareSensAirCalibration.ERROR_TIMING or CareSensAirCalibration.ERROR_PARAMETERS
 
     private fun check(fixture: Fixture): Map<Int, Int> {
         val records = CareSensAirScenarios.generate(fixture.spec)
@@ -109,13 +110,30 @@ class CareSensAirReferenceFixtureTest {
     fun holdoutScenariosMatchTheReference() = checkSet("holdout")
 
     @Test
-    fun restoringStateAnywhereContinuesIdentically() {
-        val fixture = load("life-wide")
+    fun restoringStateAnywhereContinuesIdentically() = checkRestart(load("life-wide")) { i -> i % 97 == 0 }
+
+    @Test
+    fun restoringStateDuringRevisionAndAfterError16ContinuesIdentically() {
+        checkRestart(load("temperature-steps"), verifyBeforeRestart = { state ->
+            assertTrue("the preceding record has active current revision", state.revisedCurrent.normal.isFinite())
+        }) { i -> i == 1247 }
+        val fixture = load("holdout-err16-decay")
+        val firstLatch = fixture.expected.indexOfFirst { it.errorCode and CareSensAirCalibration.ERROR_SENSITIVITY != 0 }
+        assertTrue(firstLatch >= 0)
+        checkRestart(fixture, verifyBeforeRestart = { state -> assertTrue(state.error16.latched) }) { i -> i == firstLatch + 1 }
+    }
+
+    private fun checkRestart(
+        fixture: Fixture,
+        verifyBeforeRestart: (CareSensAirCalibrationState) -> Unit = {},
+        restartAt: (Int) -> Boolean,
+    ) {
         val records = CareSensAirScenarios.generate(fixture.spec)
         val straight = CareSensAirCalibration(fixture.spec.parameters)
         var resumed = CareSensAirCalibration(fixture.spec.parameters)
         records.forEachIndexed { i, record ->
-            if (i % 97 == 0) {
+            if (restartAt(i)) {
+                verifyBeforeRestart(resumed.state)
                 resumed = CareSensAirCalibration(
                     fixture.spec.parameters,
                     CareSensAirCalibrationState.fromBytes(resumed.state.toBytes())!!,
@@ -126,6 +144,8 @@ class CareSensAirReferenceFixtureTest {
             assertEquals("glucose at ${i + 1}", a.glucose, b.glucose, 0.0)
             assertEquals("trend at ${i + 1}", a.trend, b.trend, 0.0)
             assertEquals("dataType at ${i + 1}", a.dataType, b.dataType)
+            assertEquals("error code at ${i + 1}", a.errorCode, b.errorCode)
+            assertEquals("revised current at ${i + 1}", straight.state.revisedCurrent.revisedValue, resumed.state.revisedCurrent.revisedValue, 0.0)
             assertArrayEquals("history at ${i + 1}", a.history, b.history, 0.0)
         }
         assertArrayEquals(straight.state.toBytes(), resumed.state.toBytes())
@@ -147,6 +167,7 @@ class CareSensAirReferenceFixtureTest {
                 val got = engine.process(records[i])
                 val at = "${fixture.name} from vendor state after $after, record ${i + 1}"
                 assertEquals("$at data type", want.dataType, got.dataType)
+                assertEquals("$at modelled error bits", want.errorCode and modelledErrors, got.errorCode)
                 if (want.dataType == 2) continue
                 close("$at glucose", want.glucose, got.glucose)
                 assertTrue("$at should be exact", got.exact)
@@ -186,6 +207,25 @@ class CareSensAirReferenceFixtureTest {
         assertTrue(!CareSensAirOpenCalibrationShadow.compare(device, block, input, output(exact.glucose), 2).compared)
         close("glucose", want.glucose, exact.glucose)
         assertTrue(state.isNotEmpty())
+    }
+
+    @Test
+    fun versionThreeKeepsExistingStateAndStartsNewDetectorHistoriesEmpty() {
+        val state = CareSensAirCalibrationState().apply {
+            count = 2000
+            delayProfile = 2
+            delayGlucose[23] = 94.0
+        }
+        // Version 3 ends after the three profile statistics. Version 4 appends both detectors.
+        val bytes = state.toBytes().copyOf(2096)
+        ByteBuffer.wrap(bytes).putInt(3)
+        val restored = CareSensAirCalibrationState.fromBytes(bytes)!!
+        assertEquals(2000, restored.count)
+        assertEquals(2, restored.delayProfile)
+        assertEquals(94.0, restored.delayGlucose[23], 0.0)
+        assertEquals(0.0, restored.revisedCurrent.revisedValue, 0.0)
+        assertTrue(restored.revisedCurrent.normal.isNaN())
+        assertTrue(!restored.error16.latched)
     }
 
     @Test

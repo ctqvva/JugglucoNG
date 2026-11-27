@@ -1,4 +1,4 @@
-"""Compare research error-16 statistics, conditions and latch with the pinned reference."""
+"""Compare error-16 statistics, conditions and latch with the pinned reference."""
 import argparse
 from collections import Counter
 import itertools
@@ -36,6 +36,7 @@ def first(mask):
 
 
 def compare(jar, name, spec, start, current_mode, details):
+    subject = 'engine' if current_mode == 3 else 'prototype'
     device = co.default_device()
     params = tuple(spec.get(name, scenarios.DEFAULTS[name]) for name in ('slope100', 'vref', 'eapp'))
     for field, value in zip(('slope100', 'vref', 'eapp'), params):
@@ -86,17 +87,17 @@ def compare(jar, name, spec, start, current_mode, details):
     if differences:
         chronological = sorted(differences, key=lambda entry: entry[0])
         for index, field, want, got in chronological if details else chronological[:1]:
-            print(f'{name}: {field} first differs at {position(index)}: vendor={want} prototype={got}')
+            print(f'{name}: {field} first differs at {position(index)}: vendor={want} {subject}={got}')
     first_condition = first(condition_errors.any(axis=1))
     if first_condition is not None:
         i = first_condition
         print(f'{name}: first condition divergence at {position(i)}: '
-              f'vendor {expected[i].tolist()}, prototype {have[i].astype(int).tolist()}')
+              f'vendor {expected[i].tolist()}, {subject} {have[i].astype(int).tolist()}')
     first_latch = first(false_positive | missed)
     if first_latch is not None:
         i = first_latch
         print(f'{name}: first latch divergence at {position(i)}: '
-              f'vendor {int(vendor_latched[i])}, prototype {int(engine_latched[i])}')
+              f'vendor {int(vendor_latched[i])}, {subject} {int(engine_latched[i])}')
     counts = Counter()
     counts['statistic runs'] = int(bool(differences))
     counts['condition runs'] = int(first_condition is not None)
@@ -114,7 +115,7 @@ def compare(jar, name, spec, start, current_mode, details):
         counts[detection] += 1
         want = 'none' if vendor_first is None else position(vendor_first)
         got = 'none' if engine_first is None else position(engine_first)
-        print(f'{name}: {detection}: vendor first {want}; prototype first {got}')
+        print(f'{name}: {detection}: vendor first {want}; {subject} first {got}')
     return len(recs), expected.sum(axis=0, dtype=int), condition_errors.sum(axis=0), counts
 
 
@@ -138,18 +139,26 @@ def main():
     cases_arg.add_argument('--fixture', action='append', choices=tuple(mf.DEVELOPMENT | mf.HOLDOUT))
     cases_arg.add_argument('--sweep-case', nargs=2, type=int, metavar=('SEED', 'INDEX'))
     cases_arg.add_argument('--sweep', type=int, metavar='SEED')
-    parser.add_argument('--import-state', action='store_true')
+    state_arg = parser.add_mutually_exclusive_group()
+    state_arg.add_argument('--import-state', action='store_true')
+    state_arg.add_argument('--takeover-after', type=int, metavar='RECORDS',
+                           help='start from vendor state after this many inputs of a named fixture')
     current_arg = parser.add_mutually_exclusive_group()
     current_arg.add_argument('--revised-current', action='store_true',
                              help='inject only the vendor revised current into Error16Prototype')
     current_arg.add_argument('--ordinary-current', action='store_true',
                              help='pass the ordinary five-minute current without err128 revision')
+    current_arg.add_argument('--engine', action='store_true', help='compare the actual calibration engine detector hooks')
     parser.add_argument('--details', action='store_true', help='print the first discrepancy for every statistic in each run')
     args = parser.parse_args()
     if REF.sha256 not in co.KNOWN_REFERENCE:
         parser.error(f'unexpected reference SHA-256: {REF.sha256}')
     if args.import_state and not (args.sweep_case or args.sweep is not None):
         parser.error('--import-state requires --sweep or --sweep-case')
+    if args.takeover_after is not None:
+        specs = mf.DEVELOPMENT | mf.HOLDOUT
+        if not args.fixture or any(not 0 < args.takeover_after < specs[name]['readings'] for name in args.fixture):
+            parser.error('--takeover-after requires fixtures and a record count inside each fixture')
     if args.runs < 1 or (args.sweep_case and args.sweep_case[1] < 0):
         parser.error('run count must be positive and run index nonnegative')
 
@@ -162,10 +171,16 @@ def main():
         cases = itertools.islice(sweep_cases(args.sweep, args.import_state), args.runs)
     elif args.fixture:
         specs = mf.DEVELOPMENT | mf.HOLDOUT
-        cases = [(name, specs[name], None) for name in args.fixture]
+        cases = [(name, specs[name], args.takeover_after) for name in args.fixture]
     else:
         cases = ((n, spec, None) for n, spec in enumerate(itertools.islice(decay_specs(), args.runs)))
-    current_mode = 1 if args.revised_current else (2 if args.ordinary_current else 0)
+    current_mode = 0
+    if args.revised_current:
+        current_mode = 1
+    elif args.ordinary_current:
+        current_mode = 2
+    elif args.engine:
+        current_mode = 3
     records = runs = 0
     total = Counter()
     active, mismatch = np.zeros((2, 7), dtype=int)

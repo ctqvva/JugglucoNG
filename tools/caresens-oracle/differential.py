@@ -38,7 +38,7 @@ RESULT = np.dtype([('seq', '<i4'), ('glucose', '<f8'), ('trend', '<f8'), ('error
                    ('exact', '<i4'), ('history', '<f8', 6), ('minutes', '<f8', 5), ('current', '<f8'),
                    ('factory', '<f8'), ('rescaled', '<f8')])
 SHADOW = 'CareSensAirOpenCalibrationShadow.kt'  # needs Android; not part of the CLI
-MODELLED = 4 | 32 | 64  # error bits the engine reproduces
+MODELLED = 4 | 16 | 32 | 64  # error bits the engine reproduces
 BITS = (1, 2, 4, 8, 16, 32, 64, 128)
 
 
@@ -54,6 +54,7 @@ class Comparison:
     excluded_error4: int
     withheld: int
     withheld_error: int
+    withheld_error16: int
 
 
 def engine_jar(cli=CLI, extra_sources=()):
@@ -166,7 +167,7 @@ def compare_records(k, o, g, count, other_low, modelled):
     return Comparison(first, int((usable & ~exact).sum()), len(k) - end, end,
                       (active & before_fill[:, None]).sum(axis=0), observed.sum(axis=0), scored.sum(axis=0),
                       int((other_low & before_fill).sum()), int(withheld.sum()),
-                      int((withheld & (o['errcode'] != 0)).sum()))
+                      int((withheld & (o['errcode'] != 0)).sum()), int((withheld & ((o['errcode'] & 16) != 0)).sum()))
 
 
 def main():
@@ -211,7 +212,8 @@ def main():
         score = str(scored) if bit & args.modelled else '–'
         print(f'{bit:4} {active:11} {raw:11} {score:>7}')
     print(f'Vendor withheld, engine publication-eligible: {sum(r.withheld for r in results)} '
-          f'({sum(r.withheld_error for r in results)} with a vendor error)')
+          f'({sum(r.withheld_error for r in results)} with a vendor error, '
+          f'{sum(r.withheld_error16 for r in results)} with vendor bit 16)')
     sys.exit(1 if failures else 0)
 
 

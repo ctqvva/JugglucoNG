@@ -17,11 +17,11 @@ class ComparisonTest(unittest.TestCase):
 
     def test_error4_exclusion_leaves_other_bits_scored(self):
         engine, vendor, debug = self.inputs(3)
-        vendor['errcode'] = [1, 4, 4 | 32]
+        vendor['errcode'] = [1, 4, 4 | 16 | 32]
         result = df.compare_records(engine, vendor, debug, np.ones(3), np.array([False, True, True]), df.MODELLED)
         self.assertEqual(('modelled errors', 2), result.first)
-        self.assertEqual([1, 0, 2, 0, 0, 1, 0, 0], result.mismatches.tolist())
-        self.assertEqual([0, 0, 0, 0, 0, 1, 0, 0], result.scored_mismatches.tolist())
+        self.assertEqual([1, 0, 2, 0, 1, 1, 0, 0], result.mismatches.tolist())
+        self.assertEqual([0, 0, 0, 0, 1, 1, 0, 0], result.scored_mismatches.tolist())
         result = df.compare_records(engine, vendor, debug, np.ones(3), np.array([False, True, True]), 1)
         self.assertEqual(('modelled errors', 0), result.first)
 
@@ -35,6 +35,7 @@ class ComparisonTest(unittest.TestCase):
         result = df.compare_records(engine, vendor, debug, np.array([1, 1, 1, 0, 1, 2, 1]), np.zeros(7, bool), 0)
         self.assertIsNone(result.first)
         self.assertEqual((2, 1), (result.withheld, result.withheld_error))
+        self.assertEqual(1, result.withheld_error16)
         self.assertEqual((5, 2), (result.compared, result.after_fill))
         self.assertEqual(4, result.mismatches[df.BITS.index(16)])
 

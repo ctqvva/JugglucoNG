@@ -75,7 +75,8 @@ object CareSensAirOpenCalibrationShadow {
         val vendorType = o.get(last + 154).toInt() and 0xff
         val got = CareSensAirCalibration(parameters, CareSensAirVendorState.read(vendorState, parameters)).process(record)
         val at = "seq ${record.sequence}"
-        val modelled = CareSensAirCalibration.ERROR_TIMING or CareSensAirCalibration.ERROR_PARAMETERS
+        val modelled = CareSensAirCalibration.ERROR_SENSITIVITY or CareSensAirCalibration.ERROR_TIMING or
+            CareSensAirCalibration.ERROR_PARAMETERS
         val problems = buildList {
             if ((vendorType == 2) != (got.dataType == 2)) add("rejection vendor=$vendorType engine=${got.dataType}")
             if (vendorError and modelled != got.errorCode) add("error vendor=$vendorError engine=${got.errorCode}")

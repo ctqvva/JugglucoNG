@@ -1,12 +1,13 @@
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import tk.glucodata.drivers.caresens.calibration.CareSensAirCalibration
+import tk.glucodata.drivers.caresens.calibration.CareSensAirError16
 import tk.glucodata.drivers.caresens.calibration.CareSensAirFactoryParameters
 import tk.glucodata.drivers.caresens.calibration.CareSensAirVendorState
 import tk.glucodata.drivers.caresens.calibration.Error128RevisedCurrent
 import tk.glucodata.drivers.caresens.calibration.Error16Prototype
 
-/** Runs Error128RevisedCurrent and Error16Prototype, emitting revised current and detector state tails. */
+/** Emits the revised current and detector state tails from the research pair or the engine. */
 fun main() {
     val input = ByteBuffer.wrap(System.`in`.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
     val parameters = CareSensAirFactoryParameters(input.float, input.float, input.float)
@@ -23,6 +24,7 @@ fun main() {
         CareSensAirCalibration(parameters, CareSensAirVendorState.read(vendor, parameters))
     } else CareSensAirCalibration(parameters)
     val output = ByteBuffer.allocate(count * (12 + (1 + Error16Prototype.STAT_COUNT) * 8)).order(ByteOrder.LITTLE_ENDIAN)
+    check(CareSensAirError16.STAT_COUNT == Error16Prototype.STAT_COUNT)
     repeat(count) {
         val sequence = input.short.toInt() and 0xffff
         val time = input.int.toLong() and 0xffffffffL
@@ -32,6 +34,15 @@ fun main() {
         val injectedCurrent = input.double
         val reading = engine.process(CareSensAirCalibration.Record(sequence, time, adc, temperature))
         val accepted = reading.dataType != 2 && parameters.valid
+        if (currentMode == 3) {
+            val state = engine.state
+            output.putInt(if (accepted) state.error16.conditions else 0)
+            output.putInt(reading.errorCode and CareSensAirCalibration.ERROR_SENSITIVITY)
+            output.putInt(if (accepted) 1 else 0)
+            output.putDouble(state.revisedCurrent.revisedValue)
+            state.error16.writeStatistics(output, state)
+            return@repeat
+        }
         if (accepted) {
             val ordinaryCurrent = CareSensAirCalibration.trimmedMean(reading.intermediates.minuteCurrents)
             val autonomousCurrent = revised.update(sequence, time, ordinaryCurrent, reading.glucose, detector.profile)

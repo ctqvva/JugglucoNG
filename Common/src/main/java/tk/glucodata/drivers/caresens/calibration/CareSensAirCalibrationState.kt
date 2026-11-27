@@ -72,9 +72,10 @@ class CareSensAirCalibrationState {
     var lowRawCount = 0
     var lowError = false
 
-    // Low-signal delay tests (data type 4) and trend-withholding window.
+    // Accepted sequence and rounded glucose history shared by the delay and revision stages.
     val delaySequence = IntArray(24)
     val delayGlucose = DoubleArray(24) { Double.NaN }
+    // The delay tests use the updated profile; revision and error 16 use the profile on entry.
     val delayPlasma = DoubleArray(12) { Double.NaN }
     val delayTrendFlags = BooleanArray(7)
     var previousDelayFlag = false
@@ -84,6 +85,9 @@ class CareSensAirCalibrationState {
     var delayProfileSum = 0.0
     var delayProfileAbove = 0.0
     var delayProfileInRange = 0.0
+
+    internal val revisedCurrent = CareSensAirRevisedCurrent()
+    internal val error16 = CareSensAirError16()
 
     // Interruption check.
     var timingStarted = false
@@ -156,19 +160,21 @@ class CareSensAirCalibrationState {
             o.writeBoolean(previousDelayFlag); o.writeDouble(delayPreviousRawMax)
             o.writeInt(delayProfile); o.writeInt(delayProfileCount)
             o.writeDouble(delayProfileSum); o.writeDouble(delayProfileAbove); o.writeDouble(delayProfileInRange)
+            revisedCurrent.write(o)
+            error16.write(o)
         }
         return bytes.toByteArray()
     }
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
 
         /** Restores [toBytes]; null for another format version or a damaged copy. */
         fun fromBytes(data: ByteArray): CareSensAirCalibrationState? = runCatching {
             val s = CareSensAirCalibrationState()
             DataInputStream(ByteArrayInputStream(data)).use { i ->
                 val version = i.readInt()
-                if (version != VERSION && version != 2) return null
+                if (version !in 2..VERSION) return null
                 s.count = i.readInt(); s.previousSequence = i.readInt(); s.previousTime = i.readLong(); s.contactCheckStart = i.readInt(); s.rejectedSinceAccepted = i.readBoolean()
                 fill(s.rawTail, i); fill(s.cleanTail, i); for (k in s.flags.indices) s.flags[k] = i.readInt()
                 fill(s.history60, i); for (k in s.history60Time.indices) s.history60Time[k] = i.readLong(); fill(s.previousMedians, i)
@@ -216,6 +222,10 @@ class CareSensAirCalibrationState {
                     s.delayProfileSum = i.readDouble()
                     s.delayProfileAbove = i.readDouble()
                     s.delayProfileInRange = i.readDouble()
+                }
+                if (version >= 4) {
+                    s.revisedCurrent.read(i)
+                    s.error16.read(i)
                 }
                 if (i.read() != -1) return null
             }
@@ -315,6 +325,8 @@ object CareSensAirVendorState {
         s.delayProfileSum = f64(10920)
         s.delayProfileAbove = f64(10936)
         s.delayProfileInRange = f64(10944)
+        s.revisedCurrent.restoreVendor(b)
+        s.error16.restoreVendor(b)
         s.timingTime = u32(117284); s.timingSequence = u16(117288); s.timingStarted = s.timingTime != 0L
         for (k in 0 until 4) u16(117290 + 2 * k).takeIf { it != 0 }?.let { s.pushGap23(it) }
         for (k in 0 until 2) u16(117298 + 2 * k).takeIf { it != 0 }?.let { s.pushGap60(it) }

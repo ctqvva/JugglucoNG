@@ -61,7 +61,7 @@ class CareSensAirCalibration(
         val history: DoubleArray,
         /**
          * False when the record reached behaviour that is not reproduced yet
-         * (filling missed records after a clock jump). Errors 1, 2, 8, 16 and
+         * (filling missed records after a clock jump). Errors 1, 2, 8 and
          * 128, and the err1 noise-break half of data type 4 when not supplied
          * via [process]'s `noiseBreak` input, are not reproduced autonomously;
          * see the documentation.
@@ -192,9 +192,14 @@ class CareSensAirCalibration(
         var rawMax = currents[0]
         for (v in currents) if (v > rawMax) rawMax = v
         CareSensAirError4.update(s, seq, consecutive, rawMax, parameters.slope100)
+        // Revision sees the previous accepted histories. Error 16 uses the new revised current
+        // with the same pre-record profile, while the delay tests use the updated profile.
+        val preRecordProfile = s.delayProfile
+        val revisedCurrent = s.revisedCurrent.update(s, seq, record.timeSeconds, current5Min, glucose)
         val delayFlag = CareSensAirDelayFlag.update(
             s, seq, rawMax, current5Min, glucose, parameters.slope100, noiseBreak,
         )
+        s.error16.update(seq, record.timeSeconds, revisedCurrent, parameters.slope100, preRecordProfile)
         val dataType = if (delayFlag || noiseBreak) DATA_TYPE_LOW_SIGNAL else 0
 
         // History: ten newest values, the six behind the newest re-smoothed.
@@ -223,7 +228,9 @@ class CareSensAirCalibration(
     }
 
     private fun detectorErrors(s: CareSensAirCalibrationState, accepted: Boolean): Int =
-        (if (s.timingError) ERROR_TIMING else 0) or (if (accepted && s.lowError) ERROR_LOW else 0)
+        (if (s.timingError) ERROR_TIMING else 0) or
+            (if (accepted && s.lowError) ERROR_LOW else 0) or
+            (if (accepted && s.error16.latched) ERROR_SENSITIVITY else 0)
 
     private fun sensitivityCompensated(corrected: Double, seq: Int, s: CareSensAirCalibrationState): Double {
         val validCurrent = corrected in 0.5..50.0
@@ -416,6 +423,7 @@ class CareSensAirCalibration(
         private const val SPIKE_FLOOR = 0.0036
         const val NO_TREND = 100.0
         const val ERROR_LOW = 4
+        const val ERROR_SENSITIVITY = 16
         const val ERROR_TIMING = 32
         const val ERROR_PARAMETERS = 64
         const val DATA_TYPE_LOW_SIGNAL = 4
