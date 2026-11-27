@@ -3417,4 +3417,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">上方的项目位于摄像头之前，其余位于之后</string>
     <string name="floating_layout_hidden">已隐藏</string>
     <string name="floating_layout_order_desc">拖动手柄以移动项目</string>
+    <string name="instara_sensor_desc">输入传感器上印刷的8位代码</string>
+    <string name="instara_sn_hint">传感器代码</string>
+    <string name="instara_sn_invalid">输入传感器上印刷的8位代码</string>
+    <string name="instara_activation_time">传感器激活时间（可选）</string>
+    <string name="instara_connecting">正在等待传感器</string>
+    <string name="instara_saved">传感器已保存 — Juggluco 将继续尝试连接</string>
 </resources>

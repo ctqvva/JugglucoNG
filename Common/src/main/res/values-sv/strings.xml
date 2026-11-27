@@ -3411,4 +3411,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Objekt ovanför hamnar före kameran, resten efter</string>
     <string name="floating_layout_hidden">Dold</string>
     <string name="floating_layout_order_desc">Dra i ett handtag för att flytta ett objekt</string>
+    <string name="instara_sensor_desc">Ange den 8-teckens kod som skrivs ut på sensorn</string>
+    <string name="instara_sn_hint">Sensorkod</string>
+    <string name="instara_sn_invalid">Ange den 8-teckens kod som skrivs ut på sensorn</string>
+    <string name="instara_activation_time">Sensorns aktiveringstid (valfritt)</string>
+    <string name="instara_connecting">Väntar på sensorn</string>
+    <string name="instara_saved">Sensorn sparad — Juggluco fortsätter att försöka ansluta</string>
 </resources>

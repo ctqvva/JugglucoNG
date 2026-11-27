@@ -3454,4 +3454,10 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="floating_layout_camera_desc">Items erboven staan vóór de camera, de rest erna</string>
     <string name="floating_layout_hidden">Verborgen</string>
     <string name="floating_layout_order_desc">Sleep een greep om een item te verplaatsen</string>
+    <string name="instara_sensor_desc">Voer de 8-tekens code in die op de sensor staat</string>
+    <string name="instara_sn_hint">Sensorcode</string>
+    <string name="instara_sn_invalid">Voer de 8-tekens code in die op de sensor staat</string>
+    <string name="instara_activation_time">Activatietijd sensor (optioneel)</string>
+    <string name="instara_connecting">Wachten op sensor</string>
+    <string name="instara_saved">Sensor opgeslagen — Juggluco blijft proberen te verbinden</string>
 </resources>

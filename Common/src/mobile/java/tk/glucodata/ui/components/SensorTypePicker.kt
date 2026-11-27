@@ -26,7 +26,8 @@ enum class SensorType {
     MQ,
     ANYTIME,
     OTTAI,
-    MEDTRUM
+    MEDTRUM,
+    INSTARA
 }
 
 /** One sensor family the user can add: shared by the picker sheet and the empty-state cards. */
@@ -48,6 +49,7 @@ internal val sensorTypeOptions = listOf(
     SensorTypeOption(SensorType.CARESENS_AIR, R.string.caresens_air_sensor, R.string.caresens_air_sensor_desc),
     SensorTypeOption(SensorType.MQ, R.string.mq_sensor, R.string.mq_sensor_desc),
     SensorTypeOption(SensorType.MEDTRUM, R.string.medtrum_sensor, R.string.medtrum_sensor_models),
+    SensorTypeOption(SensorType.INSTARA, R.string.instara_sensor, R.string.instara_sensor_models),
 )
 
 /**

@@ -3595,4 +3595,10 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="floating_layout_camera_desc">Waxyaabaha ka sarreeya waxay ka horreeyaan kamarada, inta kalena way ka dambeeyaan</string>
     <string name="floating_layout_hidden">Qarsoon</string>
     <string name="floating_layout_order_desc">Jiid gacan si aad shay u guurto</string>
+    <string name="instara_sensor_desc">Geli koodka 8-xaraf ee ku qoran sensorsha</string>
+    <string name="instara_sn_hint">Koodka sensorsha</string>
+    <string name="instara_sn_invalid">Geli koodka 8-xaraf ee ku qoran sensorsha</string>
+    <string name="instara_activation_time">Waqtiga hawlgelinta sensorsha (ikhtiyaar)</string>
+    <string name="instara_connecting">Sugaya sensorsha</string>
+    <string name="instara_saved">Sensorsha waa la keydiyay — Juggluco wuu sii isku dayayaa inuu xiro</string>
 </resources>

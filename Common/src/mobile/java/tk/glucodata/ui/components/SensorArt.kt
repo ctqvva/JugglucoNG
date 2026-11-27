@@ -411,6 +411,7 @@ internal fun DrawScope.drawSensor(type: SensorType, tones: SensorTones) {
                     SensorType.CARESENS_AIR -> drawCareSensAir(turned)
                     SensorType.MQ -> drawMq(turned)
                     SensorType.MEDTRUM -> drawMedtrum(turned)
+                    SensorType.INSTARA -> drawMedtrum(turned)
                 }
             }
         }
@@ -434,6 +435,7 @@ internal val SensorType.tilt: Float
         SensorType.CARESENS_AIR -> -9f
         SensorType.MQ -> -8f
         SensorType.MEDTRUM -> 10f
+        SensorType.INSTARA -> -10f
     }
 
 // ---- The view ----

@@ -3439,4 +3439,10 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="floating_layout_camera_desc">Üstündeki öğeler kameradan önce, diğerleri sonra yer alır</string>
     <string name="floating_layout_hidden">Gizli</string>
     <string name="floating_layout_order_desc">Bir öğeyi taşımak için tutamacı sürükleyin</string>
+    <string name="instara_sensor_desc">Sensörde yazan 8 karakterli kodu girin</string>
+    <string name="instara_sn_hint">Sensör kodu</string>
+    <string name="instara_sn_invalid">Sensörde yazan 8 karakterli kodu girin</string>
+    <string name="instara_activation_time">Sensör etkinleştirme saati (isteğe bağlı)</string>
+    <string name="instara_connecting">Sensör bekleniyor</string>
+    <string name="instara_saved">Sensör kaydedildi — Juggluco bağlanmayı denemeye devam edecek</string>
 </resources>

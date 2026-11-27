@@ -3502,4 +3502,10 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Элементы вышэй стаяць перад камерай, астатнія — пасля</string>
     <string name="floating_layout_hidden">Схавана</string>
     <string name="floating_layout_order_desc">Перацягніце маркер, каб перамясціць элемент</string>
+    <string name="instara_sensor_desc">Увядзіце 8-сімвальны код, надрукаваны на датчыку</string>
+    <string name="instara_sn_hint">Код датчыка</string>
+    <string name="instara_sn_invalid">Увядзіце 8-сімвальны код, надрукаваны на датчыку</string>
+    <string name="instara_activation_time">Час актывацыі датчыка (неабавязкова)</string>
+    <string name="instara_connecting">Чакаем датчык</string>
+    <string name="instara_saved">Датчык захаваны — Juggluco працягне спробы падключэння</string>
 </resources>

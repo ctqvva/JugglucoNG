@@ -3523,4 +3523,10 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="floating_layout_camera_desc">Elemente darüber stehen vor der Kamera, die übrigen danach</string>
     <string name="floating_layout_hidden">Ausgeblendet</string>
     <string name="floating_layout_order_desc">Zum Verschieben einen Griff ziehen</string>
+    <string name="instara_sensor_desc">Geben Sie den 8-stelligen Code auf dem Sensor ein</string>
+    <string name="instara_sn_hint">Sensorcode</string>
+    <string name="instara_sn_invalid">Geben Sie den 8-stelligen Code auf dem Sensor ein</string>
+    <string name="instara_activation_time">Aktivierungszeit des Sensors (optional)</string>
+    <string name="instara_connecting">Warten auf den Sensor</string>
+    <string name="instara_saved">Sensor gespeichert — Juggluco versucht weiterhin zu verbinden</string>
 </resources>
