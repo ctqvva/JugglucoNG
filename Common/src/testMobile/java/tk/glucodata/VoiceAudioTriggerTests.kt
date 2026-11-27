@@ -499,9 +499,7 @@ class VoiceAudioTriggerTests {
         VoiceAudioTrigger.setAnnounceOnConnect(app, false)
         VoiceAudioTrigger.setEnabled(app, true)
 
-        val latch1 = java.util.concurrent.CountDownLatch(1)
-        Applic.scheduler.execute { latch1.countDown() }
-        assertTrue(latch1.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
         VoiceAudioTrigger.refreshCarProjectionNow(app)
         assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
 
@@ -511,9 +509,7 @@ class VoiceAudioTriggerTests {
         VoiceAudioTrigger.lastCarProjectionCheckMs = System.currentTimeMillis() - 60_000L
         VoiceAudioTrigger.refreshAndCheckReadingSpeech(app)
 
-        val latch2 = java.util.concurrent.CountDownLatch(1)
-        Applic.scheduler.execute { latch2.countDown() }
-        assertTrue(latch2.await(5L, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
         assertFalse(
             "Throttled async projection refresh must recover when Android Auto disconnect broadcast was missed",
             VoiceAudioTrigger.isAutoReadingSpeechActive(app),
@@ -640,7 +636,10 @@ class VoiceAudioTriggerTests {
 
         assertEquals("Dedicated worker must never overlap provider queries", 1, FakeCarConnectionProvider.maxConcurrentQueries.get())
         assertEquals("Burst of overlapping refreshes must coalesce to 1 in-flight + 1 follow-up", 2, FakeCarConnectionProvider.queryCount.get())
-        assertEquals("VoiceCarProjection", FakeCarConnectionProvider.lastQueryThreadName)
+        assertTrue(
+            "Expected VoiceCarProjection worker thread, got ${FakeCarConnectionProvider.lastQueryThreadName}",
+            FakeCarConnectionProvider.lastQueryThreadName?.startsWith("VoiceCarProjection") == true,
+        )
     }
 
     @Test
@@ -957,6 +956,200 @@ class VoiceAudioTriggerTests {
             "Updated bonded metadata revealing an ambiguous paired name must immediately trigger refreshState",
             VoiceAudioTrigger.isAutoReadingSpeechActive(app),
         )
+    }
+
+    @Test
+    fun hfpDisconnect_preservesActiveA2dpProfileIdentity() {
+        val btManager = app.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+        val shadowAdapter = shadowOf(adapter)
+        shadowAdapter.setEnabled(true)
+        shadowOf(app).grantPermissions(android.Manifest.permission.BLUETOOTH_CONNECT)
+
+        val selectedMac = "AA:BB:CC:DD:EE:01"
+        val otherMac = "AA:BB:CC:DD:EE:02"
+        val selectedCar = adapter.getRemoteDevice(selectedMac)
+        val otherCar = adapter.getRemoteDevice(otherMac)
+        shadowOf(selectedCar).setName("Car Multimedia")
+        shadowOf(selectedCar).setBondState(android.bluetooth.BluetoothDevice.BOND_BONDED)
+        shadowOf(otherCar).setName("Car Multimedia")
+        shadowOf(otherCar).setBondState(android.bluetooth.BluetoothDevice.BOND_BONDED)
+        shadowAdapter.setBondedDevices(setOf(selectedCar, otherCar))
+
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice(
+                id = "mac:$selectedMac",
+                address = selectedMac,
+                name = "Car Multimedia",
+                isCar = true,
+            ),
+        )
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, false)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        VoiceAudioTrigger.refreshBondedCacheNow(app)
+
+        // AudioManager omits MAC for the active A2DP output (two bonded cars share "Car Multimedia").
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("", "Car Multimedia", AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)))
+
+        // A2DP connects -> HFP connects -> HFP disconnects while A2DP stays connected.
+        VoiceAudioTrigger.updateProfileCache(app, android.bluetooth.BluetoothProfile.A2DP, selectedCar, android.bluetooth.BluetoothProfile.STATE_CONNECTED)
+        VoiceAudioTrigger.updateProfileCache(app, android.bluetooth.BluetoothProfile.HEADSET, selectedCar, android.bluetooth.BluetoothProfile.STATE_CONNECTED)
+        VoiceAudioTrigger.refreshState(app, "both_connected")
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        VoiceAudioTrigger.updateProfileCache(app, android.bluetooth.BluetoothProfile.HEADSET, selectedCar, android.bluetooth.BluetoothProfile.STATE_DISCONNECTED)
+        VoiceAudioTrigger.refreshState(app, "hfp_disconnected")
+        assertTrue(
+            "HFP disconnect must NOT delete active A2DP profile identity",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+
+        // Once A2DP itself disconnects, ambiguous name fails closed again.
+        VoiceAudioTrigger.updateProfileCache(app, android.bluetooth.BluetoothProfile.A2DP, selectedCar, android.bluetooth.BluetoothProfile.STATE_DISCONNECTED)
+        VoiceAudioTrigger.refreshState(app, "a2dp_disconnected")
+        assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+    }
+
+    @Test
+    fun profileProxyReconciliation_seedsConnectedA2dpIdentityWithoutAcceptingCallOnlyHfp() {
+        val btManager = app.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+        val shadowAdapter = shadowOf(adapter)
+        shadowAdapter.setEnabled(true)
+        shadowOf(app).grantPermissions(android.Manifest.permission.BLUETOOTH_CONNECT)
+
+        val selectedMac = "AA:BB:CC:DD:EE:11"
+        val otherMac = "AA:BB:CC:DD:EE:12"
+        val selectedCar = adapter.getRemoteDevice(selectedMac)
+        val otherCar = adapter.getRemoteDevice(otherMac)
+        shadowOf(selectedCar).setName("Car Multimedia")
+        shadowOf(selectedCar).setBondState(android.bluetooth.BluetoothDevice.BOND_BONDED)
+        shadowOf(otherCar).setName("Car Multimedia")
+        shadowOf(otherCar).setBondState(android.bluetooth.BluetoothDevice.BOND_BONDED)
+        shadowAdapter.setBondedDevices(setOf(selectedCar, otherCar))
+
+        VoiceAudioTrigger.toggleSavedDevice(
+            app,
+            VoiceAudioPolicy.SavedDevice(
+                id = "mac:$selectedMac",
+                address = selectedMac,
+                name = "Car Multimedia",
+                isCar = true,
+            ),
+        )
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, false)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        VoiceAudioTrigger.refreshBondedCacheNow(app)
+
+        // HFP proxy connected with NO media output in AudioManager (call-only) -> must NOT activate.
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("", "Car Multimedia", AudioDeviceInfo.TYPE_BLUETOOTH_SCO)))
+        VoiceAudioTrigger.reconcileConnectedProfileDevices(app, android.bluetooth.BluetoothProfile.HEADSET, listOf(selectedCar))
+        assertFalse("Call-only HFP/SCO must never trigger speech", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Active A2DP media output with omitted MAC + live A2DP proxy reconciliation (no prior broadcasts) -> activates!
+        shadowOf(audio).setOutputDevices(listOf(fakeBtDevice("", "Car Multimedia", AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)))
+        VoiceAudioTrigger.refreshState(app, "before_proxy")
+        VoiceAudioTrigger.reconcileConnectedProfileDevices(app, android.bluetooth.BluetoothProfile.A2DP, listOf(selectedCar))
+        assertTrue(
+            "Reconciling live A2DP proxy devices must identify an already-connected car without historical broadcasts",
+            VoiceAudioTrigger.isAutoReadingSpeechActive(app),
+        )
+    }
+
+    @Test
+    fun carProjectionTransientFailure_preservesConnectedWithinGraceThenExpiresAndRetries() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.carProjectionGraceMs = 60_000L
+        VoiceAudioTrigger.carProjectionRetryDelaysMs = longArrayOf(50L, 100L)
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+        VoiceAudioTrigger.setEnabled(app, true)
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests())
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Transient query failure within grace window preserves CONNECTED and schedules bounded retry.
+        val confirmedAt = VoiceAudioTrigger.carProjectionConfirmedAtMs
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Failure("timeout(5000ms)", retryable = true),
+            nowMs = confirmedAt + 5_000L,
+        )
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
+        assertTrue("Transient failure inside grace window must not drop active Android Auto session", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Failure past grace window expires to UNKNOWN and deactivates speech (never stuck on).
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Failure("timeout(5000ms)", retryable = false),
+            nowMs = confirmedAt + 90_000L,
+        )
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.UNKNOWN, VoiceAudioTrigger.carProjectionStatus)
+        assertFalse("Expired Android Auto session must deactivate speech", VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+
+        // Definitive NOT_CONNECTED immediately sets DISCONNECTED (no grace delay).
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Definitive(VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION),
+        )
+        assertTrue(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+        VoiceAudioTrigger.applyCarProjectionResult(
+            app,
+            VoiceAudioTrigger.CarProjectionQueryResult.Definitive(VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED),
+        )
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.DISCONNECTED, VoiceAudioTrigger.carProjectionStatus)
+        assertFalse(VoiceAudioTrigger.isAutoReadingSpeechActive(app))
+    }
+
+    @Test
+    fun hungCarProjectionQueryIgnoringCancellation_doesNotObstructSubsequentRefresh() {
+        FakeCarConnectionProvider.reset()
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_PROJECTION
+        Robolectric.buildContentProvider(FakeCarConnectionProvider::class.java)
+            .create(VoiceAudioTrigger.CAR_CONNECTION_AUTHORITY)
+
+        VoiceAudioTrigger.carProjectionQueryTimeoutMs = 50L
+        VoiceAudioTrigger.carProjectionRetryDelaysMs = longArrayOf() // disable auto-retry so test controls second call
+        VoiceAudioTrigger.setScope(app, VoiceAudioPolicy.Scope.SELECTED_DEVICES)
+        VoiceAudioTrigger.setIncludeCarMode(app, true)
+        VoiceAudioTrigger.setAnnounceOnConnect(app, false)
+
+        val enteredHungQuery = java.util.concurrent.CountDownLatch(1)
+        val releaseHungQuery = java.util.concurrent.CountDownLatch(1)
+        FakeCarConnectionProvider.onQuery = { _ ->
+            if (FakeCarConnectionProvider.queryCount.get() == 1) {
+                enteredHungQuery.countDown()
+                // Deliberately ignore CancellationSignal to simulate a hung remote Binder provider.
+                releaseHungQuery.await(5L, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
+
+        VoiceAudioTrigger.refreshCarProjectionAsync(app)
+        assertTrue(enteredHungQuery.await(2L, java.util.concurrent.TimeUnit.SECONDS))
+        // Wait for the 50 ms timeout to release single-flight state even while the hung thread is blocked.
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests(2_000L))
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.UNKNOWN, VoiceAudioTrigger.carProjectionStatus)
+
+        // Subsequent reconciliation request succeeds immediately on the spare worker slot!
+        VoiceAudioTrigger.refreshCarProjectionAsync(app)
+        assertTrue(VoiceAudioTrigger.awaitCarProjectionIdleForTests(2_000L))
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
+
+        // Release the old hung call (which would have returned NOT_CONNECTED if state changed) -> stale result ignored!
+        FakeCarConnectionProvider.state = VoiceAudioTrigger.CONNECTION_TYPE_NOT_CONNECTED
+        releaseHungQuery.countDown()
+        Thread.sleep(50L)
+        assertEquals(VoiceAudioTrigger.CarProjectionStatus.CONNECTED, VoiceAudioTrigger.carProjectionStatus)
     }
 }
 
