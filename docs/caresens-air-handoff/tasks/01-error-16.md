@@ -5,7 +5,8 @@ realistic data, in 7 of 268 synthetic runs, from day 6 on. It latches to the
 end of the wear, and the driver withholds readings while it is set.
 
 Setup and conventions: `00-shared-infrastructure.md`. Background:
-`../findings.md`, section "Error 16".
+`../findings.md`, section "Error 16". New replay measurements are in
+[error-16-evidence.md](../error-16-evidence.md).
 
 ## Goal
 
@@ -25,7 +26,8 @@ Setup and conventions: `00-shared-infrastructure.md`. Background:
 
 **Cadence** (e201): see the table in `../findings.md`, "Error 16".
 
-**Firing.** Conditions 0 and 2 can start from seq 1728, condition 1 from 2019.
+**Firing.** Conditions 0 and 2 can start from seq 1728. Condition 1 was
+observed at seq 2018 in decay run 123 with an empty calibration list.
 
 ## Where it fires
 
