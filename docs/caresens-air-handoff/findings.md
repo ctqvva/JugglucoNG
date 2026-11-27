@@ -130,38 +130,41 @@ Partly known (conditions 1–4, not implemented):
 - **Conditions 2 and 3:** negative-current tests that fire from seq 865 on sustained very low signals (scaled ×0.25 / ×0.4). Their limits scale with the level before the plateau (e254), and in every test condition 0 had already fired.
 - **Condition 4:** never seen.
 
-The delay tests D0–D4 (`err4_delay_condi`, any → `err4_delay_flag`) are not implemented:
+The delay tests D0–D4, the `err4_delay_condi` → `err4_delay_flag` rapid-drop gate, and the sensitivity-reference current band are confirmed and implemented (`CareSensAirDelayFlag.kt`, `CareSensAirCalibration.kt`, `CareSensAirCalibrationState.kt`, verified by `err4_delay_probe.py` with 0 mismatches across 1,231 runs / 2,374,726 accepted records):
 
-| Test | Rule | Phase | Exactness |
-|---|---|---|---|
-| D0 | max(rawmax, rawmax of the previous consecutive record) < 1.1 | seq < 2017 | exact for start-1 runs |
-| D1 | round(init) < 40 ∧ rawmax < 1.5 (tree e280 on `d1X/d1Y.npy`) | 865–2016 | 464 mismatches left, all phase-related |
-| D2 | round(R) < 40 ∧ rawmax < 3.0 | 865–2016 | 30 mismatches, superset |
-| D3 | round(R) < 20 ∨ round(init) < 20 | all | 76 mismatches as a pure R test |
-| D4 | round(R) < 30 | seq ≥ 2017 | exact |
+- **Phases** (controlled by `seq` and pre-D updated `diabetes_before_7days_flag` `b7`, offset 10914):
+  - Phase 1 (`seq < 865`): D0, D3.
+  - Phase 2 (`seq >= 865 && !(seq >= 2017 && b7 >= 4)`): D0, D1, D2, D3 (resolves the `e284.py` late-start phase mystery: runs with `b7 < 4` remain in Phase 2 past `seq = 2017`).
+  - Phase 3 (`seq >= 2017 && b7 >= 4`): D3, D4.
+- **Tests** (`rR = roundAwayFromZero(result_glucose)`, `t5 = tran_inA_5min`, `consecutive = idx > 0 && accu_seq[-1] == seq - 1`):
 
-- The table's rules come from bisection on 3.52/7 slopes and both lots (e251); the D0 refinement is e263 and e266.
-- **The phase after day 7 is wrong for late-start runs** (start 600 or 1500, e284). D0 stays on after seq 2017 for some low records and not for others, so slot 0 in phase 3 seems to be a different test.
-- Whether phases count seq or record index is untested.
+  | Test | Exact rule | Active phase |
+  |---|---|---|
+  | D0 | `consecutive && max(rawmax, prev_rawmax) < 1.1` | Phase 1, Phase 2 |
+  | D1 | `rR < 40 && rawmax < 1.5` | Phase 2 |
+  | D2 | `rR < 40 && rawmax < 3.0 && rawmax * 100 / slope100 < 60` | Phase 2 |
+  | D3 | `rR < 20 \|\| t5 < 0.4` | All |
+  | D4 | `rR < 30 \|\| (rawmax < 0.8 && rawmax * 100 / slope100 < 20)` | Phase 3 |
 
-Rejected (D tests): D0 = 5min < 1.1, and D1 = 5min < 1.5. Both were replaced by the rules above.
+- **Gate (`err4_delay_condi` → `err4_delay_flag`):** when `any(D0..D4)` holds:
+  - If `seq < 865 || idx == 0 || prev_err4_delay_flag == 1`: `err4_delay_flag = 1`.
+  - Else count prior accepted records `n_win` with `accu_seq > 0 && seq - accu_seq <= 23`:
+    - If `n_win >= 21`: requires a consecutive rounded-glucose drop `g[k-1] - g[k] >= 40` ending at `g[k] < 100` in the `n_win` prior entries plus `rR`.
+    - Else (`n_win < 21`): requires `D3 && err_glu_arr[-1] - rR > 50` (no `< 100` ceiling).
+
+Rejected (D tests): D0 = 5min < 1.1, D1 = 5min < 1.5, and the assumption `err4_delay_flag == any(err4_delay_condi[0..4])` (superseded by the `seq >= 865` rapid-drop gate above).
 
 ## Data type 4 (low-signal flag)
 
-Confirmed:
+Confirmed and implemented (`err4_delay_probe.py`, `CareSensAirDelayFlag.kt`, `CareSensAirCalibration.kt`; 0 mismatches across 1,231 runs / 2,374,726 accepted records):
 
-- **Definition** (e248, 0 mismatches in 255 858 records): `data_type 4 = err1_random_noise_temp_break || err4_delay_flag`.
-- **Trend.** Type 4 withholds the trend. The engine's trend window is history entries 3–9.
-- **Sensitivity reference** (e277, exact count and sum on a dropout run). The day 3–7 reference (`sum_curr_for_mdc` 10976, `sum_curr_cnt_for_mdc` 10984; also `mdc_start_idx`, `mdc_first_flag`) skips a record if and only if it and the previous accepted record are both type 4. So type 4 changes the corrected current after day 7, not only the trend.
+- **Definition** (`e248`, `err4_delay_probe.py`): `data_type 4 = err1_random_noise_temp_break || err4_delay_flag`. `CareSensAirCalibration.process(record, noiseBreak = false)` isolates Task 02's `err1_random_noise_temp_break` as a boolean input.
+- **Trend.** `err_delay_arr[7]` (offset `17132`) is a 7-record FIFO of `data_type == 4` on accepted records, aligned with history slots 3–9. Any `1` in `err_delay_arr[0..6]` withholds `trend` (`100.0`).
+- **Sensitivity reference and initial high-pass mean** (disproves `e277.py`'s type-4 pair hypothesis): both `sum_curr_for_mdc` / `sum_curr_cnt_for_mdc` (`seq 865..2016`) and `sum_curr_for_init_value` / `sum_curr_cnt_for_init_value` (`seq 5..24`) filter strictly by `0.5 <= corrected_re_current <= 50.0` nA, independent of `data_type == 4`, `slope100`, and `lot_type`.
+- **Glucose accuracy impact (`err4_delay_probe.py --glucose-impact`):** before applying the `[0.5, 50.0]` filter, 71/1,071 runs (81,536/755,272 post-day-7 records, 10.8 %) had glucose discrepancies up to −73.91 mg/dL (seed 202 run 214; seed 202 run 127 had 2,310/2,310 post-day-7 records shifted by up to −0.309 mg/dL from 3 skipped records). After the fix, 0/1,071 runs and 0/755,272 post-day-7 records differ (`> 1e-7 mg/dL`).
+- **Stand-ins removed:** `maybeLowFlag`, `historyMaybeFlagged` and `referenceMaybeFlagged` are removed; `exact = false` now marks only record filling (`dt in 480 until 1380`). The single remaining `err1_random_noise_temp_break` trend difference is fresh sweep seed 202, run 16, record 484 (Task 02).
 
-Implemented as a stand-in: the engine does not emit type 4.
-
-- It marks `exact = false` when `maybeLowFlag` holds: rawMax < 1.1 ∨ R < 40.5 ∨ init < 20.5 ∨ (init < 40.5 ∧ rawMax < 1.5).
-- A flagged pair in 865–2016 makes everything after seq 2016 inexact.
-- A flagged record in the trend window makes the trend inexact.
-- This misses the err1 noise-break half: fresh sweep run 16 of seed 202 (start 600) differs at record 484 on the trend.
-
-Rejected: the first superset (rawMax < 3 ∨ R < 40 ∨ init < 40) was too broad. It made most of the wear inexact.
+Rejected: `e277.py`'s hypothesis that `sum_curr_for_mdc` skips consecutive `data_type == 4` pairs; the first superset (`rawMax < 3 || R < 40 || init < 40`).
 
 ## Error 2 (high signal)
 
@@ -187,7 +190,8 @@ Not explored: the `err1_*` device parameters. Defaults include seq {23, 47, 11},
 
 ## Errors 8 and 128
 
-No input was found that triggers either (`stress.py`, `stress2.py`). `err8_condi[2]` and the `err128_*` debug fields stayed 0 or NaN throughout. What was tried:
+No input was found that emits bit 8 or bit 128 (`stress.py`, `stress2.py`).
+`err8_condi[2]` and bit 128 stayed 0 throughout. What was tried for bit emission:
 
 - all 18 signal transforms
 - temperatures 10–50 °C, 0 °C, −5 °C, NaN, and alternating 30/38 °C
@@ -196,16 +200,40 @@ No input was found that triggers either (`stress.py`, `stress2.py`). `err8_condi
 - a duplicate sequence number
 - a start at seq 4000
 
-State:
+Confirmed for the **error-128 revised-current stage** (`err128_revised_current_probe.py`,
+`Error128RevisedCurrent.kt`; 0 mismatches across 2,374,726 accepted records and
+1,894 active records over 1,231 runs including fixtures, decay corpus, 900 mixed
+runs and 150 independent holdout runs):
 
-- **error 8:** only `err8_result_prev` (48825).
-- **error 128:** `err128_flag_prev[40]`, `err128_normal_prev`, `err128_revised_value_prev`, `err128_CGM_c_noise_revised_value[36]` (48826–49175). The names suggest a noise-revised glucose.
+- **State:** `err128_flag_prev[40]` (48826), `err128_normal_prev` (48872),
+  `err128_revised_value_prev` (48880), `err128_CGM_c_noise_revised_value[36]` (48888).
+  Rejected records (`data_type == 2` or error 64) leave all four fields unchanged.
+- **Gate:** active only when `idx >= 36` (prior accepted records) and pre-record
+  `diabetes_before_7days_flag` is in `{0, 1, 2}`. Otherwise `err128_flag = 0`,
+  `err128_normal = NaN`, and `err128_revised_value = tran_inA_5min`.
+- **Onset (`err128_flag_prev[39] == 0`):** fires when the 11 prior accepted
+  records satisfy `accu_seq[-11] != 0`, `1 <= seq - accu_seq[-11] <= 11`, none
+  exceeds `120.0` mg/dL, at least 9 of their 10 consecutive intervals have
+  `dt != 0` and `|Δg / (dt / 60)| < 0.8` mg/dL/min, and the current step has
+  `dt != 0` and `(g - err_glu_arr[-1]) / (dt / 60) < -2.5` mg/dL/min (using
+  rounded glucose `err_glu_arr` and unsigned 32-bit `dt`). Onset sets
+  `err128_normal = err_glu_arr[-1]` and holds `err128_revised_value_prev`.
+- **Persistence (`err128_flag_prev[39] == 1`):** stays active (holding
+  `err128_normal_prev` and `err128_revised_value_prev`) iff `err128_flag_prev[4] == 0`
+  (36 accepted records ago), `|seq - accu_seq[-1]| <= 3`, and
+  `!(g >= 80.0 || g >= err128_normal_prev)`.
+- **Update:** on every accepted record, `err128_flag_prev` shifts left by 1 and
+  appends `err128_flag`, `err128_CGM_c_noise_revised_value` shifts left by 1 and
+  appends `err128_revised_value`, and the `*_prev` scalars store the new values.
+- **Device parameters:** `cal_noise`, `errcode_version` and `sensor_version`
+  perturbations did not affect revised-current activation or values.
+
+State (error 8): only `err8_result_prev` (48825).
 
 Not explored:
 
-- state perturbation (setting `err128_*` and `err8_result_prev`)
-- the device parameters `errcode_version` (2), `cal_noise` (3.0) and `err345_filtered/min/range/md` as gates
-- calibration-list input
+- bit-8 and bit-128 emission with state perturbation (`err8_result_prev`),
+  `err345_filtered/min/range/md` gates, or calibration-list input
 
 ## Record filling
 
@@ -260,10 +288,11 @@ python3 e267.py; python3 e268.py; python3 e269.py   # latch rules
 python3 dg.py "<spec dict>" <record>   # vendor vs engine around one record
 ```
 
-Last sweep results on head 47549cd25:
+Last sweep results after Task 05 (`22e306bea`):
 
-- **Fresh**, seeds 101 and 202 (300 runs each): 1 of 600 differs, seed 202 run 16 (the trend under the err1 noise break). 218 091 records were not claimed exact.
-- **Takeover**, seeds 7 and 8 (150 runs each): 1 of 300 differs, seed 7 run 99. 54 548 records were not claimed exact.
+- **Fresh**, seeds 101 and 202 (300 runs each, 1,099,980 inputs): 1 of 600 differs — seed 202 run 16 (trend at record 484 under the unmodelled `err1` noise break, Task 02). **0** usable records were not claimed exact (down from 218,091).
+- **Takeover**, seeds 7 and 8 (150 runs each, 329,550 inputs): 1 of 300 differs — seed 7 run 99 (minute currents at record 1425, Task 09). **0** usable records were not claimed exact (down from 54,548).
+- **Holdout**, fresh seed 303 (100 runs, 168,220 inputs) and takeover seed 9 (50 runs, 50,171 inputs): **0 of 150 differ**, **0** usable records not claimed exact.
 
 **What the sweep does not count as a difference:**
 

@@ -13,8 +13,6 @@ with vendor revised current supplied. This includes gaps, rejections,
 late starts and takeover. The current-revision stage from task 07 is
 still required for autonomous replay. The prototype also observes some
 plasma differences inherited from the open glucose calculation.
-[Task 05](05-data-type-4.md#upstream-glucose-dependency-for-task-01) owns
-that investigation around day-seven sensitivity compensation.
 
 ## Goal
 
@@ -105,9 +103,6 @@ the 36-entry statistic histories.
   with ordinary current.
 
 ## Suggested next steps
-
-Pause error-16 reverse engineering pending Task 07 integration. Resume
-with the research prototype and existing regression cases.
 
 1. Integrate the revised-current input once Task 07 can generate it from
    ordinary records. See the [source experiment](../error-16-evidence.md#the-actual-isf-input).

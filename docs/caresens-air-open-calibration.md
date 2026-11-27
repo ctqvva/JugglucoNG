@@ -19,7 +19,7 @@ still uses the vendor library for what the app shows.
 | Error 4 (signal lost), its main condition and how long it stays set | reproduced; its other four conditions are not (seen only on extreme or late-start signals) |
 | Taking over a running sensor from the vendor library's state block | reproduced; one sweep run differs in the minute currents when taken over during signal dropouts |
 | Error checks 1, 2, 8, 16, 128 | **not reproduced**; the engine never raises them |
-| Low-signal flag (data type 4) | partly decoded, not emitted; where it may be set the engine reports `exact = false` for the trend and, if it fell in days 3 to 7, for the sensitivity compensation |
+| Low-signal flag (data type 4) | delay-flag (`D0`–`D4`, rapid-drop gate), 7-record trend suppression (`err_delay_arr`), and `[0.5, 50.0]` nA reference/init-current filter reproduced; `err1` noise-break half accepted via `process(record, noiseBreak)` hook (Task 02 not yet decoded) |
 | Filling records after a clock jump (consecutive sequence, 480–1379 s gap) | not reproduced; reported as `exact = false` |
 | Fingerstick calibration | not part of the engine; JugglucoNG never passes a calibration list |
 
@@ -61,7 +61,9 @@ The details, rejected hypotheses and scripts are in
 - **Error 1** (noise) and its break flag follow a noise statistic against
   adaptive thresholds; not decoded. The break flag also sets data type 4.
 - **Errors 8 and 128**: no input found that emits either bit. The
-  error-128 path can still revise the current used by error 16.
+  error-128 revised-current stage consumed by error 16 is reproduced in the
+  research harness (`Error128RevisedCurrent.kt`, verified against 2.37 million
+  accepted vendor records and autonomous error-16 replay).
 
 ## How it was verified
 
@@ -83,10 +85,11 @@ The reference is the arm64 `libCALCULATION.so` the app ships
 - **Randomised sweep** (`tools/caresens-oracle/differential.py`): random factory
   values over the whole accepted range, noise, glucose shapes, temperature
   modes, gaps, jitter, clock jumps, spikes, sensitivity loss and start
-  sequence and signal dropouts. The previous larger sweeps, on 47549cd25:
-  - **Fresh runs**, seeds 101 and 202: 1 of 600 differs. The trend is withheld by the noise part of the low-signal flag, which is not reproduced.
-  - **Runs taking over vendor state** at a random record, seeds 7 and 8: 1 of 300 differs. The minute currents differ after a takeover during dropouts; not investigated.
-  - **Not claimed exact:** about 15 % of records, mostly the part after day 7 of dropout runs, where the low-signal flag may have changed the sensitivity reference.
+  sequence and signal dropouts. Latest sweeps after Task 05 (`22e306bea`):
+  - **Fresh runs**, seeds 101 and 202 (300 runs each, 1,099,980 inputs): 1 of 600 differs (seed 202 run 16, record 484: trend withheld by the unmodelled `err1` noise break, Task 02). **0** usable records not claimed exact (down from 218,091).
+  - **Runs taking over vendor state** at a random record, seeds 7 and 8 (150 runs each, 329,550 inputs): 1 of 300 differs (seed 7 run 99, record 1425: minute currents after takeover during dropouts, Task 09). **0** usable records not claimed exact (down from 54,548).
+  - **Independent holdout sweeps**, fresh seed 303 (100 runs, 168,220 inputs) and takeover seed 9 (50 runs, 50,171 inputs): **0 of 150 differ**, **0** usable records not claimed exact.
+  - **Not claimed exact:** only records reaching record filling (`dt in 480 until 1380`).
 
   Two rules were found this way after the fixtures passed: the diabetes level
   thresholds and the unit of the timing-error window.
@@ -170,14 +173,15 @@ number (one record per 5 minutes), `t` its time in seconds.
    and the mean without minimum and maximum. The record's current is the
    trimmed mean of its five minutes, minus 0.7 (lot 1) or 0.243 (lot 2).
 5. **Sensitivity loss.** A high-pass `y = 0.99891 (x − x₋₁) + 0.99782 y₋₁`
-   from seq 24 (starting from the mean of seq 5–24). Reference: mean current
-   over seq 865–2016. At seq 2017 a level is set from the glucose of that
-   window (more than 288 values within 40–600): 6 if over 5 % below 70 or CV over
-   36 %; 5 or 4 if over 60 or 30 % above 180; 3 if at least 15 % above 180 or CV
-   over 30 %; 1 if under 5 % above 180 and CV at most 20 %; else 2.
-   Factor 1.0, 0.95, 0.85, 0.80, 0.75 for levels 1–5; none for 6. While the
-   low-passed current is below factor × reference, it is raised by
-   `min(1, (seq − 2016)/288) × (factor × reference − low-passed)`.
+   from seq 24 (starting from the mean of seq 5–24, counting only records with
+   `0.5 <= corrected <= 50.0` nA). Reference: mean current over seq 865–2016
+   within the same `0.5 <= corrected <= 50.0` nA band. At seq 2017 a level is
+   set from the glucose of that window (more than 288 values within 40–600): 6
+   if over 5 % below 70 or CV over 36 %; 5 or 4 if over 60 or 30 % above 180; 3
+   if at least 15 % above 180 or CV over 30 %; 1 if under 5 % above 180 and CV
+   at most 20 %; else 2. Factor 1.0, 0.95, 0.85, 0.80, 0.75 for levels 1–5;
+   none for 6. While the low-passed current is below factor × reference, it is
+   raised by `min(1, (seq − 2016)/288) × (factor × reference − low-passed)`.
 6. **Drift** below seq 1829: divide by
    `min(1, 0.92319967 + 4.76441685e-5 s + 5.39473347e-9 s² − 4.63640418e-12 s³)`.
 7. **Factory glucose** `current × 100 / slope100 / r` with
@@ -195,10 +199,18 @@ number (one record per 5 minutes), `t` its time in seconds.
 10. **History.** The last ten values; when consecutive times are all under
     600 s apart, the six behind the newest are smoothed with
     (−1.6, 2.7, 6.6, 5.6, 5.4, 3.9, −1.6)/21 (newest repeated at the end).
-11. **Trend** `(h₉ − h₃) / minutes`, none if they are over 35 minutes apart or a
-    value is outside 40–500; if it exceeds 1 mg/dL/min but the last step goes
-    the other way, the last step's rate if the step before also did, else 0.
-12. **Error 4**, signal lost: over the last four accepted records with
+11. **Trend** `(h₉ − h₃) / minutes`, none if they are over 35 minutes apart, a
+    value is outside 40–500, or any of the newest 7 accepted records (`err_delay_arr`)
+    had data type 4; if it exceeds 1 mg/dL/min but the last step goes the other
+    way, the last step's rate if the step before also did, else 0.
+12. **Low-signal flag (data type 4).** `err4_delay_flag || noiseBreak`, where
+    `err4_delay_flag` evaluates D0–D4 across three phases (`seq < 865`;
+    `seq >= 865` with `seq < 2017 || b7 < 4`; `seq >= 2017 && b7 >= 4`, using
+    pre-D updated `diabetes_before_7days_flag`) gated from `seq >= 865` by a
+    2-hour rapid-drop check (`>= 40` mg/dL ending `< 100` when `>= 21` prior
+    records lie within 23 sequence steps, else `D3` with single-step drop
+    `> 50` mg/dL, bypassed when `idx == 0` or the previous record was flagged).
+13. **Error 4**, signal lost: over the last four accepted records with
     consecutive sequence numbers, the highest raw 10 s current is below
     0.5 nA and below 0.1 × slope100 (before seq 865), or below 0.7 nA and
     0.2 × slope100 (from seq 865). It stays set while the following records
@@ -207,7 +219,7 @@ number (one record per 5 minutes), `t` its time in seconds.
     The reference has four more conditions, not reproduced: a relative fall
     of the current over the past day (seen in late-start sensors) and two
     for negative currents whose limits depend on the earlier signal level.
-13. **Timing error 32**, latched: an interruption (consecutive sequence, time
+14. **Timing error 32**, latched: an interruption (consecutive sequence, time
     step ≥ 23 min) four times within 864 records, ≥ 60 min twice, or ≥ 10 h
     once. The window counts accepted records (the record's index + 1, also
     for a rejected record), not sequence numbers.

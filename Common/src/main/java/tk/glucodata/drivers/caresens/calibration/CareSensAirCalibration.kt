@@ -54,19 +54,17 @@ class CareSensAirCalibration(
         /** mg/dL per minute, or [NO_TREND]. */
         val trend: Double,
         val errorCode: Int,
-        /** 0 normal, 2 rejected record (sensor contact). The low-signal type 4 is not reproduced. */
+        /** 0 normal, 2 rejected record (sensor contact), 4 low-signal delay flag. */
         val dataType: Int,
         /** Sequence numbers and smoothed values of the six newest history entries. */
         val historySequence: IntArray,
         val history: DoubleArray,
         /**
-         * False when the record reached behaviour that is not reproduced yet:
-         * filling missed records after a clock jump, a trend while the
-         * reference's low-signal flag may mark a record in its window, or the
-         * sensitivity compensation after day 7 when that flag may have marked a
-         * record of its reference period. Errors 1, 2, 8, 16 and 128, and the
-         * noise part of the low-signal flag, are not reproduced; see the
-         * documentation.
+         * False when the record reached behaviour that is not reproduced yet
+         * (filling missed records after a clock jump). Errors 1, 2, 8, 16 and
+         * 128, and the err1 noise-break half of data type 4 when not supplied
+         * via [process]'s `noiseBreak` input, are not reproduced autonomously;
+         * see the documentation.
          */
         val exact: Boolean,
         val intermediates: Intermediates,
@@ -82,7 +80,8 @@ class CareSensAirCalibration(
         val diabetesLevel: Int,
     )
 
-    fun process(record: Record): Result {
+    @JvmOverloads
+    fun process(record: Record, noiseBreak: Boolean = false): Result {
         val s = state
         if (!parameters.valid) {
             return Result(
@@ -155,7 +154,8 @@ class CareSensAirCalibration(
         System.arraycopy(sampleTime, 0, s.history60Time, 30, 30)
 
         val seq = record.sequence
-        var corrected = trimmedMean(minute) - if (parameters.lotType == 1) 0.7 else 0.243
+        val current5Min = trimmedMean(minute)
+        var corrected = current5Min - if (parameters.lotType == 1) 0.7 else 0.243
         corrected = sensitivityCompensated(corrected, seq, s)
         val drift = if (seq < 1829) {
             min(1.0, 0.92319967 + seq * (4.76441685e-05 + seq * (5.39473347e-09 - seq * 4.63640418e-12)))
@@ -188,19 +188,14 @@ class CareSensAirCalibration(
         s.lastGlucose = glucose
         s.hasLastGlucose = true
 
-        // Accepted-record detector hook, after Kalman and before rotating history.
+        // Accepted-record detector hooks, after Kalman and before rotating history.
         var rawMax = currents[0]
         for (v in currents) if (v > rawMax) rawMax = v
         CareSensAirError4.update(s, seq, consecutive, rawMax, parameters.slope100)
-
-        // The reference's low-signal flag (data type 4) is only partly known.
-        // Every decoded part of it needs one of these, so without them the
-        // flag is surely off. It suppresses the trend, and from day 3 to 7 a
-        // flagged record can be left out of the sensitivity reference.
-        val maybeLowFlag = rawMax < 1.1 || glucose < 40.5 || factory < 20.5 || (factory < 40.5 && rawMax < 1.5)
-        // The reference leaves a record out when it and the one before are both flagged.
-        if (maybeLowFlag && s.historyMaybeFlagged[9] && seq in 865..2016) s.referenceMaybeFlagged = true
-        if (seq > 2016 && s.referenceMaybeFlagged) exact = false
+        val delayFlag = CareSensAirDelayFlag.update(
+            s, seq, rawMax, current5Min, glucose, parameters.slope100, noiseBreak,
+        )
+        val dataType = if (delayFlag || noiseBreak) DATA_TYPE_LOW_SIGNAL else 0
 
         // History: ten newest values, the six behind the newest re-smoothed.
         System.arraycopy(s.history, 1, s.history, 0, 9)
@@ -211,14 +206,9 @@ class CareSensAirCalibration(
         s.historySequence[9] = seq
         System.arraycopy(s.historyRaw, 1, s.historyRaw, 0, 9)
         s.historyRaw[9] = glucose
-        System.arraycopy(s.historyMaybeFlagged, 1, s.historyMaybeFlagged, 0, 9)
-        s.historyMaybeFlagged[9] = maybeLowFlag
 
         if (s.count >= 9 && historyContinuous(s)) smoothHistory(s.history)
         val trend = trend(s)
-        // The reference gives no trend while its low-signal flag marks a record
-        // in the window.
-        if (s.count >= 11) for (j in 3 until 10) if (s.historyMaybeFlagged[j]) exact = false
 
         timing(record, s)
         s.rejectedSinceAccepted = false
@@ -226,7 +216,7 @@ class CareSensAirCalibration(
         s.previousTime = record.timeSeconds
         s.count++
         return Result(
-            seq, seq, record.timeSeconds, glucose, trend, detectorErrors(s, accepted = true), 0,
+            seq, seq, record.timeSeconds, glucose, trend, detectorErrors(s, accepted = true), dataType,
             s.historySequence.copyOfRange(3, 9), s.history.copyOfRange(3, 9), exact,
             Intermediates(minute, corrected, driftCurrent, factory, rescaled, s.diabetesLevel),
         )
@@ -236,7 +226,8 @@ class CareSensAirCalibration(
         (if (s.timingError) ERROR_TIMING else 0) or (if (accepted && s.lowError) ERROR_LOW else 0)
 
     private fun sensitivityCompensated(corrected: Double, seq: Int, s: CareSensAirCalibrationState): Double {
-        if (seq in 5..24) {
+        val validCurrent = corrected in 0.5..50.0
+        if (seq in 5..24 && validCurrent) {
             s.initialSum += corrected
             s.initialCount++
         }
@@ -250,8 +241,10 @@ class CareSensAirCalibration(
             s.highPassInput = corrected
         }
         if (seq in 865..2016) {
-            s.referenceSum += corrected
-            s.referenceCount++
+            if (validCurrent) {
+                s.referenceSum += corrected
+                s.referenceCount++
+            }
             if (s.hasLastGlucose && s.lastGlucose >= 40.0 && s.lastGlucose <= 600.0) s.addDiabetesSample(s.lastGlucose)
         }
         if (seq >= 2017 && !s.diabetesLevelDone) {
@@ -326,6 +319,7 @@ class CareSensAirCalibration(
         val minutes = (t[9] - t[3]) / 60.0
         if (minutes > 35) return NO_TREND
         for (j in 3 until 10) if (h[j] < 40 || h[j] > 500) return NO_TREND
+        for (flagged in s.delayTrendFlags) if (flagged) return NO_TREND
         var rate = (h[9] - h[3]) / minutes
         val last = h[9] - h[8]
         if (abs(rate) > 1 && sign(last) != sign(rate)) {
@@ -424,6 +418,7 @@ class CareSensAirCalibration(
         const val ERROR_LOW = 4
         const val ERROR_TIMING = 32
         const val ERROR_PARAMETERS = 64
+        const val DATA_TYPE_LOW_SIGNAL = 4
         private const val CONTACT_CHECK_AFTER = 6
         private val E_HALF = exp(-0.5)
         private val LEVEL_FACTOR = doubleArrayOf(0.0, 1.0, 0.95, 0.85, 0.80, 0.75, 0.0)
