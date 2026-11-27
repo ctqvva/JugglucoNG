@@ -302,25 +302,22 @@ the emitted latch: zero false-positive, missed, early or late failures and zero
 cumulative latch mismatches. All four previously failing cases (`101/61`,
 `202/127`, `7/12`, `8/72`) match on all conditions and the latch.
 
-| Suite | Runs | Compared records | Condition mismatches | Latch mismatches | Statistic-difference runs |
+| Suite | Runs | Compared records | Condition mismatches | Latch mismatches | Statistic-difference runs (after Task 05) |
 |---|---:|---:|---:|---:|---:|
-| Committed fixtures (dev + holdout) | 21 | 44,410 | 0 | 0 | 3 (`holdout-dropouts-late` plasma + 2 error-64 fixtures' `err16_dt_arr`) |
+| Committed fixtures (dev + holdout) | 21 | 44,410 | 0 | 0 | 2 (error-64 fixtures' unaccepted `err16_dt_arr`; `holdout-dropouts-late` plasma resolved) |
 | Decay corpus, seed 11 | 160 | 691,200 | 0 | 0 | 1 (run 130 ordinary 5-min current at seq 944, `err128_flag=0`) |
-| Fresh, seed 101 | 300 | 556,380 | 0 | 0 | 27 (post-day-7 plasma) |
-| Fresh, seed 202 | 300 | 543,600 | 0 | 0 | 22 (post-day-7 plasma) |
-| Takeover, seed 7 | 150 | 165,932 | 0 | 0 | 7 (6 post-day-7 plasma + run 99 ordinary current at seq 1425, Task 09) |
-| Takeover, seed 8 | 150 | 163,618 | 0 | 0 | 4 (post-day-7 plasma) |
-| Holdout fresh, seed 303 | 100 | 168,220 | 0 | 0 | 9 (post-day-7 plasma) |
-| Holdout takeover, seed 9 | 50 | 50,171 | 0 | 0 | 1 (post-day-7 plasma) |
+| Fresh, seed 101 | 300 | 556,380 | 0 | 0 | 0 (all 27 post-day-7 plasma differences resolved) |
+| Fresh, seed 202 | 300 | 543,600 | 0 | 0 | 0 (all 22 post-day-7 plasma differences and `202/127` seq 2361 `err128` onset resolved) |
+| Takeover, seed 7 | 150 | 165,932 | 0 | 0 | 1 (all 6 post-day-7 plasma differences resolved; only run 99 seq 1425 ordinary current, Task 09) |
+| Takeover, seed 8 | 150 | 163,618 | 0 | 0 | 0 (all 4 post-day-7 plasma differences resolved) |
+| Holdout fresh, seed 303 | 100 | 168,220 | 0 | 0 | 0 (all 9 post-day-7 plasma differences resolved) |
+| Holdout takeover, seed 9 | 50 | 50,171 | 0 | 0 | 0 (post-day-7 plasma difference resolved) |
 
-Two upstream open-engine differences surface in `err128_CGM_c_noise_revised_value`
-during autonomous replay without affecting any error-16 condition or latch:
-1. On fresh seed 202, run 127, the known post-day-7 sensitivity-reference
-   glucose shift (Task 05, first visible in plasma at sequence 2055) rounds two
-   prior 5-minute steps at sequence 2361 to −4 mg/dL (−0.8 mg/dL/min) instead
-   of −5 and −3, flipping that single onset boundary; supplied with vendor
-   rounded glucose, `err128_revised_current_probe.py` has 0 mismatches across
-   all 2,374,726 accepted records (1,231 runs).
-2. Decay run 130 (sequence 944) and takeover seed 7, run 99 (sequence 1425,
-   Task 09) have `err128_flag = 0` and reflect upstream minute-current
-   differences in `CareSensAirCalibration`.
+After Task 05 applied the `0.5 <= corrected_re_current <= 50.0` nA filter to
+`sum_curr_for_mdc` and `sum_curr_for_init_value`, all 70 post-day-7 plasma
+differences across fixtures, mixed sweeps and holdouts—including the autonomous
+`err128` onset shift on fresh seed 202, run 127 at sequence 2361—disappeared.
+Only two upstream minute-current differences (`decay 130` at seq 944 and
+takeover seed 7, run 99 at seq 1425, Task 09, both with `err128_flag = 0`) and
+the two error-64 fixtures' unaccepted `err16_dt_arr` remain across all 1,231
+runs (2,383,531 compared records).

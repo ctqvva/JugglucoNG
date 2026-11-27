@@ -3,67 +3,119 @@
 Setup and conventions: `00-shared-infrastructure.md`. Background:
 `../findings.md`, sections "Data type 4" and "Error 4" (delay tests).
 
-## Why it matters
+## Status (low-signal delay-test portion complete)
 
-Type 4 is more than a label:
+All five delay tests (`D0`–`D4`), phase transitions (including late-start runs),
+the `err4_delay_condi` → `err4_delay_flag` rapid-drop gate, the seven-record
+`err_delay_arr` trend-withholding FIFO, and the sensitivity-reference / initial-value
+valid-current filter (`0.5 <= corrected_re_current <= 50.0`) have been recovered
+by black-box perturbation (`tools/caresens-oracle/research/err4_delay_probe.py`),
+verified with **0 mismatches** across **1,231 runs / 2,374,726 accepted records**,
+and implemented in `CareSensAirDelayFlag.kt`, `CareSensAirCalibration.kt`, and
+`CareSensAirCalibrationState.kt` (state `VERSION = 3`, preserving `VERSION = 2`
+deserialization).
 
-- It withholds the trend.
-- The day 3–7 sensitivity reference skips a record when it and the previous accepted record are both type 4. So it changes every corrected current after day 7.
+Task 02's `err1_random_noise_temp_break` remains an isolated boolean input
+(`noiseBreak: Boolean = false` on `CareSensAirCalibration.process`).
 
-The engine does not emit type 4. It marks `exact = false` on a superset
-instead, which leaves about 15 % of sweep records unclaimed.
+## Confirmed rules (0 mismatches across 1,231 runs / 2,374,726 accepted records)
 
-## Goal
+### 1. Sensitivity-reference and initial-value current filter
 
-- Emit data type 4 exactly.
-- Apply the reference skip.
-- Remove the `maybeLowFlag`, `historyMaybeFlagged` and `referenceMaybeFlagged` stand-ins.
-- Then the inexact share in the sweep should fall to the filling-only level (about 1.6 % before error 4 work).
+- Contrary to the earlier `e277.py` hypothesis (which correlated with pairs of
+  `data_type == 4` records on a dropout trace), controlled state and input
+  perturbations (`err4_delay_probe.py --perturbations`) proved that both
+  `sum_curr_for_mdc` / `sum_curr_cnt_for_mdc` (`seq 865..2016`) and
+  `sum_curr_for_init_value` / `sum_curr_cnt_for_init_value` (`seq 5..24`) are
+  **independent** of `data_type == 4`, `err4_delay_flag`, `slope100`, and
+  `lot_type`.
+- Both accumulators include a record if and only if:
+  `0.5 <= corrected_re_current <= 50.0` (nA).
 
-## Known (exact)
+### 2. Wear phases and `diabetes_before_7days_flag` (`b7`)
 
-- `data_type 4 = err1_random_noise_temp_break || any(err4_delay_condi[0..4])` (e248, 0 mismatches in 255 858 records).
-- **Reference skip** (e277, exact count and sum): `sum_curr_for_mdc` (10976) and `sum_curr_cnt_for_mdc` (10984) leave out a record when it and the previous accepted record are type 4. Related state: `mdc_start_idx` (11018), `mdc_first_flag` (11020).
-- **Delay tests:**
+- `b7` (vendor state offset `10914`) is updated **before** `D0`–`D4` on every
+  accepted record using the 12-tap FIR rounded-glucose filter (`err16_CGM_plasma`,
+  independent of `err128` revised current) and the day-7 level when `seq >= 2017`
+  and `diabetesCount > 288`.
+- The three delay-test phases are:
+  - **Phase 1 (`seq < 865`):** `D0`, `D3` active.
+  - **Phase 2 (`seq >= 865 && !(seq >= 2017 && b7 >= 4)`):** `D0`, `D1`, `D2`, `D3` active.
+  - **Phase 3 (`seq >= 2017 && b7 >= 4`):** `D3`, `D4` active.
+- This resolves the late-start phase mystery (`e284.py`): after `seq = 2017`,
+  runs with `b7 < 4` (including `b7 = 0` when day 3–7 had `<= 288` samples and
+  the early accumulator has not yet tripped to `6`, or day-7 level `1..3`)
+  remain in Phase 2 instead of switching to Phase 3.
 
-  | Test | Rule | Phase | Exactness |
-  |---|---|---|---|
-  | D0 | max(rawmax, rawmax of the previous consecutive record) < 1.1 | seq < 2017 | exact for start-1 runs |
-  | D1 | round(init) < 40 ∧ rawmax < 1.5 | 865–2016 | 464 mismatches, all phase-related |
-  | D2 | round(R) < 40 ∧ rawmax < 3.0 | 865–2016 | 30 mismatches, superset |
-  | D3 | round(R) < 20 ∨ round(init) < 20 | all | 76 mismatches as a pure R test |
-  | D4 | round(R) < 30 | seq ≥ 2017 | exact |
+### 3. Delay tests `D0`–`D4`
 
-  Rawmax is the record's raw maximum, R is `result_glucose` and init is `init_cg`.
-- **History.** `err4_delay_flag_arr[576]` (48248) holds 2 days of the flag. The engine imports entries 566–575 as `historyMaybeFlagged`.
+Let `rawmax = max(tran_inA[0..29])`, `prev_rawmax` = previous accepted record's
+`rawmax`, `consecutive = (count > 0 && accu_seq[-1] == seq - 1)`,
+`rR = roundAwayFromZero(result_glucose)`, and `t5 = tran_inA_5min` (trimmed
+mean of the 5 minute currents before lot-offset subtraction):
 
-## Open
+| Test | Exact rule | Active phase |
+|---|---|---|
+| D0 | `consecutive && max(rawmax, prev_rawmax) < 1.1` | Phase 1, Phase 2 (`!phase3`) |
+| D1 | `rR < 40 && rawmax < 1.5` | Phase 2 |
+| D2 | `rR < 40 && rawmax < 3.0 && rawmax * 100.0 / slope100 < 60.0` | Phase 2 |
+| D3 | `rR < 20 || t5 < 0.4` | Phase 1, Phase 2, Phase 3 (all) |
+| D4 | `rR < 30 || (rawmax < 0.8 && rawmax * 100.0 / slope100 < 20.0)` | Phase 3 |
 
-- **Phase after day 7 for late-start runs** (e284).
-  - In runs starting at seq 600 or 1500, D0 stays on after seq 2017 for some low records and not others.
-  - D4 starts at 2017. Slot 0 in phase 3 seems to be a different test.
-  - Untested: whether phases count seq, record index, or records since start.
-- **D1 and D2 mismatches.** Re-fit them with the phase fixed.
-- **The noise-break half.** It comes from task 02; do not decode it here. Until task 02 lands, keep `exact = false` for the noise part. Candidate: any record where task 02's partial model cannot rule the break out.
+### 4. `err4_delay_condi` → `err4_delay_flag` rapid-drop gate
 
-## Datasets and scripts
+`err4_delay_flag` is **not** simply `any(D0..D4)` for `seq >= 865`:
 
-- `c0runs.pkl` (`e273.py`, 80 noisy-dropout runs) holds D, C, raw max/mean, 5min, R and init per record.
-- `d1X.npy` / `d1Y.npy` (`e280.py`) hold the D1 tree data. `d2rows.npy` (`e263.py`) holds D2.
-- Fixtures `dropouts` and `holdout-dropouts-late` contain many type 4 records. The late holdout used to fail at seq 2017 without the reference skip.
+- If `!any(D0..D4)`: `err4_delay_flag = 0`.
+- Else if `seq < 865 || idx == 0 || prev_err4_delay_flag == 1`: `err4_delay_flag = 1`.
+- Else (`seq >= 865`, `idx > 0`, `prev_err4_delay_flag == 0`): count prior accepted
+  records `n_win` with `accu_seq > 0 && (seq - accu_seq) <= 23` (2-hour window):
+  - If `n_win >= 21`: `err4_delay_flag = 1` iff some consecutive pair `(g[k-1], g[k])`
+    in the `n_win` prior rounded glucoses followed by `rR` satisfies
+    `g[k-1] - g[k] >= 40.0 && g[k] < 100.0`.
+  - Else (`n_win < 21`): `err4_delay_flag = 1` iff `D3 == 1 && err_glu_arr[-1] - rR > 50.0`
+    (no `< 100` ceiling).
 
-## Suggested next steps
+### 5. `data_type == 4` and trend withholding (`err_delay_arr[7]`)
 
-1. On late-start specs (starts 30, 600, 1500, 3000), tabulate D0–D4 against seq, record index and `idx` / `idx_origin_seq` (state offsets 1608 / 8) to find what the phase counts.
-2. Re-fit D0–D2 in each phase; the tree in `cart.py` is enough.
-3. Implement the flag, the trend suppression and the reference skip together. Import `err4_delay_flag_arr` and the `mdc` fields for takeover.
+- `data_type == 4` iff `err4_delay_flag || err1_random_noise_temp_break`.
+- `err_delay_arr` (vendor offset `17132`, 7 bytes) is a 7-record FIFO of
+  `data_type == 4` on accepted records, aligned with history slots `3..9`.
+- `trend` is withheld (`100.0`) whenever any entry of `err_delay_arr[0..6]` is `1`.
 
-## Implementation and tests
+## Quantified post-day-7 glucose impact (before vs. after valid-current filter)
 
-- Engine:
-  - `dataType = 4` output
-  - the trend withheld when any of history entries 3–9 is type 4 (check the window)
-  - the reference skip in the sensitivity compensation
-- The fixture test compares `dataType` for 0, 2 and 4.
-- `differential.py` compares data type 4 and keeps `exact` only for filling.
-- Coordinate with task 02 on one interface: `noiseBreak: Boolean` per record.
+Measured by `err4_delay_probe.py --glucose-impact` across 1,071 runs (21 fixtures,
+900 mixed runs, 150 independent holdouts; 755,272 post-day-7 usable records):
+
+| Suite | Runs affected (before → after) | Post-day-7 records `> 1e-7 mg/dL` (before → after) | Baseline abs median / mean / p95 / max (mg/dL) | Baseline signed range (mg/dL) |
+|---|---:|---:|---|---|
+| Fixtures (21) | 1 → 0 | 36 / 15,918 → 0 | 0.47 / 0.43 / 0.75 / 0.77 | [−0.77, −0.03] |
+| Fresh, seed 101 (300) | 27 → 0 | 31,486 / 228,735 → 0 | 4.55 / 7.78 / 37.22 / 39.48 | [−39.48, +1.04] |
+| Fresh, seed 202 (300) | 23 → 0 | 27,451 / 226,052 → 0 | 7.73 / 9.89 / 26.65 / 73.91 | [−73.91, +0.69] |
+| Takeover, seed 7 (150) | 6 → 0 | 9,616 / 86,606 → 0 | 5.77 / 11.58 / 34.54 / 45.35 | [−45.35, +0.29] |
+| Takeover, seed 8 (150) | 4 → 0 | 2,585 / 98,007 → 0 | 6.01 / 5.92 / 13.49 / 15.38 | [−15.38, +0.11] |
+| Holdout fresh, seed 303 (100) | 9 → 0 | 9,860 / 72,482 → 0 | 9.88 / 7.70 / 12.67 / 16.32 | [−16.32, +0.77] |
+| Holdout takeover, seed 9 (50) | 1 → 0 | 502 / 27,472 → 0 | 28.81 / 22.64 / 32.41 / 32.69 | [−32.69, −0.10] |
+
+- **Total before fix:** **71 / 1,071 runs** and **81,536 / 755,272 post-day-7 records (10.8 %)**
+  had glucose errors exceeding `1e-7 mg/dL`, with under-estimation up to **−73.91 mg/dL**
+  (`sweep 202 run 214`, mean −43.45 mg/dL across 326 records), **−45.35 mg/dL** (`takeover 7/49`),
+  and **−39.48 mg/dL** (`fresh 101/195`, mean −36.04 mg/dL across 2,662 records).
+- **Seed 202, run 127:** 3 of 1,149 day 3–7 records had `corrected_re_current < 0.5`,
+  shifting the reference mean from `4.819891 nA` to `4.806419 nA` and shifting all
+  2,310 post-day-7 readings by −0.0015 to −0.3090 mg/dL (median −0.2669 mg/dL).
+  After the fix, max post-day-7 glucose error is **0.0 mg/dL**, and both the
+  `err16_CGM_plasma` shift at seq 2055 and the autonomous `err128` onset boundary
+  shift at seq 2361 disappear.
+- **Total after fix:** **0 / 1,071 runs** and **0 / 755,272 post-day-7 records**
+  differ (`> 1e-7 mg/dL`). In `differential.py`, unclaimed (`exact = false`) usable
+  records drop from **272,639** (218,091 fresh + 54,548 takeover) to **0** across
+  all 1,050 sweep runs (1,647,921 inputs), with only the two known unrelated
+  differences remaining: fresh seed 202 run 16 (record 484, Task 02 `err1` noise
+  break) and takeover seed 7 run 99 (record 1425, Task 09).
+
+## Remaining dependency
+
+- **Task 02 (`err1_random_noise_temp_break`):** Pass Task 02's boolean output
+  into `CareSensAirCalibration.process(record, noiseBreak)` once decoded.
