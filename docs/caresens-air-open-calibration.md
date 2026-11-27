@@ -52,9 +52,10 @@ The details, rejected hypotheses and scripts are in
   .07161, .11845, .16522 (newest first): over rounded glucose ("plasma"), and
   over the noise-revised current × 100 / slope100 ("ISF"), both rounded.
   Three conditions fire without calibrations in the recorded tests. The
-  [Task 01 evidence](caresens-air-handoff/error-16-evidence.md) verifies
-  their decision rules from the vendor histories and documents differences
-  in the Kotlin research prototype when it generates those histories.
+  Kotlin research prototype matches their conditions and latch across
+  mixed fresh and takeover runs with vendor revised current supplied.
+  [Task 01 evidence](caresens-air-handoff/error-16-evidence.md) records the
+  remaining input differences and the autonomous replay requirement.
 - **Error 2** fired only for a sustained signal above about 800 mg/dL
   with a 12-record CV below about 10 %.
 - **Error 1** (noise) and its break flag follow a noise statistic against

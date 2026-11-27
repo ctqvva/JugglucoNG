@@ -8,10 +8,11 @@ Setup and conventions: `00-shared-infrastructure.md`. Background:
 `../findings.md`, section "Error 16". New replay measurements are in
 [error-16-evidence.md](../error-16-evidence.md).
 
-The rules for conditions 0–2 now match on vendor histories with an empty
-calibration list. The Kotlin prototype matches the decay corpus and firing
-fixtures. Its raw-input comparisons still diverge in the mixed sweeps.
-The current-revision stage from task 07 is an input dependency.
+The Kotlin prototype matches all tested empty-list conditions and latches
+with vendor revised current supplied. This includes gaps, rejections,
+late starts and takeover. The current-revision stage from task 07 is
+still required for autonomous replay. The prototype also observes some
+plasma differences inherited from the open glucose calculation.
 
 ## Goal
 
@@ -103,16 +104,12 @@ the 36-entry statistic histories.
 
 ## Suggested next steps
 
-1. Use the `err6_*` defaults as candidate thresholds. Revisit device-parameter
-   sensitivity if a new case changes an internal condition or the emitted bit.
-2. Use the [source experiment](../error-16-evidence.md#the-actual-isf-input)
-   to verify the revised current as a separate per-record input.
-3. Validate statistic history updates across gaps and late starts. The
-   comparison with vendor snapshots in `err16_rules.py` already verifies
-   the decision rules.
-4. Verify both the per-condition and latch outputs with `err16_replay.py`
-   before moving the detector into the application engine.
-5. **Conditions 3–6:**
+1. Integrate the revised-current input once Task 07 can generate it from
+   ordinary records. See the [source experiment](../error-16-evidence.md#the-actual-isf-input).
+2. Rerun the [mixed replay](../error-16-evidence.md#isolating-statistic-updates-from-revised-current)
+   without injection. Keep first statistic divergences visible and verify
+   both the per-condition and latch outputs before promotion.
+3. **Conditions 3–6:**
    - pass a calibration list (`air1_opcal4_cal_list_t`) in the oracle and see whether they ever fire
    - if only with calibrations, document it, model them as never firing, and add a test that an empty list never fires them
 

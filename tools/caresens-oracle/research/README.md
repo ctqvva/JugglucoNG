@@ -77,6 +77,7 @@ Python model of the calibration chain; the Kotlin engine supersedes it.
 | `err_survey.py` | which bits fire in all fixtures plus 250 random specs; writes `err_survey.json` |
 | `err16lib.py` | the exact 12-tap err16 kernel and the shared seed-11 decay corpus generator |
 | `err16_state_probe.py`, `err16_statistics.py`, `err16_rules.py` | isolate and verify error-16 histories and condition rules against vendor snapshots |
+| `err16_history_probe.py` | verify sequence-window statistics and replay the missing-sequence and early-reference condition boundaries |
 | `err16_isf_source.py` | reproduce the revised-current dependency and isolate it with a single-state replay |
 | `err16_replay.py` | compare the isolated Kotlin research detector against the oracle; see the [error-16 evidence](../../../docs/caresens-air-handoff/error-16-evidence.md) |
 | `rules.py`, `cart.py` | greedy AND-rule search and a small CART tree, used for err16, err4 D tests, err1 |

@@ -30,7 +30,7 @@ in `tasks/`.
 | # | Task | Bit / output | Status | Depends on |
 |---|---|---|---|---|
 | 00 | [Shared infrastructure](tasks/00-shared-infrastructure.md): device-parameter survey, per-bit sweep, engine conventions | all | complete; bits 8 and 128 unexercised | — |
-| 01 | [Error 16](tasks/01-error-16.md), sensitivity / end of life | 16 | rules verified, research prototype; mixed replay still differs | 00, revised-current stage in 07 |
+| 01 | [Error 16](tasks/01-error-16.md), sensitivity / end of life | 16 | research prototype matches mixed condition and latch replay with revised current supplied | 00, revised-current stage in 07 |
 | 02 | [Error 1](tasks/02-error-1.md), noise, plus the noise break | 1, type 4 input | triggers known | 00 A (`err1_*`), 00 C |
 | 03 | [Error 2](tasks/03-error-2.md), sustained high | 2 | partly known | 00 A (`err2_*`), 00 C |
 | 04 | [Error 4 conditions 1–4](tasks/04-error-4-conditions.md) | 4 | condition 0 done | 00 C |

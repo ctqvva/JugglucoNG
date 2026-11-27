@@ -60,7 +60,8 @@ Confirmed:
   - Both are NaN unless those 12 records have consecutive sequence numbers; on rejected records the debug shows 0.
   - P is not affected by the history smoothing (`smooth_sig_in`).
   - Direct perturbation identifies the revised-current array as the filter input. The earlier tests on regular signals could not establish whether stages upstream of that array depend on glucose.
-- **Update cadence** (e201): plasma and ISF update every record from seq 12. Other statistics start updating at:
+- **Update cadence** (e201): on a gapless run from sequence 1, plasma and ISF
+  first become finite at sequence 12. Other statistics can begin updating at:
 
   | Statistic | From seq |
   |---|---|
@@ -70,7 +71,13 @@ Confirmed:
   | `roc_steady`, `roc_min` | 1101 |
   | mean slope and rsq | 968 |
 
-- **Conditions.** Only conditions 0, 1 and 2 fired on empty-list replay. They use the newest 24 entries in the statistic histories and the pre-record diabetes profile. [Task 01 evidence](error-16-evidence.md) gives the recovered rules and remaining history differences. Conditions 0 and 2 were observed from seq 1728, and condition 1 was observed at seq 2018.
+- **Conditions.** Only conditions 0, 1 and 2 fired on empty-list replay.
+  They use 24 consecutive accepted sequence numbers, the corresponding
+  statistic histories and the pre-record diabetes profile. Condition 0 can
+  also fire on the early mean reference from sequence 1728. The research
+  prototype matches all three conditions and the latch in the mixed
+  sweeps with revised current supplied. [Task 01 evidence](error-16-evidence.md)
+  gives the update windows, thresholds and replay results.
 - **Where it fires** (`err_survey.py`, `err_survey.json`): naturally in 7 of 268 runs:
   - fixtures `life-lot2-sensitivity-loss` (first record 2637), `holdout-life-other-lot1` (1893) and `holdout-late-takeover-lows` (1948)
   - random runs 67, 101 and 175 of the survey
@@ -92,7 +99,10 @@ Rejected:
 
 Still open:
 
-- Reproducing the upstream revised current and the statistic updates during irregular history in the open engine.
+- Generating the upstream revised current (Task 07). The open engine's
+  glucose can also differ after day seven, which changes plasma in the
+  research replay. The mixed sweeps with revised current supplied show no
+  resulting condition or latch discrepancies.
 - Conditions 3–6 stayed inactive with empty lists. The state names (`err16_cal_cons_*`, `err16_cal_day_*`) and `err6_cal_*` point at user calibrations. Their behavior with a calibration list remains unknown.
 
 ## Error 4 (signal lost), conditions other than 0, and the delay flags

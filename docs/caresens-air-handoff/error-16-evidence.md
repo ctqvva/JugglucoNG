@@ -108,11 +108,10 @@ python3 err16_replay.py --sweep 7 --runs 150 --import-state
 python3 err16_replay.py --sweep 8 --runs 150 --import-state
 ```
 
-The decay corpus matched over 691,200 records. The three established
-firing fixtures and the new holdout matched over 14,960 records, including
-all three reachable conditions. The mixed sweeps return a failing exit
-status and report the first discrepancy per run. Counts use the shared
-pre-fill comparison boundary.
+At commit `81f999bf2`, the decay corpus matched over 691,200 records. The
+three established firing fixtures and the new holdout matched over 14,960
+records. The mixed sweeps at that checkpoint failed. Counts use the
+shared pre-fill comparison boundary.
 
 | Sweep | Compared records | Condition mismatches (0, 1, 2) | Latch mismatches |
 |---|---:|---:|---:|
@@ -121,12 +120,9 @@ pre-fill comparison boundary.
 | Takeover, seed 7 | 165,932 | 396, 246, 105 | 704 |
 | Takeover, seed 8 | 163,618 | 0, 606, 0 | 97 |
 
-Conditions 3–6 stayed clear in these sweeps. In addition to the
-current-source dependency, the prototype's statistic histories diverge on
-some gapped traces. Sweep seed 7, run 19 imports state after input 581 and
-first disagrees at input 4148 (sequence 4218), where the prototype sets
-condition 0. Two useful checks in that case are the sampled regression
-coordinates and the cadence of the steady-rate reference.
+Conditions 3–6 stayed clear in these sweeps. The earlier prototype set
+condition 0 at input 4148 (sequence 4218) in takeover seed 7, run 19,
+where the vendor's latch stayed clear.
 
 ## Isolating statistic updates from revised current
 
@@ -152,6 +148,37 @@ python3 err16_replay.py --sweep 202 --runs 300 --revised-current
 python3 err16_replay.py --sweep 7 --runs 150 --import-state --revised-current
 python3 err16_replay.py --sweep 8 --runs 150 --import-state --revised-current
 ```
+
+At `68bb0296b`, current injection alone left 749 runs with statistic
+discrepancies, 27 with condition discrepancies and 19 with latch
+discrepancies. The 19 included six false-positive failures, one missed
+failure, nine early detections and three late detections. The cumulative
+latch differences comprised 4,663 false-positive records and 881 missed
+records. The following rows give one-based input positions followed by
+sequence numbers for the first statistic divergence and the first
+emitted bit in each affected run.
+
+| Seed / run | Takeover after input | First statistic divergence | Vendor first bit 16 | Prototype first bit 16 |
+|---|---:|---|---|---|
+| 101 / 93 | — | `trend_min_diff` 704 (760) | — | 2418 (2672) |
+| 101 / 103 | — | `trend_min_diff` 705 (802) | — | 1798 (2002) |
+| 101 / 143 | — | `trend_min_diff` 697 (715) | 2330 (2376) | 2333 (2379) |
+| 101 / 195 | — | `trend_min_diff` 694 (841) | — | 2096 (2525) |
+| 101 / 214 | — | `trend_min_diff` 692 (731) | 1630 (1737) | — |
+| 101 / 221 | — | `trend_min_diff` 692 (751) | 2386 (2628) | 2318 (2555) |
+| 101 / 269 | — | `trend_min_diff` 707 (707) | — | 1746 (1746) |
+| 101 / 273 | — | `trend_min_diff` 696 (725) | 2412 (2441) | 2405 (2434) |
+| 101 / 295 | — | `trend_min_diff` 703 (768) | 4282 (4589) | 4245 (4549) |
+| 202 / 145 | — | `trend_min_diff` 705 (705) | 3172 (3172) | 3176 (3176) |
+| 202 / 197 | — | `diabetes_before_7days_n_valid` 1 (1500) | 1683 (3201) | 1686 (3204) |
+| 202 / 226 | — | `trend_min_diff` 694 (700) | 4138 (4172) | 4128 (4162) |
+| 7 / 19 | 581 | `trend_min_slope2` 692 (718) | — | 4148 (4218) |
+| 7 / 71 | 833 | `roc_steady` 834 (1455) | 1757 (2389) | 1756 (2388) |
+| 7 / 75 | 166 | `trend_min_slope2` 692 (713) | — | 2127 (2185) |
+| 7 / 85 | 287 | `trend_min_slope2` 692 (817) | 3355 (3977) | 3198 (3786) |
+| 8 / 72 | 4030 | `trend_min_slope2` 4031 (4031) | 4066 (4066) | 4061 (4061) |
+| 8 / 78 | 19 | `trend_min_slope2` 697 (766) | 1850 (2018) | 1814 (1979) |
+| 8 / 130 | 809 | `trend_min_slope1` 810 (882) | 3816 (4125) | 3758 (4065) |
 
 The trend regressions use the oldest finite trend value within 864
 sequence steps as the common sampling origin. Sample every third or
@@ -196,6 +223,55 @@ takeover seed 8, run 27, it reaches 288 only at sequence 2021. The detector
 uses the pre-record profile for its current conditions.
 
 `python3 err16_history_probe.py` verifies fits, rates and reference
-updates directly against vendor state. It also replays the two condition
-boundaries above. Seed 7, run 19 now agrees on the condition and latch
-with the revised-current input supplied.
+updates directly against vendor state on 29,592 accepted records. It also
+replays the two condition boundaries above.
+
+### Replay after the statistic and rule fixes
+
+With revised current supplied, all 900 mixed runs matched on every
+condition and the emitted latch. There were zero false-positive, missed,
+early or late failures and zero cumulative latch mismatches. All 59
+remaining affected runs differ only in plasma among the reported
+statistics. The first divergence is shown by earliest input within each
+sweep, with the sequence number in parentheses. `--details` lists the
+first differing record for every affected run.
+
+| Sweep | Runs | Compared records | Statistic differences by run | Earliest plasma difference |
+|---|---:|---:|---:|---|
+| Fresh, seed 101 | 300 | 556,380 | 27 | run 100, input 484 (2069), 89 → 88 |
+| Fresh, seed 202 | 300 | 543,600 | 22 | run 18, input 521 (2020), 156 → 155 |
+| Takeover, seed 7 | 150 | 165,932 | 6 | run 140, input 582 (2081), 90 → 89 |
+| Takeover, seed 8 | 150 | 163,618 | 4 | run 9, input 1380 (2040), 101 → 100 |
+
+The plasma probe recomputes the filter using the vendor's rounded glucose
+buffer. On fresh seed 202, run 197, input 528 (sequence 2030), the vendor
+and open calibration supply different rounded readings. The same taps
+give 176.783 before rounding from the vendor values and 176.379 from the
+open values, which explains the observed plasma difference of 177 versus
+176. That run agrees on the conditions and latch. The research CLI keeps
+using the open engine's glucose in both current modes.
+
+### Replay with the ordinary current
+
+Rerun the mixed commands without `--revised-current` to exercise the
+prototype with its autonomous inputs. Statistic differences occur in
+103 runs (43 and 41 fresh, 7 and 12 takeover, in seed order above).
+Four runs have condition differences, totaling 10 condition-1 records
+and 25 condition-2 records. Two runs differ on the emitted latch. There
+are no false-positive or early detections, one missed failure and one
+late failure. The cumulative latch total is seven missed records and
+zero false-positive records.
+
+The four runs with condition differences are listed below. Input
+positions are one-based, with sequence numbers in parentheses.
+
+| Seed / run | Takeover after input | First ISF divergence | First condition divergence | Effect on bit 16 |
+|---|---:|---|---|---|
+| 101 / 61 | — | 101 (1600), 80 → 67 | condition 2 at 2500 (3999) | missed failure, 1 record |
+| 202 / 127 | — | 980 (1009), 110 → 92 | condition 1 at 4272 (4301) | late failure, first prototype detection at 4278 (4307) |
+| 7 / 12 | 3880 | 4037 (4037), 68 → 57 | condition 2 at 4120 (4120) | latch agrees |
+| 8 / 72 | 4030 | 4188 (4188), 87 → 74 | condition 1 at 4276 (4276) | latch agrees |
+
+The 160-case decay corpus and the four firing fixtures still agree in
+ordinary-current mode on all 706,160 compared records. The mixed
+ordinary-current failures keep Task 01's autonomous release gate open.
