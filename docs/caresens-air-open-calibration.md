@@ -61,7 +61,9 @@ The details, rejected hypotheses and scripts are in
 - **Error 1** (noise) and its break flag follow a noise statistic against
   adaptive thresholds; not decoded. The break flag also sets data type 4.
 - **Errors 8 and 128**: no input found that emits either bit. The
-  error-128 path can still revise the current used by error 16.
+  error-128 revised-current stage consumed by error 16 is reproduced in the
+  research harness (`Error128RevisedCurrent.kt`, verified against 2.37 million
+  accepted vendor records and autonomous error-16 replay).
 
 ## How it was verified
 

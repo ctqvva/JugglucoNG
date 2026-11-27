@@ -79,7 +79,8 @@ Python model of the calibration chain; the Kotlin engine supersedes it.
 | `err16_state_probe.py`, `err16_statistics.py`, `err16_rules.py` | isolate and verify error-16 histories and condition rules against vendor snapshots |
 | `err16_history_probe.py` | verify sequence-window statistics and replay the missing-sequence and early-reference condition boundaries |
 | `err16_isf_source.py` | reproduce the revised-current dependency and isolate it with a single-state replay |
-| `err16_replay.py` | compare the isolated Kotlin research detector against the oracle; see the [error-16 evidence](../../../docs/caresens-air-handoff/error-16-evidence.md) |
+| `err128_revised_current_probe.py` | black-box perturbation assertions and direct verification of the `err128` revised-current stage |
+| `err16_replay.py` | compare the isolated Kotlin research revised-current and error-16 detectors against the oracle; see the [error-16 evidence](../../../docs/caresens-air-handoff/error-16-evidence.md) |
 | `rules.py`, `cart.py` | greedy AND-rule search and a small CART tree, used for err16, err4 D tests, err1 |
 | `c0model.py`, `c0m2-4.py` | err4 condition 0 model scoring on `c0runs.pkl` (c0m4 is the final, exact one) |
 | `dg.py`, `dg2.py` | `python3 dg.py "<spec dict>" <record>` prints vendor vs engine around a differing record |

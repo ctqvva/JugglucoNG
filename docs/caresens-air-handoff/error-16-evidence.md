@@ -253,8 +253,8 @@ using the open engine's glucose in both current modes.
 
 ### Replay with the ordinary current
 
-Rerun the mixed commands without `--revised-current` to exercise the
-prototype with its autonomous inputs. Statistic differences occur in
+Rerun the mixed commands with `--ordinary-current` to exercise the prototype
+without the `err128` revision stage. Statistic differences occur in
 103 runs (43 and 41 fresh, 7 and 12 takeover, in seed order above).
 Four runs have condition differences, totaling 10 condition-1 records
 and 25 condition-2 records. Two runs differ on the emitted latch. There
@@ -273,5 +273,54 @@ positions are one-based, with sequence numbers in parentheses.
 | 8 / 72 | 4030 | 4188 (4188), 87 → 74 | condition 1 at 4276 (4276) | latch agrees |
 
 The 160-case decay corpus and the four firing fixtures still agree in
-ordinary-current mode on all 706,160 compared records. The mixed
-ordinary-current failures keep Task 01's autonomous release gate open.
+ordinary-current mode on all 706,160 compared records.
+
+### Autonomous replay with reproduced revised current
+
+`Error128RevisedCurrent.kt` (verified by `err128_revised_current_probe.py`; see
+[Task 07](tasks/07-error-128.md)) reproduces `err128_CGM_c_noise_revised_value`
+from the open engine's accepted records and pre-record
+`diabetes_before_7days_flag`. It is now the default current source in
+`err16_replay.py` (with `--revised-current` and `--ordinary-current` retained
+for ablation). Error-16 decision rules in `Error16Prototype.kt` are unchanged.
+
+```sh
+python3 err128_revised_current_probe.py --perturbations --fixtures
+python3 err16_replay.py --runs 160
+python3 err16_replay.py --sweep 101 --runs 300
+python3 err16_replay.py --sweep 202 --runs 300
+python3 err16_replay.py --sweep 7 --runs 150 --import-state
+python3 err16_replay.py --sweep 8 --runs 150 --import-state
+python3 err16_replay.py --sweep 303 --runs 100
+python3 err16_replay.py --sweep 9 --runs 50 --import-state
+```
+
+With autonomous revised current, all 21 committed fixtures, 160 decay runs,
+900 mixed runs (seeds 101, 202, 7 and 8) and 150 independent holdout runs
+(fresh seed 303 and takeover seed 9) matched on every error-16 condition and
+the emitted latch: zero false-positive, missed, early or late failures and zero
+cumulative latch mismatches. All four previously failing cases (`101/61`,
+`202/127`, `7/12`, `8/72`) match on all conditions and the latch.
+
+| Suite | Runs | Compared records | Condition mismatches | Latch mismatches | Statistic-difference runs |
+|---|---:|---:|---:|---:|---:|
+| Committed fixtures (dev + holdout) | 21 | 44,410 | 0 | 0 | 3 (`holdout-dropouts-late` plasma + 2 error-64 fixtures' `err16_dt_arr`) |
+| Decay corpus, seed 11 | 160 | 691,200 | 0 | 0 | 1 (run 130 ordinary 5-min current at seq 944, `err128_flag=0`) |
+| Fresh, seed 101 | 300 | 556,380 | 0 | 0 | 27 (post-day-7 plasma) |
+| Fresh, seed 202 | 300 | 543,600 | 0 | 0 | 22 (post-day-7 plasma) |
+| Takeover, seed 7 | 150 | 165,932 | 0 | 0 | 7 (6 post-day-7 plasma + run 99 ordinary current at seq 1425, Task 09) |
+| Takeover, seed 8 | 150 | 163,618 | 0 | 0 | 4 (post-day-7 plasma) |
+| Holdout fresh, seed 303 | 100 | 168,220 | 0 | 0 | 9 (post-day-7 plasma) |
+| Holdout takeover, seed 9 | 50 | 50,171 | 0 | 0 | 1 (post-day-7 plasma) |
+
+Two upstream open-engine differences surface in `err128_CGM_c_noise_revised_value`
+during autonomous replay without affecting any error-16 condition or latch:
+1. On fresh seed 202, run 127, the known post-day-7 sensitivity-reference
+   glucose shift (Task 05, first visible in plasma at sequence 2055) rounds two
+   prior 5-minute steps at sequence 2361 to −4 mg/dL (−0.8 mg/dL/min) instead
+   of −5 and −3, flipping that single onset boundary; supplied with vendor
+   rounded glucose, `err128_revised_current_probe.py` has 0 mismatches across
+   all 2,374,726 accepted records (1,231 runs).
+2. Decay run 130 (sequence 944) and takeover seed 7, run 99 (sequence 1425,
+   Task 09) have `err128_flag = 0` and reflect upstream minute-current
+   differences in `CareSensAirCalibration`.

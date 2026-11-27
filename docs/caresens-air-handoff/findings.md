@@ -187,7 +187,8 @@ Not explored: the `err1_*` device parameters. Defaults include seq {23, 47, 11},
 
 ## Errors 8 and 128
 
-No input was found that triggers either (`stress.py`, `stress2.py`). `err8_condi[2]` and the `err128_*` debug fields stayed 0 or NaN throughout. What was tried:
+No input was found that emits bit 8 or bit 128 (`stress.py`, `stress2.py`).
+`err8_condi[2]` and bit 128 stayed 0 throughout. What was tried for bit emission:
 
 - all 18 signal transforms
 - temperatures 10–50 °C, 0 °C, −5 °C, NaN, and alternating 30/38 °C
@@ -196,16 +197,40 @@ No input was found that triggers either (`stress.py`, `stress2.py`). `err8_condi
 - a duplicate sequence number
 - a start at seq 4000
 
-State:
+Confirmed for the **error-128 revised-current stage** (`err128_revised_current_probe.py`,
+`Error128RevisedCurrent.kt`; 0 mismatches across 2,374,726 accepted records and
+1,894 active records over 1,231 runs including fixtures, decay corpus, 900 mixed
+runs and 150 independent holdout runs):
 
-- **error 8:** only `err8_result_prev` (48825).
-- **error 128:** `err128_flag_prev[40]`, `err128_normal_prev`, `err128_revised_value_prev`, `err128_CGM_c_noise_revised_value[36]` (48826–49175). The names suggest a noise-revised glucose.
+- **State:** `err128_flag_prev[40]` (48826), `err128_normal_prev` (48872),
+  `err128_revised_value_prev` (48880), `err128_CGM_c_noise_revised_value[36]` (48888).
+  Rejected records (`data_type == 2` or error 64) leave all four fields unchanged.
+- **Gate:** active only when `idx >= 36` (prior accepted records) and pre-record
+  `diabetes_before_7days_flag` is in `{0, 1, 2}`. Otherwise `err128_flag = 0`,
+  `err128_normal = NaN`, and `err128_revised_value = tran_inA_5min`.
+- **Onset (`err128_flag_prev[39] == 0`):** fires when the 11 prior accepted
+  records satisfy `accu_seq[-11] != 0`, `1 <= seq - accu_seq[-11] <= 11`, none
+  exceeds `120.0` mg/dL, at least 9 of their 10 consecutive intervals have
+  `dt != 0` and `|Δg / (dt / 60)| < 0.8` mg/dL/min, and the current step has
+  `dt != 0` and `(g - err_glu_arr[-1]) / (dt / 60) < -2.5` mg/dL/min (using
+  rounded glucose `err_glu_arr` and unsigned 32-bit `dt`). Onset sets
+  `err128_normal = err_glu_arr[-1]` and holds `err128_revised_value_prev`.
+- **Persistence (`err128_flag_prev[39] == 1`):** stays active (holding
+  `err128_normal_prev` and `err128_revised_value_prev`) iff `err128_flag_prev[4] == 0`
+  (36 accepted records ago), `|seq - accu_seq[-1]| <= 3`, and
+  `!(g >= 80.0 || g >= err128_normal_prev)`.
+- **Update:** on every accepted record, `err128_flag_prev` shifts left by 1 and
+  appends `err128_flag`, `err128_CGM_c_noise_revised_value` shifts left by 1 and
+  appends `err128_revised_value`, and the `*_prev` scalars store the new values.
+- **Device parameters:** `cal_noise`, `errcode_version` and `sensor_version`
+  perturbations did not affect revised-current activation or values.
+
+State (error 8): only `err8_result_prev` (48825).
 
 Not explored:
 
-- state perturbation (setting `err128_*` and `err8_result_prev`)
-- the device parameters `errcode_version` (2), `cal_noise` (3.0) and `err345_filtered/min/range/md` as gates
-- calibration-list input
+- bit-8 and bit-128 emission with state perturbation (`err8_result_prev`),
+  `err345_filtered/min/range/md` gates, or calibration-list input
 
 ## Record filling
 
