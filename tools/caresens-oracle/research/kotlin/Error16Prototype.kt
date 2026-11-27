@@ -40,7 +40,8 @@ internal class Error16Prototype {
     private val signalBuffer = DoubleArray(DAYS_3 + 1)
 
     private var firstTime = 0L
-    private var profile = 100
+    var profile = 100
+        private set
     private var profileCount = 0
     private var profileSum = 0.0
     private var profileAbove = 0.0

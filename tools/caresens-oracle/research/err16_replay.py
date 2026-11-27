@@ -12,11 +12,11 @@ import differential as df
 
 
 KOTLIN = Path(__file__).resolve().parent / 'kotlin'
-PROTOTYPE_INPUT = np.dtype([('record', co.INPUT), ('inject', 'u1'), ('revised_current', '<f8')])
+PROTOTYPE_INPUT = np.dtype([('record', co.INPUT), ('mode', 'u1'), ('revised_current', '<f8')])
 SOURCE = 'err128_CGM_c_noise_revised_value'
-# Field order matches Error16Prototype.writeStatistics. For histories, read
+# Field order matches Error16Cli and Error16Prototype.writeStatistics. For histories, read
 # the newest state slot, which stays observable even on a rejected input.
-STATS = ('err16_time5_first', 'err16_dt_arr', PREFIX + 'smooth', 'err16_CGM_plasma') + tuple(
+STATS = (SOURCE, 'err16_time5_first', 'err16_dt_arr', PREFIX + 'smooth', 'err16_CGM_plasma') + tuple(
     PREFIX + key for key in (
         'roc_value', 'roc_steady', 'roc_n', 'roc_min_temp', 'roc_min', 'roc_diff', 'roc_ratio',
         'trend_min_value_arr', 'trend_mean_value_arr',
@@ -35,7 +35,7 @@ def first(mask):
     return int(indices[0]) if len(indices) else None
 
 
-def compare(jar, name, spec, start, revised_current, details):
+def compare(jar, name, spec, start, current_mode, details):
     device = co.default_device()
     params = tuple(spec.get(name, scenarios.DEFAULTS[name]) for name in ('slope100', 'vref', 'eapp'))
     for field, value in zip(('slope100', 'vref', 'eapp'), params):
@@ -50,8 +50,8 @@ def compare(jar, name, spec, start, revised_current, details):
     band = slice(begin, end)
     recs = np.zeros(end - begin, dtype=PROTOTYPE_INPUT)
     recs['record'] = inputs[band]
-    if revised_current:
-        recs['inject'] = 1
+    recs['mode'] = current_mode
+    if current_mode == 1:
         recs['revised_current'] = states[SOURCE][band, -1]
     engine = df.run_engine(jar, params, recs, takeover, main_class='Error16CliKt', result_type=PROTOTYPE_RESULT)
     vendor = output[band, 0]
@@ -139,7 +139,11 @@ def main():
     cases_arg.add_argument('--sweep-case', nargs=2, type=int, metavar=('SEED', 'INDEX'))
     cases_arg.add_argument('--sweep', type=int, metavar='SEED')
     parser.add_argument('--import-state', action='store_true')
-    parser.add_argument('--revised-current', action='store_true', help='inject only the vendor revised current into Error16Prototype')
+    current_arg = parser.add_mutually_exclusive_group()
+    current_arg.add_argument('--revised-current', action='store_true',
+                             help='inject only the vendor revised current into Error16Prototype')
+    current_arg.add_argument('--ordinary-current', action='store_true',
+                             help='pass the ordinary five-minute current without err128 revision')
     parser.add_argument('--details', action='store_true', help='print the first discrepancy for every statistic in each run')
     args = parser.parse_args()
     if REF.sha256 not in co.KNOWN_REFERENCE:
@@ -149,7 +153,7 @@ def main():
     if args.runs < 1 or (args.sweep_case and args.sweep_case[1] < 0):
         parser.error('run count must be positive and run index nonnegative')
 
-    jar = df.engine_jar(KOTLIN / 'Error16Cli.kt', [KOTLIN / 'Error16Prototype.kt'])
+    jar = df.engine_jar(KOTLIN / 'Error16Cli.kt', [KOTLIN / 'Error16Prototype.kt', KOTLIN / 'Error128RevisedCurrent.kt'])
     if args.sweep_case:
         seed, index = args.sweep_case
         spec, start = sweep_case(seed, index, args.import_state)
@@ -161,11 +165,12 @@ def main():
         cases = [(name, specs[name], None) for name in args.fixture]
     else:
         cases = ((n, spec, None) for n, spec in enumerate(itertools.islice(decay_specs(), args.runs)))
+    current_mode = 1 if args.revised_current else (2 if args.ordinary_current else 0)
     records = runs = 0
     total = Counter()
     active, mismatch = np.zeros((2, 7), dtype=int)
     for name, spec, start in cases:
-        n, seen, wrong, counts = compare(jar, name, spec, start, args.revised_current, args.details)
+        n, seen, wrong, counts = compare(jar, name, spec, start, current_mode, args.details)
         runs += 1
         records += n
         active += seen
