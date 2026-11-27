@@ -74,10 +74,10 @@ Confirmed:
 - **Conditions.** Only conditions 0, 1 and 2 fired on empty-list replay.
   They use 24 consecutive accepted sequence numbers, the corresponding
   statistic histories and the pre-record diabetes profile. Condition 0 can
-  also fire on the early mean reference from sequence 1728. The research
-  prototype matches all three conditions and the latch in the mixed
-  sweeps with revised current supplied. [Task 01 evidence](error-16-evidence.md)
-  gives the update windows, thresholds and replay results.
+  also fire on the early mean reference from sequence 1728. The Kotlin
+  engine now runs the detector and generates revised current independently.
+  [Task 01 evidence](error-16-evidence.md) gives the update windows,
+  thresholds and replay results.
 - **Where it fires** (`err_survey.py`, `err_survey.json`): naturally in 7 of 268 runs:
   - fixtures `life-lot2-sensitivity-loss` (first record 2637), `holdout-life-other-lot1` (1893) and `holdout-late-takeover-lows` (1948)
   - random runs 67, 101 and 175 of the survey
@@ -99,10 +99,6 @@ Rejected:
 
 Still open:
 
-- Generating the upstream revised current (Task 07). The open engine's
-  glucose can also differ after day seven, which changes plasma in the
-  research replay. The mixed sweeps with revised current supplied show no
-  resulting condition or latch discrepancies.
 - Conditions 3–6 stayed inactive with empty lists. The state names (`err16_cal_cons_*`, `err16_cal_day_*`) and `err6_cal_*` point at user calibrations. Their behavior with a calibration list remains unknown.
 
 ## Error 4 (signal lost), conditions other than 0, and the delay flags

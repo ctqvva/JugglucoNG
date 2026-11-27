@@ -17,8 +17,9 @@ still uses the vendor library for what the app shows.
 | History smoothing (the six values the app writes back), trend | reproduced |
 | Contact rejection (data type 2), parameter error 64, timing error 32 | reproduced |
 | Error 4 (signal lost), its main condition and how long it stays set | reproduced; its other four conditions are not (seen only on extreme or late-start signals) |
+| Error 16 (sensitivity loss), conditions and latch | reproduced for empty calibration lists, including revised current |
 | Taking over a running sensor from the vendor library's state block | reproduced; one sweep run differs in the minute currents when taken over during signal dropouts |
-| Error checks 1, 2, 8, 16, 128 | **not reproduced**; the engine never raises them |
+| Error checks 1, 2, 8, 128 | **not reproduced**; the engine never raises them |
 | Low-signal flag (data type 4) | delay-flag (`D0`–`D4`, rapid-drop gate), 7-record trend suppression (`err_delay_arr`), and `[0.5, 50.0]` nA reference/init-current filter reproduced; `err1` noise-break half accepted via `process(record, noiseBreak)` hook (Task 02 not yet decoded) |
 | Filling records after a clock jump (consecutive sequence, 480–1379 s gap) | not reproduced; reported as `exact = false` |
 | Fingerstick calibration | not part of the engine; JugglucoNG never passes a calibration list |
@@ -27,13 +28,12 @@ still uses the vendor library for what the app shows.
 (about 1e-12 mg/dL), not "close". The vendor library stays in use until the
 error checks are reproduced and the engine has run against real sensors.
 
-The error checks matter: the vendor withholds readings while one of them is
-active (often until the end of the sensor), and the engine would show values
-there. In the synthetic tests error 16 (sensitivity) occurs in 3 of the 18
-original fixture scenarios and in 3 of 250 random ones; the others occur only
-with deliberately broken signals (errors 8 and 128 never).
+The vendor withholds readings while any error is active, sometimes until the
+end of the sensor. Error 16 occurs in four committed fixtures. The open engine
+reports the bit in its result so that offline checks can measure publication
+eligibility. The app still publishes from the vendor result.
 
-### What is known about the checks not reproduced
+### Detector behavior and remaining checks
 
 Found with `tools/caresens-oracle` (triggers, state perturbation, bisection).
 The details, rejected hypotheses and scripts are in
@@ -52,18 +52,17 @@ The details, rejected hypotheses and scripts are in
   .07161, .11845, .16522 (newest first): over rounded glucose ("plasma"), and
   over the noise-revised current × 100 / slope100 ("ISF"), both rounded.
   Three conditions fire without calibrations in the recorded tests. The
-  Kotlin research prototype matches their conditions and latch across
-  mixed fresh and takeover runs with vendor revised current supplied.
-  [Task 01 evidence](caresens-air-handoff/error-16-evidence.md) records the
-  remaining input differences and the autonomous replay requirement.
+  engine shares the rounded-glucose history and diabetes profile with the
+  delay tests. Revised current and error 16 use the pre-record profile.
+  The delay tests use the updated profile. See the
+  [Task 01 evidence](caresens-air-handoff/error-16-evidence.md).
 - **Error 2** fired only for a sustained signal above about 800 mg/dL
   with a 12-record CV below about 10 %.
 - **Error 1** (noise) and its break flag follow a noise statistic against
   adaptive thresholds; not decoded. The break flag also sets data type 4.
-- **Errors 8 and 128**: no input found that emits either bit. The
-  error-128 revised-current stage consumed by error 16 is reproduced in the
-  research harness (`Error128RevisedCurrent.kt`, verified against 2.37 million
-  accepted vendor records and autonomous error-16 replay).
+- **Errors 8 and 128**: no input found that emits either bit. The engine
+  runs the revised-current stage as an input to error 16. This stage was
+  verified against 2.37 million accepted vendor records before integration.
 
 ## How it was verified
 
@@ -82,10 +81,12 @@ The reference is the arm64 `libCALCULATION.so` the app ships
   checks glucose, trend, history, factory glucose, sequence, rejections and
   the reproduced error bits on every record, and that state survives a
   save/restore anywhere and can be taken over from the vendor's state block.
+  Format 4 stores revised-current and error-16 histories, including the latch.
+  Formats 2 and 3 remain readable and start the new detector histories empty.
 - **Randomised sweep** (`tools/caresens-oracle/differential.py`): random factory
   values over the whole accepted range, noise, glucose shapes, temperature
   modes, gaps, jitter, clock jumps, spikes, sensitivity loss and start
-  sequence and signal dropouts. Latest sweeps after Task 05 (`22e306bea`):
+  sequence and signal dropouts. Latest sweeps with the integrated detector:
   - **Fresh runs**, seeds 101 and 202 (300 runs each, 1,099,980 inputs): 1 of 600 differs (seed 202 run 16, record 484: trend withheld by the unmodelled `err1` noise break, Task 02). **0** usable records not claimed exact (down from 218,091).
   - **Runs taking over vendor state** at a random record, seeds 7 and 8 (150 runs each, 329,550 inputs): 1 of 300 differs (seed 7 run 99, record 1425: minute currents after takeover during dropouts, Task 09). **0** usable records not claimed exact (down from 54,548).
   - **Independent holdout sweeps**, fresh seed 303 (100 runs, 168,220 inputs) and takeover seed 9 (50 runs, 50,171 inputs): **0 of 150 differ**, **0** usable records not claimed exact.
@@ -96,10 +97,15 @@ The reference is the arm64 `libCALCULATION.so` the app ships
 
   The updated [task 00 sweep](caresens-air-handoff/tasks/00-shared-infrastructure.md)
   reports all eight bits and vendor-withheld, engine-publication-eligible
-  inputs. By default only bits 4, 32 and 64 affect the bit verdict. Inexact
+  inputs, including those withheld by bit 16. Bits 4, 16, 32 and 64 affect
+  the default bit verdict. Inexact
   records remain in the bit and publication counts, but are excluded from
   exact numerical checks. All comparisons stop at the first filled record.
   Unreproduced error 4 conditions exclude only bit 4 from scoring.
+  All 29,744 vendor bit-16 outputs matched, with zero publication-eligible
+  engine outputs on those records. The
+  [detector replay](caresens-air-handoff/error-16-evidence.md#calibration-engine-integration)
+  also verifies condition bits and targeted vendor-state takeover.
 - **Intermediates**: the harness compares minute currents, corrected current,
   factory glucose, rescaled glucose, history and trend separately, so a
   difference points at the stage that causes it.

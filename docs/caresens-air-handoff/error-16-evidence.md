@@ -321,3 +321,36 @@ Only two upstream minute-current differences (`decay 130` at seq 944 and
 takeover seed 7, run 99 at seq 1425, Task 09, both with `err128_flag = 0`) and
 the two error-64 fixtures' unaccepted `err16_dt_arr` remain across all 1,231
 runs (2,383,531 compared records).
+
+### Calibration engine integration
+
+`--engine` runs the detector hooks in `CareSensAirCalibration`, using the
+same pinned reference and pre-fill boundary. It reads the engine's emitted
+bit and the two detectors' state tails. The original modes still run the
+research implementations. To verify the engine, add `--engine` to each of
+the autonomous replay commands above, or start inside an active revision
+and after a latched failure with these targeted cases:
+
+```sh
+python3 err16_replay.py --engine --fixture temperature-steps --takeover-after 1247
+python3 err16_replay.py --engine --fixture holdout-err16-decay --takeover-after 1857
+```
+
+Both targeted takeovers match every observed statistic, condition and latch.
+The engine's save/restore regression uses the same trigger points and
+compares the continuing outputs and final serialized state.
+
+The integrated engine matched every condition and latch across the same
+1,231 runs and 2,383,531 compared records. The statistic comparison retained
+the two upstream current differences and the two invalid-parameter fixture
+differences listed above.
+
+The standard `differential.py` sweep covered 1,050 mixed and holdout runs
+and 1,647,921 compared inputs. It recorded 29,744 vendor bit-16 outputs,
+zero bit-16 mismatches, and zero records withheld by vendor bit 16 that
+the engine would have been eligible to publish. Another 6,616 records
+remained publication-eligible despite other vendor errors. The two
+existing general comparison failures are the noise-break trend in Task
+02 (seed 202, run 16, input 484) and the dropout takeover minute currents
+in Task 09 (seed 7, run 99, input 1425). The app still uses the vendor
+library for publication.

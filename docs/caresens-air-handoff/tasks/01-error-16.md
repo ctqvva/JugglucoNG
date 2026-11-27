@@ -1,18 +1,17 @@
 # Task 01: error 16 (sensitivity / end of life)
 
-**Priority:** highest. It is the only unreproduced error that fires on
-realistic data, in 7 of 268 synthetic runs, from day 6 on. It latches to the
-end of the wear, and the driver withholds readings while it is set.
+Error 16 detects sensitivity loss from day 6 and latches to the end of the
+wear. The driver withholds readings while the vendor reports the bit.
 
 Setup and conventions: `00-shared-infrastructure.md`. Background:
 `../findings.md`, section "Error 16". New replay measurements are in
 [error-16-evidence.md](../error-16-evidence.md).
 
-The Kotlin prototype matches all tested empty-list conditions and latches
-with vendor revised current supplied. This includes gaps, rejections,
-late starts and takeover. The current-revision stage from task 07 is
-still required for autonomous replay. The prototype also observes some
-plasma differences inherited from the open glucose calculation.
+The open engine now runs the validated detector with the revised-current
+stage from [Task 07](07-error-128.md). It shares the rounded-glucose and
+diabetes histories with [Task 05](05-data-type-4.md), whose valid-current
+filter resolved the observed post-day-seven plasma differences. The
+application continues to use the vendor result.
 
 ## Goal
 
@@ -102,23 +101,17 @@ the 36-entry statistic histories.
   both a type-0 input with a revised current and a type-4 interval
   with ordinary current.
 
-## Suggested next steps
-
-1. Integrate the revised-current input once Task 07 can generate it from
-   ordinary records. See the [source experiment](../error-16-evidence.md#the-actual-isf-input).
-2. Rerun the [mixed replay](../error-16-evidence.md#isolating-statistic-updates-from-revised-current)
-   without injection. Keep first statistic divergences visible and verify
-   both the per-condition and latch outputs before promotion.
-3. **Conditions 3–6:**
-   - pass a calibration list (`air1_opcal4_cal_list_t`) in the oracle and see whether they ever fire
-   - if only with calibrations, document it, model them as never firing, and add a test that an empty list never fires them
-
 ## Implementation and tests
 
-- Promote the research prototype to `CareSensAirError16.kt` after full
-  parity, following task 00 C.
-- Import the arrays above in `CareSensAirVendorState.read`; about 50 KB of the block.
-- Add bit 16 to `modelledErrors` and `MODELLED`.
+- `CareSensAirError16.kt` uses the current record's revised current and
+  the pre-record profile. The delay stage advances the shared profile
+  before evaluating D0–D4.
+- `CareSensAirVendorState.read` imports the detector histories and latch.
+  Engine snapshots use format 4 with both detector states appended. Formats
+  2 and 3 keep their existing state and initialize the new detector histories
+  empty. Exact mid-wear takeover uses the vendor block or a format-4 snapshot.
+- Bit 16 is scored in both fixture and differential comparisons.
 - The three original firing fixtures and `holdout-err16-decay` cover the
   three reachable conditions.
-- Sweep check: a per-bit table with 0 mismatches for bit 16 over 600 fresh and 300 takeover runs.
+- Conditions 3–6 remained clear with empty calibration lists. Their behavior
+  with user calibrations remains unverified.

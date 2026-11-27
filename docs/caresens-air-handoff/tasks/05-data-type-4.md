@@ -12,8 +12,8 @@ valid-current filter (`0.5 <= corrected_re_current <= 50.0`) have been recovered
 by black-box perturbation (`tools/caresens-oracle/research/err4_delay_probe.py`),
 verified with **0 mismatches** across **1,231 runs / 2,374,726 accepted records**,
 and implemented in `CareSensAirDelayFlag.kt`, `CareSensAirCalibration.kt`, and
-`CareSensAirCalibrationState.kt` (state `VERSION = 3`, preserving `VERSION = 2`
-deserialization).
+`CareSensAirCalibrationState.kt`. This task introduced state format 3. The
+engine now writes format 4 and still reads formats 2 and 3.
 
 Task 02's `err1_random_noise_temp_break` remains an isolated boolean input
 (`noiseBreak: Boolean = false` on `CareSensAirCalibration.process`).

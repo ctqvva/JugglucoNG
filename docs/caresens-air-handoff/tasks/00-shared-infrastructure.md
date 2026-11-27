@@ -33,7 +33,7 @@ Use the report's per-bit coverage when interpreting any specific field.
 The sweep counts all eight bits from the engine's start or takeover to
 the next filled input. The table shows vendor set counts, raw mismatch
 counts and scored mismatch counts. `--modelled` accepts a decimal or hexadecimal mask. The
-default stays 4, 32 and 64. Only scored bit mismatches affect the verdict,
+default is 4, 16, 32 and 64. Only scored bit mismatches affect the verdict,
 alongside the existing rejection and numerical checks and the output sequence
 check. The exclusion for error 4 conditions 1–4 applies solely to bit 4 scoring.
 It covers the suffix after the first such condition, including when it fired
@@ -42,7 +42,7 @@ before the engine took over.
 The publication count uses the native error and range gate: output present,
 no error, and a glucose value strictly between 35 and 505 mg/dL. It reports
 how many inputs the vendor withheld that an engine output would pass, and how
-many of those had a nonzero vendor error. This is an offline estimate that
+many of those had a nonzero vendor error or bit 16. This is an offline estimate that
 includes inexact records. Later runtime delivery checks are outside its scope.
 
 Task 00 ran 30 fresh scenarios and 20 takeover scenarios from the commands
