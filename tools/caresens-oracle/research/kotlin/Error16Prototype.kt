@@ -25,7 +25,7 @@ internal class Error16Prototype {
     private val rates = history(289)
     private val steady = history(PERSISTENCE)
     private val minimumTrend = history(DAYS_3 + 1)
-    private val meanTrend = history(24 * 12 - 11)
+    private val meanTrend = history(DAYS_3 + 1)
     private val minimumReference = RunningReference(0.0, maximum = true)
     private val meanReference = RunningReference(5.0, maximum = true)
     private val steadyReference = RunningReference(2.0, maximum = false)
@@ -86,12 +86,12 @@ internal class Error16Prototype {
 
         val recentSignal = isf.size - 7
         var rate = Double.NaN
-        if (sequence >= 871) {
+        if (sequence >= 871 && near) {
             var hi = Double.NEGATIVE_INFINITY
             var lo = Double.POSITIVE_INFINITY
             var valid = 0
             for (i in recentSignal until isf.size) {
-                if (!isf[i].isNaN() && sequence - sequences[i] <= 6) {
+                if (!isf[i].isNaN()) {
                     hi = maxOf(hi, isf[i])
                     lo = minOf(lo, isf[i])
                     valid++
@@ -111,7 +111,7 @@ internal class Error16Prototype {
                 if (rates[i] <= 1.0) steadyRates++
             }
         }
-        val steadyPercent = if (near && withinDay >= 231) steadyRates.toDouble() / withinDay * 100.0 else Double.NaN
+        val steadyPercent = if (!rate.isNaN() && withinDay >= 231) steadyRates.toDouble() / withinDay * 100.0 else Double.NaN
         steady.push(steadyPercent)
         steadyReference.update(steadyPercent, !steadyPercent.isNaN(), sequence, sequences, signalBuffer)
         steadyChange.push(steadyPercent, steadyReference.value)
@@ -137,14 +137,19 @@ internal class Error16Prototype {
         }
         minimumTrend.push(minTrend)
         meanTrend.push(centerTrend)
-        shortMinimumFit.update(minimumTrend, 12, 3, 12, inWindow)
-        longMinimumFit.update(minimumTrend, 73, 12, 12, inWindow)
-        meanFit.update(meanTrend, 24, 12, 24, inWindow)
+        val minimumStart = if (inWindow) firstTrendPoint(minimumTrend, sequence) else sequences.size
+        val meanStart = if (inWindow) firstTrendPoint(meanTrend, sequence) else sequences.size
+        shortMinimumFit.update(minimumTrend, sequences, minimumStart, 12, 3, 12)
+        longMinimumFit.update(minimumTrend, sequences, minimumStart, 73, 12, 12)
+        meanFit.update(meanTrend, sequences, meanStart, 24, 12, 24)
         minimumReference.update(minTrend, inWindow && sequence >= 865, sequence, sequences, signalBuffer)
         meanReference.update(centerTrend, inWindow && sequence >= 865, sequence, sequences, signalBuffer)
-        if (inWindow) {
+        if (inWindow && sequence >= 865) {
             minimumDrop.push(minTrend, minimumReference.value)
             meanDrop.push(centerTrend, meanReference.value)
+        } else if (inWindow) {
+            minimumDrop.pushChange(0.0, 0.0)
+            meanDrop.pushChange(0.0, 0.0)
         } else {
             minimumDrop.hold()
             meanDrop.hold()
@@ -157,7 +162,7 @@ internal class Error16Prototype {
             profile = diabetesLevel
         } else if (sequence >= 864) {
             if (profile == 100) profile = 0
-            if (sequence > 864 && profile == 0 && !smoothedGlucose.isNaN()) {
+            if (sequence > 864 && profile == 0) {
                 profileCount++
                 profileSum += smoothedGlucose
                 if (smoothedGlucose > 180) profileAbove++
@@ -170,6 +175,13 @@ internal class Error16Prototype {
                 }
             }
         }
+    }
+
+    private fun firstTrendPoint(values: DoubleArray, sequence: Int): Int {
+        for (i in values.indices) {
+            if (sequences[i] != 0 && sequence - sequences[i] <= DAYS_3 && !values[i].isNaN()) return i
+        }
+        return values.size
     }
 
     private fun evaluate(near: Boolean): Int {
@@ -199,8 +211,11 @@ internal class Error16Prototype {
         val difference = history(PERSISTENCE)
         val percent = history(PERSISTENCE)
         fun push(current: Double, reference: Double) {
-            difference.push(current - reference)
-            percent.push((current - reference) / reference * 100.0)
+            pushChange(current - reference, (current - reference) / reference * 100.0)
+        }
+        fun pushChange(delta: Double, ratio: Double) {
+            difference.push(delta)
+            percent.push(ratio)
         }
         fun hold() {
             difference.push(difference.last())
@@ -219,14 +234,23 @@ internal class Error16Prototype {
         val slope = history(PERSISTENCE)
         val rSquared = history(PERSISTENCE)
 
-        fun update(values: DoubleArray, points: Int, stride: Int, required: Int, active: Boolean) {
+        fun update(values: DoubleArray, sequences: IntArray, first: Int, points: Int, stride: Int, required: Int) {
+            if (first == values.size) {
+                slope.push(Double.NaN)
+                rSquared.push(Double.NaN)
+                return
+            }
+            // Short and long fits share the oldest eligible point as the sampling origin.
+            val last = values.lastIndex - (values.lastIndex - first) % stride
+            val start = maxOf(first, last - (points - 1) * stride)
+            val origin = sequences[start]
             var sx = 0.0
             var sy = 0.0
             var n = 0
-            if (active) for (i in 0 until points) {
-                val y = values[values.lastIndex - (points - 1 - i) * stride]
+            for (i in start..last step stride) {
+                val y = values[i]
                 if (!y.isNaN()) {
-                    sx += i * stride / 288.0
+                    sx += (sequences[i] - origin) / 288.0
                     sy += y
                     n++
                 }
@@ -241,10 +265,10 @@ internal class Error16Prototype {
             var xy = 0.0
             var xx = 0.0
             var yy = 0.0
-            for (i in 0 until points) {
-                val y = values[values.lastIndex - (points - 1 - i) * stride]
+            for (i in start..last step stride) {
+                val y = values[i]
                 if (!y.isNaN()) {
-                    val dx = i * stride / 288.0 - mx
+                    val dx = (sequences[i] - origin) / 288.0 - mx
                     val dy = y - my
                     xy += dx * dy
                     xx += dx * dx

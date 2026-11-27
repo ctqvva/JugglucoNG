@@ -152,3 +152,25 @@ python3 err16_replay.py --sweep 202 --runs 300 --revised-current
 python3 err16_replay.py --sweep 7 --runs 150 --import-state --revised-current
 python3 err16_replay.py --sweep 8 --runs 150 --import-state --revised-current
 ```
+
+The trend regressions use the oldest finite trend value within 864
+sequence steps as the common sampling origin. Sample every third or
+twelfth accepted slot from that origin, then keep the newest 12, 73 or
+24 samples for the respective fits. The regression x coordinates are
+the actual sequence distances divided by 288. This accounts for the
+equal fits on consecutive records before the sampling phase moves, as
+well as the first short-slope discrepancy at seed 7, run 19, input 726
+(sequence 752). The same run's long slope first diverged earlier, at
+input 692 (sequence 718), because the prototype used uninitialized slots.
+
+The rate uses the newest seven accepted slots with at least four finite
+ISF values and a 40-minute time guard across those slots. It can retain
+points more than six sequence steps old. The steady-rate window requires
+a finite current rate in addition to the trailing count. The early
+diabetes accumulator counts accepted records even when plasma is NaN.
+
+`python3 err16_history_probe.py` verifies the fit and rate definitions on
+27,135 accepted records across eight of the mixed runs using the vendor's
+own state tails. The Kotlin changes are exercised independently by the
+replay harness. Seed 7, run 19 now agrees on every condition and latch
+with the revised-current input supplied.
