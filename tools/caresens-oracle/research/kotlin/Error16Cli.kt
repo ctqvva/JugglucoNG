@@ -31,7 +31,8 @@ fun main() {
                 val minute = reading.intermediates.minuteCurrents
                 (minute.sum() - minute.min() - minute.max()) / (minute.size - 2)
             }
-            detector.update(sequence, time, current, reading.glucose, parameters.slope100, reading.intermediates.diabetesLevel)
+            val day7Profile = reading.intermediates.diabetesLevel.takeIf { sequence >= 2017 && engine.state.diabetesCount > 288 }
+            detector.update(sequence, time, current, reading.glucose, parameters.slope100, day7Profile)
         }
         output.putInt(if (accepted) detector.conditions else 0)
         output.putInt(if (accepted && detector.latched) 16 else 0)

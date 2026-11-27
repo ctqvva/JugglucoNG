@@ -165,12 +165,37 @@ input 692 (sequence 718), because the prototype used uninitialized slots.
 
 The rate uses the newest seven accepted slots with at least four finite
 ISF values and a 40-minute time guard across those slots. It can retain
-points more than six sequence steps old. The steady-rate window requires
-a finite current rate in addition to the trailing count. The early
-diabetes accumulator counts accepted records even when plasma is NaN.
+points more than six sequence steps old. Its oldest slot must be at or
+beyond sequence 865. In seed 101, run 269, input 870 is rejected and the
+rate first updates at sequence 872 because sequence 871 still looks back
+to sequence 864. The steady-rate window requires a finite current rate
+and at least 231 finite rates within the last 288 sequence steps.
 
-`python3 err16_history_probe.py` verifies the fit and rate definitions on
-27,135 accepted records across eight of the mixed runs using the vendor's
-own state tails. The Kotlin changes are exercised independently by the
-replay harness. Seed 7, run 19 now agrees on every condition and latch
+Reference promotion requires at least 20 candidates within 24 sequence
+steps, with every candidate inside the reference's tolerance. The main
+reference freezes on its 864th eligible update using the newest 864
+candidate slots. The early mean reference starts with the first eligible
+trend, never freezes, and resets when the three-day trend window lacks
+enough accepted records. Seed 7, run 85 initializes the main mean
+reference at sequence 889 after 20 updates. Seed 202, run 197 starts at
+sequence 1500 and initializes it at sequence 2219 after 23 updates.
+
+All three conditions require 24 consecutive accepted sequence numbers.
+On fresh seed 101, run 93, changing only the preceding sequence tail to
+close the gaps enables condition 1 at sequence 2672. Condition 0 also
+has an early branch. From sequence 1728 until the main mean reference is
+ready, the last 24 early-reference losses must each reach 70 in both
+absolute and percentage terms. The replay at seed 101, run 214, input
+1630 (sequence 1737) fires with 813 eligible main-reference updates.
+Changing either early history from −70 to −69.999 suppresses it.
+
+The early diabetes accumulator counts accepted records even when plasma
+is NaN and counts plasma of exactly 180 in both TAR and TIR. It continues
+past sequence 2017 when the day-seven profile has too few samples. In
+takeover seed 8, run 27, it reaches 288 only at sequence 2021. The detector
+uses the pre-record profile for its current conditions.
+
+`python3 err16_history_probe.py` verifies fits, rates and reference
+updates directly against vendor state. It also replays the two condition
+boundaries above. Seed 7, run 19 now agrees on the condition and latch
 with the revised-current input supplied.

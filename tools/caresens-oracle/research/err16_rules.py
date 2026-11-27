@@ -3,6 +3,7 @@ import argparse
 import itertools
 
 from err16lib import decay_specs
+from err16_replay import first, sweep_cases
 from err16_state_probe import EARLY_PROFILE, PREFIX
 from sc import REF, co, mf, np, runspec
 
@@ -15,8 +16,8 @@ def predict(states, profile):
     lo = lambda name: field(name)[:, -24:].min(axis=1)
     hi = lambda name: field(name)[:, -24:].max(axis=1)
 
-    def drop(name, threshold):
-        return (hi(name + '_diff') <= -threshold) & (hi(name + '_ratio') <= -threshold)
+    def drop(name, threshold, suffix=''):
+        return (hi(name + '_diff' + suffix) <= -threshold) & (hi(name + '_ratio' + suffix) <= -threshold)
 
     def fall(name, suffix, slope):
         # Long-trend slope comparisons round at the 1e-10 boundary.
@@ -31,6 +32,8 @@ def predict(states, profile):
     rise = (steady > 50) & (lo('roc_diff') > 50) & (lo('roc_ratio') > 50)
     near = (states['err16_dt_arr'][:, -1] - states['err16_dt_arr'][:, -7]) <= 40
     ready = field('trend_mean_n') >= 864
+    sequence = states['accu_seq'].astype(int)
+    consecutive = sequence[:, -1] - sequence[:, -24] == 23
 
     major_loss = drop('trend_min', 50) & drop('trend_mean', 40)
     condition0 = ready & (
@@ -52,26 +55,40 @@ def predict(states, profile):
         | (moderate & middle)
         | (strong & middle & (fall('trend_min', '2', 7) | flat))
     )
-    return np.column_stack([condition0, condition1, condition2])
+    early = (sequence[:, -1] >= 1728) & ~ready & drop('trend_mean', 70, '_early')
+    return np.column_stack([condition0 | early, condition1, condition2]) & consecutive[:, None]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runs', type=int, default=160, help='number of existing seed-11 decay scenarios')
     parser.add_argument('--fixtures', action='store_true', help='also compare the committed fixture specs')
+    parser.add_argument('--sweep', type=int, metavar='SEED', help='use the mixed sweep instead of the decay corpus')
+    parser.add_argument('--import-state', action='store_true', help='compare only the takeover suffix of mixed runs')
     args = parser.parse_args()
     if REF.sha256 not in co.KNOWN_REFERENCE:
         parser.error(f'unexpected reference SHA-256: {REF.sha256}')
+    if args.import_state and args.sweep is None:
+        parser.error('--import-state requires --sweep')
 
     fixtures = (mf.DEVELOPMENT | mf.HOLDOUT).items() if args.fixtures else ()
-    cases = itertools.chain(enumerate(itertools.islice(decay_specs(), args.runs)), fixtures)
+    if args.sweep is None:
+        cases = ((name, spec, None) for name, spec in itertools.chain(
+            enumerate(itertools.islice(decay_specs(), args.runs)), fixtures))
+    else:
+        cases = itertools.islice(sweep_cases(args.sweep, args.import_state), args.runs)
     seen, missing, extra = np.zeros((3, 7), dtype=int)
-    for name, spec in cases:
+    for name, spec, start in cases:
         seq, _, _, _, count, output, debug, states, _ = runspec(spec, True)
         profile = np.r_[100, states[EARLY_PROFILE][:-1]]
         target = debug['err16_condi'].astype(bool)
         actual = predict(states, profile)
-        actual &= ((output['data_type'] != 2) & ((output['errcode'] & 64) == 0))[:, None]
+        actual &= ((count != 0) & (output['data_type'] != 2) & ((output['errcode'] & 64) == 0))[:, None]
+        if args.sweep is not None:
+            begin = start or 0
+            fill = first(count[begin:] > 1)
+            band = slice(begin, len(count) if fill is None else begin + fill)
+            seq, profile, target, actual = seq[band], profile[band], target[band], actual[band]
         bad = actual != target[:, :3]
         seen += target.sum(axis=0)
         missing[:3] += (target[:, :3] & ~actual).sum(axis=0)
@@ -84,7 +101,8 @@ def main():
         del states
     print(f'Condition hits: {seen.tolist()}')
     print(f'Missed: {missing[:3].tolist()}; extra: {extra[:3].tolist()}')
+    return int(bool(missing.any() or extra.any()))
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

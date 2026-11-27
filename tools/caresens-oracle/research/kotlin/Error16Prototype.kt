@@ -28,9 +28,11 @@ internal class Error16Prototype {
     private val meanTrend = history(DAYS_3 + 1)
     private val minimumReference = RunningReference(0.0, maximum = true)
     private val meanReference = RunningReference(5.0, maximum = true)
+    private val earlyMeanReference = RunningReference(5.0, maximum = true, freeze = false)
     private val steadyReference = RunningReference(2.0, maximum = false)
     private val minimumDrop = Change()
     private val meanDrop = Change()
+    private val earlyMeanDrop = Change()
     private val steadyChange = Change()
     private val shortMinimumFit = Fit()
     private val longMinimumFit = Fit()
@@ -67,11 +69,14 @@ internal class Error16Prototype {
         meanReference.writeStatistics(output)
         minimumDrop.writeStatistics(output)
         meanDrop.writeStatistics(output)
+        output.putDouble(earlyMeanReference.candidates.last())
+        output.putDouble(earlyMeanReference.value)
+        earlyMeanDrop.writeStatistics(output)
         output.putDouble(profile.toDouble())
         output.putDouble(profileCount.toDouble())
     }
 
-    fun update(sequence: Int, time: Long, current5Min: Double, reading: Double, slope100: Float, diabetesLevel: Int) {
+    fun update(sequence: Int, time: Long, current5Min: Double, reading: Double, slope100: Float, day7Profile: Int?) {
         if (firstTime == 0L) firstTime = time
         sequences.copyInto(sequences, endIndex = sequences.size, startIndex = 1)
         sequences[sequences.lastIndex] = sequence
@@ -86,7 +91,7 @@ internal class Error16Prototype {
 
         val recentSignal = isf.size - 7
         var rate = Double.NaN
-        if (sequence >= 871 && near) {
+        if (sequences[recentSignal] >= 865 && near) {
             var hi = Double.NEGATIVE_INFINITY
             var lo = Double.POSITIVE_INFINITY
             var valid = 0
@@ -144,6 +149,8 @@ internal class Error16Prototype {
         meanFit.update(meanTrend, sequences, meanStart, 24, 12, 24)
         minimumReference.update(minTrend, inWindow && sequence >= 865, sequence, sequences, signalBuffer)
         meanReference.update(centerTrend, inWindow && sequence >= 865, sequence, sequences, signalBuffer)
+        earlyMeanReference.update(centerTrend, inWindow, sequence, sequences, signalBuffer)
+        earlyMeanDrop.push(centerTrend, earlyMeanReference.value)
         if (inWindow && sequence >= 865) {
             minimumDrop.push(minTrend, minimumReference.value)
             meanDrop.push(centerTrend, meanReference.value)
@@ -155,17 +162,23 @@ internal class Error16Prototype {
             meanDrop.hold()
         }
 
-        conditions = if (meanReference.count >= DAYS_3) evaluate(near) else 0
+        val consecutive = sequence - sequences[sequences.size - PERSISTENCE] == PERSISTENCE - 1
+        conditions = when {
+            !consecutive -> 0
+            meanReference.count >= DAYS_3 -> evaluate(near)
+            sequence >= 2 * DAYS_3 && earlyMeanDrop.atLeast(70) -> 1
+            else -> 0
+        }
         latched = CareSensAirDetectorLatch.permanent(latched, conditions != 0)
         // The detector sees the profile from before this record, including on seq 2017.
-        if (sequence >= 2017) {
-            profile = diabetesLevel
+        if (day7Profile != null) {
+            profile = day7Profile
         } else if (sequence >= 864) {
             if (profile == 100) profile = 0
             if (sequence > 864 && profile == 0) {
                 profileCount++
                 profileSum += smoothedGlucose
-                if (smoothedGlucose > 180) profileAbove++
+                if (smoothedGlucose >= 180) profileAbove++
                 if (smoothedGlucose in 70.0..180.0) profileInRange++
                 if (plasma.all { it >= 300 } || (profileCount >= 288 &&
                         (profileSum > 140.0 * profileCount || profileAbove > 0.1 * profileCount ||
@@ -247,16 +260,25 @@ internal class Error16Prototype {
             var sx = 0.0
             var sy = 0.0
             var n = 0
+            var low = Double.POSITIVE_INFINITY
+            var high = Double.NEGATIVE_INFINITY
             for (i in start..last step stride) {
                 val y = values[i]
                 if (!y.isNaN()) {
                     sx += (sequences[i] - origin) / 288.0
                     sy += y
                     n++
+                    low = minOf(low, y)
+                    high = maxOf(high, y)
                 }
             }
             if (n < required) {
                 slope.push(Double.NaN)
+                rSquared.push(Double.NaN)
+                return
+            }
+            if (low == high) {
+                slope.push(0.0)
                 rSquared.push(Double.NaN)
                 return
             }
@@ -288,7 +310,11 @@ internal class Error16Prototype {
         }
     }
 
-    private class RunningReference(private val tolerance: Double, private val maximum: Boolean) {
+    private class RunningReference(
+        private val tolerance: Double,
+        private val maximum: Boolean,
+        private val freeze: Boolean = true,
+    ) {
         var value = Double.NaN
         var count = 0
         val candidates = history(DAYS_3 + 1)
@@ -301,27 +327,35 @@ internal class Error16Prototype {
 
         fun update(observed: Double, active: Boolean, sequence: Int, sequences: IntArray, buffer: DoubleArray) {
             val candidate = when {
-                !active -> if (maximum) value else Double.NaN
+                !active -> if (maximum && freeze) value else Double.NaN
                 value.isNaN() -> observed
                 observed.isNaN() -> value
                 maximum -> maxOf(value, observed)
                 else -> minOf(value, observed)
             }
             candidates.push(candidate)
+            if (!freeze && !active) value = Double.NaN
             if (!active) return
             count++
-            if (count == DAYS_3) {
+            if (freeze && count == DAYS_3) {
                 var valid = 0
-                for (v in candidates) if (!v.isNaN()) buffer[valid++] = v
+                for (i in 1..candidates.lastIndex) {
+                    val v = candidates[i]
+                    if (!v.isNaN()) buffer[valid++] = v
+                }
                 if (valid > 0) {
                     java.util.Arrays.sort(buffer, 0, valid)
                     value = centralMean(buffer, valid)
                 }
-            } else if (count in 25 until DAYS_3 && !candidate.isNaN()) {
+            } else if ((!freeze || count < DAYS_3) && !candidate.isNaN()) {
+                var valid = 1 // Includes the candidate from the current record.
                 for (i in candidates.lastIndex - 24 until candidates.lastIndex) {
-                    if (sequence - sequences[i] <= 24 && !(abs(candidates[i] - candidate) <= tolerance)) return
+                    if (sequence - sequences[i] <= 24) {
+                        if (!(abs(candidates[i] - candidate) <= tolerance)) return
+                        valid++
+                    }
                 }
-                value = candidate
+                if (valid >= 20) value = candidate
             }
         }
     }
@@ -364,6 +398,10 @@ internal class Error16Prototype {
         read(meanDrop.percent, 102544, 36) // err16_CGM_ISF_trend_mean_ratio
         meanReference.value = block.getDouble(102832) // err16_CGM_ISF_trend_mean_max
         read(meanReference.candidates, 102840, 865) // err16_CGM_ISF_trend_mean_max_temp
+        earlyMeanReference.value = block.getDouble(109768) // err16_CGM_ISF_trend_mean_max_early
+        read(earlyMeanDrop.difference, 109784, 36) // err16_CGM_ISF_trend_mean_diff_early
+        read(earlyMeanReference.candidates, 110072, 865) // err16_CGM_ISF_trend_mean_max_temp_early
+        read(earlyMeanDrop.percent, 116992, 36) // err16_CGM_ISF_trend_mean_ratio_early
         profileCount = u16(10912) // diabetes_before_7days_n_valid
         profile = block.get(10914).toInt() and 0xff // diabetes_before_7days_flag
         profileSum = block.getDouble(10920) // diabetes_before_7days_eAG
@@ -373,7 +411,7 @@ internal class Error16Prototype {
     }
 
     companion object {
-        const val STAT_COUNT = 31
+        const val STAT_COUNT = 35
         private const val DAYS_3 = 864
         private const val PERSISTENCE = 24
         private const val LONG_SLOPE_HALF_STEP = 5e-11

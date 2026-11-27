@@ -23,6 +23,7 @@ STATS = ('err16_time5_first', 'err16_dt_arr', PREFIX + 'smooth', 'err16_CGM_plas
         'trend_min_slope1', 'trend_min_rsq1', 'trend_min_slope2', 'trend_min_rsq2', 'trend_mean_slope', 'trend_mean_rsq',
         'trend_min_n', 'trend_min_max_temp', 'trend_min_max', 'trend_mean_n', 'trend_mean_max_temp', 'trend_mean_max',
         'trend_min_diff', 'trend_min_ratio', 'trend_mean_diff', 'trend_mean_ratio',
+        'trend_mean_max_temp_early', 'trend_mean_max_early', 'trend_mean_diff_early', 'trend_mean_ratio_early',
     )
 ) + ('diabetes_before_7days_flag', 'diabetes_before_7days_n_valid')
 PROTOTYPE_RESULT = np.dtype([('error16_conditions', '<i4'), ('error', '<i4'), ('accepted', '<i4'),
