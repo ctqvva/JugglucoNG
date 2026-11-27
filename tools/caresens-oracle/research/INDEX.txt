@@ -1,0 +1,308 @@
+# Auto-generated topic index: script, harness it imports, keywords found, first line.
+# harness sc = current (tools/caresens-oracle), legacy = lab.py/gen.py (older loader, oracle.c).
+e1.py            legacy type4,takeover,kalman,trend,loess/minutes,temperature,rescale,drift,rejection np.set_printoptions(linewidth=200,precision=8,suppress=True)
+e2.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=170,precision=8,suppress=True)
+e3.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=190,precision=6,suppress=True)
+e4.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=220,precision=4,suppress=True)
+e5.py            legacy takeover                                                     # look at structure for random data in different scales
+e6.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=190,precision=8,suppress=True)
+e7.py            legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=190,precision=4,suppress=True)
+e8.py            legacy takeover                                                     obs=[]
+e9.py            legacy takeover                                                     q,m,oi,x,mmv,q0=two(w1)
+e10.py           legacy takeover                                                     rows=[]
+e11.py           legacy takeover                                                     C=Counter(); cond=[]; bad=[]
+e12.py           legacy takeover                                                     np.set_printoptions(linewidth=190,precision=4,suppress=True)
+e13.py           legacy takeover                                                     rng=np.random.default_rng(6); d=dev(); u=float(d['vref'][0])/40950*100; e=float(d['eapp'][
+e14.py           legacy takeover                                                     np.set_printoptions(linewidth=190,precision=4,suppress=True)
+e15.py           legacy takeover                                                     rng=np.random.default_rng(6); d=dev(); cc=Counter()
+e16.py           legacy takeover                                                     np.set_printoptions(linewidth=190,precision=4,suppress=True)
+e17.py           legacy err1,takeover                                                rng=np.random.default_rng(6); d=dev()
+e18.py           legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=250,precision=4,suppress=True)
+e19.py           legacy takeover,loess/minutes                                       def rlow(y,deg,its,c=6.0,div=1.0,x=None):
+e20.py           legacy takeover                                                     def mm(x):
+e21.py           legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=250,precision=5,suppress=True)
+e22.py           legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e23.py           legacy takeover                                                     np.set_printoptions(linewidth=230,precision=4,suppress=True)
+e24.py           legacy takeover,loess/minutes                                       rng=np.random.default_rng(1); d=dev(); wo=rng.normal(10000,30,(14,30)).astype('u2')
+e25.py           legacy takeover                                                     K=tri(hm)
+e26.py           legacy takeover,loess/minutes                                       K=tri(hm)
+e27.py           legacy takeover,loess/minutes                                       w=np.full((4,30),10000,'u2'); _,o,g2,a,s2=run(d,w,34.0,snap=True); st=s2[2:3].copy(); base
+e28.py           legacy takeover                                                     K=tri(hm)
+e29.py           legacy takeover                                                     print('hm-k',[(k,round(Ev(mk(np.median),K=tri(hm-k))*1e6)) for k in range(0,10)])
+e30.py           legacy takeover,kalman,loess/minutes                                np.set_printoptions(linewidth=230,precision=6,suppress=True)
+e31.py           legacy takeover                                                     def near(q): return np.sort(D,axis=1)[:,q-1][:,None]
+e32.py           legacy takeover                                                     print([(c,round(Ev2(tri(near(87)),2,c)*1e6,2)) for c in (5.98,5.99,6,6.01,6.02)])
+e33.py           legacy takeover                                                     K=tri(near(87))
+e34.py           legacy takeover                                                     Yn=DS
+e35.py           legacy takeover,loess/minutes                                       rr=np.random.default_rng(9);F=[];T=[]
+e36.py           legacy takeover,loess/minutes                                       np.set_printoptions(linewidth=200,precision=6,suppress=True)
+e37.py           legacy takeover                                                     rr=np.random.default_rng(4);C=Counter()
+e38.py           legacy takeover,kalman                                              dd=[]
+e40.py           -      takeover,loess/minutes                                       rng=np.random.default_rng(1); d=dev(); wo=rng.normal(10000,30,(40,30)).astype('u2'); wo+=(
+e41.py           -      takeover                                                     rng=np.random.default_rng(1); d=dev(); wo=rng.normal(10000,30,(60,30)).astype('u2')
+e42.py           legacy takeover                                                     def sh(l,k): print(l,*['%s/%s/%s'%(z[0][:8],z[1],z[2]) for z in k])
+e43.py           legacy takeover                                                     N=700; rng=np.random.default_rng(3); T=34+1.5*np.sin(np.arange(N)/37)+rng.normal(0,.1,N)
+e44.py           legacy type4,takeover                                               np.set_printoptions(linewidth=200,precision=6,suppress=True)
+e45.py           legacy takeover,kalman,rescale,drift                                np.set_printoptions(linewidth=220,precision=6,suppress=True)
+e46.py           legacy takeover,rescale,drift                                       np.set_printoptions(linewidth=220,precision=9,suppress=True)
+e47.py           legacy takeover,rescale,drift                                       np.set_printoptions(linewidth=220,precision=9,suppress=True)
+e48.py           legacy takeover,rescale,drift                                       np.set_printoptions(linewidth=220,precision=6,suppress=True)
+e49.py           legacy takeover                                                     np.set_printoptions(linewidth=220,precision=6,suppress=True)
+e50.py           legacy takeover,rescale                                             np.set_printoptions(linewidth=220,precision=6,suppress=True)
+e51.py           legacy takeover,rescale                                             np.set_printoptions(linewidth=220,precision=8,suppress=True)
+e52.py           legacy takeover,rescale                                             np.set_printoptions(linewidth=220,precision=8,suppress=True)
+e53.py           legacy takeover,temperature                                         np.set_printoptions(linewidth=220,precision=8,suppress=True)
+e54.py           legacy takeover,kalman,rescale                                      np.set_printoptions(linewidth=220,precision=8,suppress=True)
+e55.py           legacy takeover,kalman,rescale                                      np.set_printoptions(linewidth=220,precision=10,suppress=True)
+e56.py           legacy takeover,kalman,rescale                                      np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e57.py           legacy fill,takeover                                                print('=====')
+e58.py           legacy type4,fill,takeover                                          print('=====')
+e59.py           legacy type4,fill,takeover,kalman,temperature                       print('=====')
+e60.py           legacy takeover,trend,rescale                                       np.set_printoptions(linewidth=220,precision=6,suppress=True)
+e61.py           legacy takeover                                                     np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e62.py           legacy takeover                                                     np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e63.py           legacy takeover,trend                                               np.set_printoptions(linewidth=220,precision=6,suppress=True)
+e64.py           legacy takeover,trend                                               np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e65.py           legacy takeover,rejection                                           np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e66.py           legacy takeover,kalman,trend                                        np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e67.py           legacy takeover                                                     np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e68.py           legacy takeover                                                     print('=====')
+e69.py           legacy takeover                                                     print('=====')
+e70.py           legacy takeover,rejection                                           print('=====')
+e71.py           legacy takeover                                                     print('=====')
+e72.py           legacy takeover                                                     print('=====')
+e73.py           legacy takeover                                                     print('=====')
+e74.py           -      takeover                                                     np.set_printoptions(precision=6,suppress=True,linewidth=180)
+e75.py           legacy takeover,rejection                                           rng=np.random.default_rng(1)
+e76.py           legacy takeover                                                     print('=====')
+e77.py           legacy takeover                                                     print('=====')
+e78.py           legacy takeover,rejection                                           np.seterr(all='ignore')
+e79.py           legacy takeover                                                     np.set_printoptions(linewidth=200,precision=5,suppress=True)
+e80.py           legacy type4,takeover                                               print('=====')
+e81.py           legacy err8/128,type4,takeover,rejection                            def rep(nm,wo,T=34.,d=None,seq=None,t=None):
+e82.py           legacy takeover,kalman,trend,rescale,rejection                      np.set_printoptions(linewidth=200,precision=6,suppress=True)
+e83.py           legacy takeover,kalman,trend,rescale,rejection                      np.set_printoptions(linewidth=200,precision=6,suppress=True)
+e84.py           legacy takeover,kalman,rescale                                      np.set_printoptions(linewidth=200,precision=5,suppress=True)
+e85.py           legacy takeover,kalman,rescale                                      ent=[];noent=[];rs=[];nors=[];fin=Counter(); odd=[]
+e86.py           legacy takeover,kalman,rescale                                      np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e87.py           legacy takeover,kalman,rescale                                      np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e88.py           legacy takeover                                                     np.seterr(all='ignore')
+e89.py           legacy fill,takeover,kalman,temperature,rescale                     np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e90.py           legacy fill,takeover                                                np.set_printoptions(linewidth=220,precision=3,suppress=True)
+e91.py           legacy fill,takeover                                                np.set_printoptions(linewidth=220,precision=4,suppress=True)
+e92.py           -      takeover                                                     v=np.array([20656,20807,20969,21142,21325,21519,21722,21934,22156,22386,22625,22872,23127,
+e93.py           -      takeover                                                     v=np.array([20656,20807,20969,21142,21325,21519,21722,21934,22156,22386,22625,22872,23127,
+e94.py           legacy fill,takeover                                                np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e95.py           -      takeover                                                     obs_s=np.array([.1627,-1.04125,.80795,.07135]); obs_c=np.array([-.122,.78087,-.79348,.1338
+e96.py           -      takeover                                                     obs=np.array([.1627,-1.04125,.80795,.07135])/100
+e97.py           -      takeover                                                     obs=np.array([.1627,-1.04125,.80795,.07135])
+e98.py           legacy fill,takeover                                                np.set_printoptions(linewidth=220,precision=5,suppress=True)
+e99.py           -      takeover                                                     B=np.load('fillB.npy'); t=np.arange(10,301,10.)
+e100.py          legacy fill,takeover                                                print('=====')
+e101.py          -      takeover                                                     obs=np.array([.162731,-1.041499,.807770,.070989])
+e102.py          legacy fill,takeover                                                print('=====')
+e103.py          -      takeover                                                     obs=np.array([.162731,-1.041499,.807770,.070989])
+e104.py          legacy fill,takeover                                                print('=====')
+e105.py          legacy takeover,trend                                               np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e106.py          legacy takeover,trend                                               np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e107.py          legacy takeover,kalman,trend                                        Z=[];K=[]
+e108.py          legacy takeover,kalman,trend                                        np.set_printoptions(linewidth=200,precision=3,suppress=True)
+e109.py          legacy takeover                                                     np.seterr(all='ignore')
+e110.py          legacy takeover,drift                                               np.set_printoptions(linewidth=200,precision=6,suppress=True)
+e111.py          legacy takeover                                                     np.seterr(all='ignore')
+e112.py          legacy takeover,drift                                               np.set_printoptions(linewidth=200,precision=6,suppress=True)
+e113.py          legacy takeover,drift                                               np.set_printoptions(linewidth=200,precision=5,suppress=True)
+e114.py          legacy takeover                                                     N=4320
+e115.py          legacy err4,type4,takeover                                          np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e116.py          legacy takeover                                                     np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e117.py          legacy takeover,level                                               np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e118.py          legacy takeover,kalman,level,rescale                                np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e119.py          legacy takeover,level                                               rng=np.random.default_rng(11); rows=[]
+e120.py          legacy takeover,level                                               N=4320
+e121.py          legacy takeover                                                     np.set_printoptions(linewidth=200,precision=5,suppress=True)
+e122.py          legacy takeover                                                     np.seterr(all='ignore')
+e123.py          legacy takeover,level                                               N=2100; dec=np.linspace(1,.5,4320)[:N,None]; w=mkwo(4320,5,40,300)[:N]; W=(2756+(w-2756.)*
+e124.py          legacy takeover                                                     np.seterr(all='ignore')
+e125.py          legacy takeover,level                                               N=2100; W=mkwo(N,3,300,700)
+e126.py          legacy err32,takeover,rejection                                     wo=mkwo(3000,1)
+e127.py          legacy err32,takeover                                               print('#####')
+e128.py          legacy err32,takeover                                               print('@@@@@')
+e129.py          legacy err32,err8/128,takeover                                      print('&&&&&')
+e130.py          legacy err8/128,takeover,rescale                                    P=[];Q=[]
+e131.py          legacy takeover                                                     np.set_printoptions(linewidth=220,precision=3,suppress=True)
+e132.py          legacy takeover                                                     KS=np.array([-1.6,2.7,6.6,5.6,5.4,3.9,-1.6])/21
+e133.py          legacy takeover                                                     rng=np.random.default_rng(3); C=Counter()
+e134.py          legacy takeover,trend                                               np.seterr(all='ignore')
+e135.py          legacy takeover                                                     np.seterr(all='ignore')
+e136.py          legacy takeover                                                     np.seterr(all='ignore')
+e137.py          legacy takeover                                                     rng=np.random.default_rng(0); N=400; sq=np.arange(1,N+1); t=BASE+300*sq+rng.integers(-40,4
+e138.py          legacy takeover,trend                                               rng=np.random.default_rng(0); N=400; sq=np.arange(1,N+1); t=BASE+300*sq+rng.integers(-40,4
+e139.py          legacy takeover                                                     np.seterr(all='ignore')
+e140.py          legacy takeover,trend                                               np.seterr(all='ignore')
+e141.py          legacy takeover                                                     np.seterr(all='ignore')
+e142.py          legacy takeover,rescale                                             P=[]
+e143.py          legacy takeover                                                     np.set_printoptions(linewidth=220,precision=2,suppress=True)
+e144.py          legacy takeover                                                     rng=np.random.default_rng(0); N=800; sq=np.cumsum(rng.choice([1]*20+[2,3,7],N)); t=BASE+30
+e145.py          legacy takeover                                                     def q(**k):
+e146.py          legacy err4,type4,takeover,loess/minutes                            np.set_printoptions(linewidth=230,precision=4,suppress=True)
+e147.py          sc     err16,takeover,level                                         np.set_printoptions(linewidth=230,precision=4,suppress=True)
+e148.py          sc     takeover,kalman,loess/minutes,rescale,rejection              np.set_printoptions(linewidth=230,precision=4,suppress=True)
+e149.py          legacy type4,takeover,rejection                                     wo=mkwo(80,1)
+e150.py          legacy latch,takeover                                               wo=mkwo(120,1)
+e151.py          legacy takeover,rejection                                           wo=mkwo(120,1)
+e152.py          sc     type4,takeover,level,rejection                               np.set_printoptions(linewidth=230,precision=4,suppress=True)
+e153.py          sc     takeover,level,rejection                                     np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e154.py          sc     takeover                                                     seq,t,adc,T,c,o,g,s,d=runspec(mf.HOLDOUT['holdout-gaps-spikes'],True)
+e155.py          sc     takeover,loess/minutes,rescale                               np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e156.py          legacy takeover                                                     np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e157.py          legacy takeover                                                     np.set_printoptions(linewidth=200,precision=4,suppress=True)
+e158.py          -      err32,type4,takeover,trend,rejection                         spec={'seed': 755202396, 'readings': 1500, 'start': 1, 'slope100': 5.288594948110065, 'vre
+e159.py          sc     type4,takeover,trend,rejection                               R=random.Random(7); C={'raw':0,'smooth':0,'both':0,'n':0,'dt4':0}
+e160.py          sc     type4,takeover,kalman,rescale,drift                          R=random.Random(3); P=[]
+e161.py          sc     type4,takeover                                               R=random.Random(3); C=Counter(); ex=[]
+e162.py          sc     takeover                                                     spec={"seed": 779510387, "readings": 1500, "start": 1, "slope100": 7.49389625216919, "vref
+e163.py          legacy takeover,rejection                                           wo=mkwo(200,1)
+e164.py          sc     takeover,loess/minutes,rejection                             np.set_printoptions(linewidth=230,precision=6,suppress=True)
+e165.py          legacy takeover                                                     d=dev()
+e166.py          sc     takeover                                                     spec={"seed": 769894003, "readings": 4320, "start": 1, "slope100": 4.196787406260732, "vre
+e167.py          legacy takeover                                                     def inrec(vref,dv=1,j=9,noisy=False):
+e168.py          sc     takeover,loess/minutes,rejection                             np.set_printoptions(linewidth=230,precision=6,suppress=True)
+e169.py          sc     takeover,rejection                                           np.set_printoptions(linewidth=230,precision=6,suppress=True)
+e170.py          sc     takeover,loess/minutes,rejection                             np.set_printoptions(linewidth=230,precision=6,suppress=True)
+e171.py          sc     takeover,rejection                                           np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e172.py          sc     takeover,trend,rejection                                     R=random.Random(3); bad=0; tot=0
+e173.py          sc     takeover,level                                               np.set_printoptions(linewidth=230,precision=5,suppress=True)
+e174.py          legacy takeover,level                                               N=2300; w=mkwo(N,1,80,200)
+e175.py          sc     takeover,level,loess/minutes                                 np.set_printoptions(linewidth=230,precision=6,suppress=True)
+e176.py          sc     takeover,level                                               R=random.Random(77); rows=[]
+e177.py          sc     takeover,level                                               spec=dict(seed=5,readings=2030,start=1,lo=80,hi=200,knot_min=10,knot_max=60,noise=12)
+e178.py          -                                                                   hl=((0,0),(49,0),(50,0),(149,0),(150,0),(299,0),(300,0),(599,0),(600,0),(0,49),(0,50),(300
+e179.py          -      takeover                                                     for hi in (49,50,51,149,150,151,299,300,301,599,600,601):
+e180.py          sc     takeover,loess/minutes,rejection                             spec={'seed': 61012774, 'readings': 800, 'start': 1, 'slope100': 4.0953521805098205, 'vref
+e181.py          -                                                                   recs.tofile('/tmp/x' if False else 'sd_recs.bin'); s[573:574].tofile('sd_state.bin')
+e182.py          -                                                                   full=dict(scenarios.DEFAULTS,**spec)
+e183.py          -      takeover                                                     def fma(x,y,z): return float(F(x)*F(y)+F(z))
+e184.py          sc     takeover                                                     def fma(x,y,z): return float(Fr(x)*Fr(y)+Fr(z))
+e185.py          -      takeover                                                     rows=pickle.load(open('cur_rows.pkl','rb'))
+e186.py          sc     takeover                                                     def fma(x,y,z): return float(Fr(x)*Fr(y)+Fr(z))
+e187.py          -      takeover                                                     rows=pickle.load(open('tran_rows.pkl','rb'))
+e188.py          -      err32                                                        nm=[n for n in s.dtype.names if 'buff' in n or 'err32' in n]
+e189.py          sc     err32,takeover                                               jar=df.engine_jar()
+e190.py          sc     err32,takeover,rejection                                     spec=dict(seed=9,readings=400,start=1)
+e191.py          -                                                                   for last in (913,914,915): print('23min last',last,trial([50,400,700,last],450,30))
+e200.py          sc     err16,takeover                                               np.set_printoptions(linewidth=200,precision=5,suppress=True)
+e201.py          -      err16                                                        f=[n for n in co.DEBUG.names if n.startswith('err16') and g[n].ndim==1]
+e202.py          -      err16,rescale                                                for i in list(range(5,20))+[2000,2001,2002]:
+e203.py          -      err16,latch                                                  P=g['err16_CGM_plasma']; I=g['err16_CGM_ISF_smooth']; S=o['smooth_result_glucose']
+e204.py          -      err16                                                        for i in (10,11,12,13,50):
+e205.py          -      err16,rescale,drift                                          P=g['err16_CGM_plasma']; S=o['smooth_result_glucose']; R=o['result_glucose']
+e206.py          -      err16                                                        P=g['err16_CGM_plasma']; R=o['result_glucose'].astype(float)
+e207.py          -      err16,takeover                                               recs=co.records(seq,t,np.array(adc,'u2'),T)
+e208.py          -      err16,takeover,kalman                                        def runf(st):
+e209.py          -      err16                                                        E=s['err_glu_arr']; R=o['result_glucose']
+e210.py          -      err16                                                        E=s['err_glu_arr']; P=g['err16_CGM_plasma']
+e211.py          -                                                                   b=base.copy(); b['err_glu_arr'][0][:]=150.0
+e212.py          -                                                                   for j in (287,282,277):
+e213.py          -      kalman                                                       def P(st): return runf(st)[0]
+e214.py          -      takeover,kalman                                              D=1e8; w=[]
+e215.py          -      err16,err4,err1                                              r0=runf(base); print('base',r0)
+e216.py          -      err16,kalman,rescale,drift                                   I=g['err16_CGM_ISF_smooth']; m=np.nonzero(~np.isnan(I))[0]
+e217.py          -      err16,drift                                                  I=g['err16_CGM_ISF_smooth']; m=np.nonzero(~np.isnan(I))[0]
+e218.py          sc     err16,takeover,drift                                         for spec in (dict(seed=3,readings=600,start=1,slope100=4.0,temp_mode='const',temp_lo=3400,
+e219.py          sc     err16,takeover,loess/minutes                                 spec=dict(seed=3,readings=600,start=1,slope100=4.0,temp_mode='const',temp_lo=3400,temp_hi=
+e220.py          sc     err16,takeover                                               W=np.array([.19203765690376573,.1652246,.11844988,.07161009,.03473077,.01186997,.00419148,
+e221.py          -      takeover                                                     for D in (1e12,1e14):
+e222.py          sc     err16,takeover,rejection                                     for name in ('gaps-and-jitter','holdout-gaps-spikes','clock-jump','contact-spikes'):
+e223.py          sc     err16,takeover,rejection                                     for name in ('gaps-and-jitter','holdout-gaps-spikes','contact-spikes'):
+e224.py          sc     err16,takeover                                               sv=json.load(open('err_survey.json'))
+e225.py          sc     err16,takeover                                               sv=json.load(open('err_survey.json'))
+e226.py          sc     err16,takeover                                               # dataset of err16 debug scalars + condi, records with seq>=600, decaying-sensitivity runs
+e227.py          -      err16,takeover                                               z=np.load('err16_ds.npz'); X=z['X']; Y=z['Y'].astype(bool); names=[n.replace('err16_CGM_IS
+e228.py          sc     err16,takeover                                               # full-resolution transitions of err16 conditions
+e229.py          -      err16,takeover                                               z=np.load('err16_ds.npz'); X=z['X']; Y=z['Y'].astype(bool); N=[n.replace('err16_CGM_ISF_',
+e230.py          sc     err32,device-params,takeover                                 spec=dict(seed=9,readings=1000,start=1)
+e231.py          sc     err4,type4,takeover                                          np.set_printoptions(linewidth=220,precision=4,suppress=True)
+e232.py          sc     err4,takeover,loess/minutes                                  np.set_printoptions(linewidth=220,precision=4,suppress=True)
+e233.py          sc     err4,takeover                                                np.set_printoptions(linewidth=250,precision=3,suppress=True)
+e234.py          sc     err4,takeover                                                for c in (0.0,0.2,0.29,0.31,0.4,0.49,0.51,0.6):
+e235.py          sc     err4,type4,takeover                                          for c in (0.2,0.35,0.45):
+e236.py          sc     err4,type4,takeover,loess/minutes                            np.set_printoptions(linewidth=250,precision=4,suppress=True)
+e237.py          sc     err4,err1,err2,device-params,takeover                        def sig(c,dev):
+e238.py          sc     err4,type4,takeover                                          # level grid with long plateau: which C/D bits are on at plateau steady state (record 508)
+e239.py          sc     err4,takeover                                                for sl in (7.0,):
+e240.py          sc     err4,type4,takeover                                          def state(adcv,dev):
+e241.py          sc     err4,takeover                                                for sl,ea in ((3.5226,0.06),(7.0,0.06)):
+e242.py          sc     err4,takeover                                                def check(name,N=4,dev=None):
+e243.py          sc     err4,type4,takeover                                          craft.DEV=co.default_device()
+e244.py          sc     err4,takeover                                                craft.DEV=co.default_device()
+e245.py          sc     err4,takeover                                                sv=json.load(open('err_survey.json'))
+e246.py          sc     err16,err4,type4,takeover,rejection                          sv={x['name']:x for x in json.load(open('err_survey.json'))}
+e247.py          sc     type4,takeover,rescale,drift,rejection                       sv=json.load(open('err_survey.json'))
+e248.py          sc     err4,err1,err2,type4,takeover,rejection                      sv=json.load(open('err_survey.json'))
+e249.py          sc     err4,type4,takeover                                          f1=[n for n in co.DEBUG.names if n.startswith('err1') or n.startswith('err2')]
+e250.py          sc     err4,takeover                                                craft.DEV=co.default_device()
+e251.py          sc     err4,takeover,drift                                          spec=dict(BASE,readings=2600)
+e252.py          -      err4                                                         d=co.default_device()
+e253.py          -      err4                                                         for sl,ea in ((3.5226,0.10067),(7.0,0.10067),(3.5226,0.06)):
+e254.py          -      err4,takeover                                                base_adc=adc0.copy()
+e255.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json'))
+e256.py          -      err4,type4,takeover,rejection                                tot=0; res={}
+e257.py          -      err4,type4,takeover,loess/minutes,rejection                  tot=0; res={}
+e258.py          -      err4,type4,takeover,rejection                                tot=0; res={}
+e259.py          -      err16,err4,type4,rejection                                   out=[]
+e260.py          -      err4,type4,takeover,rejection                                tot=0; res={}
+e261.py          -      err16,err4,type4,takeover,rescale,rejection                  tot=0; res={}
+e262.py          sc     err4,takeover,rescale                                        sv={x['name']:x for x in json.load(open('err_survey.json'))}
+e263.py          -      err4,type4,loess/minutes,rejection                           rows=[]
+e264.py          sc     err4,type4,takeover                                          sv=json.load(open('err_survey.json'))
+e265.py          sc     err4,takeover,rejection                                      seq,t,adc,T=base(); n=700
+e266.py          sc     err4,latch,takeover                                          seq,t,adc,T=base(); n=200
+e267.py          sc     err4,type4,takeover                                          seq,t,adc,T=base(); n=1500
+e268.py          sc     takeover                                                     def go(name,mod,label,bits=(1,2,4,16)):
+e269.py          sc     err16,takeover                                               spec=mf.DEVELOPMENT['life-lot2-sensitivity-loss']
+e270.py          sc     err4,takeover                                                seq,t,adc,T=base(); n=120
+e271.py          sc     err4,takeover,loess/minutes,rescale,rejection                R=random.Random(4); rows=[]
+e272.py          sc     err4,takeover,loess/minutes,rescale,rejection                R=random.Random(4); rows=[]
+e273.py          sc     err4,type4,takeover                                          R=random.Random(4); runs=[]
+e274.py          sc     err4,takeover                                                R=random.Random(4); specs=[]
+e275.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e276.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e277.py          sc     type4,takeover,level,rejection                               spec=ast.literal_eval(sys.argv[1])
+e278.py          sc     err4,takeover,level                                          cs=json.load(open('c0specs.json'))
+e279.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e280.py          sc     err4,type4,takeover,loess/minutes,rejection                  cs=json.load(open('c0specs.json')); sv=json.load(open('err_survey.json'))
+e281.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e282.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e283.py          sc     err4,takeover                                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e284.py          sc     err4,type4,takeover,rejection                                sv=json.load(open('err_survey.json')); cs=json.load(open('c0specs.json'))
+e285.py          sc     err4,type4,takeover                                          R=random.Random(9); runs=[]
+e290.py          sc     takeover                                                     np.set_printoptions(linewidth=250,precision=3,suppress=True)
+e291.py          sc     err2,takeover                                                for sl in (3.5226,7.0):
+e292.py          sc     err1,takeover                                                f=[n for n in co.DEBUG.names if n.startswith('err1') and co.DEBUG[n].shape==() and 'noise_
+c0m2.py          -      takeover,rejection                                           runs=pickle.load(open('c0runs.pkl','rb'))
+c0m3.py          -      latch,takeover,rejection                                     runs=pickle.load(open('c0runs.pkl','rb'))
+c0m4.py          -      takeover,rejection                                           runs=pickle.load(open('c0runs.pkl','rb'))
+c0model.py       -      takeover,rejection                                           runs=pickle.load(open('c0runs.pkl','rb'))
+cart.py          -      takeover                                                     def best_split(X,y,minleaf):
+craft.py         sc     takeover                                                     DEV=co.default_device()
+cur.py           legacy takeover,loess/minutes,rejection                             np.set_printoptions(linewidth=200,precision=6,suppress=True)
+dg.py            sc     err4,err1,type4,takeover                                     # usage: python3 dg.py "<spec dict>" first_record_1based
+dg2.py           sc     type4,takeover                                               spec=ast.literal_eval(sys.argv[1]); at=int(sys.argv[2])-1
+diag.py          sc     type4,takeover,kalman,rescale,rejection                      np.set_printoptions(linewidth=230,precision=5,suppress=True)
+err16lib.py      -      takeover                                                     W=np.array([0.19203786935092992,0.16522460111444,0.11844988518211,0.0716100935714,0.034730
+err_survey.py    sc     takeover                                                     # Survey: which error bits fire, where, in fixture and random scenarios.
+fuzz.py          sc     err32,type4,fill,takeover,trend,rejection                    R=random.Random(int(sys.argv[1]) if len(sys.argv)>1 else 7); bad=Counter(); ex={}
+gen.py           legacy takeover                                                     def mkwo(N,seed=0,lo=60,hi=250,noise=12,d=None,T=None,level=None):
+kt.py            legacy takeover,trend,temperature,rejection                         # build: kotlinc kotlin/Cli.kt <engine sources> -include-runtime -d eng.jar
+lab.py           -      takeover,temperature                                         ARGS=layout.struct('air1_opcal4_arguments_t',False)
+layout.py        -      takeover                                                     H=open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','..','..','Common','sr
+lvlprobe.py      sc     takeover,level                                               spec=dict(seed=5,readings=2030,start=1,lo=80,hi=200,knot_min=10,knot_max=60,noise=12)
+o.py             -      takeover                                                     # build: cc -O2 -shared -o liboracle.dylib oracle.c (in this directory)
+ref.py           legacy takeover,kalman,level,trend,loess/minutes,temperature,rescale,drift,rejection TRSPAN=35
+rules.py         -      takeover                                                     def conj(X,y,names,steps=4):
+sc.py            -      takeover                                                     assert os.environ.get('CARESENS_REFERENCE_LIB'), 'set CARESENS_REFERENCE_LIB to the arm64 
+state_map.py     -      takeover                                                     """Prints the byte offset, type and length of every field of the vendor's
+stress.py        sc     takeover                                                     BASE=dict(seed=21,readings=1500,start=1,lo=80,hi=200,knot_min=30,knot_max=120,noise=12)
+stress2.py       sc     takeover                                                     def runT(fn):
+t.py             -      takeover                                                     v=Vend(); e=Algo(); v.reset(defdev()); e.reset(defdev())
+t1.py            legacy err32,takeover                                               np.seterr(all='ignore')

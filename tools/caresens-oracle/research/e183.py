@@ -1,0 +1,36 @@
+exec(open('e182.py').read().split("cands={")[0])
+from fractions import Fraction as F
+def fma(x,y,z): return float(F(x)*F(y)+F(z))
+f=np.float32
+A=[float(x) for x in a]; W=[float(x) for x in want]
+c={}
+c['fma(aV/40950,100,-E*100)']=[fma(x*V/40950,100,-E*100) for x in A]
+c['fma(a*V,100/40950,-E*100)']=[fma(x*V,100/40950,-E*100) for x in A]
+c['fma(a, V/409.5, -E*100)']=[fma(x,V/409.5,-E*100) for x in A]
+c['fma(a*V/409.5... ']=[fma(x*V,1/409.5,-E*100) for x in A]
+c['fma(a/40950,V,-E)*100']=[fma(x/40950,V,-E)*100 for x in A]
+c['fma(a*V,1/40950,-E)*100']=[fma(x*V,1/40950,-E)*100 for x in A]
+c['fma(a,V/40950,-E)*100']=[fma(x,V/40950,-E)*100 for x in A]
+c['fma(-E,100,aV/40950*100)']=[fma(-E,100,x*V/40950*100) for x in A]
+c['fma(-E,100,aV/409.5)']=[fma(-E,100,x*V/409.5) for x in A]
+c['fma(E,-100, a*V*100/40950)']=[fma(E,-100,x*V*100/40950) for x in A]
+c['f32 a*V']=[(float(f(x*V))/40950-E)*100 for x in A]
+c['f32 volt']=[(float(f(x*V/40950))-E)*100 for x in A]
+c['f32 vol-E']=[float(f(f(x*V/40950)-ea))*100 for x in A]
+c['f32 vref/40950']=[(x*float(f(vr/f(40950)))-E)*100 for x in A]
+c['f32 all']=[float(f(f(f(f(x)*vr)/f(40950))-ea)*f(100)) for x in A]
+c['(aV/4095 *0.1 - E)*100 fma']=[fma(x*V/4095,0.1,-E)*100 for x in A]
+c['fma(a*V/4095,10,-E*100)']=[fma(x*V/4095,10,-E*100) for x in A]
+c['fma(a/4095*V,10,-E*100)']=[fma(x/4095*V,10,-E*100) for x in A]
+c['fma(a*V/4095,0.1,-E)*100']=[fma(x*V/4095,0.1,-E)*100 for x in A]
+c['(a*V/4095 -E*10)*10 fma1']=[fma(-E,10,x*V/4095)*10 for x in A]
+c['fma(a*V/4095 - 10E... ']=[fma(x*V/4095-E*10,10,0) for x in A]
+c['fma(a*V/40950,100,-100E) k']=[fma(x*V/40950,100,-(E*100)) for x in A]
+c['a*V/4095/10 then fma(.,100,-E*100)']=[fma(x*V/4095/10,100,-E*100) for x in A]
+c['a/4095*V/10 then fma']=[fma(x/4095*V/10,100,-E*100) for x in A]
+c['a/40950*V fma']=[fma(x/40950*V,100,-E*100) for x in A]
+c['fma(a/40950,V*100,-E*100)']=[fma(x/40950,V*100,-E*100) for x in A]
+c['fma(a, V*100/40950, -E*100)']=[fma(x,V*100/40950,-E*100) for x in A]
+c['fma(a/4095, V*10, -E*100)']=[fma(x/4095,V*10,-E*100) for x in A]
+c['fma(a*V,10/4095,-E*100)']=[fma(x*V,10/4095,-E*100) for x in A]
+for k,v in sorted(c.items(),key=lambda kv:-sum(p==q for p,q in zip(kv[1],W))): print(sum(p==q for p,q in zip(v,W)),k)

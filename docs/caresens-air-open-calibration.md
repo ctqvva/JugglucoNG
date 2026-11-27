@@ -17,7 +17,7 @@ still uses the vendor library for what the app shows.
 | History smoothing (the six values the app writes back), trend | reproduced |
 | Contact rejection (data type 2), parameter error 64, timing error 32 | reproduced |
 | Error 4 (signal lost), its main condition and how long it stays set | reproduced; its other four conditions are not (seen only on extreme or late-start signals) |
-| Taking over a running sensor from the vendor library's state block | reproduced |
+| Taking over a running sensor from the vendor library's state block | reproduced; one sweep run differs in the minute currents when taken over during signal dropouts |
 | Error checks 1, 2, 8, 16, 128 | **not reproduced**; the engine never raises them |
 | Low-signal flag (data type 4) | partly decoded, not emitted; where it may be set the engine reports `exact = false` for the trend and, if it fell in days 3 to 7, for the sensitivity compensation |
 | Filling records after a clock jump (consecutive sequence, 480–1379 s gap) | not reproduced; reported as `exact = false` |
@@ -29,13 +29,16 @@ error checks are reproduced and the engine has run against real sensors.
 
 The error checks matter: the vendor withholds readings while one of them is
 active (often until the end of the sensor), and the engine would show values
-there. In the synthetic tests error 16 (sensitivity) occurs in 3 of 18
-scenarios, the others only with deliberately broken signals.
+there. In the synthetic tests error 16 (sensitivity) occurs in 3 of the 18
+original fixture scenarios and in 3 of 250 random ones; the others occur only
+with deliberately broken signals (errors 8 and 128 never).
 
 ### What is known about the checks not reproduced
 
-Found with `tools/caresens-oracle` (triggers, state perturbation, bisection);
-details and scripts in the research notes, not needed to run the engine.
+Found with `tools/caresens-oracle` (triggers, state perturbation, bisection).
+The details, rejected hypotheses and scripts are in
+`docs/caresens-air-handoff/` (`findings.md`, one task per open item) and
+`tools/caresens-oracle/research/`; they are not needed to run the engine.
 
 - **All error bits** are evaluated per record. Errors 1, 2 and 4 stay set
   only while records are accepted and consecutive; errors 16 and 32 stay set
@@ -63,11 +66,12 @@ The reference is the arm64 `libCALCULATION.so` the app ships
 (sha256 `0bc4e28b…02d4cf`), run in-process on an arm64 Mac by
 `tools/caresens-oracle`. It is supplied locally and never committed.
 
-- **Fixtures** (`Common/src/test/resources/caresens`, 700 KB): vendor outputs
-  for 18 scenarios, regenerated inputs: three 15-day wears (both lot types,
+- **Fixtures** (`Common/src/test/resources/caresens`, 760 KB): vendor outputs
+  for 20 scenarios, regenerated inputs: three 15-day wears (both lot types,
   varying temperature, sensitivity loss), sustained lows and highs, fast
   swings, temperature steps, gaps with clock jitter, contact spikes, a clock
-  jump, start in the middle of a wear, warm-up, invalid factory values, and a
+  jump, start in the middle of a wear, warm-up, invalid factory values, signal
+  dropouts, and a
   separate holdout set with other seeds and factory values that was not used
   while writing the engine (it found two of the rules below). The unit test
   checks glucose, trend, history, factory glucose, sequence, rejections and
@@ -76,10 +80,19 @@ The reference is the arm64 `libCALCULATION.so` the app ships
 - **Randomised sweep** (`tools/caresens-oracle/differential.py`): random factory
   values over the whole accepted range, noise, glucose shapes, temperature
   modes, gaps, jitter, clock jumps, spikes, sensitivity loss and start
-  sequence. The last sweeps: 600 full runs (seeds 101 and 202) and 300 runs
-  taking over vendor state at a random record (seeds 7 and 8), all equal.
+  sequence and signal dropouts. Last sweeps, on 47549cd25:
+  - **Fresh runs**, seeds 101 and 202: 1 of 600 differs. The trend is withheld by the noise part of the low-signal flag, which is not reproduced.
+  - **Runs taking over vendor state** at a random record, seeds 7 and 8: 1 of 300 differs. The minute currents differ after a takeover during dropouts; not investigated.
+  - **Not claimed exact:** about 15 % of records, mostly the part after day 7 of dropout runs, where the low-signal flag may have changed the sensitivity reference.
+
   Two rules were found this way after the fixtures passed: the diabetes level
   thresholds and the unit of the timing-error window.
+
+  The sweep's verdict leaves out a lot:
+  - It compares only error bits 4, 32 and 64, so errors 1, 2, 8, 16 and 128, and the readings the vendor withholds under them, are not counted.
+  - It skips records the engine reports as not exact.
+  - It stops at the first filled record.
+  - It stops comparing bit 4 once one of its unreproduced conditions has fired.
 - **Intermediates**: the harness compares minute currents, corrected current,
   factory glucose, rescaled glucose, history and trend separately, so a
   difference points at the stage that causes it.
@@ -202,6 +215,9 @@ CARESENS_REFERENCE_LIB=/path/to/arm64-v8a/libCALCULATION.so tools/caresens-oracl
 CARESENS_REFERENCE_LIB=... tools/caresens-oracle/differential.py --runs 200
 CARESENS_REFERENCE_LIB=... tools/caresens-oracle/differential.py --runs 100 --import-state
 ```
+
+The experiment scripts behind the findings are in
+`tools/caresens-oracle/research/` (see its README for setup and datasets).
 
 The library is the one `scripts/restore-build-inputs.sh` places in
 `Common/src/main/jniLibs/arm64-v8a/`. The loader needs an arm64 host

@@ -17,6 +17,7 @@ arm64 macOS or Linux process; no Android device or emulator is needed.
 | `make_fixtures.py` | writes the reference fixtures the unit tests use |
 | `differential.py` | randomised sweep; prints the first stage that differs |
 | `engine-cli/EngineCli.kt` | command-line driver for the engine, used by `differential.py` |
+| `research/` | experiment scripts, small datasets and the vendor state offset map behind the error-check findings; see `research/README.md` and `docs/caresens-air-handoff/` |
 
 Regenerating fixtures with a different library build changes their expected
 values; `make_fixtures.py` warns when the library's sha256 is not the known one.
