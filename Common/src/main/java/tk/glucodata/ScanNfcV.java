@@ -47,8 +47,6 @@ import static android.view.View.GONE;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Applic.mgdLmult;
-import static tk.glucodata.BuildConfig.libreVersion;
-import static tk.glucodata.Libre3.libre3NFC;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Log.showbytes;
 import static tk.glucodata.MainActivity.systembarBottom;
@@ -147,138 +145,17 @@ public class ScanNfcV {
     }
 
     static private int[] libre3scan(GlucoseCurve curve, MainActivity main, Vibrator vibrator, Tag tag) {
-        int value = 0;
-        int ret = 0x100000;
-        if (android.os.Build.VERSION.SDK_INT >= 26) {
-            long streamptr;
-            streamptr = libre3NFC(tag);
-            vibrator.cancel();
-            if (streamptr == 2L) {
-                {
-                    if (doLog) {
-                        Log.i(LOG_ID, "streamptr==2");
-                    }
-                    ;
-                }
-                ;
-                ret = 0xFD;
-            } else {
-                if (libreVersion == 3) {
-                    if (streamptr >= 0L && streamptr < 7L) {
-                        switch ((int) (streamptr & 0xFFFFFFF)) {
-                            case 0: {
-                                if (getlibreAccountIDnumber() == 0) {
-                                    if (doLog)
-                                        Log.i(LOG_ID, "zero account ID");
-                                    ret = 0xF8;
-                                } else {
-                                    if (doLog)
-                                        Log.i(LOG_ID, "streamptr==0");
-                                    ret = 0xFA;
-                                }
-                            }
-                                ;
-                                break;
-                            case 1: {
-                                {
-                                    if (doLog) {
-                                        Log.i(LOG_ID, "streamptr==1");
-                                    }
-                                    ;
-                                }
-                                ;
-                                ret = 0xFB;
-                            }
-                                ;
-                                break;
-                            case 5: {
-                                {
-                                    if (doLog) {
-                                        Log.i(LOG_ID, "terminated");
-                                    }
-                                    ;
-                                }
-                                ;
-                                ret = 13;
-                                break;
-                            }
-                            case 6: {
-                                {
-                                    if (doLog) {
-                                        Log.i(LOG_ID, "ended");
-                                    }
-                                    ;
-                                }
-                                ;
-                                ret = 4;
-                                break;
-                            }
-                            default: {
-                                if (streamptr > 0L && streamptr < 4L) {
-                                    {
-                                        if (doLog) {
-                                            Log.i(LOG_ID, "0<streamptr<4");
-                                        }
-                                        ;
-                                    }
-                                    ;
-                                    ret = 0xFA;
-                                }
-                            }
-                        }
-                    } else {
-                        var name = Natives.getSensorName(streamptr);
-                        if (name == null) {
-                            {
-                                if (doLog) {
-                                    Log.i(LOG_ID, "name==null");
-                                }
-                                ;
-                            }
-                            ;
-                            ret = 0xFA;
-                            Natives.freedataptr(streamptr);
-                        } else {
-                            {
-                                if (doLog) {
-                                    Log.i(LOG_ID, "scanned " + name);
-                                }
-                                ;
-                            }
-                            ;
-                            if (SensorBluetooth.resetDeviceOrFree(streamptr, name))
-                                askpermission = true;
-                            ret = 0xFC;
-                            value = 1;
-                            askcalendar = true;
-                            curve.render.badscan = calendar(main, ret, name, getlibreAccountIDnumber());
-                        }
-                    }
-                } else {
-                    {
-                        if (doLog) {
-                            Log.i(LOG_ID, "libreVersion!=3");
-                        }
-                        ;
-                    }
-                    ;
-                    ret = 0xFE;
-                }
-            }
-            if (ret != 0xFC)
-                failure(vibrator);
-        } else {
-            {
-                if (doLog) {
-                    Log.i(LOG_ID, "No Libre 3 Android <8");
-                }
-                ;
-            }
-            ;
-            ret = 0xF9;
-        }
+        final int[] managed = tk.glucodata.drivers.libre3.Libre3ManagedNfc.scanForUi(tag);
+        vibrator.cancel();
+        if (managed[0] == tk.glucodata.drivers.libre3.Libre3ManagedNfc.RESULT_PAIRED) {
+            askpermission = true;
+            askcalendar = true;
+            curve.render.badscan = managedCalendar(main,
+                    tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastPairedSensorId());
+        } else
+            failure(vibrator);
         curve.requestRender();
-        return new int[] { ret, value };
+        return managed;
     }
 
     static public synchronized void scan(GlucoseCurve curve, Tag tag) {
@@ -296,7 +173,8 @@ public class ScanNfcV {
         startvibration(vibrator);
         curve.render.stepresult = GlucoseCurve.STEPBACK;
         {
-            if (!Natives.gethaslibrary()) {
+            // Libre 3 needs no library; this check is for Libre 1/2 only.
+            if (!tk.glucodata.drivers.libre3.Libre3ManagedNfc.isLibre3Tag(tag) && !Natives.gethaslibrary()) {
                 vibrator.cancel();
                 failure(vibrator);
                 return;
@@ -541,6 +419,38 @@ public class ScanNfcV {
         if (!isWearable) {
             XInfuus.sendSensorActivateBroadcast(act, name, Natives.laststarttime());
         }
+        final long timedata = Natives.getSensorEndData(name);
+        newsensorDialog(act, text, name, accountid, (timedata & 0xFFFFFFFFL) * 1000L, (timedata >> 32) != 0L);
+    }
+
+    /**
+     * Success dialog for a sensor the Kotlin Libre 3 driver paired: same text and calendar offer
+     * as the legacy flow, with the start and end taken from the driver's own record.
+     */
+    static int managedCalendar(Activity act, String serial) {
+        if (!askcalendar || serial == null)
+            return 0;
+        final var record = tk.glucodata.drivers.libre3.Libre3Persistence.INSTANCE.loadSensor(act, serial);
+        if (record == null)
+            return 0;
+        final long readyAt = record.getStartTimeMs() + record.getWarmupMinutes() * 60_000L;
+        final long waitmin = (readyAt - System.currentTimeMillis() + 59_999L) / 60_000L;
+        final String mess = (waitmin > 0)
+                ? (act.getString(R.string.sensor) + " " + serial + act.getString(R.string.ready_in) + waitmin + " "
+                        + act.getString(R.string.minutes))
+                : act.getString(R.string.ready_for_use);
+        if (!isWearable && tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated()) {
+            XInfuus.sendSensorActivateBroadcast(act, serial, record.getStartTimeMs() / 1000L);
+        }
+        // The calendar entry names the LibreView account; only when that is what the sensor holds.
+        final long account = Natives.getlibreAccountIDnumber();
+        final long shownAccount = (account & 0xFFFFFFFFL) == record.getReceiverId() ? account : 0L;
+        newsensorDialog(act, mess, serial, shownAccount, record.getExpectedEndMs(), tk.glucodata.drivers.libre3.Libre3ManagedNfc.lastScanActivated());
+        return 0;
+    }
+
+    static private void newsensorDialog(Activity act, String text, String name, long accountid, long endtime,
+            boolean calendarChecked) {
 
         var metrics = act.getResources().getDisplayMetrics();
         int width = metrics.widthPixels;
@@ -561,9 +471,7 @@ public class ScanNfcV {
 
             CheckBox calBox = new CheckBox(act);
             calBox.setPadding(0, pad, 0, pad);
-            long timedata = Natives.getSensorEndData(name);
-            final var endtime = (timedata & 0xFFFFFFFFL) * 1000L;
-            calBox.setChecked((timedata >> 32) != 0L);
+            calBox.setChecked(calendarChecked);
             calBox.setText(R.string.addsensorenddate);
             final boolean stillused = endtime > System.currentTimeMillis();
             if (!stillused)

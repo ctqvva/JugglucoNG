@@ -41,6 +41,7 @@ struct SensorGlucoseData {
     bool isDexcom() const { return false; }
     bool isAir() const { return false; }
     bool isAiDex() const { return aidex; }
+    bool isManagedLibre3() const { return false; }
     bool isInResetMode() const { return false; }
     bool hasData(uint32_t) const { return false; }
     bool error() const { return false; }

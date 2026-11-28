@@ -52,6 +52,7 @@ inline int getpagesize(void) {
 
 #include "inout.hpp"
 #include "wearhistoryorigin.hpp"
+#include "nightscouthistoryprogress.hpp"
 
 #include "net/backup.hpp"
 #include "net/passhost.hpp"
@@ -239,6 +240,9 @@ void unSetLibreSend() {
 class SensorGlucoseData {
   bool haserror = false;
   string sensordir;
+  // The directory's last component, NUL-padded, when it is shorter than a
+  // short name; see shortsensorname().
+  std::array<char, 12> paddedshortname = padshortname(sensordir);
   // inline static  const string basedir{FILEDIR};
 public:
   WearHistoryOrigin wearHistoryOrigin;
@@ -359,8 +363,8 @@ public:
     bool air : 1;
     // Fourth bit of the managed family code (was reserved, so every existing
     // info.dat reads 0 here). Codes 0-7 are unchanged; 8-15 set this bit, and a
-    // phone running an older build sees only the low three bits — 0, unknown —
-    // which is what it showed for such a sensor before the code existed.
+    // phone running an older build sees only code & 7: 8 is unknown, but 9
+    // aliases MQ, 10 AiDex, etc. Clone peers need the four-bit family support.
     uint8_t managedFamilyHigh : 1;
 
     static constexpr unsigned maxManagedFamilyCode = 15;
@@ -676,6 +680,7 @@ public:
   bool resetdevice = false;
 
   std::mutex mutex;
+  NightscoutHistoryProgress nightscoutHistoryProgress;
   // Serializes every write to the poll arrays and their count with the Dexcom
   // slot repair, which rewrites slots and cuts the count from a snapshot: a
   // sample stored meanwhile would be hidden or overwritten. Shared by all
@@ -814,7 +819,10 @@ public:
                   60u
             : 0u;
     return static_cast<int32_t>(
-        std::min(std::max({defaultRecords, wearRecords, minimumRecords}),
+        std::min(std::max({defaultRecords, wearRecords, minimumRecords,
+                     // Grow earlier Libre 3 preview files only in the constructor. Existing
+                     // mapped pointers stay valid for their entire process lifetime.
+                     info && info->managedFamilyCode() == 9u ? size_t{32 * 24 * 60} : size_t{0}}),
                  static_cast<size_t>(std::numeric_limits<int32_t>::max())));
   }
   size_t pollStorageCapacity() const {
@@ -893,7 +901,11 @@ public:
     auto *info = getinfo();
     if (!info)
       return 14 * 24 * 60;
-    const int wear = (isLibre2() || isDexcom() || isAccuChek() || isAir())
+    // A managed Libre 3 shell is a Libre 2 by elimination, but its wear is in
+    // wearduration2 (setWearDays). Until that is written the field still holds
+    // ident.len, which it shares storage with, and the shell's own 14 days hold.
+    const bool negotiated = isManagedLibre3() && info->wearduration2 >= 24 * 60;
+    const int wear = !negotiated && (isLibre2() || isDexcom() || isAccuChek() || isAir())
                          ? info->wearduration
                          : info->wearduration2;
     if (isAiDex()) {
@@ -950,7 +962,7 @@ public:
       };
       return (maxSIhours * 60 - 19) * 60;
     }
-    if (isLibre3() || isAccuChek() || isAir())
+    if (isLibre3() || isManagedLibre3() || isAccuChek() || isAir())
       return getweardurationSEC();
     return getweardurationSEC() + 12 * 60 * 60;
   }
@@ -984,6 +996,11 @@ public:
     // info->days normally covers that day already.
     if (isNfcLibre2())
       minutes = std::max(minutes, getweardurationMIN() + 24 * 60);
+    // A day past the rated wear, as mkdatabase3's records have it: the sensor
+    // decides when it stops, and its last minutes arrive after its nominal end.
+    // Without this checkinfo() retires a sensor that is still sending.
+    if (isManagedLibre3())
+      minutes += 24 * 60;
     uint32_t maxtime = minutes * 60 + getstarttime();
 
     // ARCHITECTURAL FIX: Support Custom Calibration for aged sensors.
@@ -1224,6 +1241,8 @@ public:
     //    return  hasbluetooth();
   }
   const std::string_view othershortsensorname() const {
+    if (isManagedLibre3())
+      return sensid();
     if (isSibionics()) {
       if (siSubtype() != 3) {
         const char *name = (char *)&getinfo()->siToken;
@@ -1250,11 +1269,25 @@ public:
     return sensordir;
   }
   typedef std::array<char, 11> sensorname_t;
+  static std::array<char, 12> padshortname(std::string_view dir) {
+    std::array<char, 12> out{};
+    const size_t slash = dir.find_last_of('/');
+    const std::string_view id =
+        slash == std::string_view::npos ? dir : dir.substr(slash + 1);
+    if (id.size() < sizeof(sensorname_t))
+      std::copy(id.begin(), id.end(), out.begin());
+    return out;
+  }
   [[nodiscard]] const sensorname_t *shortsensorname() const {
     std::string_view sid = sensid();
     if (sid.length() >= 2 && sid[0] == 'X' && sid[1] == '-') {
       return reinterpret_cast<const sensorname_t *>(sid.data());
     }
+    // The open Libre 3 driver names its shell by the nine-character serial.
+    // The path's last 11 characters would be "s/0D1234ABC", which the web
+    // server's ids, Clone's serial and the Java name getters all passed on.
+    if (paddedshortname[0] && getinfo() && isManagedLibre3())
+      return reinterpret_cast<const sensorname_t *>(paddedshortname.data());
     return reinterpret_cast<const sensorname_t *>(sensordir.data() +
                                                   sensordir.length() - 11);
   }
@@ -1267,7 +1300,7 @@ public:
     if (!isSibionics()) {
       if (isLibre3())
         return std::string_view(sensordir.data() + sensordir.length() - 9, 9);
-      if (isAiDex())
+      if (isAiDex() || isManagedLibre3())
         return sensid();
       if (isAir())
         return std::string_view(sensordir.data() + sensordir.length() - 12, 12);
@@ -1422,6 +1455,51 @@ static int getgeneration(const char *info) {
   bool isLibre2() const {
     return !(isAccuChek() || isSibionics() || isDexcom() || isAir() ||
              getinfo()->interval == interval5);
+  }
+  // The open Libre 3 driver writes a managed stream shell (family 9), not the
+  // removed proprietary driver's five-minute record, so isLibre3() is false
+  // for it and isLibre2() true by elimination. LibreView asks the two below,
+  // which keep such a sensor on the Libre 3 upload.
+  static constexpr unsigned managedLibre3Family = 9u;
+  bool isManagedLibre3() const {
+    return !isLibre3() && getinfo()->managedFamilyCode() == managedLibre3Family;
+  }
+  bool libreviewLibre3() const { return isLibre3() || isManagedLibre3(); }
+  bool libreviewLibre2() const { return isLibre2() && !isManagedLibre3(); }
+  // The activation (Unix seconds) the Kotlin driver counts lifeCount from. A
+  // managed Libre 3 never takes the Libre 2 upload, the only other user of
+  // libreStarttime, so the field holds it (setManagedLibre3Activation).
+  uint32_t managedLibre3Activation() const {
+    return isManagedLibre3() ? getinfo()->libreStarttime : 0u;
+  }
+  // The stored minute at this sensor lifeCount, or nullptr.
+  const ScanData *managedLibre3Minute(int lifeCount) const {
+    const uint32_t activation = managedLibre3Activation();
+    const uint32_t start = getinfo()->starttime;
+    if (!activation || !start || lifeCount < 0)
+      return nullptr;
+    const uint32_t time = activation + static_cast<uint32_t>(lifeCount) * 60u;
+    if (time < start)
+      return nullptr;
+    const int index = static_cast<int>((time - start) / 60u);
+    if (index < static_cast<int>(getinfo()->pollstart) || index >= pollcount())
+      return nullptr;
+    const ScanData *el = beginpolls() + index;
+    if (!el->valid(0))
+      return nullptr;
+    const uint32_t stored = el->gettime();
+    if (stored + 30u < time || stored > time + 30u)
+      return nullptr;
+    return el;
+  }
+  uint32_t newestPollTime() const {
+    const ScanData *first = beginpolls();
+    for (int index = pollcount() - 1, low = std::max<int>(getinfo()->pollstart, index - 60);
+         index >= low; --index) {
+      if (first[index].valid(0))
+        return first[index].gettime();
+    }
+    return 0u;
   }
   bool isLibre() const {
     return !(isSibionics() || isDexcom() || isAccuChek() || isAir());

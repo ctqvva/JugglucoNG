@@ -77,11 +77,13 @@ class ConnectModeLeverTests {
             "AnytimeConnectRetryPolicy.kt",
             "AnytimeConnectRetryPolicyTests.kt",
             "Libre2GattCallback.java",
-            "Libre3GattCallback.java",
+            "Libre3BleManager.kt",
             "DexGattCallback.java",
         )
         val overriders = sources("Common/src")
             .filter { it.name != "SuperGattCallback.java" && it.name != "ConnectModeLeverTests.kt" }
+            // Pins the Libre 3 override's text; it names the method, never overrides it.
+            .filter { it.name != "Libre3DriverGuardTest.kt" }
             .filter { it.readText().contains("useAutoConnect") }
             .map { it.name }
         assertTrue(
@@ -125,19 +127,19 @@ class ConnectModeLeverTests {
         // can reach the sensor; only a timed-out attempt that never connected does.
         val text = File(
             repoRoot(),
-            "Common/src/libre3/java/tk/glucodata/Libre3GattCallback.java",
+            "Common/src/main/java/tk/glucodata/drivers/libre3/Libre3BleManager.kt",
         ).readText().replace(Regex("\\s+"), " ")
         assertTrue(
             "the Libre 3 override must start from the application-wide setting",
-            text.contains("return super.useAutoConnect() || directConnectUnreachable;"),
+            text.contains("override fun useAutoConnect(): Boolean = super.useAutoConnect() || directConnectUnreachable"),
         )
         assertEquals(1, Regex("directConnectUnreachable = true").findAll(text).count())
         assertTrue(
             "the fallback must be gated on a never-connected attempt timing out",
             text.contains(
-                "if (!reachedSensor && !directConnectUnreachable " +
-                    "&& (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) " +
-                    "{ directConnectUnreachable = true;"
+                "if (!reachedSensor && !directConnectUnreachable && " +
+                    "(status == BluetoothGatt.GATT_CONNECTION_TIMEOUT || status == 133)) " +
+                    "{ directConnectUnreachable = true"
             ),
         )
     }

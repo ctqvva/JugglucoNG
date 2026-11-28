@@ -13,6 +13,10 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
     @Volatile
     private var restored = false
 
+    /** The last accepted payload's: the highest one would hide a change made under an earlier phone clock. */
+    @Volatile
+    private var revision = 0L
+
     private fun keyOf(sensorId: String): String =
         (runCatching { SensorIdentity.canonicalSensorId(sensorId) }.getOrNull() ?: sensorId).lowercase()
 
@@ -28,17 +32,22 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         restored = true
         runCatching {
             val prefs = Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE) ?: return@runCatching
-            prefs.all.keys
-                .filter { it == KEY || it.startsWith("$KEY.") }
-                .forEach { prefKey ->
-                    val encoded = prefs.getString(prefKey, null) ?: return@forEach
-                    val decoded = WearCalibrationPayload.decode(
-                        android.util.Base64.decode(encoded, android.util.Base64.NO_WRAP),
-                    ) ?: return@forEach
-                    payloads[keyOf(decoded.sensorId)] = decoded
-                }
+            stored(prefs).values.forEach { payloads[keyOf(it.sensorId)] = it }
+            revision = payloads.values.maxOfOrNull { it.revision } ?: 0L
         }.onFailure { Log.stack("SyncedWearCalibration", "restore", it) }
     }
+
+    private fun stored(prefs: android.content.SharedPreferences): Map<String, WearCalibrationPayload> =
+        prefs.all.keys
+            .filter { it == KEY || it.startsWith("$KEY.") }
+            .mapNotNull { prefKey ->
+                runCatching {
+                    WearCalibrationPayload.decode(
+                        android.util.Base64.decode(prefs.getString(prefKey, null).orEmpty(), android.util.Base64.NO_WRAP),
+                    )
+                }.getOrNull()?.let { prefKey to it }
+            }
+            .toMap()
 
     @Synchronized
     fun update(next: WearCalibrationPayload) {
@@ -47,13 +56,19 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         val key = keyOf(next.sensorId)
         val current = payloads[key]
         if (current != null && next.revision < current.revision) return
+        // A sensor whose driver was replaced has a second record, and its payload ends here. Revisions
+        // come from the phone's clock, so after a correction they cannot tell which of the two is newer.
+        payloads.entries.removeAll { it.key != key && replaces(next, it.value) }
         payloads[key] = next
+        revision = next.revision
         runCatching {
-            val prefs = Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-            prefs?.edit()?.putString(
+            val prefs = Applic.app?.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE) ?: return@runCatching
+            val edit = prefs.edit()
+            stored(prefs).forEach { (prefKey, old) -> if (replaces(next, old)) edit.remove(prefKey) }
+            edit.putString(
                 "$KEY.$key",
                 android.util.Base64.encodeToString(WearCalibrationPayload.encode(next), android.util.Base64.NO_WRAP),
-            )?.apply()
+            ).apply()
         }.onFailure { Log.stack("SyncedWearCalibration", "persist", it) }
         // A managed driver that integrates the calibration has to replay its
         // history when the anchors move, exactly as CalibrationManager makes it
@@ -64,6 +79,9 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         }.onFailure { Log.stack("SyncedWearCalibration", "notify drivers", it) }
         UiRefreshBus.requestDataRefresh()
     }
+
+    private fun replaces(next: WearCalibrationPayload, old: WearCalibrationPayload): Boolean =
+        SensorIdentity.sharesCalibrations(old.sensorId, next.sensorId)
 
     override fun hasActiveCalibration(isRawMode: Boolean, sensorId: String?): Boolean {
         val current = matchingPayload(sensorId) ?: return false
@@ -270,7 +288,7 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
 
     override fun getRevision(): Long {
         restoreLocked()
-        return payloads.values.maxOfOrNull { it.revision } ?: 0L
+        return revision
     }
 
     private fun mode(payload: WearCalibrationPayload, isRawMode: Boolean): WearCalibrationMode =
@@ -302,8 +320,10 @@ object SyncedWearCalibrationProvider : CalibrationProvider {
         val requested = requestedSensorId?.trim()?.takeIf { it.isNotEmpty() }
             ?: mainSensorId?.trim()?.takeIf { it.isNotEmpty() }
         if (requested == null) return candidates.singleOrNull()
-        candidates.firstOrNull { keyOf(it.sensorId) == keyOf(requested) }?.let { return it }
-        // An identity match: the phone may name the sensor differently from the id the caller holds.
-        return candidates.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
+        return candidates.firstOrNull { keyOf(it.sensorId) == keyOf(requested) }
+            // An identity match: the phone may name the sensor differently from the id the caller holds.
+            ?: candidates.firstOrNull { SensorIdentity.matches(it.sensorId, requested) }
+            // Another record of the same sensor (its driver was replaced) shares its calibrations.
+            ?: candidates.firstOrNull { SensorIdentity.sharesCalibrations(it.sensorId, requested) }
     }
 }

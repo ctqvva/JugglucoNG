@@ -31,6 +31,7 @@ object VirtualGlucoseSensorBridge {
     private val mirrorLock = Any()
 
     private val nativeMirror = VirtualSensorNativeMirror(
+        readCapacityMinutes = { serial -> Natives.getSensorStreamCapacity(serial) },
         readShellStartSeconds = { serial ->
             val sensorPtr = Natives.str2sensorptr(serial)
             if (sensorPtr == 0L) 0L else Natives.getSensorStartmsecFromSensorptr(sensorPtr) / 1000L
@@ -43,13 +44,15 @@ object VirtualGlucoseSensorBridge {
             }
         },
         rebaseShell = { serial, startSeconds -> Natives.rebaseDirectStreamWindow(serial, startSeconds) },
-        writeBatch = { timestampsSec, glucose, raws, serial, primaryIsResolved ->
+        writeBatch = { timestampsSec, glucose, raws, trends, serial, primaryIsResolved ->
             if (primaryIsResolved) Natives.addResolvedGlucoseStreamBatchWithRawTemp(
                 timestampsSec,
                 glucose,
                 raws,
                 FloatArray(timestampsSec.size),
                 serial,
+            ) else if (trends.any { it != 0 }) Natives.addGlucoseStreamBatchWithTrend(
+                timestampsSec, glucose, raws, FloatArray(timestampsSec.size), trends, serial,
             ) else Natives.addGlucoseStreamBatchWithRawTemp(
                 timestampsSec, glucose, raws, FloatArray(timestampsSec.size), serial,
             )
@@ -67,18 +70,20 @@ object VirtualGlucoseSensorBridge {
         logLabel: String,
         nativeFamily: ManagedSensorUiFamily,
         primaryIsResolved: Boolean = true,
-    ): Int = synchronized(mirrorLock) {
-        val stored = runCatching { nativeMirror.mirror(sensorSerial, readings, logLabel, primaryIsResolved) }
+    ): VirtualSensorNativeMirror.Result = synchronized(mirrorLock) {
+        val result = runCatching { nativeMirror.mirrorCounted(sensorSerial, readings, logLabel, primaryIsResolved,
+            windowMinutes = if (nativeFamily == ManagedSensorUiFamily.LIBRE3) 32 * 24 * 60 else VirtualSensorNativeMirror.WINDOW_MINUTES,
+            allowRebase = nativeFamily != ManagedSensorUiFamily.LIBRE3) }
             .onFailure { Log.stack(TAG, "mirrorIntoNative($sensorSerial)", it) }
-            .getOrDefault(0)
+            .getOrDefault(VirtualSensorNativeMirror.Result(0, readings.size))
         // Stamp only once a shell exists: the stamp call would otherwise create one.
         // Without it the mirror is Libre 2 by elimination to anything reading the
         // native record, including the xDrip source name and a Clone recipient.
-        if (stored > 0 && nativeFamily != ManagedSensorUiFamily.GENERIC) {
+        if (result.stored > 0 && nativeFamily != ManagedSensorUiFamily.GENERIC) {
             runCatching { Natives.setSensorManagedFamily(sensorSerial, nativeFamily.nativeCode) }
                 .onFailure { Log.stack(TAG, "mirrorIntoNative(setSensorManagedFamily)", it) }
         }
-        stored
+        result
     }
 
     /**
@@ -92,11 +97,21 @@ object VirtualGlucoseSensorBridge {
         readings: List<Reading>,
         logLabel: String,
         nativeFamily: ManagedSensorUiFamily,
-    ): Int {
-        if (sensorSerial.isBlank()) return 0
+    ): Int = mirrorToNativeCounted(sensorSerial, readings, logLabel, nativeFamily).stored
+
+    /**
+     * [mirrorToNative] for a caller whose only copy is the native record (a watch has no Room):
+     * also says whether every reading the record can hold was accepted.
+     */
+    internal fun mirrorToNativeCounted(
+        sensorSerial: String,
+        readings: List<Reading>,
+        logLabel: String,
+        nativeFamily: ManagedSensorUiFamily,
+    ): VirtualSensorNativeMirror.Result {
         val nowMs = System.currentTimeMillis()
         val valid = readings.filter { isUsableHistoryReading(it, nowMs) }
-        if (valid.isEmpty()) return 0
+        if (sensorSerial.isBlank() || valid.isEmpty()) return VirtualSensorNativeMirror.Result(0, 0)
         return mirrorIntoNative(sensorSerial, valid, logLabel, nativeFamily, primaryIsResolved = false)
     }
 
@@ -107,6 +122,8 @@ object VirtualGlucoseSensorBridge {
         val calibratedMgdl: Float = Float.NaN,
         val rawMgdl: Float = Float.NaN,
         val rate: Float = Float.NaN,
+        /** The sensor's own trend, 1 (falling quickly) to 5 (rising quickly); 0 when it gave none. */
+        val trendClass: Int = 0,
     ) {
         val storageGlucoseMgdl: Float
             get() = autoMgdl.takeIf { it.isFinite() && it > 0f } ?: glucoseMgdl
@@ -125,6 +142,7 @@ object VirtualGlucoseSensorBridge {
         mirrorToNative: Boolean = false,
         source: String = GlucoseReadingSource.SENSOR,
         nativeFamily: ManagedSensorUiFamily = ManagedSensorUiFamily.GENERIC,
+        failOnStorageError: Boolean = false,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
         val nowMs = System.currentTimeMillis()
@@ -146,11 +164,11 @@ object VirtualGlucoseSensorBridge {
         val existingTimestamps = if (nearDuplicateWindowMs > 0L) {
             val minTimestamp = validReadings.minOf { it.timestampMs }
             val maxTimestamp = validReadings.maxOf { it.timestampMs }
-            HistorySyncAccess.getHistoryTimestampsForSensor(
+            (HistorySyncAccess.getHistoryTimestampsForSensorOrNull(
                 sensorSerial = sensorSerial,
                 startTime = (minTimestamp - nearDuplicateWindowMs).coerceAtLeast(1L),
                 endTime = maxTimestamp + nearDuplicateWindowMs,
-            ).sortedArray()
+            ) ?: if (failOnStorageError) error("History timestamp lookup failed") else LongArray(0)).sortedArray()
         } else {
             LongArray(0)
         }
@@ -189,8 +207,10 @@ object VirtualGlucoseSensorBridge {
                 source,
             )
         ) {
+            if (failOnStorageError) error("History batch storage failed")
             return 0
         }
+        tk.glucodata.ReadingPipelineTrace.roomCommitted(sensorSerial, timestamps.last(), timestamps.size)
         Log.i(
             TAG,
             String.format(

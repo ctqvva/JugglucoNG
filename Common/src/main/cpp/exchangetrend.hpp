@@ -31,6 +31,14 @@ inline float deriveChangeMgdlPerMinute(const int prevmgdl, const uint32_t prevti
   return (curmgdl - prevmgdl) / (gap / 60.0f);
 }
 
+// The sensor's own trend class for a slot being (re)written: 1..5 as in ScanData.tr. A copy of the
+// same minute that carries none (backfill, a mirrored reading) keeps the one already stored.
+inline int keptTrendClass(const int incoming, const ScanData *stored, const bool fillsGap) {
+  if (incoming >= 1 && incoming <= 5)
+    return incoming;
+  return stored && !fillsGap && stored->tr >= 1 && stored->tr <= 5 ? stored->tr : 0;
+}
+
 // Rate to the legacy 5-state trend index stored in ScanData.tr, whose labels are
 // GlucoseNow::trendString in glucose.hpp. Lives here rather than in dexcom/java.cpp so drivers can
 // use it without depending on the Dexcom translation unit, which the nodex flavour omits entirely.

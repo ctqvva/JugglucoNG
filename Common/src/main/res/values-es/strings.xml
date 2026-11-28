@@ -3678,4 +3678,30 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="floating_layout_camera_desc">Los elementos de arriba van antes de la cámara; el resto, después</string>
     <string name="floating_layout_hidden">Oculto</string>
     <string name="floating_layout_order_desc">Arrastra un asa para mover un elemento</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Libre 3</string>
+    <string name="libre3_managed_settings_desc">ID del receptor y credenciales de conexión</string>
+    <string name="libre3_managed_receiver_account">Usar la cuenta de LibreView como ID del receptor</string>
+    <string name="libre3_managed_receiver_desc">ID del receptor enviado en el comando NFC: %1$s. Mantén el ID de la cuenta para sensores iniciados antes con Juggluco; desactiva esta opción para usar un ID propio de este teléfono.</string>
+    <string name="libre3_managed_identity_none">Las credenciales de conexión aún no se han descargado. Selecciona Descargar identidades y, después, escanea el sensor.</string>
+    <string name="libre3_managed_identity_list">Conjunto de identidades de la aplicación %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">La aplicación descarga y verifica automáticamente las credenciales de conexión y las guarda cifradas en este teléfono para usarlas sin conexión. La importación de archivos y las fuentes personalizadas son opciones avanzadas.</string>
+    <string name="libre3_managed_identity_source">Fuente %1$s (sha256 %2$s…) de %3$s</string>
+    <string name="libre3_managed_identity_download">Descargar identidades</string>
+    <string name="libre3_managed_source_url">URL de la fuente de identidades (https)</string>
+    <string name="libre3_managed_source_digest">SHA-256 del archivo de identidades</string>
+    <string name="libre3_managed_source_save">Usar esta fuente</string>
+    <string name="libre3_managed_source_invalid">Introduce una URL https y el SHA-256 de 64 caracteres del archivo de identidades</string>
+    <string name="libre3_managed_receiver_none">aún no hay un ID de cuenta de LibreView</string>
+    <string name="libre3_managed_identity_import">Importar archivo de identidades</string>
+    <string name="libre3_managed_identity_remove">Eliminar</string>
+    <string name="libre3_managed_identity_imported">Se han importado %1$d identidades de la aplicación</string>
+    <string name="libre3_managed_identity_import_failed">No se han podido cargar las credenciales de conexión: %1$s</string>
+    <string name="libre3_managed_identity_missing">Las credenciales de conexión no están disponibles. Abre Ajustes → Libre 3, comprueba la conexión a Internet y vuelve a intentar la descarga. No se ha modificado el sensor.</string>
+    <string name="libre3_status_services_missing">Faltan servicios del sensor; reintentando</string>
+    <string name="libre3_status_certificate_rejected">No se reconoce el certificado del sensor; vuelve a escanearlo</string>
+    <string name="libre3_status_identity_missing">No se ha importado ninguna identidad de aplicación para Libre 3</string>
+    <string name="libre3_status_identity_rejected">El sensor no ha aceptado la identidad de la aplicación</string>
+    <string name="libre3_managed_receiver_save_failed">No se ha podido guardar el ID del receptor. Comprueba el almacenamiento del dispositivo y vuelve a intentarlo. El emparejamiento NFC está bloqueado hasta que se guarde el ID.</string>
 </resources>

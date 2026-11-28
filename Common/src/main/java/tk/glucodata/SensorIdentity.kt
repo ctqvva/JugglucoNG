@@ -15,6 +15,8 @@ object SensorIdentity {
     // per glucose point per frame — which the calibrated-chart draw path does. The mapping only
     // changes when the sensor set / auth material changes, so memoize it and clear on those events.
     private val appSensorIdCache = ConcurrentHashMap<String, String>()
+    // Same reason: asked per calibration row per chart point.
+    private val calibrationOwnerCache = ConcurrentHashMap<String, String>()
     // normalized "candidate\u0000expected" -> matches() result. The same reasoning as
     // appSensorIdCache above, for the one path it did not cover: managedMatches asks
     // every driver adapter to match live, and those adapters run regexes and registry
@@ -86,6 +88,7 @@ object SensorIdentity {
     fun invalidateCaches() {
         nativeCanonicalCache.clear()
         appSensorIdCache.clear()
+        calibrationOwnerCache.clear()
         matchCache.clear()
         ManagedSensorRuntime.clearCaches()
     }
@@ -101,6 +104,28 @@ object SensorIdentity {
             ?: raw
         appSensorIdCache[raw] = resolved
         return resolved
+    }
+
+    private fun calibrationOwnerId(sensorId: String): String = calibrationOwnerCache.getOrPut(sensorId) {
+        ManagedSensorIdentityRegistry.all
+            .firstNotNullOfOrNull { it.resolveCalibrationOwnerId(sensorId)?.takeIf(String::isNotBlank) }
+            ?: sensorId
+    }
+
+    /**
+     * Whether calibrations entered for [candidate] apply to [expected]: the same sensor, or two
+     * records of one physical sensor whose driver was replaced. Wider than [matches] and meant for
+     * calibrations only, since deleting or storing by it would merge records that must stay apart.
+     */
+    @JvmStatic
+    fun sharesCalibrations(candidate: String?, expected: String?): Boolean {
+        val left = normalized(candidate) ?: return false
+        val right = normalized(expected) ?: return false
+        if (matches(left, right)) return true
+        val leftOwner = calibrationOwnerId(left)
+        val rightOwner = calibrationOwnerId(right)
+        if (leftOwner == left && rightOwner == right) return false
+        return matches(leftOwner, rightOwner)
     }
 
     /**

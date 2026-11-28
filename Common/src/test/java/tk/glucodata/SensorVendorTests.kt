@@ -15,6 +15,7 @@ class SensorVendorTests {
         assertEquals(SensorVendor.OTTAI, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.OTTAI))
         assertEquals(SensorVendor.SIBIONICS, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS))
         assertEquals(SensorVendor.NIGHTSCOUT, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.NIGHTSCOUT))
+        assertEquals(SensorVendor.ABBOTT, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.LIBRE3))
         assertEquals(SensorVendor.MEDTRUM, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.MEDTRUM))
         assertEquals(ManagedSensorUiFamily.MEDTRUM, ManagedSensorUiFamily.fromNativeCode(8))
         assertEquals(SensorVendor.UNKNOWN, SensorVendor.fromManagedFamily(ManagedSensorUiFamily.GENERIC))
@@ -99,6 +100,8 @@ class SensorVendorTests {
         assertEquals("SIBI 2", sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").inlineText)
         assertTrue(!sensorBadge(SensorVendor.SIBIONICS, SensorTypeName.SIBIONICS_2, "Sibionics 2").stacked)
         assertTrue(!sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3).stacked)
+        assertEquals("3", sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3, "Libre 3").model)
+        assertEquals("3+", sensorBadge(SensorVendor.ABBOTT, SensorTypeName.LIBRE_3, "Libre 3 Plus").model)
         assertTrue(!sensorBadge(SensorVendor.DEXCOM, SensorTypeName.DEXCOM_G7).stacked)
         assertTrue(!sensorBadge(SensorVendor.SINOCARE, SensorTypeName.ICAN_I3, "iCan i6").stacked)
         // Long pairs still split across two rows.
@@ -157,6 +160,7 @@ class SensorVendorTests {
         assertEquals(SensorTypeName.SIBIONICS_2, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS, "Sibionics 2"))
         assertEquals(SensorTypeName.SIBIONICS_GS3, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.SIBIONICS, "Sibionics GS3"))
         assertEquals(SensorTypeName.NIGHTSCOUT, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.NIGHTSCOUT))
+        assertEquals(SensorTypeName.LIBRE_3, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.LIBRE3))
         assertEquals(SensorTypeName.MEDTRUM_EASYSENSE, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.MEDTRUM))
         assertEquals(SensorTypeName.UNKNOWN, SensorTypeName.fromManagedFamily(ManagedSensorUiFamily.GENERIC))
     }

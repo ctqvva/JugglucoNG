@@ -568,7 +568,7 @@ object CalibrationManager {
             disabledSensorIds = current,
             sensorId = sensorId,
             disabled = disabled,
-            matches = SensorIdentity::matches
+            matches = SensorIdentity::sharesCalibrations
         )
     }
 
@@ -590,7 +590,7 @@ object CalibrationManager {
                 raw = _disabledRawSensorIds.value,
                 auto = _disabledAutoSensorIds.value
             ),
-            matches = SensorIdentity::matches
+            matches = SensorIdentity::sharesCalibrations
         )
         val rawDisabled = migrated.raw
         val autoDisabled = migrated.auto
@@ -686,7 +686,7 @@ object CalibrationManager {
         val calibrationSensor = normalizeSensorId(calibrationSensorId)
         val targetSensor = normalizeSensorId(sensorId)
         if (calibrationSensor.isBlank() || targetSensor.isBlank()) return false
-        return SensorIdentity.matches(calibrationSensor, targetSensor)
+        return SensorIdentity.sharesCalibrations(calibrationSensor, targetSensor)
     }
 
     fun isLegacyUnresolvedCalibration(calibration: CalibrationEntity): Boolean {
@@ -903,7 +903,7 @@ object CalibrationManager {
         return SensorCalibrationEnablementPolicy.isEnabled(
             disabledSensorIds = disabled,
             sensorId = sensorId,
-            matches = SensorIdentity::matches
+            matches = SensorIdentity::sharesCalibrations
         )
     }
 
@@ -1356,7 +1356,11 @@ object CalibrationManager {
                     if (ids.isNotEmpty()) dao.deleteByIds(ids)
                     ids.size
                 }
-                else -> dao.deleteForSensor(targetSensorId)
+                else -> {
+                    val ids = dao.getAllSync().filter { sensorMatches(it.sensorId, targetSensorId) }.map { it.id }
+                    if (ids.isNotEmpty()) dao.deleteByIds(ids)
+                    ids.size
+                }
             }
 
             val existing = if (replaceExisting) emptyList() else dao.getAllSync().filter {

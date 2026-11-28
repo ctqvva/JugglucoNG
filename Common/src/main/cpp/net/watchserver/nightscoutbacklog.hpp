@@ -215,6 +215,10 @@ public:
         for (auto &each : ranges)
             each.clear();
     }
+    void clear(const int sensorid) {
+        if (auto *mine = row(sensorid))
+            mine->clear();
+    }
     /* `time` was sent. `before` is the time of the reading just before it on the same
        sensor, 0 when that is not known. */
     void remember(const int sensorid, const uint32_t time, const uint32_t before) {

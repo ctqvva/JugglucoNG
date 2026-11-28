@@ -33,7 +33,8 @@ internal class VirtualSensorNativeMirror(
     private val readShellStartSeconds: (String) -> Long,
     private val openShell: (String, Long, Int) -> Unit,
     private val rebaseShell: (String, Long) -> Unit,
-    private val writeBatch: (LongArray, FloatArray, FloatArray, String, Boolean) -> Int,
+    private val writeBatch: (LongArray, FloatArray, FloatArray, IntArray, String, Boolean) -> Int,
+    private val readCapacityMinutes: (String) -> Int = { Int.MAX_VALUE },
 ) {
 
     companion object {
@@ -89,17 +90,37 @@ internal class VirtualSensorNativeMirror(
     }
 
     /**
-     * Writes whichever of [readings] the current mirror window can hold,
-     * creating or rebasing that window first. Returns the number of points
-     * native accepted.
+     * What one [mirrorCounted] call did. [writable] excludes points that no retry
+     * could store (no glucose, or outside the window); a window that could not be
+     * opened keeps them all in, because that can succeed later.
      */
+    data class Result(val stored: Int, val writable: Int) {
+        val complete: Boolean get() = stored >= writable
+    }
+
+    /** [mirrorCounted], returning only the number of points native accepted. */
     fun mirror(
         sensorSerial: String,
         readings: List<VirtualGlucoseSensorBridge.Reading>,
         logLabel: String,
         primaryIsResolved: Boolean = true,
-    ): Int {
-        if (sensorSerial.isBlank() || readings.isEmpty()) return 0
+        windowMinutes: Int = WINDOW_MINUTES,
+        allowRebase: Boolean = true,
+    ): Int = mirrorCounted(sensorSerial, readings, logLabel, primaryIsResolved, windowMinutes, allowRebase).stored
+
+    /**
+     * Writes whichever of [readings] the current mirror window can hold,
+     * creating or rebasing that window first.
+     */
+    fun mirrorCounted(
+        sensorSerial: String,
+        readings: List<VirtualGlucoseSensorBridge.Reading>,
+        logLabel: String,
+        primaryIsResolved: Boolean = true,
+        windowMinutes: Int = WINDOW_MINUTES,
+        allowRebase: Boolean = true,
+    ): Result {
+        if (sensorSerial.isBlank() || readings.isEmpty()) return Result(0, 0)
         fun mirroredGlucose(reading: VirtualGlucoseSensorBridge.Reading): Float =
             if (primaryIsResolved) reading.primaryGlucoseMgdl else reading.storageGlucoseMgdl
         val ordered = readings
@@ -109,17 +130,23 @@ internal class VirtualSensorNativeMirror(
             .filter { (seconds, _) -> seconds > 0L }
             .sortedBy { (seconds, _) -> seconds }
             .toList()
-        if (ordered.isEmpty()) return 0
+        if (ordered.isEmpty()) return Result(0, 0)
 
+        val existingCapacity = readCapacityMinutes(sensorSerial)
+        val boundedMinutes = if (existingCapacity > 0) minOf(windowMinutes, existingCapacity) else windowMinutes
         val startSeconds = openWindow(
             sensorSerial = sensorSerial,
             oldestSeconds = ordered.first().first,
             newestSeconds = ordered.last().first,
             logLabel = logLabel,
+            windowMinutes = boundedMinutes,
+            allowRebase = allowRebase,
         )
-        if (startSeconds <= 0L) return 0
+        if (startSeconds <= 0L) return Result(0, ordered.size)
 
-        val writable = ordered.filter { (seconds, _) -> isWritable(startSeconds, seconds) }
+        val actualCapacity = readCapacityMinutes(sensorSerial).takeIf { it > 0 } ?: boundedMinutes
+        val endSeconds = startSeconds + minOf(boundedMinutes, actualCapacity) * 60L
+        val writable = ordered.filter { (seconds, _) -> seconds >= startSeconds && seconds < endSeconds }
         if (writable.size < ordered.size) {
             Log.i(
                 TAG,
@@ -127,7 +154,7 @@ internal class VirtualSensorNativeMirror(
                     "mirror window of $sensorSerial (start=$startSeconds)"
             )
         }
-        if (writable.isEmpty()) return 0
+        if (writable.isEmpty()) return Result(0, 0)
 
         val stored = writeBatch(
             LongArray(writable.size) { writable[it].first },
@@ -137,13 +164,14 @@ internal class VirtualSensorNativeMirror(
             FloatArray(writable.size) {
                 writable[it].second.rawMgdl.takeIf { raw -> raw.isFinite() && raw > 0f } ?: 0f
             },
+            IntArray(writable.size) { writable[it].second.trendClass },
             sensorSerial,
             primaryIsResolved,
         )
         if (stored <= 0) {
             Log.w(TAG, "Native mirror stored no $logLabel points for $sensorSerial")
         }
-        return stored
+        return Result(stored, writable.size)
     }
 
     /**
@@ -155,14 +183,16 @@ internal class VirtualSensorNativeMirror(
         oldestSeconds: Long,
         newestSeconds: Long,
         logLabel: String,
+        windowMinutes: Int,
+        allowRebase: Boolean,
     ): Long {
         val existing = readShellStartSeconds(sensorSerial)
         if (existing <= 0L) {
-            val start = initialStartSeconds(oldestSeconds, newestSeconds)
+            val start = maxOf(oldestSeconds - 60L, newestSeconds - windowMinutes * 60L + 60L).coerceAtLeast(1L)
             if (start <= 0L) return 0L
-            openShell(sensorSerial, start, WINDOW_MINUTES)
+            openShell(sensorSerial, start, windowMinutes)
             Log.i(TAG, "Opened native $logLabel mirror for $sensorSerial at $start")
-        } else if (needsRebase(existing, newestSeconds)) {
+        } else if (allowRebase && newestSeconds >= existing + windowMinutes * 60L) {
             val rebased = rebasedStartSeconds(newestSeconds)
             Log.w(
                 TAG,

@@ -66,6 +66,21 @@ class CalibrationPayloadSelectionTests {
         assertNull(SyncedWearCalibrationProvider.selectPayload(listOf(payload("A", 1)), "Z", null))
     }
 
+    /** A watch upgraded before its phone: the saved payload still names the removed driver's record. */
+    @Test
+    fun aMigratedLibre3KeepsItsPayloadUntilTheSuccessorsArrives() {
+        val legacy = payload("E07A-XX0D1234ABC", 5)
+        val other = payload("E07A-XX0D9999ABC", 9)
+
+        assertEquals(legacy, SyncedWearCalibrationProvider.selectPayload(listOf(other, legacy), "0D1234ABC", null))
+        assertEquals(legacy, SyncedWearCalibrationProvider.selectPayload(listOf(other, legacy), "XX0D1234ABC", null))
+
+        // The successor's own payload wins, whatever its revision says.
+        val successor = payload("0D1234ABC", 4)
+        val all = listOf(other, legacy, successor)
+        assertEquals(successor, SyncedWearCalibrationProvider.selectPayload(all, "0D1234ABC", null))
+    }
+
     @Test
     fun noPayloadsIsNoCalibration() {
         assertNull(SyncedWearCalibrationProvider.selectPayload(emptyList(), "A", "A"))

@@ -931,6 +931,10 @@ public class SensorBluetooth {
     public static void setCurrentSensorSelection(String serial) {
         final String previous = SensorIdentity.resolveMainSensor();
         CurrentSensorSelection.select(serial);
+        refreshCurrentSensorSelection(previous, serial);
+    }
+
+    private static void refreshCurrentSensorSelection(String previous, String serial) {
         // A loss warning belongs to the sensor that owned the notification. Re-selecting
         // the same sensor must keep it; selecting a different one retires it and lets the
         // previous owner post again if it is still in the same outage.
@@ -1014,6 +1018,43 @@ public class SensorBluetooth {
 
     private void rehomeCurrentSensorAfterRemoval(String removedSerial) {
         rehomeCurrentSensorAfterRemoval(removedSerial, null);
+    }
+
+    /**
+     * Retires exactly [callback], for a sensor handed from one driver to another (the legacy and
+     * the Kotlin Libre 3 drivers). Unlike removeDevice() it matches the object, never an equivalent
+     * id, so it cannot take the successor's callback with it, and it leaves every persisted record
+     * alone. The handover caller transfers selection after retiring the old driver.
+     */
+    public static void retireCallback(SuperGattCallback callback) {
+        if (callback == null) return;
+        final SensorBluetooth blue = blueone;
+        if (blue != null) {
+            blue.retireCallbackLocked(callback);
+            return;
+        }
+        synchronized (SensorBluetooth.class) {
+            if (gattcallbacks.remove(callback)) {
+                callback.free();
+                Natives.setmaxsensors(gattcallbacks.size());
+            }
+        }
+    }
+
+    private synchronized void retireCallbackLocked(SuperGattCallback callback) {
+        if (!gattcallbacks.remove(callback)) return;
+        if (doLog) {
+            Log.i(LOG_ID, "retireCallback " + callback.SerialNumber);
+        }
+        callback.free();
+        Natives.setmaxsensors(gattcallbacks.size());
+    }
+
+    public static void finishDriverHandover(CurrentSensorSelection.DriverHandover handover, String successor) {
+        if (handover != null && CurrentSensorSelection.completeDriverHandover(handover, successor)) {
+            refreshCurrentSensorSelection(handover.getPrevious(), successor);
+        }
+        GlucoseUpdateBroadcaster.sendNow();
     }
 
     private void rehomeCurrentSensorAfterRemoval(String removedSerial, Iterable<String> preferredCandidates) {
@@ -1899,7 +1940,9 @@ public class SensorBluetooth {
             int vers = Natives.getLibreVersion(dataptr);
             if (libreVersion == 3) {
                 if (vers == 3) {
-                    return new Libre3GattCallback(name, dataptr);
+                    // Libre 3 runs only on the Kotlin driver now; a sensor the removed
+                    // proprietary driver was reading moves to it here.
+                    return tk.glucodata.drivers.libre3.Libre3Registry.adoptLegacySensor(Applic.app, name, dataptr);
                 }
             }
             if (tk.glucodata.BuildConfig.DexCom == 1) {

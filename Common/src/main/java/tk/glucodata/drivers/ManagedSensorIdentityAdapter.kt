@@ -21,6 +21,14 @@ interface ManagedSensorIdentityAdapter {
 
     fun resolveCanonicalSensorId(sensorId: String?): String? = null
 
+    /**
+     * The sensor whose calibrations [sensorId] shares, when an older driver kept the same physical
+     * sensor under a separate record. Only calibrations follow it: storage, history and removal
+     * still treat the two records as different sensors. Must depend on the id alone: calibration
+     * results are cached, and pairing or forgetting a sensor does not drop them.
+     */
+    fun resolveCalibrationOwnerId(sensorId: String?): String? = null
+
     fun resolveStableStorageSensorId(sensorId: String?): String? = resolveCanonicalSensorId(sensorId)
 
     fun resolveNativeSensorName(sensorId: String?): String? = null

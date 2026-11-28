@@ -766,6 +766,10 @@ public class Natives {
          */
         public static native int addGlucoseStreamBatchWithRawTemp(long[] times, float[] glucoses, float[] raws, float[] temperatures, String sensorId);
 
+        /** {@link #addGlucoseStreamBatchWithRawTemp} with the sensor's own trend, 1 (falling
+         * quickly) to 5 (rising quickly), or 0 for a reading that came without one. */
+        public static native int addGlucoseStreamBatchWithTrend(long[] times, float[] glucoses, float[] raws, float[] temperatures, int[] trends, String sensorId);
+
         /** Import managed Wear history. Local/unknown populated records retain their
          * origin and occupied samples even while disconnected. Proven peer-only records
          * retain ordinary import behavior. The provenance check and import are atomic
@@ -784,10 +788,14 @@ public class Natives {
         public static native void setSensorWearDays(String sensorId, int days);
         /** ManagedSensorUiFamily.nativeCode; 0 clears. Travels in info.dat, so a Clone receiver sees it. */
         public static native void setSensorManagedFamily(String sensorId, int code);
+        /** Libre 3 only: the activation lifeCount counts from, for LibreView's history record numbers. */
+        public static native void setManagedLibre3Activation(String sensorId, long activationSec);
         public static native int getSensorManagedFamily(long dataptr);
         /** Updates an existing native record without allocating a BLE stream pointer. */
         public static native boolean setSensorViewMode(String sensorId, int mode);
 
+        /** Actual mapped minute-slot capacity; 0 when the shell does not exist. */
+        public static native int getSensorStreamCapacity(String sensorId);
         public static native boolean hasSensorStreamCapacity(String sensorId, int minimumRecords);
 
         public static native void rebaseDirectStreamWindow(String sensorId, long startTimeSec);
@@ -860,6 +868,8 @@ public class Natives {
         public static native void clearlibreFromMSec(long from);
 
         public static native void wakelibreview(int min);
+        /** A new Libre 3 reading is stored natively; sends it when LibreView is set to send each one. */
+        public static native void wakeLibreviewForLiveReading();
 
         public static native void setlibrebaseurl(boolean l3, String baseurl);
 
@@ -875,13 +885,21 @@ public class Natives {
 
         public static native String getlibreDeviceID(boolean l3);
 
-        public static native void setlibreAccountID(String AccountID);
+        private static native void setlibreAccountIDNative(String accountID);
+        public static void setlibreAccountID(String accountID) {
+                setlibreAccountIDNative(accountID);
+                LibreViewAccountState.changed();
+        }
 
         public static native void askServerforAccountID();
 
         public static native long getlibreAccountIDnumber();
 
-        public static native void setlibreAccountIDnumber(long num);
+        private static native void setlibreAccountIDnumberNative(long num);
+        public static void setlibreAccountIDnumber(long num) {
+                setlibreAccountIDnumberNative(num);
+                LibreViewAccountState.changed();
+        }
 
         public static native String getlibreAccountID();
 
@@ -907,29 +925,16 @@ public class Natives {
          * public static native String getGuardianLastNameName( );
          */
 
-        // public static native long interpret3NFC1(byte[] b);
-        public static native long interpret3NFC2(byte[] nfc1, byte[] b, long time);
 
-        public static native long getLibre3secs(byte[] nfc1ar);
 
-        public static native long getLibre3Sensorptr(String sensorid, long starttime);
 
-        public static native long getLibre3SensorptrPD(String sensorid, long starttime, byte[] pin,
-                        String deviceaddress);
 
-        public static native long saveLibre3MinuteL(long sensorptr, byte[] mindata);
 
-        public static native boolean saveLibre3fastData(long sensorptr, byte[] mindata);
 
-        public static native boolean saveLibre3History(long sensorptr, byte[] mindata);
 
-        public static native int libre3EventLog(long sensorptr, byte[] logs);
 
-        public static native void setLibre3kAuth(long sensorptr, byte[] kauthin);
 
-        public static native byte[] getLibre3kAuth(long sensorptr);
 
-        public static native int libre3processpatchstatus(long sensorptr, byte[] status);
 
         public static native byte[] getpin(long sensorptr);
 
@@ -937,11 +942,8 @@ public class Natives {
 
         public static native int getlastHistoricLifeCountReceived(long sensorptr);
 
-        public static native byte[] libre3ControlHistory(int arg, int from);
 
-        public static native byte[] libre3ClinicalControl(int arg, int from);
 
-        public static native byte[] libre3EventLogControl(int arg);
 
         public static native void initjuggluco(String filesdir);
 
@@ -957,13 +959,8 @@ public class Natives {
 
         public static native void showbytes(String mess, byte[] ar);
 
-        // public static native boolean loadECDHCrypto( );
-        // public static native boolean loadNFC( );
-        public static native int startTimeIDsum(byte[] uit, long time, long accountID);
 
-        public static native int processint(int i2, byte[] bArr, byte[] bArr2);
 
-        public static native byte[] processbar(int i2, byte[] bArr, byte[] bArr2);
 
         public static native boolean getShownintro();
 
@@ -977,17 +974,12 @@ public class Natives {
 
         public static native void setkerfstokblack(boolean val);
 
-        public static native long initcrypt(long prev, byte[] key, byte[] iv);
 
-        public static native void endcrypt(long jptr);
 
-        public static native byte[] intEncrypt(long cryptptr, int kind, byte[] plain);
 
-        public static native byte[] intDecrypt(long cryptptr, int kind, byte[] encrypted);
 
         public static native float thresholdchange(float drate);
 
-        // public static native void enddebug();
         public static native boolean message(byte[] data);
 
         public static native boolean getBlueMessage(int index);
@@ -1260,6 +1252,9 @@ public class Natives {
         public static native long getSensorStartmsecFromSensorptr(long sensorptr);
         public static native int getSensorWarmupMinutesByName(String sensor);
 
+        /** Family of the retained native record, independent of managed pairing metadata. */
+        public static native int getSensorManagedFamilyFromSensorptr(long sensorptr);
+
         // public static native void setnightscoutV3(boolean val);
         public static native boolean getnightscoutV3();
 
@@ -1267,7 +1262,7 @@ public class Natives {
 
         public static native int healthConnectfromSensorptr(long sensorptr);
 
-        public static native void healthConnectWritten(long sensorptr, int pos);
+        public static native boolean healthConnectWritten(long sensorptr, int pos);
 
         public static native void sethealthConnect(boolean val);
 

@@ -25,6 +25,8 @@ struct pathconcat : string {
     operator const char*() const {return c_str();}
 };
 struct Info {
+    unsigned family=0;
+    unsigned managedFamilyCode() const { return family; }
     uint32_t starttime=1700000001, lastscantime=0;
     int32_t starthistory=0,endhistory=0;
     uint32_t scancount=0;
@@ -96,7 +98,7 @@ struct SensorGlucoseData {
     bool isSibionics()const{return metadata.sibionics;}
     bool isSibionics1()const{return false;}
     bool isLibre2()const{return !(isAccuChek()||isSibionics()||isDexcom()||isAir()||getinfo()->interval==interval5);}
-    bool isLibre3()const{return false;}bool isAiDex()const{return false;}
+    bool isLibre3()const{return false;}bool isManagedLibre3()const{return false;}bool isAiDex()const{return false;}
     bool isAccuChek()const{return false;}bool isAir()const{return false;}
     int siSubtype()const{return 0;}uint32_t lastused()const{return stream[0].timestamp;}
     int getelsize()const{return 12;}
@@ -391,6 +393,14 @@ void livePublicationFilters(){
     assert(b.readings[1].first==100&&b.readings[3].first==102);
 }
 int main(){
+    {
+        SensorGlucoseData libre3;
+        libre3.metadata.family=9;
+        assert(libre3.pollStorageSize()==32*24*60);
+        libre3.metadata.family=0;
+        assert(libre3.pollStorageSize()<32*24*60);
+    }
+
     flexDiscovery();batchedBackfill();livePublicationFilters();
     for(auto model:{"4574","4581","0071"}){
         auto scan=dexcom::parseScan(barcode(model));assert(scan);

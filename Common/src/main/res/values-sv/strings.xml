@@ -3412,4 +3412,30 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="floating_layout_camera_desc">Objekt ovanför hamnar före kameran, resten efter</string>
     <string name="floating_layout_hidden">Dold</string>
     <string name="floating_layout_order_desc">Dra i ett handtag för att flytta ett objekt</string>
+
+    <!-- Kotlin Libre 3 driver -->
+    <string name="libre3_managed_title">Libre 3</string>
+    <string name="libre3_managed_settings_desc">Mottagar-ID och anslutningsuppgifter</string>
+    <string name="libre3_managed_receiver_account">Använd LibreView-kontot som mottagar-ID</string>
+    <string name="libre3_managed_receiver_desc">Mottagar-ID i NFC-kommandot: %1$s. Behåll konto-ID för sensorer som tidigare startats med Juggluco; stäng av för ett eget ID för telefonen.</string>
+    <string name="libre3_managed_identity_none">Anslutningsuppgifterna har inte hämtats ännu. Välj ”Hämta identiteter” och skanna sedan sensorn.</string>
+    <string name="libre3_managed_identity_list">Appidentitetsuppsättning %1$s: %2$s</string>
+    <string name="libre3_managed_identity_desc">Appen hämtar och kontrollerar anslutningsuppgifter automatiskt och lagrar dem krypterat på telefonen för offlinebruk. Filimport och egna källor är valfria avancerade inställningar.</string>
+    <string name="libre3_managed_identity_source">Källa %1$s (sha256 %2$s…) från %3$s</string>
+    <string name="libre3_managed_identity_download">Hämta identiteter</string>
+    <string name="libre3_managed_source_url">URL till identitetskälla (https)</string>
+    <string name="libre3_managed_source_digest">Identitetsfilens SHA-256</string>
+    <string name="libre3_managed_source_save">Använd denna källa</string>
+    <string name="libre3_managed_source_invalid">Ange en HTTPS-URL och filens SHA-256 med 64 tecken</string>
+    <string name="libre3_managed_receiver_none">inget LibreView-konto-ID ännu</string>
+    <string name="libre3_managed_identity_import">Importera identitetsfil</string>
+    <string name="libre3_managed_identity_remove">Ta bort</string>
+    <string name="libre3_managed_identity_imported">%1$d appidentiteter importerade</string>
+    <string name="libre3_managed_identity_import_failed">Kunde inte läsa in anslutningsuppgifter: %1$s</string>
+    <string name="libre3_managed_identity_missing">Anslutningsuppgifter saknas. Öppna Inställningar → Libre 3, kontrollera internet och försök hämta igen. Sensorn har inte ändrats.</string>
+    <string name="libre3_status_services_missing">Sensorns tjänster saknas; försöker igen</string>
+    <string name="libre3_status_certificate_rejected">Sensorcertifikatet känns inte igen; skanna sensorn igen</string>
+    <string name="libre3_status_identity_missing">Ingen Libre 3-appidentitet importerad</string>
+    <string name="libre3_status_identity_rejected">Sensorn accepterade inte appidentiteten</string>
+    <string name="libre3_managed_receiver_save_failed">Mottagar-ID kunde inte sparas. Kontrollera enhetens lagring och försök igen. NFC-parkoppling är blockerad tills ID har sparats.</string>
 </resources>

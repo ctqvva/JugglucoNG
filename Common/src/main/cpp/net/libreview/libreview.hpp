@@ -36,7 +36,11 @@
 //#define LIBRE3ONLY 1
 //#define  NOREALSEND 1
 #endif
-constexpr const char *const trendName[]{"Undetermined", "FallingQuickly", "Falling", "Stable", "Rising", "RisingQuickly"};
+//The class a sensor gave a reading, as stored in ScanData.tr; anything else has no name in LibreView.
+constexpr const char *trendName(const int trend) {
+	constexpr const char *const names[]{"Undetermined", "FallingQuickly", "Falling", "Stable", "Rising", "RisingQuickly"};
+	return names[trend>=1&&trend<=5?trend:0];
+	}
 inline void	addstrview(char *&uitptr,const std::string_view indata) {
 	memcpy(uitptr,indata.data(),indata.size());
 	uitptr+=indata.size();

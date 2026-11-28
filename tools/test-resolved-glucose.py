@@ -68,6 +68,7 @@ def main():
 #include <vector>
 using namespace std;
 /* WEAR_HISTORY_ORIGIN */
+/* NIGHTSCOUT_HISTORY */
 #define LOGGER(...) ((void)0)
 #define JNIEXPORT
 #define JNICALL
@@ -83,6 +84,7 @@ using jint = int;
 using jsize = int;
 using jlongArray = vector<jlong>*;
 using jfloatArray = vector<float>*;
+using jintArray = vector<int>*;
 #define JNI_ABORT 2
 using sensorname_t = array<char, 11>;
 struct CaliPara { uint32_t time = 1; };
@@ -90,7 +92,7 @@ constexpr float convfactordL = 180.182f;
 constexpr int maxminutes = 100000;
 float gconvert(int value) { return value; }
 /* SCANDATA */;
-struct Info { uint32_t caliNr = 1, viewMode = 0, starttime = 1760000000, pollcount = 0, pollstart = 0; uint16_t nightiter = 0; CaliPara caliPara[1]; };
+struct Info { unsigned family = 0; unsigned managedFamilyCode() const { return family; } uint16_t healthconnectiter = 0; uint32_t caliNr = 1, viewMode = 0, starttime = 1760000000, pollcount = 0, pollstart = 0; uint16_t nightiter = 0; CaliPara caliPara[1]; };
 struct SensorGlucoseData {
     static recursive_mutex &pollWriteMutex() { static recursive_mutex lock; return lock; }
     // Whether the calling thread holds the poll write lock: it is a recursive mutex,
@@ -102,6 +104,7 @@ struct SensorGlucoseData {
     }
     string id;
     WearHistoryOrigin wearHistoryOrigin;
+    NightscoutHistoryProgress nightscoutHistoryProgress;
     string_view getsensordir() const { return id; }
     Info info;
     // While watching, every read of the poll state counts as made with or without the lock.
@@ -167,6 +170,7 @@ struct JNIEnv {
     template<class T> int GetArrayLength(vector<T> *array) { return array->size(); }
     jlong *GetLongArrayElements(jlongArray array, void *) { return array->data(); }
     float *GetFloatArrayElements(jfloatArray array, void *) { return array->data(); }
+    void GetIntArrayRegion(jintArray array, int first, int n, int *out) { copy_n(array->begin() + first, n, out); }
     void ReleaseLongArrayElements(jlongArray, jlong *, int) {}
     void ReleaseFloatArrayElements(jfloatArray, float *, int) {}
     // NightscoutCalibration: raw-primary view modes export the raw lane (mmol/L x10), then the
@@ -185,6 +189,10 @@ void copyfixedsensorname(char *out, size_t size, const sensorname_t *name) {
 }
 '''
     code = code.replace("/* SCANDATA */", extract("SensorGlucoseData.hpp", "struct ScanData"))
+    code = code.replace("/* NIGHTSCOUT_HISTORY */", "\n".join(
+        (CPP / name).read_text().replace("#pragma once", "")
+        for name in ("nightscouthistoryprogress.hpp", "net/watchserver/nightscoutbacklog.hpp")
+    ))
     code = code.replace("/* WRITERS */", "\n".join(
         "template <int secs>\n" + extract("SensorGlucoseData.hpp", signature)
         for signature in ["int savepollallIDsonlyQuiet(", "bool savepollallIDsQuiet("]
@@ -250,7 +258,17 @@ void setstreaming(SensorGlucoseData *) { ++streamings; }
             head, tail = body[:brace].rstrip(), body[brace:]
             body = head[:-1] + ",bool primaryIsResolved=false) " + tail
         return body
+    code += (CPP / "healthconnectbackfill.hpp").read_text().replace('#pragma once', '')
+    code += "\nstatic HealthConnectBackfillProgress healthConnectBackfillProgress;\n"
+    code += extract("net/libreview/libreview.hpp", "constexpr const char *trendName(")
     code += extract("g.cpp", "static bool storeGlucoseStreamSample(")
+    code += "\njint " + extract("g.cpp", "fromjava(healthConnectfromSensorptr)(")
+    code += extract("g.cpp", 'extern "C" JNIEXPORT jboolean JNICALL fromjava(healthConnectWritten)(')
+    code += "\nstatic nightscout_backlog::RecentUploads<2> recentNightUploads;\n"
+    for signature in ("static NightscoutHistoryProgress::Batch beginNightHistory(",
+                      "static bool nightHistoryChanged(", "static void advanceNightiter("):
+        code += extract("net/watchserver/uploader.cpp", signature)
+    code += "\njint " + extract("g.cpp", "fromjava(getSensorManagedFamilyFromSensorptr)(")
     code = code.replace("/* WEAR_HISTORY_ORIGIN */", (CPP / "wearhistoryorigin.hpp").read_text().replace('#pragma once', ''))
     code += "\n#define WEAROS\n"
     code += extract("g.cpp", "static bool addGlucoseStreamInternal(")
@@ -304,7 +322,168 @@ char *writev3entry(char *out, const ScanData *value, const sensorname_t *, bool,
     code += extract("net/watchserver/uploader.cpp", "static const char *writeNightscoutV3UploadEntry(")
     code += r'''
 int main() {
+    {
+        SensorGlucoseData libre3{"libre3"};
+        libre3.capacity = 128;
+        libre3.info.family = 9;
+        libre3.info.pollcount = 101;
+        libre3.info.pollstart = 100;
+        libre3.info.healthconnectiter = 101;
+        const auto ptr = reinterpret_cast<jlong>(&libre3);
+        const auto start = libre3.getstarttime();
+        // Export identity comes from retained native history, not deletable pairing records.
+        assert(getSensorManagedFamilyFromSensorptr(&env, nullptr, ptr) == 9);
+        assert(getSensorManagedFamilyFromSensorptr(&env, nullptr, 0) == 0);
+        // Exporting live first must not permanently hide an older recovered minute.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 50);
+        assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 50);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 101);
+        // Replaying an occupied slot does not cause an endless export rewind.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 12, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 101);
+        // A clinical minute can replace a gap filler already exported to Health Connect.
+        libre3.info.nightiter = 101;
+        const auto inFlight = beginNightHistory(&libre3, 0);
+        NightscoutHistoryProgress::takeWindowRevisit();
+        recentNightUploads.remember(0, start+50*60, 0);
+        recentNightUploads.remember(1, start+50*60, 0);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60+12, 14, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 50);
+        assert(libre3.getPollsData()[50].getmgdL() == 140);
+        assert(libre3.getPollsData()[50].gettime() == start+50*60);
+        assert(nightHistoryChanged(&libre3, inFlight));
+        assert(NightscoutHistoryProgress::takeWindowRevisit());
+        advanceNightiter(&libre3, inFlight, 101);
+        assert(libre3.info.nightiter == 50);
+        const auto replay = beginNightHistory(&libre3, 0);
+        assert(replay.start == 50 && replay.clearRecent);
+        assert(!recentNightUploads.covered(0, start+50*60));
+        assert(recentNightUploads.covered(1, start+50*60));
+        assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 50);
+        // Identical replay must not invalidate an in-flight correction export.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 14, 0, 0, false, false, true, nullptr));
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(!nightHistoryChanged(&libre3, replay));
+        advanceNightiter(&libre3, replay, 101);
+        assert(libre3.info.nightiter == 101);
+        // A second correction arriving during an export invalidates its old snapshot.
+        libre3.info.healthconnectiter = 50;
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+50*60, 15, 0, 0, false, false, true, nullptr));
+        assert(!healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 50);
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        // The gap may be ahead of the cursor but already skipped by serialization.
+        libre3.info.healthconnectiter = 20;
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+30*60, 12, 0, 0, false, false, true, nullptr));
+        assert(!healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 20);
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        // A late acknowledgement must not overwrite a rewind behind its start.
+        libre3.info.healthconnectiter = 80;
+        healthConnectfromSensorptr(&env, nullptr, ptr);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+40*60, 12, 0, 0, false, false, true, nullptr));
+        assert(!healthConnectWritten(&env, nullptr, ptr, 101));
+        assert(libre3.info.healthconnectiter == 40);
+        // Only the in-flight guard is volatile: the lower durable cursor survives restart.
+        healthConnectBackfillProgress = HealthConnectBackfillProgress{};
+        assert((healthConnectfromSensorptr(&env, nullptr, ptr) & 0xffff) == 40);
+        assert(healthConnectWritten(&env, nullptr, ptr, 101));
+        // The new rewind policy is limited to the Libre 3 managed family.
+        libre3.info.family = 0;
+        assert(getSensorManagedFamilyFromSensorptr(&env, nullptr, ptr) == 0);
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start+10*60, 12, 0, 0, false, false, true, nullptr));
+        assert(libre3.info.healthconnectiter == 101);
+    }
+
     static_assert(sizeof(ScanData) == 20);
+    {
+        // What LibreView is sent for a minute is the class the sensor gave it in its live frame.
+        SensorGlucoseData libre3{"libre3trend"};
+        libre3.capacity = 128;
+        libre3.info.family = 9;
+        batchSensor = &libre3;
+        const jlong start = libre3.getstarttime();
+        const auto trendOf = [&](int slot) { return string(trendName(libre3.getPollsData()[slot].tr)); };
+        vector<jlong> times; vector<float> values, zeros(8); vector<int> trends;
+        for (int i = 0; i < 8; ++i) {
+            times.push_back(start + (50 + i) * 60);
+            // Flat values: a class derived from them could only be Stable or unknown.
+            values.push_back(12);
+            trends.push_back(i);
+        }
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false, false, false, &trends) == 8);
+        const string names[] = {"Undetermined", "FallingQuickly", "Falling", "Stable", "Rising",
+                                "RisingQuickly", "Undetermined", "Undetermined"};
+        const auto keepsClasses = [&] {
+            for (int i = 0; i < 8; ++i)
+                assert(trendOf(50 + i) == names[i]);
+        };
+        keepsClasses();
+        // The same minutes replayed, and corrected, without a class.
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false) == 8);
+        keepsClasses();
+        for (auto &value : values) value = 14;
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false) == 8);
+        assert(libre3.getPollsData()[51].getmgdL() == 140);
+        keepsClasses();
+        // A recovered minute never had one.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start + 60*60, 12, 0, 0, false, false, true, nullptr));
+        assert(trendOf(60) == "Undetermined");
+        // A live frame overrides the class an earlier copy of the minute carried.
+        assert(storeGlucoseStreamSample(&libre3, "libre3", start + 51*60, 14, 0, 0, false, false, true,
+                                        nullptr, false, false, false, 5));
+        assert(trendOf(51) == "RisingQuickly");
+        for (int bad : {-1, 6, 7, 1000})
+            assert(string(trendName(bad)) == "Undetermined");
+        vector<int> tooFew{1};
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false, false, false, &tooFew) == 0);
+        batchSensor = nullptr;
+    }
+    {
+        // A Libre 3 replays minutes it already sent. Dated on the grid they were stored under,
+        // every replay leaves each minute's own value in its own slot; dated a minute later (an
+        // earlier build's sensor read back under the newer life count rule), a replay of minute
+        // L takes L + 1's slot and overwrites its value.
+        SensorGlucoseData libre3{"libre3grid"};
+        libre3.capacity = 128;
+        libre3.info.family = 9;
+        batchSensor = &libre3;
+        const jlong start = libre3.getstarttime();
+        vector<jlong> times; vector<float> values, zeros(6);
+        for (int i = 0; i < 6; ++i) {
+            times.push_back(start + (50 + i) * 60);
+            values.push_back(10.0f + 1.5f * i); // 100, 115, ... mg/dL: neighbours differ
+        }
+        const auto slotsHold = [&](const vector<float> &expected) {
+            for (int i = 0; i < 6; ++i) {
+                assert(libre3.getPollsData()[50 + i].getmgdL() == static_cast<int>(expected[i] * 10));
+                assert(libre3.getPollsData()[50 + i].gettime() == static_cast<uint32_t>(times[i]));
+            }
+        };
+        assert(addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros,
+                    libre3.id.c_str(), false) == 6);
+        slotsHold(values);
+        for (int replay = 0; replay < 2; ++replay) {
+            addGlucoseStreamBatchWithRawTempInternal(&env, &times, &values, &zeros, &zeros, libre3.id.c_str(), false);
+            slotsHold(values);
+        }
+        vector<jlong> shifted;
+        for (const auto time : times) shifted.push_back(time + 60);
+        addGlucoseStreamBatchWithRawTempInternal(&env, &shifted, &values, &zeros, &zeros, libre3.id.c_str(), false);
+        assert(libre3.getPollsData()[51].getmgdL() == 100); // minute 50's value in minute 51
+        assert(libre3.getPollsData()[51].gettime() == static_cast<uint32_t>(times[1]));
+        batchSensor = nullptr;
+    }
     {
         SensorGlucoseData managed{"SIBI:0111801JGS9"};
         filesystem::create_directory(managed.id);

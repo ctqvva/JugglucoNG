@@ -1220,6 +1220,7 @@ class DashboardViewModel(
                 }
                 _glucoseHistory.value = resolveHistoryDisplayList(rawHistory, unitStr, signature)
                 _isLoading.value = false
+                rawHistory.lastOrNull()?.let { tk.glucodata.ReadingPipelineTrace.historyEmitted(it.timestamp, rawHistory.size) }
             }
         }
     }

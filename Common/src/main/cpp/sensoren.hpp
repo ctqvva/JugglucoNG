@@ -161,7 +161,7 @@ public:
 #ifdef LIBRENUMBERS
     const SensorGlucoseData *sens = getSensorData();
     extern void setlibrenum3(bool);
-    setlibrenum3(sens != nullptr && sens->isLibre3());
+    setlibrenum3(sens != nullptr && sens->libreviewLibre3());
 #endif
   }
   void setversions() {
@@ -187,7 +187,7 @@ public:
     int lastsens = last();
     for (int i = settings->data()->startlibreview; i <= lastsens; i++) {
       const SensorGlucoseData *sens = getSensorData(i);
-      if (sens && sens->isLibre2()) {
+      if (sens && sens->libreviewLibre2()) {
         settings->data()->startlibreview = i;
         if (!sens->getinfo()->libreviewsendall &&
             sens->getmaxtime() > sendfrom) {
@@ -205,7 +205,7 @@ public:
         LOGGER("ERROR getSensorData(i)==NULL\n", i);
         continue;
       }
-      if (sens->isLibre3()) {
+      if (sens->libreviewLibre3()) {
         settings->data()->startlibre3view = i;
 #ifndef NOLOG
         time_t tim = sens->getmaxtime();
@@ -438,6 +438,29 @@ public:
     LOGGER("add sensor %.16s starttime=%d %s", name.data(), tim, ctime(&tim));
 #endif
     return lastpos;
+  }
+  // The wear duration a direct-stream driver negotiated (setSensorWearDays).
+  // Only metadata moves: info->days is the shell's storage geometry, and
+  // data.dat/polls.dat/current.dat are all sized from it in the
+  // SensorGlucoseData constructor's initializer list, while maxpos() and
+  // maxstreampos() recompute from it on every call. Raising it mid-session
+  // would leave those bounds describing more than is mapped.
+  void setWearDays(const string_view name, int days) {
+    SensorGlucoseData *hist = ensureDirectStreamShell(name);
+    if (!hist || hist->error())
+      return;
+    auto *info = hist->getinfo();
+    if (!info)
+      return;
+    info->wearduration2 = static_cast<uint16_t>(days * 24 * 60);
+    // The roster keeps its own lifetime, 14.5 days while unset, and Clone's
+    // live stream stops there (update()). At stdMaxDaysSI * 2 and beyond it
+    // would mean Sibionics.
+    if (hist->isManagedLibre3())
+      getsensor(hist->sensorIndex)->halfdays = static_cast<uint8_t>(
+          std::min(2 * (days + 1), stdMaxDaysSI * 2 - 1));
+    LOGGER("setWearDays: %.*s days=%d wear=%u\n", (int)name.size(), name.data(),
+           days, info->wearduration2);
   }
   SensorGlucoseData *ensureDirectStreamShell(
       const string_view name, uint32_t starttime = 0,
