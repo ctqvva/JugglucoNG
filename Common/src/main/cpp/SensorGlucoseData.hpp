@@ -616,7 +616,11 @@ public:
     writeall(filename, &inf, sizeof(inf));
   }
 
-  inline static const int blocksize = sysconf(_SC_PAGESIZE);
+  // The unit scan storage is sized in. Files outlive the device they were made
+  // on (backups, Clone), so it must not follow this device's page size: in
+  // 16 KB units the first scan file came out at zero bytes, which cannot be
+  // mapped, and every new record read as Libre 2 failed to open.
+  static constexpr int blocksize = 4096;
 
 private:
   static constexpr uint16_t defaultinterval = 15 * 60;
@@ -2076,7 +2080,9 @@ uint32_t getlastpolltime() const {
 
   void saveglucose(const nfcdata *nfc, time_t tim, int id, int glu, int trend,
                    float change) {
-    savetrend(nfc, gettrendsbuf(scancount()));
+    // Past the end of the file is only writable as far as its last page goes.
+    if (static_cast<size_t>(scancount()) < trends.count())
+      savetrend(nfc, gettrendsbuf(scancount()));
     if (saveglucosedata(scans, getinfo()->scancount, tim, id, glu, trend,
                         change, 0))
       setlastscantime(tim);
