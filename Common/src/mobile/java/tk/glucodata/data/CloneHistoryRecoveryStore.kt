@@ -93,7 +93,7 @@ internal class CloneHistoryRecoveryStore(
                 if (includeJournal) {
                     // The lock must precede Room's transaction: taking it in resolveFood would
                     // invert the library writer's lock order and could deadlock with an edit.
-                    (foodLibrary ?: FoodLibrary(database.journalDao(), FoodLibraryDatabase.getInstance(Applic.app).foodDetailsDao()))
+                    (foodLibrary ?: FoodLibrary(database, FoodLibraryDatabase.getInstance(Applic.app)))
                         .withWrites { database.withRecoveryTransaction(manifest) { operation() } }
                 } else {
                     database.withRecoveryTransaction(manifest) { operation() }

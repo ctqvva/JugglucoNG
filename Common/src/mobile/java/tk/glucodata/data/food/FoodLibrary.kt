@@ -5,6 +5,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import tk.glucodata.data.HistoryDatabase
 import tk.glucodata.data.journal.JournalDao
 import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalFoodEntity
@@ -21,10 +22,15 @@ data class DeletedFoods(val rows: List<JournalFoodEntity>, val details: List<Foo
  * Besides the foods saved on purpose it remembers the ones that were eaten, with the amount,
  * so the next meal starts from "what I had last time" instead of from a search.
  */
-class FoodLibrary(
+class FoodLibrary internal constructor(
     private val journalDao: JournalDao,
-    private val detailsDao: FoodDetailsDao
+    private val detailsDao: FoodDetailsDao,
+    private val restoreRecovery: FoodRestoreRecovery? = null
 ) {
+    constructor(history: HistoryDatabase, food: FoodLibraryDatabase) : this(
+        history.journalDao(), food.foodDetailsDao(), FoodRestoreRecovery(history, food)
+    )
+
     fun observe(): Flow<List<JournalFood>> =
         journalDao.observeFoods().combine(detailsDao.observeAll()) { _, _ -> foods() }
 
@@ -195,23 +201,37 @@ class FoodLibrary(
     }
 
     /** Restore exactly the supplied details, including their absence in older backups. */
-    suspend fun restore(rows: List<JournalFoodEntity>, details: List<FoodDetailsEntity>, replaceAll: Boolean = false) = writes.withLock {
+    suspend fun restore(rows: List<JournalFoodEntity>, details: List<FoodDetailsEntity>) = writes.withLock {
         recoverWrite()
         val byId = details.associateBy { it.foodId }
         rows.forEach { write(it, byId[it.id]) }
-        if (replaceAll) {
-            val ids = rows.mapTo(HashSet()) { it.id }
-            journalDao.getFoods().filter { it.id !in ids }.forEach { deleteLocked(it.id) }
-        }
+    }
+
+    /**
+     * Prepare the food details and save their previous values in one food database transaction.
+     * [commitJournal] writes the matching token in the same transaction as the journal rows.
+     * On the next food library access after a crash, that token decides whether to keep the
+     * replacement details or put the previous details back.
+     */
+    internal suspend fun restoreWithJournal(
+        details: List<FoodDetailsEntity>,
+        commitJournal: suspend (String) -> Unit
+    ) = withWrites {
+        checkNotNull(restoreRecovery).replace(details, commitJournal)
     }
 
     private suspend fun write(row: JournalFoodEntity, details: FoodDetailsEntity?) {
-        detailsDao.stage(PendingFoodWrite(food = row, detailsJson = details?.let { FoodDetailsBackup.toJson(listOf(it)).toString() }))
-        recoverWrite()
+        val pending = PendingFoodWrite(food = row, detailsJson = details?.let { FoodDetailsBackup.toJson(listOf(it)).toString() })
+        detailsDao.stage(pending)
+        finishWrite(pending)
     }
 
     private suspend fun recoverWrite() {
-        val pending = detailsDao.pending() ?: return
+        restoreRecovery?.recover()
+        detailsDao.pending()?.let { finishWrite(it) }
+    }
+
+    private suspend fun finishWrite(pending: PendingFoodWrite) {
         journalDao.upsertFood(pending.food)
         detailsDao.finish(pending)
     }

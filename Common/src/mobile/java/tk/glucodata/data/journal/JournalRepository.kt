@@ -26,7 +26,7 @@ class JournalRepository {
     private val database = HistoryDatabase.getInstance(Applic.app)
     private val dao = database.journalDao()
     private val prefs = Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    private val foodLibrary = FoodLibrary(dao, FoodLibraryDatabase.getInstance(Applic.app).foodDetailsDao())
+    private val foodLibrary = FoodLibrary(database, FoodLibraryDatabase.getInstance(Applic.app))
 
     // Room runs the query on its own executor, but the map runs wherever the
     // flow is collected — the view model's main-thread scope — so every journal

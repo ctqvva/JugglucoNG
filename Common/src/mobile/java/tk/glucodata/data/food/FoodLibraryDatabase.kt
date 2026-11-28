@@ -19,6 +19,11 @@ import androidx.room.RoomDatabase
 import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
 import org.json.JSONObject
+import tk.glucodata.data.backupBoolean
+import tk.glucodata.data.backupFloat
+import tk.glucodata.data.backupInt
+import tk.glucodata.data.backupLong
+import tk.glucodata.data.backupString
 
 internal const val FOOD_LIBRARY_DATABASE_VERSION = 2
 
@@ -168,14 +173,15 @@ object FoodDetailsBackup {
         }
     }
 
-    fun fromJson(array: JSONArray?): List<FoodDetailsEntity> {
+    fun fromJson(array: JSONArray?, strict: Boolean = false): List<FoodDetailsEntity> {
         if (array == null) return emptyList()
         fun JSONObject.float(key: String): Float? =
             if (has(key) && !isNull(key)) optDouble(key).toFloat().takeIf { it.isFinite() } else null
         fun JSONObject.text(key: String): String? =
             if (has(key) && !isNull(key)) optString(key).takeIf { it.isNotEmpty() } else null
         return (0 until array.length()).mapNotNull { index ->
-            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val item = if (strict) array.getJSONObject(index) else array.optJSONObject(index) ?: return@mapNotNull null
+            if (strict) validate(item)
             val foodId = item.optLong("foodId", 0L).takeIf { it > 0L } ?: return@mapNotNull null
             FoodDetailsEntity(
                 foodId = foodId,
@@ -191,9 +197,30 @@ object FoodDetailsBackup {
                 useCount = item.optInt("useCount", 0),
                 lastUsedAt = item.optLong("lastUsedAt", 0L),
                 lastQuantity = item.float("lastQuantity"),
-                lastPortionIndex = if (item.has("lastPortionIndex")) item.optInt("lastPortionIndex") else null,
+                lastPortionIndex = if (!item.isNull("lastPortionIndex")) item.optInt("lastPortionIndex") else null,
                 hasOwnAbsorption = item.optBoolean("hasOwnAbsorption", item.optBoolean("kept", true))
             )
+        }
+    }
+
+    private fun validate(item: JSONObject) {
+        require(item.backupLong("foodId") > 0L) { "Invalid food detail ID" }
+        for (key in listOf("referenceGrams", "fiberGrams", "kcal", "lastQuantity")) {
+            if (!item.isNull(key)) item.backupFloat(key)
+        }
+        for (key in listOf("brand", "barcode", "sourceKey")) {
+            if (!item.isNull(key)) item.backupString(key)
+        }
+        for (key in listOf("isLiquid", "kept", "hasOwnAbsorption")) {
+            item.backupBoolean(key, false)
+        }
+        item.backupInt("useCount", 0)
+        item.backupLong("lastUsedAt", 0L)
+        if (!item.isNull("lastPortionIndex")) item.backupInt("lastPortionIndex")
+        val portions = item.backupString("portions", "").trim()
+        if (portions.isNotEmpty()) {
+            val count = if (portions.startsWith("[")) JSONArray(portions).length() else portions.split(',').size
+            require(FoodPortions.decode(portions).size == count) { "Invalid food portions" }
         }
     }
 }
