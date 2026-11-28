@@ -467,6 +467,7 @@
     <string name="dexcom_sensor_desc">G7, ONE+, Flex</string>
     <string name="dexcom_15_day_models">%1$s (G7 / Flex)</string>
     <string name="scan_dexcom">Escanear Dexcom</string>
+    <string name="photomessage">Escaneie o código Data Matrix de um sensor Dexcom G7/ONE+/Flex ou Sibionics GS1, ou o código QR do espelhamento.</string>
     <string name="dexcom_scan_instruction">Escaneie o datamatrix no seu sensor Dexcom</string>
     <string name="dexcom_bluetooth_slot">Slot Bluetooth</string>
     <string name="dexcom_slot_receiver_short">Bomba</string>
