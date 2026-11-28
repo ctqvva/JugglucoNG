@@ -345,7 +345,7 @@ class SensorHandoverStateTests {
     fun graceEndIsTheNativeExpectedEndUpToTwelveHours() {
         val official = 1_700_000_000_000L
         val twelveHours = 12L * 60 * 60_000L
-        // Dexcom: native's expected end adds 12 h.
+        // Dexcom and Libre 2: native's expected end adds 12 h.
         assertEquals(official + twelveHours, SensorHandoverState.graceEnd(true, official, official + twelveHours))
         // AiDEX and other managed shells: native adds the same 12 h, but the
         // sensor has no grace period.
@@ -357,22 +357,5 @@ class SensorHandoverStateTests {
         // Unknown ends never make one up.
         assertEquals(0L, SensorHandoverState.graceEnd(true, 0L, official))
         assertEquals(0L, SensorHandoverState.graceEnd(true, official, 0L))
-    }
-
-    // A Libre 2 is read for 24 h past its official end (a switch can also remove it).
-    @Test
-    fun libre2KeepsItsTwentyFourHoursOfReadings() {
-        val end = SensorHandoverState.graceEnd(true, oldEnd, oldEnd + 12L * 60 * 60_000L, isLibre2 = true)
-        assertEquals(oldEnd + 24L * 60 * 60_000L, end)
-        fun at(nowMs: Long, delivering: Boolean) = SensorHandoverState(FakeStore()).evaluate(
-            true, primaryInGrace(delivering, end), listOf(successor(endMs = end + futureEnd)), nowMs
-        )
-        assertEquals(HandoverDecision.None, at(oldEnd - 1, delivering = true))
-        assertEquals(HandoverDecision.None, at(oldEnd + 13L * 60 * 60_000L, delivering = true))
-        assertEquals(HandoverDecision.None, at(end - 1, delivering = true))
-        assertTrue(at(end - 1, delivering = false) is HandoverDecision.Switch)
-        assertTrue(at(end, delivering = true) is HandoverDecision.Switch)
-        // Without a known end there is no grace period either.
-        assertEquals(0L, SensorHandoverState.graceEnd(true, 0L, 0L, isLibre2 = true))
     }
 }

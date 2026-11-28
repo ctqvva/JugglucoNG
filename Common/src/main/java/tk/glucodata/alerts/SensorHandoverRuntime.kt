@@ -166,11 +166,7 @@ internal object SensorHandoverRuntime {
             val startMs = if (nativeStart > 0L) nativeStart else snapshot?.startTimeMs ?: 0L
 
             allSerials.add(serial)
-            // A managed sensor received over Clone has this callback too, with its family stamped.
-            val isLibre2 = gatt is Libre2GattCallback && gatt.dataptr != 0L &&
-                runCatching { Natives.getSensorManagedFamily(gatt.dataptr) }.getOrDefault(0) == 0
-            val graceEndMs = SensorHandoverState.graceEnd(hasGracePeriod, endMs, expectedEndMs, isLibre2)
-            val sensor = HandoverSensor(serial, startMs, endMs, graceEndMs) {
+            val sensor = HandoverSensor(serial, startMs, endMs, SensorHandoverState.graceEnd(hasGracePeriod, endMs, expectedEndMs)) {
                 hasRecentReading(serial)
             }
             if (SensorIdentity.matches(serial, primarySerial)) {

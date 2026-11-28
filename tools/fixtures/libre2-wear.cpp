@@ -90,27 +90,28 @@ static bool kept(scanstate &s, const Sensor &sensor, unsigned seen) {
         libre2_imp::usable_state(&s, p.get());
 }
 static int bluetooth() {
-    constexpr unsigned day = 1440;
+    constexpr unsigned half = 720;
     for(unsigned char type : {0x39, 0x3a, 0x3b, 0x3c, 0x79}) {
         const Sensor sensor(type);
         auto s = sensor.state();
         CHECK(s && kept(*s, sensor, start), "%02x: no state to start from", type);
         const unsigned w = sensor.wear;
         // Every boundary in one run, so a state saved past the nominal wear is read again.
-        for(unsigned m : {w - 61, w - 60, w - 1, w, w + 1, w + day / 2, w + day / 2 + 1, w + day - 1, w + day}) {
+        for(unsigned m : {w - 61, w - 60, w - 1, w, w + 1, w + half / 2, w + half - 1, w + half}) {
             const auto r = stream(sensor, s, m * 60, m);
             CHECK(r.read && !r.past_wear, "%02x: frame at nominal %+d min refused", type, int(m - w));
             CHECK(kept(*s, sensor, start), "%02x: start or nominal wear changed at %+d min", type, int(m - w));
         }
         // The last minute counts to its end; the next one is past the wear.
-        auto last = stream(sensor, s, (w + day) * 60 + 59, w + day);
+        // Bluetooth ends 12 hours past the nominal wear.
+        auto last = stream(sensor, s, (w + half) * 60 + 59, w + half);
         CHECK(last.read, "%02x: the last minute is cut short", type);
-        for(unsigned m : {w + day + 1, w + day + 2, w + 2 * day}) {
+        for(unsigned m : {w + half + 1, w + half + 2, w + 2 * half, w + 4 * half}) {
             const auto r = stream(sensor, s, m * 60, m);
             CHECK(!r.read && r.past_wear, "%02x: frame at nominal %+d min not past the wear", type, int(m - w));
         }
         // A wrong phone clock is not the end of the sensor.
-        for(unsigned seconds : {(w + 30 * day) * 60, 0u - 3600u}) {
+        for(unsigned seconds : {(w + 60 * half) * 60, 0u - 3600u}) {
             auto young = sensor.state();
             const auto r = stream(sensor, young, seconds, w / 2);
             CHECK(!r.read && !r.past_wear, "%02x: a wrong clock ended the sensor", type);
@@ -121,22 +122,23 @@ static int bluetooth() {
 static int moved_start() {
     // The vendor path's last-day state has its start a day late; the saved start comes back.
     const Sensor sensor(0x39);
-    for(unsigned m : {sensor.wear - 30, sensor.wear + 1440}) {
+    for(unsigned m : {sensor.wear - 30, sensor.wear + 720}) {
         auto s = sensor.state(start + 86400, 1);
         const auto r = stream(sensor, s, m * 60, m);
         CHECK(r.read && kept(*s, sensor, start), "a moved start was kept at minute %u", m);
     }
     auto s = sensor.state(start + 86400, 1);
-    const unsigned after = sensor.wear + 1441;
+    const unsigned after = sensor.wear + 721;
     const auto r = stream(sensor, s, after * 60, after);
-    CHECK(!r.read && r.past_wear, "a moved start gave more than a day");
+    CHECK(!r.read && r.past_wear, "a moved start gave more than 12 hours");
     return 0;
 }
 static int scans() {
     for(unsigned char type : {0x39, 0x3a}) {
         const Sensor sensor(type);
         const unsigned w = sensor.wear;
-        // With the sensor still recording, and with its records capped at the end it stores.
+        // With the sensor still recording (12 hours past the nominal wear), and with its records
+        // capped at the end it stores (a final scan: 24 hours).
         for(unsigned footer : {0u, w + 720})
             for(unsigned m : {w - 60, w, w + 1, w + 720, w + 721, w + 1440, w + 1441}) {
                 auto s = sensor.state();
@@ -150,7 +152,8 @@ static int scans() {
                 outobj from, to;
                 std::unique_ptr<AlgorithmResults> r(libre2_imp::scan(u.get(), p.get(), data.get(), s.get(), next.get(),
                     start + m * 60, &from, &to, 60, start));
-                CHECK(bool(r) == (m <= w + 1440), "%02x: scan at nominal %+d min (footer %u): %s", type, int(m - w), footer,
+                const bool final_scan = footer && m >= footer;
+                CHECK(bool(r) == (m <= w + (final_scan ? 1440 : 720)), "%02x: scan at nominal %+d min (footer %u): %s", type, int(m - w), footer,
                     r ? "read" : "refused");
                 CHECK(!r || footer || glucose(*r), "%02x: scan at nominal %+d min has no glucose", type, int(m - w));
                 CHECK(!r || kept(*next, sensor, start), "%02x: a scan changed the start or nominal wear", type);
@@ -160,5 +163,5 @@ static int scans() {
 }
 int main() {
     if(bluetooth() || moved_start() || scans()) return 1;
-    std::puts("PASS: Libre 2 frames and scans at the nominal and extended wear");
+    std::puts("PASS: Libre 2 frames and scans at the end of wear: 12 h over Bluetooth, 24 h for a final scan");
 }

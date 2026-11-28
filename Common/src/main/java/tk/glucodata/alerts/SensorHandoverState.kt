@@ -4,7 +4,7 @@ package tk.glucodata.alerts
  * One sensor as the handover evaluation sees it. [endMs] is the official end
  * (start + wear duration, the same source the expiry alarm uses); 0 means
  * unknown. [graceEndMs] is the end of the grace period the sensor keeps
- * reading through after [endMs] (Dexcom: 12 h, Libre 2: 24 h), 0 when it has none.
+ * reading through after [endMs] (Dexcom, Libre 2: 12 h), 0 when it has none.
  * [hasRecentReading] is evaluated lazily because it needs a history lookup -
  * the decision only asks for it when the answer matters.
  */
@@ -168,18 +168,11 @@ internal class SensorHandoverState(
 
         /**
          * The longest stretch past the official end taken as a grace period:
-         * Dexcom's documented 12 h. Longer native
+         * Dexcom's documented 12 h, which Libre 2 has too. Longer native
          * estimates (Sibionics) are wear extensions, not a grace period, and
          * keep the switch at the official end.
          */
         const val MAX_GRACE_MS = 12L * 60 * 60_000L
-
-        /**
-         * Libre 2 frames are read this long past the official end
-         * (wear_grace_minutes in libre2_imp). Native's expected end stays at
-         * 12 h, when a sensor usually stops.
-         */
-        const val LIBRE2_GRACE_MS = 24L * 60 * 60_000L
 
         /**
          * The grace period's end for [HandoverSensor.graceEndMs], 0 when there
@@ -188,15 +181,9 @@ internal class SensorHandoverState(
          * (AiDEX and other managed shells too), so the time gap alone does not
          * say the sensor keeps reading past its official end.
          */
-        fun graceEnd(
-            hasGracePeriod: Boolean,
-            officialEndMs: Long,
-            expectedEndMs: Long,
-            isLibre2: Boolean = false,
-        ): Long {
+        fun graceEnd(hasGracePeriod: Boolean, officialEndMs: Long, expectedEndMs: Long): Long {
             if (!hasGracePeriod) return 0L
             if (officialEndMs <= 0L || expectedEndMs <= officialEndMs) return 0L
-            if (isLibre2) return officialEndMs + LIBRE2_GRACE_MS
             return if (expectedEndMs - officialEndMs <= MAX_GRACE_MS) expectedEndMs else 0L
         }
     }

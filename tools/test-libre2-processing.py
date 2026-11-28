@@ -40,23 +40,10 @@ frames = '\n'.join([
     extract('const AlgorithmResults *  libre2stream::processTooth(', (cpp / 'libre2.cpp').read_text()),
     extract('extern "C" JNIEXPORT jlong JNICALL fromjava(processTooth)(', (cpp / 'g.cpp').read_text()),
 ])
-# The app's own ends: the data record, the sensor list and the loop that feeds other devices.
-wear = '\n'.join(extract(s) for s in [
-    'bool isNfcLibre2(', 'int getweardurationMIN(', 'int getweardurationSEC(', 'uint32_t officialendtime(',
-    'uint32_t getmaxtime(', 'bool isLibre2(', 'bool hasLibrePatchInfo(',
-])
-sensoren = (cpp / 'sensoren.hpp').read_text()
-entry = extract('struct sensor {', sensoren) + ';'
-roster = '\n'.join(extract(s, sensoren) for s in [
-    'static void coverLibre2Grace(', 'template <typename F> bool checkinfo(const int ind, uint32_t nu, F dont) {',
-    'int update(crypt_t *pass, Connect *connect, const int ind, int &firstsensor,',
-])
 with tempfile.TemporaryDirectory(prefix='libre2-processing-') as directory:
-    for name in ['libre2-processing', 'libre2-frames', 'libre2-wear', 'libre2-roster']:
+    for name in ['libre2-processing', 'libre2-frames', 'libre2-wear']:
         fixture = (root / f'tools/fixtures/{name}.cpp').read_text()
         fixture = fixture.replace('/* SENSOR_METHODS */', sensor).replace('/* FRAME_METHODS */', frames)
-        fixture = fixture.replace('/* WEAR_METHODS */', wear).replace('/* LIST_ENTRY */', entry)
-        fixture = fixture.replace('/* ROSTER_METHODS */', roster)
         test = Path(directory) / f'{name}.cpp'
         binary = Path(directory) / name
         test.write_text(fixture)
