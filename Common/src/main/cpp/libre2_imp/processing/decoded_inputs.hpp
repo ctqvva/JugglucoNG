@@ -33,10 +33,10 @@ struct DecodedNumericInputs {
 // Native 0x22fb58 before the numeric core, for chronological processing of an
 // initialized EU configuration. Raw tables are the serialized, decoded cache.
 inline DecodedNumericInputs prepare_decoded_inputs(
-        std::span<const std::uint8_t,configuration_size> c,bool is_scan){
+        std::span<const std::uint8_t,configuration_size> c,bool is_scan,unsigned wear_grace=wear_grace_minutes){
     DecodedNumericInputs out{};auto& p=out.parameters;auto word=[&](unsigned o){return read_state_u16(c.data()+o);};
     p.age=word(0x10);p.elapsed_minutes=configuration_elapsed_minutes(c);p.warmup_minutes=word(0x12);
-    p.wear_minutes=processing_wear_minutes(word(0x14));
+    p.wear_minutes=processing_wear_minutes(word(0x14),wear_grace);
     p.calibration={std::int16_t(word(0x180)),std::int16_t(word(0x182)),word(0x1a),
         {read_state_float(c.data()+0x18c),read_state_float(c.data()+0x188)},c[0x191],c[0x192]};
     p.is_scan=is_scan;p.feature_bits=c[0x30];p.low=word(0x16);p.high=word(0x18);p.maximum=word(0x1c);p.minimum=word(0x1e);

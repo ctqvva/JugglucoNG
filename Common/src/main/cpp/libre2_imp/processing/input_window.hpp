@@ -24,11 +24,9 @@
 #include "persistent_state.hpp"
 #include <algorithm>
 namespace libre2_processing {
-// JugglucoNG: 24 hours past the nominal wear, as the vendor path gave by moving the start a day
-// (the native code has 12). Start and nominal wear in the state stay as they are.
-inline constexpr std::uint16_t wear_grace_minutes=24*60;
-inline constexpr std::uint16_t processing_wear_minutes(std::uint16_t nominal){
-    return std::uint16_t(std::min(unsigned(nominal)+wear_grace_minutes,0xffffu));
+inline constexpr std::uint16_t wear_grace_minutes=12*60;
+inline constexpr std::uint16_t processing_wear_minutes(std::uint16_t nominal,unsigned grace=wear_grace_minutes){
+    return std::uint16_t(std::min(nominal+grace,0xffffu));
 }
 // JugglucoNG: the native code used nothing before elapsed minute 45 and showed nothing before
 // the 60-minute warm-up. Ten minutes settle the sensor's currents; from then on a reading that

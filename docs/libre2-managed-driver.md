@@ -40,7 +40,7 @@ touches either Libre 3 path.
   so a copy on a watch or mirror carries its owner. Update the phone and the watch together:
   a build older than this change would hand that state to the vendor library.
 - The vendor library's end-of-wear workaround is gone: no artificial restart in the last hour,
-  and the stream no longer moves the start time by a day near the end of wear. The day it gave is
+  and the stream no longer moves the start time by a day near the end of wear. The end of wear is
   a plain grace period now, see "End of wear".
 
 The glucose values of the open backend can differ from the vendor library's. When it marks the
@@ -102,20 +102,14 @@ not yet started sensor (phase, checksums, ring pointers and age 0).
 
 ## End of wear
 
-Frames and scans are read for 24 hours past the nominal wear (`wear_grace_minutes`). The saved
-start and the nominal wear stay as they are, and the official and expected ends the app shows do
-not move. After that a frame is refused and counts as the end of the sensor: three received frames
-show "Replace sensor?". The sensor's own minute counter must be past the nominal wear too, so a
-wrong phone clock only refuses frames.
+A Libre 2 sends frames for 12 hours past the nominal wear (14.5 days for a 14-day sensor,
+`wear_grace_minutes`). A scan with the sensor's final readings is read for 24 hours past it
+(`final_scan_grace`). The saved start and the nominal wear stay as they are, and the official and
+expected ends the app shows do not move. A frame after the 12 hours is refused and counts as the
+end of the sensor: three received frames show "Replace sensor?". The sensor's own minute counter
+must be past the nominal wear too, so a wrong phone clock only refuses frames.
 
-What the app ends on its own, for a sensor with NFC patch info:
-
-- `getmaxtime()` / `checkinfo()` retire it after the same 24 hours, and not while frames arrive.
-- The sensor list's own length ended the live updates to a watch or Clone at nominal + 12 h, and
-  at 14.5 days for a 15-day sensor added by a first scan. It covers the 24 hours now.
-- An automatic handover waits for the 24 hours while the old sensor still reads; its "remove"
-  option would have stopped the old sensor at 12 h.
-- A stream history point past the mapped history is dropped instead of written.
+A stream history point past the mapped history is dropped instead of written.
 
 Left alone: a scan whose newest reading is more than 3 minutes old finishes the sensor. That is
 the sensor's own end (the age its footer caps the records at), not a clock here. The LibreView
@@ -189,6 +183,6 @@ carry no keys, unlock payloads or glucose values.
 5. First generation and Libre 1: scan, enable streaming, BLE reconnects and history.
 6. Two sensors at once, one of each generation if available.
 7. Delete or corrupt the sensor's saved state, scan: the state is rebuilt, no crash.
-8. Scan and stream in the last hour of wear and the 24 hours after: every scan and frame reads,
-   the shown start and ends do not move, and a watch or Clone keeps receiving.
+8. Stream and scan in the last hour of wear and after: frames read for 12 hours, then "Replace
+   sensor?"; a final scan reads for 24 hours; the shown start and ends do not move.
 9. Phone and watch both on this build, watch connected directly to the sensor.
