@@ -2,6 +2,9 @@ package tk.glucodata.drivers
 
 import tk.glucodata.Applic
 import tk.glucodata.R
+import java.text.NumberFormat
+import java.util.Locale
+import kotlin.math.abs
 
 data class ManagedSensorLifecycleSummary(
     val progress: Float,
@@ -13,6 +16,34 @@ data class ManagedSensorLifecycleSummary(
 object ManagedSensorStatusPolicy {
     private const val DAY_MS = 24L * 60L * 60L * 1000L
     private const val HOUR_MS = 60L * 60L * 1000L
+    private const val HALF_DAY_MS = 12L * HOUR_MS
+
+    /**
+     * How long a sensor's wear lasts, in half days. A span within an hour of a whole number of
+     * days and a half keeps its half, so a Libre 2's 14 days and 12 hours of Bluetooth reads
+     * 14.5 and not 15. Any other span rounds to the nearest whole day, so Ottai's 15 days and
+     * 30 minutes stays 15.
+     */
+    @JvmStatic
+    fun wearHalfDays(spanMs: Long): Long {
+        val halves = (spanMs + HALF_DAY_MS / 2L) / HALF_DAY_MS
+        if (halves % 2L == 1L && halves >= 3L && abs(spanMs - halves * HALF_DAY_MS) <= HOUR_MS) {
+            return halves
+        }
+        return ((spanMs + DAY_MS / 2L) / DAY_MS).coerceAtLeast(1L) * 2L
+    }
+
+    /** [wearHalfDays] as the number of days it is: 14, or 14.5. */
+    @JvmStatic
+    fun wearDaysNumber(halfDays: Long): Number =
+        if (halfDays % 2L == 0L) halfDays / 2L else halfDays / 2.0
+
+    /** [wearDaysNumber] in the locale's own digits: "14", "14.5", "14,5". */
+    @JvmStatic
+    @JvmOverloads
+    fun wearDaysText(halfDays: Long, locale: Locale = Locale.getDefault()): String =
+        NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 1 }
+            .format(wearDaysNumber(halfDays))
 
     private val passiveSummaryStatuses = setOf(
         "ready",
@@ -93,6 +124,7 @@ object ManagedSensorStatusPolicy {
         fallbackDurationDays: Int = 14,
         allowExpectedEndOverrun: Boolean = false,
         nowMs: Long = System.currentTimeMillis(),
+        locale: Locale = Locale.getDefault(),
     ): ManagedSensorLifecycleSummary {
         if (startTimeMs <= 0L) {
             return ManagedSensorLifecycleSummary(0f, "", 0, 999L)
@@ -144,8 +176,10 @@ object ManagedSensorStatusPolicy {
         // sub-day overage in their reported end (e.g. Ottai's maxActive is 15d + 30min), and
         // ceiling turned a genuine 15-day sensor into "16". Round-to-nearest shows 15 for
         // 15d+30min while still showing 16 for a real 15.6d, and leaves exact-day sensors
-        // (14d/15d/21d) unchanged.
-        val totalDays = ((totalMs + DAY_MS / 2L) / DAY_MS).coerceAtLeast(1L)
+        // (14d/15d/21d) unchanged. A span of whole days and a half keeps its half (a Libre 2's
+        // 14.5); the current day then runs to 15, the day that half falls in.
+        val totalHalfDays = wearHalfDays(totalMs)
+        val totalDays = (totalHalfDays + 1L) / 2L
         val computedCurrentDay = reportedAgeHours
             ?.let { (it / 24L) + 1L }
             ?: ((usedMs / DAY_MS) + 1L)
@@ -157,7 +191,7 @@ object ManagedSensorStatusPolicy {
 
         return ManagedSensorLifecycleSummary(
             progress = progress,
-            daysText = "$currentDay / $totalDays",
+            daysText = "$currentDay / ${wearDaysText(totalHalfDays, locale)}",
             currentDay = currentDay,
             remainingHours = remainingHours,
         )
