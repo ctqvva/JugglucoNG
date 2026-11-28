@@ -342,7 +342,7 @@ object ExportPackageExporter {
                     val aidex = prepareAiDexImport(appContext, uri, imported, drivers)
 
                     val settingsResult = payload.optJSONObject("settings")?.let { settings ->
-                        SettingsExporter.importPayload(appContext, settings).getOrThrow()
+                        SettingsExporter.importPayload(appContext, settings, requireJournalData = false).getOrThrow()
                             .also { aidex.settingsImported() }
                     }
                     val historySummary = payload.optJSONObject("history")?.let { history ->
@@ -786,7 +786,11 @@ object ExportPackageExporter {
     }
 
     private suspend fun prepareAiDexImport(context: Context, uri: Uri, imported: ImportPayload, drivers: List<AiDexBleManager>, validateSettings: Boolean = true): AiDexHistoryImport {
-        if (validateSettings) imported.payload.optJSONObject("settings")?.let { SettingsExporter.validatePayload(it, requireJournalData = false) }
+        if (validateSettings && imported.payload.has("settings")) {
+            val settings = imported.payload.optJSONObject("settings")
+                ?: error("Backup section is invalid: settings")
+            SettingsExporter.validatePayload(settings, requireJournalData = false)
+        }
         validateSensorSourceJournals(imported.payload.optJSONObject("history")?.optJSONObject("sensorSourceJournals"))
         val plan = AiDexHistoryImport.prepare(context, imported.payload, imported.readingsBySensor, drivers)
         // Validate all conflicting minutes before touching preferences or Room.

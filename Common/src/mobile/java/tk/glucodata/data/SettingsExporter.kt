@@ -4,27 +4,37 @@ import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import androidx.room.withTransaction
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import tk.glucodata.BuildConfig
 import tk.glucodata.Natives
 import tk.glucodata.data.journal.JournalEntryEntity
 import tk.glucodata.data.journal.CloneJournalTombstoneEntity
 import tk.glucodata.data.journal.CloneJournalIdentity
 import tk.glucodata.data.food.FoodDetailsBackup
+import tk.glucodata.data.food.FoodDetailsEntity
 import tk.glucodata.data.food.FoodLibrary
 import tk.glucodata.data.food.FoodLibraryDatabase
+import tk.glucodata.data.food.FoodPortions
 import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
+import java.io.IOException
 import java.io.OutputStreamWriter
+import java.io.RandomAccessFile
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 object SettingsExporter {
     private const val TAG = "SettingsExporter"
+    private const val AIDEX_PREFS_NAME = "AiDexNativePrefs"
 
     /**
      * Preference files too sensitive to export: vendor credentials, and restricted mode (a
@@ -40,6 +50,7 @@ object SettingsExporter {
         name in SECRET_PREFERENCE_FILES
     internal const val SCHEMA = "tk.glucodata.settings-export"
     private const val SCHEMA_VERSION = 4
+    private val importMutex = Mutex()
 
     private val nativeSettingsFiles = listOf(
         "settings.dat",
@@ -69,6 +80,37 @@ object SettingsExporter {
         val entries: Int = 0,
         val insulinPresets: Int = 0,
         val foods: Int = 0
+    )
+
+    private sealed interface ValidatedPreferenceValue {
+        data class BooleanValue(val value: Boolean) : ValidatedPreferenceValue
+        data class FloatValue(val value: Float) : ValidatedPreferenceValue
+        data class IntValue(val value: Int) : ValidatedPreferenceValue
+        data class LongValue(val value: Long) : ValidatedPreferenceValue
+        data class StringValue(val value: String?) : ValidatedPreferenceValue
+        data class StringSetValue(val value: Set<String>) : ValidatedPreferenceValue
+        data object NullValue : ValidatedPreferenceValue
+    }
+
+    private data class ValidatedNativeFile(
+        val name: String,
+        val bytes: ByteArray
+    )
+
+    private data class ValidatedJournalData(
+        val entries: List<JournalEntryEntity>,
+        val insulinPresets: List<JournalInsulinPresetEntity>,
+        val hasFoods: Boolean,
+        val foods: List<JournalFoodEntity>,
+        val foodDetails: List<FoodDetailsEntity>,
+        val cloneTombstones: List<CloneJournalTombstoneEntity>
+    )
+
+    private data class ValidatedImport(
+        val preferences: Map<String, Map<String, ValidatedPreferenceValue>>,
+        val preferenceValueCount: Int,
+        val nativeFiles: List<ValidatedNativeFile>,
+        val journal: ValidatedJournalData?
     )
 
     suspend fun exportToJson(context: Context, uri: Uri): Result<Unit> {
@@ -106,25 +148,49 @@ object SettingsExporter {
         }
     }
 
-    suspend fun importFromJson(context: Context, uri: Uri): Result<ImportSummary> {
-        val appContext = context.applicationContext
-        return withContext(Dispatchers.IO) {
-            runCatching {
-                val payload = readPayload(appContext, uri)
-                importPayloadUnchecked(appContext, payload)
-            }.onFailure {
-                Log.e(TAG, "Settings import failed", it)
-            }
-        }
-    }
+    suspend fun importFromJson(context: Context, uri: Uri): Result<ImportSummary> =
+        importSettings(context, requireJournalData = true) { readPayload(it, uri) }
 
-    suspend fun importPayload(context: Context, payload: JSONObject): Result<ImportSummary> {
+    suspend fun importPayload(
+        context: Context,
+        payload: JSONObject,
+        requireJournalData: Boolean = true
+    ): Result<ImportSummary> = importSettings(context, requireJournalData) { payload }
+
+    internal suspend fun importPayloadForTest(
+        context: Context,
+        payload: JSONObject,
+        requireJournalData: Boolean = true,
+        writeNativeFile: (File, ByteArray) -> Unit = ::defaultWriteNativeFile,
+        replaceNativeFile: (File, File, ByteArray, Boolean) -> Unit = ::defaultReplaceNativeFile
+    ): Result<ImportSummary> = importSettings(
+        context = context,
+        requireJournalData = requireJournalData,
+        writeNativeFile = writeNativeFile,
+        replaceNativeFile = replaceNativeFile
+    ) { payload }
+
+    private suspend fun importSettings(
+        context: Context,
+        requireJournalData: Boolean,
+        writeNativeFile: (File, ByteArray) -> Unit = ::defaultWriteNativeFile,
+        replaceNativeFile: (File, File, ByteArray, Boolean) -> Unit = ::defaultReplaceNativeFile,
+        read: (Context) -> JSONObject
+    ): Result<ImportSummary> {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
-            runCatching {
-                importPayloadUnchecked(appContext, payload)
-            }.onFailure {
-                Log.e(TAG, "Settings import failed", it)
+            try {
+                val payload = read(appContext)
+                val validated = parseImport(payload, requireJournalData)
+                val summary = importMutex.withLock {
+                    restoreSettings(appContext, validated, writeNativeFile, replaceNativeFile)
+                }
+                Result.success(summary)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                Log.e(TAG, "Settings import failed", failure)
+                Result.failure(failure)
             }
         }
     }
@@ -133,99 +199,257 @@ object SettingsExporter {
         payload: JSONObject,
         requireJournalData: Boolean = true
     ): ValidationSummary {
-        require(payload.optString("schema") == SCHEMA) { "Unsupported settings export" }
-        val schemaVersion = payload.optInt("schemaVersion", 0)
-        require(schemaVersion in 1..SCHEMA_VERSION) {
-            "Unsupported settings export version: $schemaVersion"
-        }
-
-        val exportedPreferences = payload.optJSONObject("sharedPreferences")
-            ?: error("Settings preferences are missing")
-        var preferenceValueCount = 0
-        exportedPreferences.keySet().forEach { name ->
-            val entry = exportedPreferences.optJSONObject(name)
-                ?: error("Invalid shared preferences file: $name")
-            val values = entry.optJSONObject("values")
-                ?: error("Preference values are missing: $name")
-            values.keySet().forEach { key ->
-                validatePreferenceEntry(key, values.optJSONObject(key))
-                preferenceValueCount++
-            }
-        }
-
-        var nativeFileCount = 0
-        val exportedFiles = payload.optJSONObject("nativeSettingsFiles")
-            ?: error("Native settings files are missing")
-        exportedFiles.keySet().forEach { name ->
-            require(name in nativeSettingsFiles) { "Unsupported native settings file: $name" }
-            val entry = exportedFiles.optJSONObject(name)
-                ?: error("Invalid native settings file: $name")
-            val encoded = entry.optString("base64").takeIf { it.isNotBlank() }
-                ?: error("Native settings data is missing: $name")
-            java.util.Base64.getMimeDecoder().decode(encoded)
-            nativeFileCount++
-        }
-
-        val journalData = payload.optJSONObject("journalData")
-        if (requireJournalData && schemaVersion >= 2) {
-            require(journalData != null) { "Settings journal data is missing" }
-        }
-        val journalEntries = journalData?.optJSONArray("entries")
-        val insulinPresets = journalData?.optJSONArray("insulinPresets")
-        val foods = journalData?.optJSONArray("foods")
-        if (journalData != null) {
-            require(journalEntries != null) { "Settings journal entries are missing" }
-            require(insulinPresets != null) { "Settings insulin presets are missing" }
-            if (schemaVersion >= 3) require(foods != null) { "Settings food presets are missing" }
-        }
-        val parsedEntries = journalEntries.toJournalEntries()
-        val parsedInsulins = insulinPresets.toInsulinPresets()
-        val parsedFoods = foods.toFoods()
-        requireFullyParsed("settings journal entries", journalEntries, parsedEntries.size)
-        requireFullyParsed("settings insulin presets", insulinPresets, parsedInsulins.size)
-        requireFullyParsed("settings food presets", foods, parsedFoods.size)
-
+        val validated = parseImport(payload, requireJournalData)
         return ValidationSummary(
-            sharedPreferenceFiles = exportedPreferences.length(),
-            preferenceValues = preferenceValueCount,
-            nativeFiles = nativeFileCount,
-            journalEntries = parsedEntries.size,
-            journalInsulinPresets = parsedInsulins.size,
-            journalFoods = parsedFoods.size
+            sharedPreferenceFiles = validated.preferences.size,
+            preferenceValues = validated.preferenceValueCount,
+            nativeFiles = validated.nativeFiles.size,
+            journalEntries = validated.journal?.entries?.size ?: 0,
+            journalInsulinPresets = validated.journal?.insulinPresets?.size ?: 0,
+            journalFoods = validated.journal?.foods?.size ?: 0
         )
     }
 
-    private suspend fun importPayloadUnchecked(
-        context: Context,
+    private fun parseImport(
         payload: JSONObject,
-    ): ImportSummary {
-        require(payload.optString("schema") == SCHEMA) { "Unsupported settings export" }
-        val schemaVersion = payload.optInt("schemaVersion", 0)
+        requireJournalData: Boolean
+    ): ValidatedImport {
+        val schema = payload.opt("schema") as? String
+        require(schema == SCHEMA) { "Unsupported settings export" }
+        val schemaVersion = payload.strictInt("schemaVersion")
+            ?: throw IllegalArgumentException(
+                "Unsupported settings export version: ${payload.opt("schemaVersion")}"
+            )
         require(schemaVersion in 1..SCHEMA_VERSION) {
             "Unsupported settings export version: $schemaVersion"
         }
 
-        val preferencesSummary = importSharedPreferences(
-            context,
-            payload.optJSONObject("sharedPreferences") ?: JSONObject(),
-        )
-        val nativeFileCount = importNativeSettingsFiles(
-            context,
-            payload.optJSONObject("nativeSettingsFiles") ?: JSONObject()
-        )
-        val journalSummary = importJournalData(
-            context,
-            payload.optJSONObject("journalData")
-        )
+        require(payload.has("sharedPreferences")) { "Settings preferences are missing" }
+        val exportedPreferences = payload.opt("sharedPreferences") as? JSONObject
+            ?: throw IllegalArgumentException("Invalid shared preferences section")
+        val (parsedPreferences, preferenceValueCount) = parseSharedPreferences(exportedPreferences)
 
-        return ImportSummary(
-            sharedPreferenceFiles = preferencesSummary.first,
-            preferenceValues = preferencesSummary.second,
-            nativeFiles = nativeFileCount,
-            journalEntries = journalSummary.entries,
-            journalInsulinPresets = journalSummary.insulinPresets,
-            journalFoods = journalSummary.foods
+        require(payload.has("nativeSettingsFiles")) { "Native settings files are missing" }
+        val exportedFiles = payload.opt("nativeSettingsFiles") as? JSONObject
+            ?: throw IllegalArgumentException("Invalid native settings files section")
+        val parsedNativeFiles = parseNativeSettingsFiles(exportedFiles)
+
+        val journalData = if (payload.has("journalData")) {
+            payload.opt("journalData") as? JSONObject
+                ?: throw IllegalArgumentException("Invalid settings journal data")
+        } else {
+            null
+        }
+        if (requireJournalData && schemaVersion >= 2) {
+            require(journalData != null) { "Settings journal data is missing" }
+        }
+        val parsedJournal = journalData?.let { parseJournalData(it, schemaVersion) }
+
+        return ValidatedImport(
+            preferences = parsedPreferences,
+            preferenceValueCount = preferenceValueCount,
+            nativeFiles = parsedNativeFiles,
+            journal = parsedJournal
         )
+    }
+
+    private fun parseSharedPreferences(
+        exportedPreferences: JSONObject
+    ): Pair<Map<String, Map<String, ValidatedPreferenceValue>>, Int> {
+        val parsedFiles = LinkedHashMap<String, Map<String, ValidatedPreferenceValue>>()
+        var preferenceValueCount = 0
+        exportedPreferences.keySet().sorted().forEach { name ->
+            require(isValidPreferenceFileName(name)) {
+                "Invalid shared preferences file name: $name"
+            }
+            val entry = exportedPreferences.opt(name) as? JSONObject
+                ?: throw IllegalArgumentException("Invalid shared preferences file: $name")
+            require(entry.has("values")) { "Preference values are missing: $name" }
+            val values = entry.opt("values") as? JSONObject
+                ?: throw IllegalArgumentException("Invalid preference values: $name")
+            val parsedValues = LinkedHashMap<String, ValidatedPreferenceValue>()
+            values.keySet().sorted().forEach { key ->
+                val valueEntry = values.opt(key) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid preference value: $key")
+                parsedValues[key] = parsePreferenceEntry(key, valueEntry)
+                preferenceValueCount++
+            }
+            parsedFiles[name] = parsedValues
+        }
+        return parsedFiles to preferenceValueCount
+    }
+
+    private fun parseNativeSettingsFiles(exportedFiles: JSONObject): List<ValidatedNativeFile> {
+        exportedFiles.keySet().forEach { name ->
+            require(name in nativeSettingsFiles) { "Unsupported native settings file: $name" }
+        }
+        return buildList {
+            nativeSettingsFiles.forEach { name ->
+                if (!exportedFiles.has(name)) return@forEach
+                val entry = exportedFiles.opt(name) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid native settings file: $name")
+                val encoded = (entry.opt("base64") as? String)?.takeIf { it.isNotBlank() }
+                    ?: throw IllegalArgumentException("Native settings data is missing: $name")
+                val bytes = decodeNativeSettingsBase64(name, encoded)
+                add(ValidatedNativeFile(name, bytes))
+            }
+        }
+    }
+
+    private fun parseJournalData(journalData: JSONObject, schemaVersion: Int): ValidatedJournalData {
+        require(journalData.has("entries")) { "Settings journal entries are missing" }
+        val journalEntries = journalData.opt("entries") as? JSONArray
+            ?: throw IllegalArgumentException("Invalid settings journal entries")
+        require(journalData.has("insulinPresets")) { "Settings insulin presets are missing" }
+        val insulinPresets = journalData.opt("insulinPresets") as? JSONArray
+            ?: throw IllegalArgumentException("Invalid settings insulin presets")
+
+        val hasFoods = journalData.has("foods")
+        val foods = if (hasFoods) {
+            journalData.opt("foods") as? JSONArray
+                ?: throw IllegalArgumentException("Invalid settings food presets")
+        } else {
+            null
+        }
+        if (schemaVersion >= 3) {
+            require(foods != null) { "Settings food presets are missing" }
+        }
+
+        val foodDetailsArray = if (journalData.has(FoodDetailsBackup.KEY)) {
+            require(foods != null) { "Food details require food presets" }
+            journalData.opt(FoodDetailsBackup.KEY) as? JSONArray
+                ?: throw IllegalArgumentException("Invalid settings food details")
+        } else {
+            null
+        }
+        val parsedFoodDetails = parseFoodDetails(foodDetailsArray)
+
+        val cloneTombstonesArray = if (journalData.has("cloneTombstones")) {
+            journalData.opt("cloneTombstones") as? JSONArray
+                ?: throw IllegalArgumentException("Invalid Clone journal tombstones")
+        } else {
+            null
+        }
+
+        val parsedEntries = journalEntries.toJournalEntries()
+        val parsedInsulins = insulinPresets.toInsulinPresets()
+        val parsedFoods = foods?.toFoods().orEmpty()
+        val parsedTombstones = cloneTombstonesArray?.toCloneTombstones().orEmpty()
+
+        return ValidatedJournalData(
+            entries = parsedEntries,
+            insulinPresets = parsedInsulins,
+            hasFoods = hasFoods,
+            foods = parsedFoods,
+            foodDetails = parsedFoodDetails,
+            cloneTombstones = parsedTombstones
+        )
+    }
+
+    private fun parseFoodDetails(array: JSONArray?): List<FoodDetailsEntity> {
+        if (array == null) return emptyList()
+        return buildList(array.length()) {
+            for (index in 0 until array.length()) {
+                val item = array.opt(index) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid food detail record at index $index")
+                val foodId = item.strictLong("foodId")
+                require(foodId != null && foodId > 0L) { "Invalid food detail ID at index $index" }
+                val referenceGrams = if (item.isNull("referenceGrams")) {
+                    null
+                } else {
+                    val value = item.strictFloat("referenceGrams")
+                    require(value != null && value > 0f) {
+                        "Invalid food detail referenceGrams at index $index"
+                    }
+                    value
+                }
+                val rawPortions = item.strictNullableString("portions")?.trim().orEmpty()
+                val encodedPortions = if (rawPortions.isEmpty()) {
+                    ""
+                } else {
+                    val expectedCount = if (rawPortions.startsWith("[")) {
+                        JSONArray(rawPortions).length()
+                    } else {
+                        rawPortions.split(',').size
+                    }
+                    val decoded = FoodPortions.decode(rawPortions)
+                    require(decoded.size == expectedCount) {
+                        "Invalid food detail portions at index $index"
+                    }
+                    FoodPortions.encode(decoded)
+                }
+                val kept = item.strictBooleanOrDefault("kept", true)
+                add(
+                    FoodDetailsEntity(
+                        foodId = foodId,
+                        referenceGrams = referenceGrams,
+                        portions = encodedPortions,
+                        fiberGrams = item.strictNullableFloat("fiberGrams"),
+                        kcal = item.strictNullableFloat("kcal"),
+                        brand = item.strictNullableString("brand")?.takeIf { it.isNotEmpty() },
+                        barcode = item.strictNullableString("barcode")?.takeIf { it.isNotEmpty() },
+                        sourceKey = item.strictNullableString("sourceKey")?.takeIf { it.isNotEmpty() },
+                        isLiquid = item.strictBooleanOrDefault("isLiquid", false),
+                        kept = kept,
+                        useCount = item.strictIntOrDefault("useCount", 0),
+                        lastUsedAt = item.strictLongOrDefault("lastUsedAt", 0L),
+                        lastQuantity = item.strictNullableFloat("lastQuantity"),
+                        lastPortionIndex = item.strictNullableInt("lastPortionIndex"),
+                        hasOwnAbsorption = item.strictBooleanOrDefault("hasOwnAbsorption", kept)
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun restoreSettings(
+        context: Context,
+        replacement: ValidatedImport,
+        writeNativeFile: (File, ByteArray) -> Unit,
+        replaceNativeFile: (File, File, ByteArray, Boolean) -> Unit
+    ): ImportSummary {
+        val nativeTx = NativeFilesTransaction(
+            filesDir = context.filesDir,
+            files = replacement.nativeFiles,
+            writeFile = writeNativeFile,
+            replaceFile = replaceNativeFile
+        )
+        var prefsRollback: SharedPreferencesRollback? = null
+        try {
+            // Stage native files to temp files before mutating any live state, then commit them
+            // inside the journal transaction so failed preference, journal, or native writes roll
+            // back all three stores while preserving live mmap'd native inodes.
+            nativeTx.stage()
+            val (preferencesSummary, rollback) = applySharedPreferences(context, replacement.preferences)
+            prefsRollback = rollback
+            val (journalSummary, nativeFileCount) = commitJournalAndNativeFiles(
+                context = context,
+                journalData = replacement.journal,
+                commitNativeFiles = nativeTx::commit
+            )
+            return ImportSummary(
+                sharedPreferenceFiles = preferencesSummary.first,
+                preferenceValues = preferencesSummary.second,
+                nativeFiles = nativeFileCount,
+                journalEntries = journalSummary.entries,
+                journalInsulinPresets = journalSummary.insulinPresets,
+                journalFoods = journalSummary.foods
+            )
+        } catch (failure: Throwable) {
+            try {
+                nativeTx.rollback()
+            } catch (rollbackFailure: Throwable) {
+                failure.addSuppressed(rollbackFailure)
+            }
+            try {
+                prefsRollback?.rollback()
+            } catch (rollbackFailure: Throwable) {
+                failure.addSuppressed(rollbackFailure)
+            }
+            throw failure
+        } finally {
+            nativeTx.cleanupStagedFiles()
+        }
     }
 
     private suspend fun buildPayload(
@@ -293,103 +517,238 @@ object SettingsExporter {
         context: Context,
         exportedPreferences: JSONObject,
     ): Pair<Int, Int> {
-        val aidexName = "AiDexNativePrefs"
-        fun historyKey(key: String) = key.startsWith("algorithmAppliedMode_") ||
-            key.startsWith("algorithmEverAdaptive_") || key.startsWith("algorithmSourceBootstrapped_")
-        // Settings change requests, not the provenance of retained glucose.
-        fun importEditor(name: String): android.content.SharedPreferences.Editor {
-            val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-            val editor = prefs.edit()
-            if (name == aidexName) {
-                // Leave ownership keys untouched, including changes committed
-                // by a writer during import; don't restore an earlier snapshot.
-                prefs.all.keys.filterNot(::historyKey).forEach(editor::remove)
-            } else editor.clear()
-            return editor
-        }
-        val importedNames = exportedPreferences.keySet().filterNot(::isSecretPreferenceFile)
-        discoverSharedPreferenceNames(context)
-            .filterNot { it in importedNames }
-            .forEach { name ->
-                importEditor(name).commit()
-            }
-
-        var importedValueCount = 0
-        importedNames.sorted().forEach { name ->
-            val entry = exportedPreferences.optJSONObject(name) ?: return@forEach
-            val values = entry.optJSONObject("values") ?: JSONObject()
-            val editor = importEditor(name)
-
-            values.keySet().sorted().forEach valueLoop@ { key ->
-                if (name == aidexName && historyKey(key)) return@valueLoop
-                putPreferenceValue(editor, key, values.getJSONObject(key))
-                if (name == aidexName && key.startsWith("algorithmMode_")) {
-                    // An imported request cannot claim that local history has
-                    // already been rewritten, even when the backup lacks a mode.
-                    val appliedKey = key.replaceFirst("algorithmMode_", "algorithmAppliedMode_")
-                    if (!context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(appliedKey)) editor.putInt(appliedKey, 0)
-                }
-                importedValueCount++
-            }
-
-            require(editor.commit()) { "Could not import preferences: $name" }
-        }
-
-        return importedNames.size to importedValueCount
+        val (parsedPreferences, _) = parseSharedPreferences(exportedPreferences)
+        return applySharedPreferences(context, parsedPreferences).first
     }
 
-    private fun putPreferenceValue(
+    private fun isAiDexHistoryKey(key: String): Boolean =
+        key.startsWith("algorithmAppliedMode_") ||
+            key.startsWith("algorithmEverAdaptive_") ||
+            key.startsWith("algorithmSourceBootstrapped_")
+
+    // Settings change requests, not the provenance of retained glucose.
+    private fun createImportEditor(
+        context: Context,
+        name: String
+    ): android.content.SharedPreferences.Editor {
+        val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        if (name == AIDEX_PREFS_NAME) {
+            // Leave ownership keys untouched, including changes committed
+            // by a writer during import; don't restore an earlier snapshot.
+            prefs.all.keys.filterNot(::isAiDexHistoryKey).forEach(editor::remove)
+        } else {
+            editor.clear()
+        }
+        return editor
+    }
+
+    private class SharedPreferencesRollback(
+        private val context: Context,
+        private val snapshots: Map<String, Map<String, Any?>>,
+        private val newlyAddedAiDexAppliedKeys: MutableSet<String> = LinkedHashSet()
+    ) {
+        fun recordAddedAiDexAppliedKey(key: String) {
+            newlyAddedAiDexAppliedKeys += key
+        }
+
+        fun rollback() {
+            snapshots.forEach { (name, entries) ->
+                val editor = createImportEditor(context, name)
+                if (name == AIDEX_PREFS_NAME) {
+                    newlyAddedAiDexAppliedKeys.forEach(editor::remove)
+                }
+                entries.forEach { (key, value) ->
+                    putSnapshotValue(editor, key, value)
+                }
+                require(editor.commit()) { "Could not roll back preferences: $name" }
+            }
+        }
+    }
+
+    private fun snapshotSharedPreferences(
+        context: Context,
+        names: Collection<String>
+    ): SharedPreferencesRollback {
+        val snapshots = LinkedHashMap<String, Map<String, Any?>>()
+        names.filterNot(::isSecretPreferenceFile).toSortedSet().forEach { name ->
+            val all = context.getSharedPreferences(name, Context.MODE_PRIVATE).all
+            val copied = LinkedHashMap<String, Any?>()
+            all.forEach { (key, value) ->
+                if (name == AIDEX_PREFS_NAME && isAiDexHistoryKey(key)) return@forEach
+                copied[key] = when (value) {
+                    is Set<*> -> value.filterIsInstance<String>().toSet()
+                    else -> value
+                }
+            }
+            snapshots[name] = copied
+        }
+        return SharedPreferencesRollback(context, snapshots)
+    }
+
+    private fun putSnapshotValue(
         editor: android.content.SharedPreferences.Editor,
         key: String,
-        entry: JSONObject
+        value: Any?
     ) {
-        when (entry.optString("type")) {
-            "boolean" -> editor.putBoolean(key, entry.getBoolean("value"))
-            "float" -> editor.putFloat(key, entry.getDouble("value").toFloat())
-            "int" -> editor.putInt(key, entry.getInt("value"))
-            "long" -> editor.putLong(key, entry.getLong("value"))
-            "string" -> editor.putString(
-                key,
-                if (entry.isNull("value")) null else entry.getString("value")
-            )
-            "string_set" -> {
-                val values = entry.optJSONArray("value") ?: JSONArray()
-                editor.putStringSet(
-                    key,
-                    buildSet {
-                        for (index in 0 until values.length()) {
-                            add(values.getString(index))
+        when (value) {
+            is Boolean -> editor.putBoolean(key, value)
+            is Float -> editor.putFloat(key, value)
+            is Int -> editor.putInt(key, value)
+            is Long -> editor.putLong(key, value)
+            is String -> editor.putString(key, value)
+            is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toSet())
+            null -> editor.remove(key)
+        }
+    }
+
+    private fun applySharedPreferences(
+        context: Context,
+        parsedPreferences: Map<String, Map<String, ValidatedPreferenceValue>>
+    ): Pair<Pair<Int, Int>, SharedPreferencesRollback> {
+        val importedNames = parsedPreferences.keys.filterNot(::isSecretPreferenceFile)
+        val existingNames = discoverSharedPreferenceNames(context)
+        val rollback = snapshotSharedPreferences(context, existingNames + importedNames)
+        try {
+            existingNames
+                .filterNot { it in importedNames }
+                .sorted()
+                .forEach { name ->
+                    require(createImportEditor(context, name).commit()) {
+                        "Could not clear preferences: $name"
+                    }
+                }
+
+            var importedValueCount = 0
+            importedNames.sorted().forEach { name ->
+                val values = parsedPreferences.getValue(name)
+                val editor = createImportEditor(context, name)
+
+                values.forEach valueLoop@{ (key, value) ->
+                    if (name == AIDEX_PREFS_NAME && isAiDexHistoryKey(key)) return@valueLoop
+                    putValidatedPreferenceValue(editor, key, value)
+                    if (name == AIDEX_PREFS_NAME && key.startsWith("algorithmMode_")) {
+                        // An imported request cannot claim that local history has
+                        // already been rewritten, even when the backup lacks a mode.
+                        val appliedKey = key.replaceFirst("algorithmMode_", "algorithmAppliedMode_")
+                        if (!context.getSharedPreferences(name, Context.MODE_PRIVATE).contains(appliedKey)) {
+                            editor.putInt(appliedKey, 0)
+                            rollback.recordAddedAiDexAppliedKey(appliedKey)
                         }
                     }
-                )
+                    importedValueCount++
+                }
+
+                require(editor.commit()) { "Could not import preferences: $name" }
             }
-            "null" -> editor.remove(key)
-            else -> throw IllegalArgumentException("Unsupported preference type for $key")
+
+            return (importedNames.size to importedValueCount) to rollback
+        } catch (failure: Throwable) {
+            try {
+                rollback.rollback()
+            } catch (rollbackFailure: Throwable) {
+                failure.addSuppressed(rollbackFailure)
+            }
+            throw failure
         }
     }
 
-    private fun validatePreferenceEntry(key: String, entry: JSONObject?) {
-        require(entry != null) { "Invalid preference value: $key" }
-        when (entry.optString("type")) {
-            "boolean" -> entry.getBoolean("value")
-            "float" -> entry.getDouble("value")
-            "int" -> entry.getInt("value")
-            "long" -> entry.getLong("value")
-            "string" -> if (!entry.isNull("value")) entry.getString("value")
+    private fun putValidatedPreferenceValue(
+        editor: android.content.SharedPreferences.Editor,
+        key: String,
+        value: ValidatedPreferenceValue
+    ) {
+        when (value) {
+            is ValidatedPreferenceValue.BooleanValue -> editor.putBoolean(key, value.value)
+            is ValidatedPreferenceValue.FloatValue -> editor.putFloat(key, value.value)
+            is ValidatedPreferenceValue.IntValue -> editor.putInt(key, value.value)
+            is ValidatedPreferenceValue.LongValue -> editor.putLong(key, value.value)
+            is ValidatedPreferenceValue.StringValue -> editor.putString(key, value.value)
+            is ValidatedPreferenceValue.StringSetValue -> editor.putStringSet(key, value.value)
+            ValidatedPreferenceValue.NullValue -> editor.remove(key)
+        }
+    }
+
+    private fun parsePreferenceEntry(key: String, entry: JSONObject): ValidatedPreferenceValue {
+        val type = entry.opt("type") as? String
+            ?: throw IllegalArgumentException("Missing preference type for $key")
+        return when (type) {
+            "boolean" -> {
+                val raw = entry.requireRawField("value", key)
+                require(raw is Boolean) { "Invalid boolean preference value for $key" }
+                ValidatedPreferenceValue.BooleanValue(raw)
+            }
+            "float" -> {
+                val raw = entry.requireRawField("value", key)
+                require(raw is Number) { "Invalid float preference value for $key" }
+                val floatVal = raw.toDouble().toFloat()
+                require(floatVal.isFinite()) { "Non-finite float preference value for $key" }
+                ValidatedPreferenceValue.FloatValue(floatVal)
+            }
+            "int" -> {
+                val raw = entry.strictInt("value")
+                    ?: throw IllegalArgumentException("Invalid int preference value for $key")
+                ValidatedPreferenceValue.IntValue(raw)
+            }
+            "long" -> {
+                val raw = entry.strictLong("value")
+                    ?: throw IllegalArgumentException("Invalid long preference value for $key")
+                ValidatedPreferenceValue.LongValue(raw)
+            }
+            "string" -> {
+                require(entry.has("value")) { "Missing string preference value for $key" }
+                if (entry.isNull("value")) {
+                    ValidatedPreferenceValue.StringValue(null)
+                } else {
+                    val raw = entry.opt("value")
+                    require(raw is String) { "Invalid string preference value for $key" }
+                    ValidatedPreferenceValue.StringValue(raw)
+                }
+            }
             "string_set" -> {
-                val values = entry.getJSONArray("value")
-                for (index in 0 until values.length()) values.getString(index)
+                val array = entry.opt("value") as? JSONArray
+                    ?: throw IllegalArgumentException("Invalid string_set preference value for $key")
+                val items = LinkedHashSet<String>(array.length())
+                for (index in 0 until array.length()) {
+                    val item = array.opt(index)
+                    require(item is String) {
+                        "Invalid string_set element for $key at index $index"
+                    }
+                    items.add(item)
+                }
+                ValidatedPreferenceValue.StringSetValue(items)
             }
-            "null" -> Unit
+            "null" -> {
+                require(!entry.has("value") || entry.isNull("value")) {
+                    "Invalid null preference value for $key"
+                }
+                ValidatedPreferenceValue.NullValue
+            }
             else -> throw IllegalArgumentException("Unsupported preference type for $key")
         }
     }
 
-    private fun requireFullyParsed(label: String, source: JSONArray?, parsedCount: Int) {
-        if (source != null) {
-            require(parsedCount == source.length()) {
-                "$label contains ${source.length() - parsedCount} invalid record(s)"
+    private fun isValidPreferenceFileName(name: String): Boolean =
+        name.isNotBlank() &&
+            '/' !in name &&
+            '\\' !in name &&
+            '\u0000' !in name &&
+            name != "." &&
+            name != ".."
+
+    private fun decodeNativeSettingsBase64(name: String, encoded: String): ByteArray {
+        val compact = buildString(encoded.length) {
+            for (ch in encoded) {
+                if (ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n') {
+                    append(ch)
+                }
             }
+        }
+        require(compact.isNotEmpty()) { "Native settings data is missing: $name" }
+        return try {
+            java.util.Base64.getDecoder().decode(compact)
+        } catch (error: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid base64 for native settings file: $name", error)
         }
     }
 
@@ -438,21 +797,114 @@ object SettingsExporter {
         return result
     }
 
-    private fun importNativeSettingsFiles(
-        context: Context,
-        exportedFiles: JSONObject
-    ): Int {
-        var importedCount = 0
-        nativeSettingsFiles.forEach { name ->
-            val entry = exportedFiles.optJSONObject(name) ?: return@forEach
-            val encoded = entry.optString("base64").takeIf { it.isNotBlank() } ?: return@forEach
-            val bytes = Base64.decode(encoded, Base64.DEFAULT)
-            File(context.filesDir, name).outputStream().use { output ->
-                output.write(bytes)
-            }
-            importedCount++
+    private fun defaultWriteNativeFile(file: File, bytes: ByteArray) {
+        file.outputStream().use { output ->
+            output.write(bytes)
+            output.flush()
         }
-        return importedCount
+    }
+
+    private fun writeFileInPlace(target: File, bytes: ByteArray) {
+        RandomAccessFile(target, "rw").use { raf ->
+            raf.seek(0L)
+            raf.write(bytes)
+            raf.setLength(bytes.size.toLong())
+            raf.fd.sync()
+        }
+    }
+
+    private fun defaultReplaceNativeFile(
+        staged: File,
+        target: File,
+        bytes: ByteArray,
+        existedBefore: Boolean
+    ) {
+        if (existedBefore) {
+            // Native code keeps settings.dat/backup.dat mmap'd in the live process; overwrite
+            // in-place so rollback or subsequent writes keep using the mapped inode.
+            writeFileInPlace(target, bytes)
+            staged.delete()
+        } else if (!staged.renameTo(target)) {
+            defaultWriteNativeFile(target, bytes)
+            staged.delete()
+        }
+    }
+
+    private class NativeFilesTransaction(
+        private val filesDir: File,
+        private val files: List<ValidatedNativeFile>,
+        private val writeFile: (File, ByteArray) -> Unit,
+        private val replaceFile: (File, File, ByteArray, Boolean) -> Unit
+    ) {
+        private val originals = LinkedHashMap<String, ByteArray?>()
+        private val stagedFiles = LinkedHashMap<String, File>()
+        private val committedNames = mutableListOf<String>()
+
+        fun stage() {
+            if (files.isEmpty()) return
+            if (!filesDir.exists() && !filesDir.mkdirs()) {
+                throw IOException("Could not create native settings directory")
+            }
+            if (!filesDir.isDirectory) {
+                throw IOException("Native settings path is not a directory")
+            }
+
+            files.forEach { file ->
+                val target = File(filesDir, file.name)
+                if (target.exists() && !target.isFile) {
+                    throw IOException("Native settings target is not a regular file: ${file.name}")
+                }
+                originals[file.name] = if (target.isFile) target.readBytes() else null
+                val staged = File(filesDir, ".${file.name}.restore.tmp")
+                if (staged.exists() && !staged.delete()) {
+                    throw IOException("Could not clear staged native settings file: ${file.name}")
+                }
+                stagedFiles[file.name] = staged
+                writeFile(staged, file.bytes)
+            }
+        }
+
+        fun commit(): Int {
+            if (files.isEmpty()) return 0
+            files.forEach { file ->
+                val staged = stagedFiles.getValue(file.name)
+                val target = File(filesDir, file.name)
+                committedNames += file.name
+                replaceFile(staged, target, file.bytes, originals[file.name] != null)
+            }
+            return files.size
+        }
+
+        fun rollback() {
+            cleanupStagedFiles()
+            var firstFailure: Throwable? = null
+            committedNames.asReversed().forEach { name ->
+                runCatching {
+                    val target = File(filesDir, name)
+                    val original = originals[name]
+                    if (original == null) {
+                        if (target.exists() && !target.delete()) {
+                            throw IOException("Could not remove partially restored native settings file: $name")
+                        }
+                    } else {
+                        // Restore in-place on the original inode so live native mmaps remain valid.
+                        writeFileInPlace(target, original)
+                    }
+                }.onFailure { error ->
+                    val existing = firstFailure
+                    if (existing == null) firstFailure = error
+                    else existing.addSuppressed(error)
+                }
+            }
+            committedNames.clear()
+            firstFailure?.let { throw it }
+        }
+
+        fun cleanupStagedFiles() {
+            stagedFiles.values.forEach { staged ->
+                if (staged.exists()) staged.delete()
+            }
+        }
     }
 
     private fun buildNativeTransferSettings(): JSONObject {
@@ -509,37 +961,85 @@ object SettingsExporter {
             )
     }
 
-    private suspend fun importJournalData(context: Context, journalData: JSONObject?): JournalImportSummary {
-        if (journalData == null) return JournalImportSummary()
-        val entries = journalData.optJSONArray("entries").toJournalEntries()
-        val insulinPresets = journalData.optJSONArray("insulinPresets").toInsulinPresets()
-        val hasFoods = journalData.has("foods")
-        val foods = journalData.optJSONArray("foods").toFoods()
-        val cloneTombstones = journalData.optJSONArray("cloneTombstones").toCloneTombstones()
-        val journalDao = HistoryDatabase.getInstance(context).journalDao()
+    private suspend fun commitJournalAndNativeFiles(
+        context: Context,
+        journalData: ValidatedJournalData?,
+        commitNativeFiles: () -> Int
+    ): Pair<JournalImportSummary, Int> {
+        if (journalData == null) {
+            return JournalImportSummary() to commitNativeFiles()
+        }
+        val historyDatabase = HistoryDatabase.getInstance(context)
+        val journalDao = historyDatabase.journalDao()
+        val foodDatabase = if (journalData.hasFoods) FoodLibraryDatabase.getInstance(context) else null
+        val foodDetailsDao = foodDatabase?.foodDetailsDao()
+        val foodLibrary = foodDetailsDao?.let { FoodLibrary(journalDao, it) }
+        val restoredFoodIds = journalData.foods.mapTo(HashSet()) { it.id }
+        val detailsToStore = journalData.foodDetails.filter { it.foodId in restoredFoodIds }
 
-        journalDao.deleteAllEntries()
-        journalDao.deleteAllInsulinPresets()
-        journalDao.deleteAllCloneJournalTombstones()
-        if (hasFoods) {
-            FoodLibrary(journalDao, FoodLibraryDatabase.getInstance(context).foodDetailsDao()).restore(
-                foods, FoodDetailsBackup.fromJson(journalData.optJSONArray(FoodDetailsBackup.KEY)), replaceAll = true
-            )
+        suspend fun runInsideFoodLock(): Pair<JournalImportSummary, Int> {
+            val previousFoodDetails = foodDetailsDao?.getAll()
+            var foodDetailsMutated = false
+            try {
+                val nativeFileCount = historyDatabase.withTransaction {
+                    journalDao.deleteAllEntries()
+                    journalDao.deleteAllInsulinPresets()
+                    journalDao.deleteAllCloneJournalTombstones()
+                    if (journalData.hasFoods) {
+                        journalDao.deleteAllFoods()
+                        if (journalData.foods.isNotEmpty()) {
+                            journalDao.insertFoods(journalData.foods.sortedBy { it.id == 0L })
+                        }
+                    }
+                    if (journalData.insulinPresets.isNotEmpty()) {
+                        journalDao.insertInsulinPresets(journalData.insulinPresets.sortedBy { it.id == 0L })
+                    }
+                    if (journalData.entries.isNotEmpty()) {
+                        journalDao.upsertEntries(journalData.entries.sortedBy { it.id == 0L })
+                    }
+                    if (journalData.cloneTombstones.isNotEmpty()) {
+                        journalDao.upsertCloneJournalTombstones(journalData.cloneTombstones)
+                    }
+                    if (foodDatabase != null && foodDetailsDao != null) {
+                        foodDetailsMutated = true
+                        foodDatabase.withTransaction {
+                            foodDetailsDao.deleteAll()
+                            if (detailsToStore.isNotEmpty()) {
+                                foodDetailsDao.upsertAll(detailsToStore)
+                            }
+                        }
+                    }
+                    // Commit staged native files before releasing the Room transaction so any
+                    // native write/sync failure automatically rolls back all journal tables.
+                    commitNativeFiles()
+                }
+                return JournalImportSummary(
+                    entries = journalData.entries.size,
+                    insulinPresets = journalData.insulinPresets.size,
+                    foods = if (journalData.hasFoods) journalData.foods.size else 0
+                ) to nativeFileCount
+            } catch (failure: Throwable) {
+                if (foodDetailsMutated && foodDatabase != null && foodDetailsDao != null && previousFoodDetails != null) {
+                    try {
+                        foodDatabase.withTransaction {
+                            foodDetailsDao.deleteAll()
+                            if (previousFoodDetails.isNotEmpty()) {
+                                foodDetailsDao.upsertAll(previousFoodDetails)
+                            }
+                        }
+                    } catch (rollbackFailure: Throwable) {
+                        failure.addSuppressed(rollbackFailure)
+                    }
+                }
+                throw failure
+            }
         }
-        if (insulinPresets.isNotEmpty()) {
-            journalDao.insertInsulinPresets(insulinPresets)
+
+        return if (foodLibrary != null) {
+            foodLibrary.withWrites { runInsideFoodLock() }
+        } else {
+            runInsideFoodLock()
         }
-        if (entries.isNotEmpty()) {
-            journalDao.upsertEntries(entries)
-        }
-        if (cloneTombstones.isNotEmpty()) {
-            journalDao.upsertCloneJournalTombstones(cloneTombstones)
-        }
-        return JournalImportSummary(
-            entries = entries.size,
-            insulinPresets = insulinPresets.size,
-            foods = if (hasFoods) foods.size else 0
-        )
     }
 
     private fun JournalEntryEntity.toJson(): JSONObject {
@@ -606,41 +1106,40 @@ object SettingsExporter {
             .put("updatedAt", updatedAt)
     }
 
-    private fun JSONArray?.toJournalEntries(): List<JournalEntryEntity> {
-        if (this == null) return emptyList()
+    private fun JSONArray.toJournalEntries(): List<JournalEntryEntity> {
         return buildList {
             for (index in 0 until length()) {
-                val item = optJSONObject(index) ?: continue
+                val item = opt(index) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid journal entry at index $index")
+                val timestamp = item.requireStrictLong("timestamp")
                 add(
                     JournalEntryEntity(
-                        id = item.optLong("id", 0L),
-                        timestamp = item.getLong("timestamp"),
-                        sensorSerial = item.optNullableString("sensorSerial"),
-                        entryType = item.getString("entryType"),
-                        title = item.getString("title"),
-                        note = item.optNullableString("note"),
-                        amount = item.optNullableFloat("amount"),
-                        glucoseValueMgDl = item.optNullableFloat("glucoseValueMgDl"),
-                        durationMinutes = item.optNullableInt("durationMinutes"),
-                        intensity = item.optNullableString("intensity"),
-                        insulinPresetId = item.optNullableLong("insulinPresetId"),
-                        foodId = item.optNullableLong("foodId"),
-                        proteinGrams = item.optNullableFloat("proteinGrams"),
-                        fatGrams = item.optNullableFloat("fatGrams"),
-                        source = item.optString("source", "import"),
-                        originSource = item.optNullableString("originSource"),
-                        sourceRecordId = item.optNullableString("sourceRecordId"),
-                        recoveryId = CloneJournalIdentity.normalizeRecoveryId(
-                            item.optNullableString("recoveryId")
-                        ) ?: CloneJournalIdentity.newRecoveryId(),
-                        createdAt = item.optLong("createdAt", item.getLong("timestamp")),
-                        updatedAt = item.optLong("updatedAt", item.getLong("timestamp")),
-                        insulinCurveJsonSnapshot = item.optNullableString("insulinCurveJsonSnapshot"),
-                        insulinCurveProfileId = item.optNullableString("insulinCurveProfileId"),
-                        insulinCurveModelVersion = item.optNullableInt("insulinCurveModelVersion"),
-                        insulinCurveEvidence = item.optNullableString("insulinCurveEvidence"),
-                        insulinBodyWeightKg = item.optNullableFloat("insulinBodyWeightKg"),
-                        insulinCurveWasApproximated = item.optBoolean(
+                        id = item.strictRowId(),
+                        timestamp = timestamp,
+                        sensorSerial = item.strictNullableString("sensorSerial"),
+                        entryType = item.requireStrictString("entryType"),
+                        title = item.requireStrictString("title"),
+                        note = item.strictNullableString("note"),
+                        amount = item.strictNullableFloat("amount"),
+                        glucoseValueMgDl = item.strictNullableFloat("glucoseValueMgDl"),
+                        durationMinutes = item.strictNullableInt("durationMinutes"),
+                        intensity = item.strictNullableString("intensity"),
+                        insulinPresetId = item.strictNullableLong("insulinPresetId"),
+                        foodId = item.strictNullableLong("foodId"),
+                        proteinGrams = item.strictNullableFloat("proteinGrams"),
+                        fatGrams = item.strictNullableFloat("fatGrams"),
+                        source = item.strictStringOrDefault("source", "import"),
+                        originSource = item.strictNullableString("originSource"),
+                        sourceRecordId = item.strictNullableString("sourceRecordId"),
+                        recoveryId = item.strictRecoveryId() ?: CloneJournalIdentity.newRecoveryId(),
+                        createdAt = item.strictLongOrDefault("createdAt", timestamp),
+                        updatedAt = item.strictLongOrDefault("updatedAt", timestamp),
+                        insulinCurveJsonSnapshot = item.strictNullableString("insulinCurveJsonSnapshot"),
+                        insulinCurveProfileId = item.strictNullableString("insulinCurveProfileId"),
+                        insulinCurveModelVersion = item.strictNullableInt("insulinCurveModelVersion"),
+                        insulinCurveEvidence = item.strictNullableString("insulinCurveEvidence"),
+                        insulinBodyWeightKg = item.strictNullableFloat("insulinBodyWeightKg"),
+                        insulinCurveWasApproximated = item.strictBooleanOrDefault(
                             "insulinCurveWasApproximated",
                             false
                         )
@@ -650,78 +1149,78 @@ object SettingsExporter {
         }
     }
 
-    private fun JSONArray?.toCloneTombstones(): List<CloneJournalTombstoneEntity> {
-        if (this == null) return emptyList()
+    private fun JSONArray.toCloneTombstones(): List<CloneJournalTombstoneEntity> {
         return buildList {
             for (index in 0 until length()) {
-                val item = optJSONObject(index) ?: continue
-                val entryId = item.optLong("entryId", 0L)
-                val deletedAt = item.optLong("deletedAt", 0L)
-                if (entryId > 0L && deletedAt > 0L) {
-                    add(
-                        CloneJournalTombstoneEntity(
-                            entryId = entryId,
-                            deletedAt = deletedAt,
-                            recoveryId = CloneJournalIdentity.normalizeRecoveryId(
-                                item.optNullableString("recoveryId")
-                            ),
-                        )
-                    )
+                val item = opt(index) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid Clone journal tombstone at index $index")
+                val entryId = item.requireStrictLong("entryId")
+                val deletedAt = item.requireStrictLong("deletedAt")
+                require(entryId > 0L && deletedAt > 0L) {
+                    "Invalid Clone journal tombstone at index $index"
                 }
-            }
-        }
-    }
-
-    private fun JSONArray?.toFoods(): List<JournalFoodEntity> {
-        if (this == null) return emptyList()
-        return buildList {
-            for (index in 0 until length()) {
-                val item = optJSONObject(index) ?: continue
                 add(
-                    JournalFoodEntity(
-                        id = item.optLong("id", 0L),
-                        displayName = item.getString("displayName"),
-                        carbsGrams = item.optDouble("carbsGrams", 0.0).toFloat(),
-                        proteinGrams = item.optNullableFloat("proteinGrams"),
-                        fatGrams = item.optNullableFloat("fatGrams"),
-                        absorptionMinutes = item.optInt("absorptionMinutes", 90),
-                        accentColor = item.optInt("accentColor", 0xFF5F7D4B.toInt()),
-                        isBuiltIn = item.optBoolean("isBuiltIn", false),
-                        isArchived = item.optBoolean("isArchived", false),
-                        sortOrder = item.optInt("sortOrder", index),
-                        createdAt = item.optLong("createdAt", System.currentTimeMillis()),
-                        updatedAt = item.optLong("updatedAt", System.currentTimeMillis())
+                    CloneJournalTombstoneEntity(
+                        entryId = entryId,
+                        deletedAt = deletedAt,
+                        recoveryId = item.strictRecoveryId(),
                     )
                 )
             }
         }
     }
 
-    private fun JSONArray?.toInsulinPresets(): List<JournalInsulinPresetEntity> {
-        if (this == null) return emptyList()
+    private fun JSONArray.toFoods(): List<JournalFoodEntity> {
         return buildList {
             for (index in 0 until length()) {
-                val item = optJSONObject(index) ?: continue
+                val item = opt(index) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid food preset at index $index")
+                add(
+                    JournalFoodEntity(
+                        id = item.strictRowId(),
+                        displayName = item.requireStrictString("displayName"),
+                        carbsGrams = item.strictFloatOrDefault("carbsGrams", 0f),
+                        proteinGrams = item.strictNullableFloat("proteinGrams"),
+                        fatGrams = item.strictNullableFloat("fatGrams"),
+                        absorptionMinutes = item.strictIntOrDefault("absorptionMinutes", 90),
+                        accentColor = item.strictIntOrDefault("accentColor", 0xFF5F7D4B.toInt()),
+                        isBuiltIn = item.strictBooleanOrDefault("isBuiltIn", false),
+                        isArchived = item.strictBooleanOrDefault("isArchived", false),
+                        sortOrder = item.strictIntOrDefault("sortOrder", index),
+                        createdAt = item.strictLongOrDefault("createdAt", System.currentTimeMillis()),
+                        updatedAt = item.strictLongOrDefault("updatedAt", System.currentTimeMillis())
+                    )
+                )
+            }
+        }
+    }
+
+    private fun JSONArray.toInsulinPresets(): List<JournalInsulinPresetEntity> {
+        return buildList {
+            for (index in 0 until length()) {
+                val item = opt(index) as? JSONObject
+                    ?: throw IllegalArgumentException("Invalid insulin preset at index $index")
+                val isBuiltIn = item.strictBooleanOrDefault("isBuiltIn", false)
+                val sortOrder = item.strictIntOrDefault("sortOrder", index)
                 add(
                     JournalInsulinPresetEntity(
-                        id = item.optLong("id", 0L),
-                        displayName = item.getString("displayName"),
-                        onsetMinutes = item.getInt("onsetMinutes"),
-                        durationMinutes = item.getInt("durationMinutes"),
-                        accentColor = item.getInt("accentColor"),
-                        curveJson = item.optString("curveJson", ""),
-                        isBuiltIn = item.optBoolean("isBuiltIn", false),
-                        isArchived = item.optBoolean("isArchived", false),
-                        countsTowardIob = item.optBoolean("countsTowardIob", true),
-                        sortOrder = item.optInt("sortOrder", index),
-                        useForCalculation = item.optBoolean(
+                        id = item.strictRowId(),
+                        displayName = item.requireStrictString("displayName"),
+                        onsetMinutes = item.requireStrictInt("onsetMinutes"),
+                        durationMinutes = item.requireStrictInt("durationMinutes"),
+                        accentColor = item.requireStrictInt("accentColor"),
+                        curveJson = item.strictStringOrDefault("curveJson", ""),
+                        isBuiltIn = isBuiltIn,
+                        isArchived = item.strictBooleanOrDefault("isArchived", false),
+                        countsTowardIob = item.strictBooleanOrDefault("countsTowardIob", true),
+                        sortOrder = sortOrder,
+                        useForCalculation = item.strictBooleanOrDefault(
                             "useForCalculation",
-                            !(item.optBoolean("isBuiltIn", false) &&
-                                item.optInt("sortOrder", index) in setOf(1, 10))
+                            !(isBuiltIn && sortOrder in setOf(1, 10))
                         ),
-                        curveProfileId = item.optNullableString("curveProfileId"),
-                        curveModelVersion = item.optInt("curveModelVersion", 0),
-                        curveEvidence = item.optString("curveEvidence", "unverified")
+                        curveProfileId = item.strictNullableString("curveProfileId"),
+                        curveModelVersion = item.strictIntOrDefault("curveModelVersion", 0),
+                        curveEvidence = item.strictStringOrDefault("curveEvidence", "unverified")
                     )
                 )
             }
@@ -732,21 +1231,90 @@ object SettingsExporter {
         return put(name, value ?: JSONObject.NULL)
     }
 
-    private fun JSONObject.optNullableString(name: String): String? {
-        return if (isNull(name)) null else optString(name)
+    private fun JSONObject.requireRawField(name: String, label: String): Any {
+        require(has(name) && !isNull(name)) { "Missing value for $label" }
+        return opt(name) ?: throw IllegalArgumentException("Missing value for $label")
     }
 
-    private fun JSONObject.optNullableFloat(name: String): Float? {
-        return if (isNull(name) || !has(name)) null else optDouble(name).toFloat()
+    private fun JSONObject.strictLong(name: String): Long? {
+        if (!has(name) || isNull(name)) return null
+        val raw = opt(name) ?: return null
+        return when (raw) {
+            is Long -> raw
+            is Int -> raw.toLong()
+            is Short -> raw.toLong()
+            is Byte -> raw.toLong()
+            else -> null
+        }
     }
 
-    private fun JSONObject.optNullableInt(name: String): Int? {
-        return if (isNull(name) || !has(name)) null else optInt(name)
+    private fun JSONObject.strictInt(name: String): Int? {
+        val value = strictLong(name) ?: return null
+        return value.takeIf { it in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() }?.toInt()
     }
 
-    private fun JSONObject.optNullableLong(name: String): Long? {
-        return if (isNull(name) || !has(name)) null else optLong(name)
+    private fun JSONObject.strictFloat(name: String): Float? {
+        if (!has(name) || isNull(name)) return null
+        val raw = opt(name) as? Number ?: return null
+        val floatValue = raw.toDouble().toFloat()
+        return floatValue.takeIf { it.isFinite() }
     }
+
+    private fun JSONObject.requireStrictLong(name: String): Long =
+        strictLong(name) ?: throw IllegalArgumentException("Invalid backup integer: $name")
+
+    private fun JSONObject.requireStrictInt(name: String): Int =
+        strictInt(name) ?: throw IllegalArgumentException("Invalid backup integer: $name")
+
+    private fun JSONObject.requireStrictString(name: String): String {
+        if (!has(name) || isNull(name)) {
+            throw IllegalArgumentException("Missing backup string: $name")
+        }
+        return opt(name) as? String
+            ?: throw IllegalArgumentException("Invalid backup string: $name")
+    }
+
+    private fun JSONObject.strictLongOrDefault(name: String, default: Long): Long =
+        if (!has(name)) default else requireStrictLong(name)
+
+    private fun JSONObject.strictIntOrDefault(name: String, default: Int): Int =
+        if (!has(name)) default else requireStrictInt(name)
+
+    private fun JSONObject.strictFloatOrDefault(name: String, default: Float): Float =
+        if (!has(name)) default else strictFloat(name)
+            ?: throw IllegalArgumentException("Invalid backup number: $name")
+
+    private fun JSONObject.strictBooleanOrDefault(name: String, default: Boolean): Boolean {
+        if (!has(name)) return default
+        return opt(name) as? Boolean
+            ?: throw IllegalArgumentException("Invalid backup boolean: $name")
+    }
+
+    private fun JSONObject.strictStringOrDefault(name: String, default: String): String =
+        if (!has(name)) default else requireStrictString(name)
+
+    private fun JSONObject.strictNullableString(name: String): String? =
+        if (isNull(name)) null else requireStrictString(name)
+
+    private fun JSONObject.strictNullableFloat(name: String): Float? =
+        if (isNull(name)) null else strictFloat(name)
+            ?: throw IllegalArgumentException("Invalid backup number: $name")
+
+    private fun JSONObject.strictNullableInt(name: String): Int? =
+        if (isNull(name)) null else requireStrictInt(name)
+
+    private fun JSONObject.strictNullableLong(name: String): Long? =
+        if (isNull(name)) null else requireStrictLong(name)
+
+    private fun JSONObject.strictRowId(): Long = strictLongOrDefault("id", 0L).also {
+        require(it >= 0L) { "Invalid backup row ID" }
+    }
+
+    private fun JSONObject.strictRecoveryId(): String? =
+        strictNullableString("recoveryId")?.let {
+            CloneJournalIdentity.normalizeRecoveryId(it)
+                ?: throw IllegalArgumentException("Invalid journal recovery ID")
+        }
 
     private fun encodeFile(file: File): String {
         return Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
@@ -756,7 +1324,15 @@ object SettingsExporter {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: error("Could not open import source")
         val text = ExportPackageCodec.readUtf8(inputStream)
-        return JSONObject(text)
+        return parseRootObject(text)
+    }
+
+    internal fun parseRootObject(text: String): JSONObject {
+        val tokener = JSONTokener(text)
+        val root = tokener.nextValue()
+        require(root is JSONObject) { "Settings backup is not a JSON object" }
+        require(tokener.nextClean() == '\u0000') { "Unexpected trailing data in settings backup" }
+        return root
     }
 
     private fun discoverSharedPreferenceNames(context: Context): Set<String> {
