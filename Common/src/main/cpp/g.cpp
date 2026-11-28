@@ -1,3 +1,4 @@
+#include "net/clarity/clarity.hpp"
 
 #define setthreadname(buf) prctl(PR_SET_NAME, buf, 0, 0, 0)
 /*#ifndef NOLOG
@@ -2534,6 +2535,7 @@ extern void wakeuploader();
 extern void wakestreamuploader();
 extern void wakelibrecurrent();
 void wakewithcurrent() {
+  wakeclarity();
   wakestreamuploader();
 #if !defined(WEAROS) && !defined(TESTMENU)
   if (settings->data()->LibreCurrentOnly) {

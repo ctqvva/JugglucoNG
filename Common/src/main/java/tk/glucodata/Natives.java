@@ -51,6 +51,19 @@ public class Natives {
 
         }
 
+        // Dexcom Clarity upload (net/clarity). Every call is safe in builds without the
+        // uploader: it then reports "not built"/unavailable instead of failing.
+        public static native ClarityStatus clarityStatus();
+        public static native int[] clarityCategories();
+        public static native String claritySetCategories(int[] categories, float[] weights);
+        public static native String clarityConfigure(boolean enabled, boolean libre3History, boolean numbers, long since);
+        public static native String clarityImport(byte[] data);
+        /** Returns {authorizationUrl, error}; exactly one of them is non-empty. */
+        public static native String[] clarityLoginBegin(String country, String locale, String manufacturer, String model, String osVersion);
+        /** Empty callback resumes a sign-in whose tokens were saved before discovery failed. */
+        public static native String clarityLoginFinish(String callback);
+        public static native void clarityWake();
+
         public static native int nfcdata(byte[] uid, byte[] info, byte[] dat);
 
         // public stratic native boolean shouldenableStreaming(byte[] uid);

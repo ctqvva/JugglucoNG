@@ -46,6 +46,12 @@ jobs:
         run: python3 tools/test-turn-stream.py
       - name: Test complete HTTPS token and rendezvous replies
         run: python3 tools/test-context-https.py
+      - name: Test Dexcom Clarity outbox selection and mapped storage recovery
+        run: python3 tools/test-clarity-native.py
+      - name: Test Clarity portable material serialization and BGE key recovery
+        run: python3 tools/test-clarity-material.py
+      - name: Test Clarity provider with synthetic keys and decoder
+        run: python3 tools/test-clarity-provider.py
       - name: Test Clone rendezvous failover between servers
         run: python3 tools/test-rendezvous-failover.py
       - name: Test manual calibration transfer without native sensor records

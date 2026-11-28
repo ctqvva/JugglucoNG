@@ -1,3 +1,4 @@
+#include "net/clarity/clarity.hpp"
 
 // #define DONTTALK WEAROS
 
@@ -2060,6 +2061,7 @@ int64_t openNums(std::string_view numpath, int64_t ident) {
       NumDisplay::getnumdisplay(index, numpath, ident, nummmaplen);
   if (numdata) {
     numdatas.push_back(numdata);
+    claritynums(numdata);
     if (ident == 0LL)
       newhit.numdisplay = numdata;
   }

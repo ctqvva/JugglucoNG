@@ -1,3 +1,4 @@
+#include "net/clarity/clarity.hpp"
 /*      This file is part of Juggluco, an Android app to receive and display         */
 /*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
 /*                                                                                   */
@@ -320,6 +321,7 @@ extern void            startlibrethread();
 extern void startthreads();
 extern    void startwatchthread(int port) ;
 void startthreads() {
+    startclaritythread();
     Backup::startbackup(globalbasedir); 
     doversionupdate();
 #ifndef WEAROS
@@ -558,6 +560,7 @@ void initjuggluco(std::string_view dirfiles) {
     }
 void setnumchanged(uint32_t tim) {
     settings->data()->timenumchanged=tim;
+    wakeclarity();
     }
 void setnumchanged() {
     setnumchanged(time(nullptr));
