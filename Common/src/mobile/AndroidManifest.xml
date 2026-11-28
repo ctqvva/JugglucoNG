@@ -18,6 +18,7 @@
 
 <queries>
     <package android:name="com.google.android.apps.healthdata" />
+    <provider android:authorities="androidx.car.app.connection" />
 </queries>
 
     <queries>

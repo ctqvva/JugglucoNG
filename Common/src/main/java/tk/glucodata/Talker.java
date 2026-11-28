@@ -53,10 +53,15 @@ import static tk.glucodata.util.getlocale;
 import android.app.Activity;
 import android.content.Context;
 import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
+import java.io.File;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -89,8 +94,9 @@ static  private float curspeed=1.0f;
 static private volatile long cursep=50*1000L;
 static private int voicepos=-1;
 static private String playstring=null;
-// The chime setting for playstring: it is spoken from onInit, after the Test press has returned.
+// The chime/repeat settings for playstring: it is spoken from onInit, after the Test press has returned.
 static private boolean playchime=false;
+static private boolean playtwice=false;
 static private Spinner spinner=null;
 //static final private int minandroid=24; //21
 static final private int minandroid=21; //21
@@ -345,6 +351,27 @@ static final AudioAttributes mediaAudio = new AudioAttributes.Builder()
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
         .build();
 
+static AudioAttributes resolveTestAudioAttributes(Context context) {
+    if(VoiceAudioTrigger.useMediaStreamNow(context)) {
+        return mediaAudio;
+        }
+    final int soundType=Natives.getSoundType();
+    if(soundType==AudioAttributes.USAGE_ALARM || soundType==AudioAttributes.USAGE_MEDIA) {
+        return notification_audio!=null ? notification_audio : mediaAudio;
+        }
+    // Notification stream selected: use notification audio when audible so users can hear the
+    // difference from Media, falling back to media only if notification volume is muted.
+    try {
+        final AudioManager am=(AudioManager)context.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+        if(am!=null && am.getStreamVolume(AudioManager.STREAM_NOTIFICATION)>0 && notification_audio!=null) {
+            return notification_audio;
+            }
+        }
+    catch(Throwable ignored) {
+        }
+    return mediaAudio;
+    }
+
 public static void testCurrentValue(Context context) {
     if(DontTalk)
         return;
@@ -354,16 +381,17 @@ public static void testCurrentValue(Context context) {
     if(talk!=null && talk.engineReady) {
         talk.setvalues();
         talk.setvoice();
-        // Use media stream so test is audible regardless of notification mute
         final boolean chime=getChimeBeforeGlucose(context);
+        final boolean twice=getSpeakTwice(context);
         if(android.os.Build.VERSION.SDK_INT >= minandroid)
-            talk.speak(say, mediaAudio, chime);
+            talk.speak(say, resolveTestAudioAttributes(context), chime, twice);
         else
-            talk.speak(say, chime);
+            talk.speak(say, chime, twice);
         return;
         }
     // Engine not ready yet — queue for after init
     playchime=getChimeBeforeGlucose(context);
+    playtwice=getSpeakTwice(context);
     playstring=say;
     if(talk==null)
         SuperGattCallback.newtalker(context);
@@ -398,6 +426,16 @@ if(!DontTalk) {
 void destruct() {
 if(!DontTalk) {
     engineReady = false;
+    boostGen.incrementAndGet();
+    VoiceAudioBoost.stopActivePlayback();
+    for (PendingBoost pending : pendingBoosts.values()) {
+        try {
+            pending.file.delete();
+        } catch (Throwable ignored) {
+        }
+        focus.release(pending.wordsId);
+    }
+    pendingBoosts.clear();
     if(engine!=null) {
         // No progress callback follows shutdown(), so words still holding focus would keep it.
         focus.release(lastWordsId);
@@ -415,6 +453,7 @@ if(!DontTalk) {
 
 //    var context=cont==null?Applic.getContext():cont;
     var context=Applic.app;
+    VoiceAudioBoost.cleanupStaleCacheFiles(context);
      engine=new TextToSpeech(context, new TextToSpeech.OnInitListener() {
        @Override
       public void onInit(int status) {
@@ -472,7 +511,7 @@ if(!DontTalk) {
                 notifyVoiceListeners();
             }
              if(playstring!=null) {
-                 speak(playstring,playchime);
+                 speak(playstring,playchime,playtwice);
                  playstring=null;
                  }
            }
@@ -491,6 +530,10 @@ if(!DontTalk) {
         @Override
         public void onDone(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onDone "+utteranceId);};
+            if(utteranceId != null && utteranceId.startsWith(BOOST_SYNTH_PREFIX)) {
+                handleBoostSynthesized(utteranceId);
+                return;
+            }
             // The words that follow the lead-in still need the focus speak() took for them.
             if(LeadIn.isLeadIn(utteranceId))
                 return;
@@ -507,6 +550,10 @@ if(!DontTalk) {
         @Override
         public void onStop(String utteranceId,boolean interrupted) {
             if(doLog) {Log.i(LOG_ID,"onStop "+utteranceId+" interrupted="+interrupted);};
+            if(utteranceId != null && utteranceId.startsWith(BOOST_SYNTH_PREFIX)) {
+                handleBoostCancelled(utteranceId, false);
+                return;
+            }
             if(LeadIn.isLeadIn(utteranceId))
                 return;
             focus.release(utteranceId);
@@ -515,6 +562,10 @@ if(!DontTalk) {
         @Override
         public void onError(String utteranceId) {
             if(doLog) {Log.i(LOG_ID,"onError "+utteranceId);};
+            if(utteranceId != null && utteranceId.startsWith(BOOST_SYNTH_PREFIX)) {
+                handleBoostCancelled(utteranceId, true);
+                return;
+            }
             // A lead-in that failed to play is skipped; the words queued after it still play.
             if(LeadIn.isLeadIn(utteranceId))
                 return;
@@ -559,10 +610,83 @@ public boolean speak(String message) {
  * The words then follow a short lead-in, see {@link LeadIn}.
  */
 boolean speak(String message,boolean chime) {
-    return speak(message,notification_audio,chime);
+    return speak(message,notification_audio,chime,false);
     }
 
-private boolean queueSpeech(String message,boolean chime) {
+boolean speak(String message,boolean chime,boolean repeatTwice) {
+    return speak(message,notification_audio,chime,repeatTwice);
+    }
+
+private static final String BOOST_SYNTH_PREFIX = "boost_synth#";
+
+private static final class PendingBoost {
+    final File file;
+    final AudioAttributes attr;
+    final boolean chime;
+    final boolean repeatTwice;
+    final float gainDb;
+    final String wordsId;
+    final String message;
+    final long generation;
+
+    PendingBoost(File file, AudioAttributes attr, boolean chime, boolean repeatTwice, float gainDb,
+                 String wordsId, String message, long generation) {
+        this.file = file;
+        this.attr = attr;
+        this.chime = chime;
+        this.repeatTwice = repeatTwice;
+        this.gainDb = gainDb;
+        this.wordsId = wordsId;
+        this.message = message;
+        this.generation = generation;
+    }
+}
+
+private final ConcurrentHashMap<String, PendingBoost> pendingBoosts = new ConcurrentHashMap<>();
+private final AtomicLong boostGen = new AtomicLong();
+
+private void handleBoostSynthesized(String synthId) {
+    final PendingBoost pending = pendingBoosts.remove(synthId);
+    if (pending == null) return;
+    if (pending.generation != boostGen.get() || engine == null) {
+        try {
+            pending.file.delete();
+        } catch (Throwable ignored) {
+        }
+        focus.release(pending.wordsId);
+        return;
+    }
+    VoiceAudioBoost.playAsync(
+            Applic.app,
+            pending.file,
+            pending.attr,
+            pending.chime,
+            pending.repeatTwice,
+            pending.gainDb,
+            () -> pending.generation != boostGen.get() || engine == null,
+            () -> focus.release(pending.wordsId),
+            () -> speakDirectUnboosted(pending.message, pending.attr, pending.chime, pending.repeatTwice)
+    );
+}
+
+private void handleBoostCancelled(String synthId, boolean isError) {
+    final PendingBoost pending = pendingBoosts.remove(synthId);
+    if (pending == null) return;
+    try {
+        pending.file.delete();
+    } catch (Throwable ignored) {
+    }
+    focus.release(pending.wordsId);
+    if (isError && pending.generation == boostGen.get() && engine != null) {
+        speakDirectUnboosted(pending.message, pending.attr, pending.chime, pending.repeatTwice);
+    }
+}
+
+private void speakDirectUnboosted(String message, AudioAttributes attr, boolean chime, boolean repeatTwice) {
+    speakInternal(message, attr, chime, repeatTwice, false);
+}
+
+private boolean queueSpeech(String message, AudioAttributes attr, boolean chime, boolean repeatTwice, boolean allowBoost) {
     if(!DontTalk) {
         // Unique, so a callback for an earlier utterance of the same value cannot release this
         // one's focus.
@@ -572,29 +696,64 @@ private boolean queueSpeech(String message,boolean chime) {
             // One read: destruct() nulls the field from another thread, and this makes three calls.
             final TextToSpeech gine=engine;
             final int speakResult;
+            final int volumeLevel=allowBoost ? VoiceAudioBoost.getLevel(Applic.app) : VoiceAudioBoost.LEVEL_NORMAL;
             // An utterance is now several queue calls. Unlocked, a second speak() could flush
             // between this one's lead-in and its words, and these older words would then be
             // appended after the newer ones instead of being replaced by them. Claiming inside
             // the lock keeps the focus owner the utterance that was queued last.
             synchronized(queueLock) {
+            final long currentGen = boostGen.incrementAndGet();
+            VoiceAudioBoost.stopActivePlayback();
             synchronized(focus) {
                 lastWordsId=wordsId;
                 focus.claim(wordsId,!notifyfocus);
                 }
-            speakResult=LeadIn.queue(new LeadIn.Engine() {
-                @Override
-                public int playEarcon(String earcon,int queueMode,String utteranceId) {
-                    return gine.playEarcon(earcon,queueMode,null,utteranceId);
+            int boostResult = TextToSpeech.ERROR;
+            if (allowBoost && VoiceAudioBoost.needsBoostedPlayback(volumeLevel)) {
+                final File tempFile = VoiceAudioBoost.createTempWavFile(Applic.app);
+                if (tempFile != null) {
+                    final String synthId = BOOST_SYNTH_PREFIX + wordsId;
+                    final PendingBoost pending = new PendingBoost(
+                            tempFile, attr, chime, repeatTwice,
+                            VoiceAudioBoost.gainDbForLevel(volumeLevel),
+                            wordsId, message, currentGen
+                    );
+                    pendingBoosts.put(synthId, pending);
+                    try {
+                        boostResult = gine.synthesizeToFile(message, null, tempFile, synthId);
+                    } catch (Throwable th) {
+                        Log.stack(LOG_ID, "synthesizeToFile", th);
+                        boostResult = TextToSpeech.ERROR;
                     }
-                @Override
-                public int speak(String text,int queueMode,String utteranceId) {
-                    return gine.speak(text,queueMode,null,utteranceId);
+                    if (boostResult != TextToSpeech.SUCCESS) {
+                        pendingBoosts.remove(synthId);
+                        try {
+                            tempFile.delete();
+                        } catch (Throwable ignored) {
+                        }
                     }
-                },message,wordsId,chime);
+                }
+            }
+            if (boostResult == TextToSpeech.SUCCESS) {
+                speakResult = TextToSpeech.SUCCESS;
+            } else {
+                final Bundle ttsParams = VoiceAudioBoost.createTtsParams(volumeLevel);
+                speakResult=LeadIn.queue(new LeadIn.Engine() {
+                    @Override
+                    public int playEarcon(String earcon,int queueMode,String utteranceId) {
+                        return gine.playEarcon(earcon,queueMode,ttsParams,utteranceId);
+                        }
+                    @Override
+                    public int speak(String text,int queueMode,String utteranceId) {
+                        return gine.speak(text,queueMode,ttsParams,utteranceId);
+                        }
+                    },message,wordsId,chime,repeatTwice);
+                }
                 }
             if(speakResult==TextToSpeech.SUCCESS) {
                 queued=true;
                 health.record(true,engineReady);
+                VoiceAudioTrigger.recordSpokenNow(System.currentTimeMillis());
                 if(doLog) {Log.i(LOG_ID,"success speak "+message);}
                 return true;
                 }
@@ -639,6 +798,7 @@ static SpeechFocus.Hold finishAlarmFocus(boolean closingAnnouncement) {
 
 private static final String PREFS="tk.glucodata_preferences";
 private static final String KEY_CHIME="voice_chime_before_glucose";
+private static final String KEY_SPEAK_TWICE="voice_speak_twice";
 
 /** Whether glucose announcements start with a short chime. Off unless the user turns it on. */
 public static boolean getChimeBeforeGlucose(Context context) {
@@ -647,6 +807,15 @@ public static boolean getChimeBeforeGlucose(Context context) {
 
 public static void setChimeBeforeGlucose(Context context,boolean chime) {
     context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().putBoolean(KEY_CHIME,chime).apply();
+    }
+
+/** Whether glucose reading announcements are spoken twice with a brief pause between passes. */
+public static boolean getSpeakTwice(Context context) {
+    return context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).getBoolean(KEY_SPEAK_TWICE,false);
+    }
+
+public static void setSpeakTwice(Context context,boolean twice) {
+    context.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit().putBoolean(KEY_SPEAK_TWICE,twice).apply();
     }
 
 // Tracks real engine health, as opposed to istalking() which only checks that
@@ -684,10 +853,18 @@ static volatile boolean notifyfocus=false;
  * @return true only when the engine accepted the utterance. See {@link #speak(String)}.
  */
 public boolean speak(String message, AudioAttributes attr) {
-    return speak(message,attr,false);
+    return speak(message,attr,false,false);
     }
 
 boolean speak(String message, AudioAttributes attr, boolean chime) {
+    return speak(message,attr,chime,false);
+    }
+
+boolean speak(String message, AudioAttributes attr, boolean chime, boolean repeatTwice) {
+    return speakInternal(message, attr, chime, repeatTwice, true);
+    }
+
+private boolean speakInternal(String message, AudioAttributes attr, boolean chime, boolean repeatTwice, boolean allowBoost) {
     if(DontTalk)
         return false;
     final TextToSpeech gine=engine;
@@ -704,7 +881,7 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
         // Refresh even the default attributes: the Media setting can change while this
         // engine stays alive. Otherwise it keeps speaking on its old stream until restart.
         gine.setAudioAttributes(attr);
-        spoken=queueSpeech(message,chime);
+        spoken=queueSpeech(message,attr,chime,repeatTwice,allowBoost);
         }
     catch(Throwable th) {
         Log.stack(LOG_ID,"speak(message,attr)",th);
@@ -726,10 +903,22 @@ boolean speak(String message, AudioAttributes attr, boolean chime) {
     }
 // volatile: written and read from the announce path and the settings/UI thread alike.
 volatile static long nexttime=0L;
+volatile static long lastSpokenReadingTimeMs=0L;
 void selspeak(String message) {
+    selspeak(message, 0L);
+    }
+void selspeak(String message, long readingTimeMs) {
     if(!DontTalk) {
-        var now=System.currentTimeMillis();
-        if(now>nexttime && SpeakSchedule.INSTANCE.isWithinSchedule(Applic.app)) {
+        final Context app=Applic.app;
+        final int defaultSepSec=(int)Math.max(1L, cursep/1000L);
+        final VoiceAudioPolicy.EffectiveDecision decision=VoiceAudioTrigger.resolveEffectiveDecision(app, SuperGattCallback.dotalk, defaultSepSec);
+        if(!decision.getShouldSpeakReading())
+            return;
+        if(readingTimeMs>0L && readingTimeMs==lastSpokenReadingTimeMs)
+            return;
+        final long sepMs=decision.getEffectiveIntervalSeconds()*1000L;
+        final long now=System.currentTimeMillis();
+        if(now>nexttime) {
             // Claim the slot before speaking, so two readings arriving back to back cannot both
             // announce - then hand nearly all of it back if the engine refused the utterance.
             // Charging a failed attempt the full separation interval made the engine-health
@@ -739,12 +928,53 @@ void selspeak(String message) {
             // for 2 x cursep - 10 minutes at a 300s separation, 33 minutes at 999s, with every
             // further failure costing another interval of silence. Retrying on the next reading
             // instead makes detection ~2 minutes regardless of how the user set the interval.
-            nexttime=now+cursep;
-            if(!speak(message,getChimeBeforeGlucose(Applic.app))) {
-                nexttime=now+Math.min(cursep,FAILED_SPEAK_RETRY_MS);
+            nexttime=sepMs>0L ? (now+sepMs) : now;
+            final AudioAttributes attrs=decision.getUseMediaStream()?mediaAudio:notification_audio;
+            if(speak(message,attrs,getChimeBeforeGlucose(app),getSpeakTwice(app))) {
+                if(readingTimeMs>0L) {
+                    lastSpokenReadingTimeMs=readingTimeMs;
+                    }
+                }
+            else {
+                nexttime=now+(sepMs>0L ? Math.min(sepMs,FAILED_SPEAK_RETRY_MS) : FAILED_SPEAK_RETRY_MS);
                 }
             }
           }
+    }
+
+/** Clamp nexttime down to the default separation when a longer car/BT interval ends. */
+static void clampNextTimeToDefault(long nowMs) {
+    final long maxNext=nowMs+cursep;
+    if(nexttime>maxNext)
+        nexttime=maxNext;
+    }
+
+/** One-shot current-value announcement shortly after a car/Bluetooth audio device connects. */
+boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean chime) {
+    return speakConnectAnnouncement(message, useMediaStream, chime, 0L);
+    }
+boolean speakConnectAnnouncement(String message, boolean useMediaStream, boolean chime, long readingTimeMs) {
+    if(DontTalk)
+        return false;
+    final Context app=Applic.app;
+    final int defaultSepSec=(int)Math.max(1L, cursep/1000L);
+    final VoiceAudioPolicy.EffectiveDecision decision=VoiceAudioTrigger.resolveEffectiveDecision(app, SuperGattCallback.dotalk, defaultSepSec);
+    if(!decision.getAutoActive() || !decision.getShouldSpeakReading())
+        return false;
+    final long now=System.currentTimeMillis();
+    if(VoiceAudioTrigger.wasSpokenRecently(now))
+        return false;
+    final long sepMs=decision.getEffectiveIntervalSeconds()*1000L;
+    nexttime=sepMs>0L ? (now+sepMs) : now;
+    final AudioAttributes attrs=useMediaStream?mediaAudio:notification_audio;
+    if(speak(message,attrs,chime,getSpeakTwice(app))) {
+        if(readingTimeMs>0L) {
+            lastSpokenReadingTimeMs=readingTimeMs;
+            }
+        return true;
+        }
+    nexttime=now+(sepMs>0L ? Math.min(sepMs,FAILED_SPEAK_RETRY_MS) : FAILED_SPEAK_RETRY_MS);
+    return false;
     }
 static final private double base2=Math.log(2);
 static final private double multiplyer=10000.0/base2;
@@ -836,7 +1066,11 @@ private static View[] slider(MainActivity context,float init) {
     }
 public static boolean shouldtalk() {
     if(!DontTalk) {
-        return  SuperGattCallback.dotalk||Natives.gettouchtalk()||Natives.speakmessages()||Natives.speakalarms();
+        return  SuperGattCallback.dotalk
+                || Natives.gettouchtalk()
+                || Natives.speakmessages()
+                || Natives.speakalarms()
+                || VoiceAudioTrigger.isSpeakingActive(Applic.app);
         }
     else
         return false;
@@ -1087,11 +1321,12 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
             if(talk!=null) {
                 talk.setvalues();
                 talk.setvoice();
-                talk.speak(say,getChimeBeforeGlucose(context));
+                talk.speak(say,getChimeBeforeGlucose(context),getSpeakTwice(context));
                 return;
                 }
             }
         playchime=getChimeBeforeGlucose(context);
+        playtwice=getSpeakTwice(context);
         playstring=say;
         SuperGattCallback.newtalker(context);
         });

@@ -945,7 +945,8 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         previousglucosesensorid = SerialNumber;
         final var fview = Floating.floatview;
         // MainActivity.showmessage=null;
-        final boolean alarmSpeechStarted = glucoseAlertStarted && !DontTalk && Natives.speakalarms();
+        final boolean alarmSpeechStarted = glucoseAlertStarted && !DontTalk
+                && VoiceAudioTrigger.isAlarmSpeechEnabled(Applic.app);
         if (alarmSpeechStarted)
             Talker.nexttime = 0L;
         if (fview != null)
@@ -995,7 +996,9 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         UiRefreshBus.requestDataRefresh();
 
         if (!DontTalk) {
-            if (dotalk && !alarmSpeechStarted) {
+            final boolean autoVoiceActive = VoiceAudioTrigger.refreshAndCheckReadingSpeech(Applic.app);
+            final boolean sessionPaused = VoiceAudioTrigger.isSessionPaused(Applic.app);
+            if (!sessionPaused && (dotalk || autoVoiceActive) && !alarmSpeechStarted) {
                 // `talker` is a plain static field that endtalk() can null from another thread
                 // between the dotalk check and the deref - read it into a local once.
                 final Talker currentTalker = talker;
@@ -1021,9 +1024,10 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
                     // notifications, and alarm speech) rather than the raw native value.
                     final CurrentDisplaySource.Snapshot speakcurrent =
                             CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout);
+                    final long speakTimeMs = speakcurrent != null ? speakcurrent.getTimeMillis() : timmsec;
                     currentTalker.selspeak(speakcurrent != null
                             ? GlucoseSpeech.format(Applic.app,speakcurrent)
-                            : GlucoseSpeech.format(Applic.app,sglucose.value,sglucose.rate));
+                            : GlucoseSpeech.format(Applic.app,sglucose.value,sglucose.rate), speakTimeMs);
                 }
             }
         }

@@ -13,6 +13,11 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import android.content.Context
 import android.media.AudioAttributes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,13 +29,17 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -53,8 +62,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,23 +79,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import java.util.Locale
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.round
+import kotlin.math.roundToInt
 import tk.glucodata.ui.components.IconTile
 import tk.glucodata.MainActivity
 import tk.glucodata.Natives
 import tk.glucodata.R
 import tk.glucodata.SpeakSchedule
 import tk.glucodata.Talker
+import tk.glucodata.VoiceAudioBoost
+import tk.glucodata.VoiceAudioPolicy
+import tk.glucodata.VoiceAudioTrigger
 import tk.glucodata.VoiceReadings
 import tk.glucodata.ui.components.AppScaffold
 import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.scrollsUnderTopBar
 import tk.glucodata.ui.components.CardPosition
+import tk.glucodata.ui.components.SettingsControlsCard
 import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsSlider
 import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.components.SliderHeader
@@ -130,8 +148,13 @@ fun TalkerSettingsScreen(navController: NavController) {
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
     var chimeBeforeGlucose by remember { mutableStateOf(Talker.getChimeBeforeGlucose(activity)) }
+    var speakTwice by remember { mutableStateOf(Talker.getSpeakTwice(activity)) }
+    var voiceVolumeLevel by remember { mutableStateOf(VoiceAudioBoost.getLevel(activity)) }
+    var voiceVolumeSlider by remember { mutableFloatStateOf(voiceVolumeLevel.toFloat()) }
     var showOnDashboard by remember { mutableStateOf(VoiceReadings.showOnDashboard(activity)) }
     var showInNotification by remember { mutableStateOf(VoiceReadings.showInNotification(activity)) }
+    val btAudioState by VoiceAudioTrigger.state.collectAsStateWithLifecycle()
+    var showBtDevicesSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.separationSeconds) {
         separationText = uiState.separationSeconds.toString()
@@ -139,6 +162,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 
     DisposableEffect(activity) {
         Talker.ensureComposeTalker(activity)
+        VoiceAudioTrigger.acquireUiMonitoring(activity)
         val listener = Runnable {
             val loadedVoices = Talker.getVoiceNames().toList()
             voiceNames = loadedVoices
@@ -154,6 +178,7 @@ fun TalkerSettingsScreen(navController: NavController) {
         listener.run()
         Talker.setPreviewDoneListener { previewingVoiceIndex = -1 }
         onDispose {
+            VoiceAudioTrigger.releaseUiMonitoring(activity)
             Talker.removeVoiceOptionsListener(listener)
             Talker.setPreviewDoneListener(null)
             Talker.stopPreview()
@@ -223,6 +248,12 @@ fun TalkerSettingsScreen(navController: NavController) {
             }
         )
     }
+    if (showBtDevicesSheet) {
+        VoiceAudioDeviceSheet(
+            snapshot = btAudioState,
+            onDismiss = { showBtDevicesSheet = false },
+        )
+    }
 
     AppScaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -259,6 +290,7 @@ fun TalkerSettingsScreen(navController: NavController) {
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP
                 )
+                val readingSpeechConfigured = uiState.speakGlucose || btAudioState.config.enabled
                 SettingsSwitchItem(
                     title = stringResource(R.string.voice_chime_title),
                     subtitle = stringResource(R.string.voice_chime_desc),
@@ -270,8 +302,22 @@ fun TalkerSettingsScreen(navController: NavController) {
                     icon = Symbols.DoorbellFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
                     position = CardPosition.MIDDLE,
-                    enabled = uiState.speakGlucose,
+                    enabled = readingSpeechConfigured,
                     searchAnchor = SettingsSearchAnchors.VOICE_CHIME
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_speak_twice_title),
+                    subtitle = stringResource(R.string.voice_speak_twice_desc),
+                    checked = speakTwice,
+                    onCheckedChange = {
+                        speakTwice = it
+                        Talker.setSpeakTwice(activity, it)
+                    },
+                    icon = Symbols.RepeatFilled,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.MIDDLE,
+                    enabled = readingSpeechConfigured,
+                    searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_speak_twice_title)
                 )
 //                SettingsSwitchItem(
 //                    title = stringResource(R.string.talk_touch),
@@ -368,6 +414,7 @@ fun TalkerSettingsScreen(navController: NavController) {
 
                 SettingsSwitchItem(
                     title = stringResource(R.string.talker_media_sound),
+                    subtitle = stringResource(R.string.talker_media_sound_desc),
                     searchAnchor = SettingsSearchAnchors.forRow(R.string.talker_media_sound),
                     checked = uiState.mediaSound,
                     onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
@@ -390,6 +437,7 @@ fun TalkerSettingsScreen(navController: NavController) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 NumericInputCard(
                     title = stringResource(R.string.secondsbetween),
+                    subtitle = stringResource(R.string.secondsbetween_desc),
                     value = separationText,
                     icon = Symbols.ScheduleFilled,
                     iconTint = MaterialTheme.colorScheme.primary,
@@ -426,9 +474,30 @@ fun TalkerSettingsScreen(navController: NavController) {
                     sliderValue = talkerRatioToSliderProgress(uiState.pitch),
                     icon = Symbols.TuneFilled,
                     iconTint = MaterialTheme.colorScheme.tertiary,
-                    position = CardPosition.BOTTOM,
+                    position = CardPosition.MIDDLE,
                     onValueChange = { uiState = uiState.copy(pitch = talkerSliderProgressToRatio(it)) },
                     onValueChangeFinished = { persist(uiState) }
+                )
+
+                val selectedVolumeLevel = VoiceAudioBoost.normalizeLevel(voiceVolumeSlider.roundToInt())
+                SliderCard(
+                    title = stringResource(R.string.voice_volume_title),
+                    valueLabel = formatVoiceVolumeLabel(context, selectedVolumeLevel),
+                    sliderValue = voiceVolumeSlider,
+                    icon = Symbols.VolumeUpFilled,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    position = CardPosition.BOTTOM,
+                    valueRange = VoiceAudioBoost.LEVEL_SOFTER.toFloat()..VoiceAudioBoost.LEVEL_MAX.toFloat(),
+                    steps = (VoiceAudioBoost.LEVEL_PRESETS.size - 2).coerceAtLeast(0),
+                    onValueChange = { voiceVolumeSlider = it },
+                    onValueChangeFinished = {
+                        val nextLevel = VoiceAudioBoost.normalizeLevel(voiceVolumeSlider.roundToInt())
+                        voiceVolumeSlider = nextLevel.toFloat()
+                        if (nextLevel != voiceVolumeLevel) {
+                            voiceVolumeLevel = nextLevel
+                            VoiceAudioBoost.setLevel(activity, nextLevel)
+                        }
+                    }
                 )
             }
 //
@@ -491,6 +560,20 @@ fun TalkerSettingsScreen(navController: NavController) {
                     )
                 }
             }
+
+            // Automatic voice announcements when connected to car or Bluetooth audio (#653, #1002).
+            VoiceBluetoothAudioCard(
+                state = btAudioState,
+                defaultSeparationSeconds = uiState.separationSeconds,
+                onEnabledChange = { VoiceAudioTrigger.setEnabled(activity, it) },
+                onResumeSession = { VoiceAudioTrigger.setSessionMuted(activity, false) },
+                onOpenDevices = { showBtDevicesSheet = true },
+                onIntervalChange = { VoiceAudioTrigger.setIntervalSeconds(activity, it) },
+                onSpeakAlarmsChange = { VoiceAudioTrigger.setSpeakAlarms(activity, it) },
+                onAnnounceOnConnectChange = { VoiceAudioTrigger.setAnnounceOnConnect(activity, it) },
+                onAnnounceDelayChange = { VoiceAudioTrigger.setAnnounceConnectDelaySeconds(activity, it) },
+                onUseMediaStreamChange = { VoiceAudioTrigger.setUseMediaStream(activity, it) },
+            )
 
             // Where the one-tap on/off switch shows (#840); each can be turned off on its own.
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -660,6 +743,7 @@ private fun DropdownSettingsCard(
 @Composable
 private fun NumericInputCard(
     title: String,
+    subtitle: String? = null,
     value: String,
     icon: ImageVector,
     iconTint: Color,
@@ -684,6 +768,14 @@ private fun NumericInputCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
+                if (!subtitle.isNullOrBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = value,
@@ -709,6 +801,8 @@ private fun SliderCard(
     icon: ImageVector,
     iconTint: Color,
     position: CardPosition,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..TALKER_SLIDER_MAX,
+    steps: Int = 0,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
@@ -739,10 +833,18 @@ private fun SliderCard(
                 value = sliderValue,
                 onValueChange = onValueChange,
                 onValueChangeFinished = onValueChangeFinished,
-                valueRange = 0f..TALKER_SLIDER_MAX
+                valueRange = valueRange,
+                steps = steps,
             )
         }
     }
+}
+
+private fun formatVoiceVolumeLabel(context: Context, level: Int): String = when (VoiceAudioBoost.normalizeLevel(level)) {
+    VoiceAudioBoost.LEVEL_SOFTER -> context.getString(R.string.voice_volume_softer)
+    VoiceAudioBoost.LEVEL_LOUDER -> context.getString(R.string.voice_volume_louder)
+    VoiceAudioBoost.LEVEL_MAX -> context.getString(R.string.voice_volume_max)
+    else -> context.getString(R.string.voice_volume_normal)
 }
 
 private fun loadTalkerUiState(context: Context): TalkerUiState {
@@ -788,6 +890,267 @@ private fun talkerSliderProgressToRatio(progress: Float): Float {
 
 private fun formatTalkerRatio(value: Float): String {
     return String.format(Locale.US, "%.2f", value)
+}
+
+@Composable
+private fun VoiceBluetoothAudioCard(
+    state: VoiceAudioTrigger.Snapshot,
+    defaultSeparationSeconds: Int,
+    onEnabledChange: (Boolean) -> Unit,
+    onResumeSession: () -> Unit,
+    onOpenDevices: () -> Unit,
+    onIntervalChange: (Int) -> Unit,
+    onSpeakAlarmsChange: (Boolean) -> Unit,
+    onAnnounceOnConnectChange: (Boolean) -> Unit,
+    onAnnounceDelayChange: (Int) -> Unit,
+    onUseMediaStreamChange: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val config = state.config
+    val subordinateSurface = MaterialTheme.colorScheme.surfaceContainer
+
+    val intervalPresets = VoiceAudioPolicy.INTERVAL_PRESETS_SECONDS
+    val normalizedInterval = if (config.intervalSeconds == 60) {
+        VoiceAudioPolicy.INTERVAL_EVERY_READING
+    } else {
+        config.intervalSeconds
+    }
+    val currentPresetIndex = intervalPresets.indexOf(normalizedInterval).coerceAtLeast(0)
+    var sliderIndex by rememberSaveable(config.intervalSeconds) {
+        mutableFloatStateOf(currentPresetIndex.toFloat())
+    }
+    val selectedPresetSeconds = intervalPresets[sliderIndex.roundToInt().coerceIn(0, intervalPresets.lastIndex)]
+    val defaultIntervalLabel = formatVoiceIntervalLabel(context, defaultSeparationSeconds)
+    val selectedIntervalLabel = formatBtIntervalValue(context, selectedPresetSeconds, defaultIntervalLabel)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SettingsSwitchItem(
+            title = stringResource(R.string.voice_bt_audio_title),
+            subtitle = formatBtAudioStatus(context, state),
+            checked = config.enabled,
+            onCheckedChange = onEnabledChange,
+            icon = Symbols.DirectionsCarFilled,
+            iconTint = MaterialTheme.colorScheme.primary,
+            position = if (config.enabled) CardPosition.TOP else CardPosition.SINGLE,
+            animatePosition = true,
+            searchAnchor = SettingsSearchAnchors.forRow(R.string.voice_bt_audio_title),
+        )
+
+        // Audio devices (active device pills + primary/tonal Choose devices action) and Speak
+        // interval live together inside one SettingsControlsCard, while the 3 behavior toggles
+        // stay as standard SettingsSwitchItem rows underneath on recessed surfaceContainer.
+        AnimatedVisibility(
+            visible = config.enabled,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            val activeTriggerBadges = buildList<Pair<ImageVector, String>> {
+                if (config.scope == VoiceAudioPolicy.Scope.ANY_BLUETOOTH_AUDIO) {
+                    add(Symbols.BluetoothAudioFilled to stringResource(R.string.voice_bt_scope_any))
+                } else {
+                    config.savedDevices.forEach { dev ->
+                        val glyph = if (dev.isCar) Symbols.DirectionsCarFilled else Symbols.HeadphonesFilled
+                        add(glyph to dev.name)
+                    }
+                }
+                if (config.includeCarMode) {
+                    add(Symbols.DirectionsCarFilled to stringResource(R.string.voice_bt_car_mode_label))
+                }
+            }
+            val needsDeviceChoice = activeTriggerBadges.isEmpty()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                SettingsControlsCard(
+                    position = CardPosition.MIDDLE,
+                    containerColor = subordinateSurface,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (activeTriggerBadges.isNotEmpty()) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                activeTriggerBadges.forEach { (badgeIcon, badgeLabel) ->
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .heightIn(min = 32.dp)
+                                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = badgeIcon,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Text(
+                                                text = badgeLabel,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (needsDeviceChoice) {
+                            Button(
+                                onClick = onOpenDevices,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
+                            ) {
+                                Icon(
+                                    imageVector = Symbols.BluetoothAudioFilled,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.voice_bt_choose_devices))
+                            }
+                        } else {
+                            FilledTonalButton(
+                                onClick = onOpenDevices,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp),
+                                shapes = ButtonDefaults.shapes(),
+                                contentPadding = ButtonDefaults.ContentPadding,
+                            ) {
+                                Icon(
+                                    imageVector = Symbols.BluetoothAudioFilled,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.voice_bt_choose_devices))
+                            }
+                        }
+                    }
+
+                    SettingsSlider(
+                        title = stringResource(R.string.voice_bt_interval_title),
+                        valueText = selectedIntervalLabel,
+                        value = sliderIndex,
+                        onValueChange = { sliderIndex = it },
+                        onValueChangeFinished = {
+                            val nextSeconds = intervalPresets[
+                                sliderIndex.roundToInt().coerceIn(0, intervalPresets.lastIndex)
+                            ]
+                            if (nextSeconds != config.intervalSeconds) {
+                                onIntervalChange(nextSeconds)
+                            }
+                        },
+                        range = 0f..intervalPresets.lastIndex.toFloat(),
+                        steps = (intervalPresets.size - 2).coerceAtLeast(0),
+                    )
+                }
+
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_bt_speak_alarms_title),
+                    subtitle = stringResource(R.string.voice_bt_speak_alarms_desc),
+                    checked = config.speakAlarms,
+                    onCheckedChange = onSpeakAlarmsChange,
+                    position = CardPosition.MIDDLE,
+                    containerColor = subordinateSurface,
+                )
+
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_bt_announce_connect_title),
+                    subtitle = stringResource(R.string.voice_bt_announce_connect_desc),
+                    checked = config.announceOnConnect,
+                    onCheckedChange = onAnnounceOnConnectChange,
+                    position = CardPosition.MIDDLE,
+                    containerColor = subordinateSurface,
+                )
+
+                AnimatedVisibility(
+                    visible = config.announceOnConnect,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    val delayPresets = VoiceAudioPolicy.CONNECT_ANNOUNCE_DELAY_PRESETS_SECONDS
+                    val currentDelayIndex = delayPresets.indexOf(config.connectAnnounceDelaySeconds)
+                        .takeIf { it >= 0 }
+                        ?: delayPresets.indices.minByOrNull {
+                            kotlin.math.abs(delayPresets[it] - config.connectAnnounceDelaySeconds)
+                        }
+                        ?: 0
+                    var delaySliderIndex by rememberSaveable(config.connectAnnounceDelaySeconds) {
+                        mutableFloatStateOf(currentDelayIndex.toFloat())
+                    }
+                    val selectedDelaySeconds = delayPresets[
+                        delaySliderIndex.roundToInt().coerceIn(0, delayPresets.lastIndex)
+                    ]
+                    SettingsControlsCard(
+                        position = CardPosition.MIDDLE,
+                        containerColor = subordinateSurface,
+                    ) {
+                        SettingsSlider(
+                            title = stringResource(R.string.voice_bt_announce_delay_title),
+                            valueText = stringResource(R.string.voice_bt_announce_delay_value, selectedDelaySeconds),
+                            value = delaySliderIndex,
+                            onValueChange = { delaySliderIndex = it },
+                            onValueChangeFinished = {
+                                val nextDelay = delayPresets[
+                                    delaySliderIndex.roundToInt().coerceIn(0, delayPresets.lastIndex)
+                                ]
+                                if (nextDelay != config.connectAnnounceDelaySeconds) {
+                                    onAnnounceDelayChange(nextDelay)
+                                }
+                            },
+                            range = 0f..delayPresets.lastIndex.toFloat(),
+                            steps = (delayPresets.size - 2).coerceAtLeast(0),
+                        )
+                    }
+                }
+
+                SettingsSwitchItem(
+                    title = stringResource(R.string.voice_bt_media_stream_title),
+                    subtitle = stringResource(R.string.voice_bt_media_stream_desc),
+                    checked = config.useMediaStream,
+                    onCheckedChange = onUseMediaStreamChange,
+                    position = CardPosition.BOTTOM,
+                    containerColor = subordinateSurface,
+                )
+
+                if (state.activeMatch.matched && state.sessionMuted) {
+                    FilledTonalButton(
+                        onClick = onResumeSession,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .heightIn(min = 48.dp),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.ContentPadding,
+                    ) {
+                        Icon(Symbols.VolumeUpFilled, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.voice_bt_resume_session))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

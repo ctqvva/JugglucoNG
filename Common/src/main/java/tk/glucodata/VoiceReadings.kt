@@ -11,7 +11,9 @@ import kotlin.math.ceil
  * outside Settings: the dashboard toggle and the glucose notification action (#840).
  *
  * Only spoken readings are switched. Spoken alarms, alarm sounds and everything else stay
- * as configured.
+ * as configured. When readings are speaking automatically because a chosen car or Bluetooth
+ * audio device is connected, turning voice off mutes that connection session without changing
+ * the saved Bluetooth auto-speak setting.
  */
 object VoiceReadings {
     private const val PREFS = "tk.glucodata_preferences"
@@ -24,27 +26,45 @@ object VoiceReadings {
     /** Ticks whenever the on/off state or its settings change, from any surface. */
     val changes: StateFlow<Long> = changeCount.asStateFlow()
 
-    /** What the user would hear: off, speaking, or on but held back by the schedule. */
+    /** What the user would hear: off, speaking (manually or via car/BT audio), or held by schedule. */
     data class Status(
         val on: Boolean,
         val intervalSeconds: Int,
         /** Schedule start in minutes after midnight while outside the schedule, else null. */
         val resumesAtMinutes: Int?,
+        val autoAudioActive: Boolean = false,
+        val autoAudioDeviceName: String? = null,
+        val autoAudioViaCar: Boolean = false,
     )
 
     @JvmStatic
     fun isOn(): Boolean = !Applic.DontTalk && Natives.getVoiceActive()
 
+    /** True when readings are currently enabled (speaking or scheduled) and not paused for this connection. */
+    @JvmStatic
+    fun isActive(context: Context): Boolean {
+        if (Applic.DontTalk) return false
+        if (VoiceAudioTrigger.isSessionPaused(context)) return false
+        val manualOn = isOn()
+        val decision = VoiceAudioTrigger.resolveEffectiveDecision(
+            context = context,
+            manualSpeakGlucose = manualOn,
+            defaultIntervalSeconds = Talker.getSeparationSeconds(),
+        )
+        return manualOn || decision.autoActive
+    }
+
     /**
      * Quick controls show only for people who use voice readings: on now, turned on
-     * before (from any surface), or given a schedule.
+     * before (from any surface), given a schedule, or enabled for car/Bluetooth audio.
      */
     @JvmStatic
     fun isInUse(context: Context): Boolean {
         if (Applic.DontTalk) return false
         return isOn() ||
             prefs(context).getBoolean(KEY_USED, false) ||
-            SpeakSchedule.isEnabled(context)
+            SpeakSchedule.isEnabled(context) ||
+            VoiceAudioTrigger.isEnabled(context)
     }
 
     /** The dashboard switch beside the chart; on by default, off in Voice settings. */
@@ -69,19 +89,49 @@ object VoiceReadings {
     @JvmStatic
     fun setOn(context: Context, on: Boolean) {
         if (Applic.DontTalk) return
-        Talker.setSpeakGlucose(context, on)
-        if (on) markUsed(context)
+        val app = context.applicationContext
+        if (VoiceAudioTrigger.isMatchedDeviceConnected(app)) {
+            // Pause or resume just this car/Bluetooth connection session without mutating
+            // the user's persistent manual "Speak glucose" setting.
+            VoiceAudioTrigger.setSessionMuted(app, !on)
+            return
+        }
+        Talker.setSpeakGlucose(app, on)
+        if (on) markUsed(app)
         changed()
     }
 
     fun status(context: Context): Status {
-        val on = isOn()
-        val resumes = if (on && !SpeakSchedule.isWithinSchedule(context)) {
+        val manualOn = isOn()
+        val decision = VoiceAudioTrigger.resolveEffectiveDecision(
+            context = context,
+            manualSpeakGlucose = manualOn,
+            defaultIntervalSeconds = Talker.getSeparationSeconds(),
+        )
+        val sessionPaused = VoiceAudioTrigger.isSessionPaused(context)
+        val effectiveOn = !sessionPaused && (manualOn || decision.autoActive)
+        val withinSchedule = SpeakSchedule.isWithinSchedule(context)
+        val resumes = if (effectiveOn && !withinSchedule && !decision.bypassSchedule) {
             SpeakSchedule.getStartMinutes(context)
         } else {
             null
         }
-        return Status(on, Talker.getSeparationSeconds(), resumes)
+        val match = if (decision.autoActive) VoiceAudioTrigger.currentMatch(context) else null
+        return Status(
+            on = effectiveOn,
+            intervalSeconds = decision.effectiveIntervalSeconds,
+            resumesAtMinutes = resumes,
+            autoAudioActive = decision.autoActive,
+            autoAudioDeviceName = match?.displayLabel,
+            autoAudioViaCar = match?.viaCarMode == true,
+        )
+    }
+
+    /** Formats a separation interval consistently across the dashboard pill and Voice settings. */
+    fun formatInterval(context: Context, intervalSeconds: Int): String {
+        if (intervalSeconds <= 60) return context.getString(R.string.voice_every_reading)
+        val minutes = ceil(intervalSeconds / 60.0).toInt()
+        return context.getString(R.string.voice_every_minutes, minutes)
     }
 
     /** "Every reading", "Every 5 min", or "From 07:00" while the schedule holds it back. */
@@ -89,9 +139,7 @@ object VoiceReadings {
         status.resumesAtMinutes?.let {
             return context.getString(R.string.voice_resumes_at, SpeakSchedule.formatMinutes(it))
         }
-        if (status.intervalSeconds <= 60) return context.getString(R.string.voice_every_reading)
-        val minutes = ceil(status.intervalSeconds / 60.0).toInt()
-        return context.getString(R.string.voice_every_minutes, minutes)
+        return formatInterval(context, status.intervalSeconds)
     }
 
     @JvmStatic

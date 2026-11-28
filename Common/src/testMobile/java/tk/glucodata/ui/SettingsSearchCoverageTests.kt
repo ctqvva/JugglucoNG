@@ -68,7 +68,10 @@ class SettingsSearchCoverageTests {
         )
         because(
             "part of a control that is indexed itself (times of the voice schedule, colours of the range card, …)",
-            "voice_schedule_from", "voice_schedule_until", "chart_limits_title", "glucose_range_title",
+            "voice_schedule_from", "voice_schedule_until",
+            "voice_bt_interval_title", "voice_bt_speak_alarms_title",
+            "voice_bt_announce_connect_title", "voice_bt_announce_delay_title", "voice_bt_media_stream_title",
+            "chart_limits_title", "glucose_range_title",
             "glucose_arrow_forecast_title", "glucose_chart_range_colors_title", "glucose_app_chart_range_colors_title",
             "prediction_analysis_past_title", "settings_section_display",
         )
@@ -84,6 +87,10 @@ class SettingsSearchCoverageTests {
         because(
             "on a mirror connection's own sheet, not a screen search can open",
             "mirror_auto_detect_ip", "mirror_send_data", "mirror_receive_data",
+        )
+        because(
+            "on the Bluetooth audio devices sheet, found through Bluetooth & car audio",
+            "voice_bt_car_mode_title",
         )
         because(
             "on a sensor's card or in a setup wizard, outside Settings",
