@@ -310,17 +310,38 @@ object HistorySyncAccess {
         )
     }
 
+    /**
+     * Queues a batch. True says it was accepted (it is written even if this process dies
+     * first), not that it is stored, and false that it may be lost with the process; a caller that keeps track of which readings it still
+     * has to fetch uses [submitSensorHistoryBatch].
+     */
     @JvmStatic
     fun storeSensorHistoryBatchAsync(
         sensorSerial: String?,
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-    ): Boolean {
-        if (sensorSerial.isNullOrBlank()) return false
-        if (timestamps.isEmpty()) return true
-        HistoryRepositoryAccess.storeHistoryBatchAsync(sensorSerial, timestamps, valuesMgdl, rawValuesMgdl)
-        return true
+    ): Boolean = submitSensorHistoryBatch(
+        sensorSerial, timestamps, valuesMgdl, rawValuesMgdl, null,
+    ) != HistoryWriteOutcome.FAILED
+
+    /**
+     * Queues a batch and reports what becomes of it: [listener] hears the final outcome of
+     * a [HistoryWriteOutcome.QUEUED] batch, any other return value is already final.
+     */
+    @JvmStatic
+    fun submitSensorHistoryBatch(
+        sensorSerial: String?,
+        timestamps: LongArray,
+        valuesMgdl: FloatArray,
+        rawValuesMgdl: FloatArray,
+        listener: HistoryWriteListener?,
+    ): HistoryWriteOutcome {
+        if (sensorSerial.isNullOrBlank()) return HistoryWriteOutcome.FAILED
+        if (timestamps.isEmpty()) return HistoryWriteOutcome.SKIPPED
+        return HistoryRepositoryAccess.storeHistoryBatchAsync(
+            sensorSerial, timestamps, valuesMgdl, rawValuesMgdl, listener,
+        )
     }
 
     @JvmStatic

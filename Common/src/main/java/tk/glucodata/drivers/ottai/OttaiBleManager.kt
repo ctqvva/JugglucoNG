@@ -35,6 +35,7 @@ import tk.glucodata.Applic
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.HistoryRepositoryAccess
 import tk.glucodata.HistorySyncAccess
+import tk.glucodata.HistoryWriteOutcome
 import tk.glucodata.LiveReadingLanes
 import tk.glucodata.Log
 import tk.glucodata.logd
@@ -618,6 +619,20 @@ class OttaiBleManager(
             )
         }
 
+        /** [dataNos] as the fewest windows that cover exactly them. */
+        internal fun contiguousRanges(dataNos: List<Int>): List<MissingRange> {
+            val ranges = ArrayList<MissingRange>()
+            for (dataNo in dataNos.toSortedSet()) {
+                val last = ranges.lastOrNull()
+                if (last != null && last.endExclusive == dataNo) {
+                    ranges[ranges.lastIndex] = MissingRange(last.start, dataNo + 1)
+                } else {
+                    ranges += MissingRange(dataNo, dataNo + 1)
+                }
+            }
+            return ranges
+        }
+
         /**
          * Keeps `[start, endExclusive)` on [holes] with a clean delivery record: its records
          * arrived, so whatever attempts the holes there had spent are not carried over. Carved
@@ -1159,12 +1174,12 @@ class OttaiBleManager(
     @Volatile private var historyChainStart = -1
     // Guards the whole history chunk chain: the window in flight (historyWindow) and the
     // pending range above. Every chain transition takes it, start to finish. Both threads drive
-    // the chain: the BLE binder thread marks records and completes or abandons windows
-    // (onCharacteristicChanged calls handleGlucosePayload with no handler hop) and starts new
-    // chains from the live path (requestRoomBackfillAfterLive -> requestHistoryRange), while
-    // the handler runs the chunk chain, the watchdog and the hole retry. Checking a field and
-    // acting on it in separate steps let one thread act on a window the other had already
-    // closed or replaced. Taken before historyHolesLock, never while holding it. Only
+    // the chain: the BLE binder thread starts new chains from the live path
+    // (requestRoomBackfillAfterLive -> requestHistoryRange; onCharacteristicChanged calls
+    // handleGlucosePayload with no handler hop), while the handler marks records, completes or
+    // abandons windows (finishHistoryFrame) and runs the chunk chain, the watchdog and the hole
+    // retry. Checking a field and acting on it in separate steps let one thread act on a window
+    // the other had already closed or replaced. Taken before historyHolesLock, never while holding it. Only
     // non-blocking work happens under it: GATT writes are queued, prefs are applied async, and
     // the Room diff that decides what to request runs before the lock is taken.
     private val historyChainLock = Any()
@@ -3373,11 +3388,48 @@ class OttaiBleManager(
      * chunk. Record the miss first: a detected-gap window stays on the hole ledger until its data
      * arrives or the attempt cap retires it (truly-empty overshoot ranges).
      */
-    private fun abandonHistoryWindow() = synchronized(historyChainLock) {
-        val window = historyWindow ?: return
-        cancelHistoryWatchdog()
-        settleHistoryWindow(window)
-        advanceHistoryChunkChain()
+    private fun abandonHistoryWindow(window: HistoryWindowProgress?) {
+        window ?: return
+        // After the frames that arrived before this one; see finishHistoryFrame.
+        handler.post {
+            synchronized(historyChainLock) {
+                if (historyWindow !== window) return@post
+                cancelHistoryWatchdog()
+                settleHistoryWindow(window)
+                advanceHistoryChunkChain()
+            }
+        }
+    }
+
+    /**
+     * Stores the records of one history frame, then does the window's books with them. On the
+     * handler, in arrival order: handing records to the store writes a file, which the BLE
+     * callback must not wait for.
+     */
+    private fun finishHistoryFrame(readings: List<EmittedReading>, frame: HistoryFrameStates, receivedAtMs: Long) {
+        if (stop) return
+        if (readings.isEmpty()) {
+            continueHistoryAfterPayload(frame)
+            return
+        }
+        var settled = frame
+        if (!storeDecodedReadings(readings, live = false)) {
+            // Not safely taken by the store: the window must not close over these as delivered.
+            val refused = readings.mapTo(HashSet()) { it.dataNo }
+            settled = HistoryFrameStates(frame.window, frame.arrived, frame.settled.filterNot { it in refused })
+        }
+        readings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
+        if (!continueHistoryAfterPayload(settled)) {
+            // History can arrive in a long burst and still end several minutes behind
+            // wall time. Ask live immediately afterwards on a one-shot that cgm-info
+            // cadence updates cannot cancel — unless live is already current, which the
+            // room-backfill caller makes the common case.
+            if (shouldReadLiveAfterHistory(receivedAtMs, lastLiveFrameAtMs)) {
+                handler.removeCallbacks(postHistoryLiveRunnable)
+                handler.postDelayed(postHistoryLiveRunnable, 1_000L)
+            }
+        }
+        UiRefreshBus.requestStatusRefresh()
     }
 
     private fun handleGlucosePayload(cipher: ByteArray, live: Boolean, source: String) {
@@ -3387,6 +3439,9 @@ class OttaiBleManager(
             handleEndedLiveBuffer(cipher, source)
             return
         }
+        // The request this frame answers. Its books are done later, on the handler, and the live
+        // path may have replaced the request by then.
+        val requestedWindow = if (live) null else historyWindow
         val activeMs = effectiveActiveTimeMs()
         val receivedAtMs = System.currentTimeMillis()
         val kind = if (live) "live" else "history"
@@ -3405,7 +3460,7 @@ class OttaiBleManager(
             if (live) {
                 handler.postDelayed({ requestRecentHistory("empty-live") }, 1_800L)
             } else {
-                abandonHistoryWindow()
+                abandonHistoryWindow(requestedWindow)
             }
             return
         }
@@ -3431,7 +3486,7 @@ class OttaiBleManager(
                 SerialNumber?.let { id -> Applic.app?.let { OttaiRegistry.saveRecordSize(it, id, widthBeforeFrame) } }
                 Log.w(TAG, "record size restored=$widthBeforeFrame after a discarded frame")
             }
-            abandonHistoryWindow()
+            abandonHistoryWindow(requestedWindow)
             return
         }
         val previousDataNo = lastDataNo
@@ -3477,45 +3532,36 @@ class OttaiBleManager(
             if (emitted != null || refused) settledDataNos?.add(r.record.dataNo)
         }
         // Every plausible record that is not settled arrived and is deferred; see RECORD_DEFERRED.
-        val historyStates = settledDataNos?.let { HistoryFrameStates(plausible.map { r -> r.record.dataNo }, it) }
+        val historyStates = settledDataNos?.let {
+            HistoryFrameStates(requestedWindow, plausible.map { r -> r.record.dataNo }, it)
+        }
+        if (historyStates != null) {
+            handler.post { finishHistoryFrame(emittedReadings, historyStates, receivedAtMs) }
+            return
+        }
         if (emittedReadings.isNotEmpty()) {
-            storeDecodedReadings(emittedReadings, live)
+            storeDecodedReadings(emittedReadings, live = true)
             emittedReadings.lastOrNull { it.publishCurrent }?.let(::publishCurrentReading)
-            if (live) {
-                resumeDeferredHoleRetry()
-                scheduleLivePoll()
-                val liveDataNo = lastDataNo
-                val previousForHistory = previousDataNoForHistory(previousDataNo, liveDataNo)
-                if (previousForHistory != previousDataNo) {
-                    Log.w(TAG, "ignore ahead previous dataNo for history previous=$previousDataNo live=$liveDataNo")
-                }
-                // A live sample arrived — the live path owns the backfill now; drop the
-                // independent backstop so the two don't both issue (which would wipe and restart
-                // the in-flight chunk chain via clearPendingHistoryRange).
-                handler.removeCallbacks(initialHistoryRunnable)
-                ledgerLiveGap(previousForHistory, liveDataNo)
-                val backfill = requestRoomBackfillAfterLive(liveDataNo, previousForHistory)
-                if (!backfill.issued && !backfill.diffOwnsRecovery && !roomBackfillChecked) {
-                    val missingBeforeLive = liveDataNo - previousForHistory - 1
-                    if (previousForHistory < 0 || missingBeforeLive > 0) {
-                        handler.postDelayed({ requestHistoryAfterLive(previousForHistory, liveDataNo) }, 1_500L)
-                    }
-                }
-            } else {
-                if (!continueHistoryAfterPayload(historyStates!!)) {
-                    // History can arrive in a long burst and still end several minutes behind
-                    // wall time. Ask live immediately afterwards on a one-shot that cgm-info
-                    // cadence updates cannot cancel — unless live is already current, which the
-                    // room-backfill caller makes the common case.
-                    if (shouldReadLiveAfterHistory(receivedAtMs, lastLiveFrameAtMs)) {
-                        handler.removeCallbacks(postHistoryLiveRunnable)
-                        handler.postDelayed(postHistoryLiveRunnable, 1_000L)
-                    }
+            resumeDeferredHoleRetry()
+            scheduleLivePoll()
+            val liveDataNo = lastDataNo
+            val previousForHistory = previousDataNoForHistory(previousDataNo, liveDataNo)
+            if (previousForHistory != previousDataNo) {
+                Log.w(TAG, "ignore ahead previous dataNo for history previous=$previousDataNo live=$liveDataNo")
+            }
+            // A live sample arrived — the live path owns the backfill now; drop the
+            // independent backstop so the two don't both issue (which would wipe and restart
+            // the in-flight chunk chain via clearPendingHistoryRange).
+            handler.removeCallbacks(initialHistoryRunnable)
+            ledgerLiveGap(previousForHistory, liveDataNo)
+            val backfill = requestRoomBackfillAfterLive(liveDataNo, previousForHistory)
+            if (!backfill.issued && !backfill.diffOwnsRecovery && !roomBackfillChecked) {
+                val missingBeforeLive = liveDataNo - previousForHistory - 1
+                if (previousForHistory < 0 || missingBeforeLive > 0) {
+                    handler.postDelayed({ requestHistoryAfterLive(previousForHistory, liveDataNo) }, 1_500L)
                 }
             }
             UiRefreshBus.requestStatusRefresh()
-        } else if (!live) {
-            continueHistoryAfterPayload(historyStates!!)
         }
     }
 
@@ -3910,14 +3956,16 @@ class OttaiBleManager(
         return null
     }
 
-    private fun storeDecodedReadings(readings: List<EmittedReading>, live: Boolean) {
-        val id = SerialNumber ?: return
+    /** False when the store refused the readings outright; see [onHistoryNotStored] for a later failure. */
+    private fun storeDecodedReadings(readings: List<EmittedReading>, live: Boolean): Boolean {
+        val id = SerialNumber ?: return true
         // Temperature is keyed by sample time and deduped on write, so keep it for every
         // accepted reading — a live sample whose glucose is a re-send of one already in
         // Room still carries a temperature the stats card wants.
         storeTemperatures(id, readings)
         val toPersist = readings.filter { it.persist }
-        if (toPersist.isEmpty()) return
+        if (toPersist.isEmpty()) return true
+        var accepted = true
         // Tell the watch's ownership claim that this process decoded a live
         // reading over its own connection. Without this the claim never leaves
         // "requesting", so after a handoff the watch reads the sensor while the
@@ -3934,12 +3982,28 @@ class OttaiBleManager(
             val values = FloatArray(toPersist.size) { index -> toPersist[index].mgdl }
             // Ottai rawCurrent is an electrode/current diagnostic, not raw glucose mg/dL.
             val rawValues = FloatArray(toPersist.size) { 0f }
-            HistorySyncAccess.storeSensorHistoryBatchAsync(id, timestamps, values, rawValues)
+            accepted = HistorySyncAccess.submitSensorHistoryBatch(id, timestamps, values, rawValues) { outcome ->
+                if (outcome == HistoryWriteOutcome.FAILED) onHistoryNotStored(toPersist.map { it.dataNo })
+            } != HistoryWriteOutcome.FAILED
             mirrorHistoryIntoNative(id, toPersist)
         }
         if (live) readings.lastOrNull { it.publishCurrent }?.let {
             mirrorLiveReadingIntoNative(id, it)
         }
+        return accepted
+    }
+
+    /**
+     * The store gave up on history records this driver had already taken off the hole ledger.
+     * Back on it, so they are asked for again, charged one attempt like any other failed
+     * delivery. Without this they would wait for the Room diff of the next connection.
+     */
+    private fun onHistoryNotStored(dataNos: List<Int>) {
+        if (stop) return
+        val ranges = contiguousRanges(dataNos)
+        Log.e(TAG, "history not stored: ${ranges.joinToString { "[${it.start},${it.endExclusive})" }} — back on the hole ledger")
+        noteHoleFailures(ranges)
+        scheduleHoleRetry()
     }
 
     /**
@@ -4908,11 +4972,18 @@ class OttaiBleManager(
         return true
     }
 
-    /** The plausible records of one history frame, and which of them settled. */
-    private class HistoryFrameStates(val arrived: List<Int>, val settled: List<Int>)
+    /** The window a history frame answers, its plausible records, and which of them settled. */
+    private class HistoryFrameStates(
+        val window: HistoryWindowProgress?,
+        val arrived: List<Int>,
+        val settled: List<Int>,
+    )
 
     private fun continueHistoryAfterPayload(frame: HistoryFrameStates): Boolean = synchronized(historyChainLock) {
-        val window = historyWindow ?: return pendingHistoryReason != null
+        // Closed or replaced since the frame arrived: whoever did that moved the chain on, and
+        // this frame must not mark, re-arm or complete a request it does not answer.
+        if (historyWindow !== frame.window) return true
+        val window = frame.window ?: return pendingHistoryReason != null
         // Callers pass the ceiling-filtered plausible records: only plausible progress resets the
         // stall budget or completes the window, so a corrupt frame can neither starve the
         // watchdog bound nor mark the chunk done. "Progress" means further than this chunk has

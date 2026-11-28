@@ -37,7 +37,8 @@ interface HistoryRepositoryBridge {
         timestamps: LongArray,
         valuesMgdl: FloatArray,
         rawValuesMgdl: FloatArray,
-    )
+        listener: HistoryWriteListener?,
+    ): HistoryWriteOutcome
 
     fun storeHistoryBatchBlocking(
         sensorSerial: String,
