@@ -935,7 +935,7 @@ uygulamadır. Freestyle Libre (0 ve 2) sensörlerini tarayabilir (NFC
 aracılığıyla) ve </font><font color="#4f81bd"><i><b>Freestyle
 Libre 2</b></i></font><font color="#ffffff"> ve </font><font color="#4f81bd"><i><b>3</b></i></font><font color="#ffffff">,
 </font><font color="#4f81bd"><i><b>Sibionics GS1Sb</b></i></font><font color="#ffffff">
-ve </font><font color="#4f81bd"><i><b>Dexcom G7/ONE+</b></i></font><font color="#ffffff">
+ve </font><font color="#4f81bd"><i><b>Dexcom G7/ONE+/Flex</b></i></font><font color="#ffffff">
 sensörlerinden glikoz değerlerini alabilir.</font></p>
 <p style="line-height: 115%; margin-bottom: 0cm"><font color="#ffffff">Program
 ilk kez çalıştırıldığında, telefonunuzdaki NFC sensörüne
@@ -952,14 +952,14 @@ Kimliği Al&quot;</a>\'a basmanız ve taramadan önce Hesap Kimliğinin
 gelmesini beklemeniz gerekir. </font>
 </p>
 <p><font color="#ffffff"><font color="#4f81bd"><i><b>Sibionics GS1Sb</b></i></font>
-ve <font color="#4f81bd"><i><b>Dexcom G7/ONE+</b></i></font>
+ve <font color="#4f81bd"><i><b>Dexcom G7/ONE+/Flex</b></i></font>
 sensörlerine bağlanmak için <i>Sol Menü &gt; Fotoğraf</i> ile
-kutu üzerindeki veri matrisini taramanız gerekir. Dexcom G7/ONE+
+kutu üzerindeki veri matrisini taramanız gerekir. Dexcom G7/ONE+/Flex
 sensörleri, çoğu telefonda kabul etmeniz gereken Bluetooth
 üzerinden eşleştirilir. Kabul etmeyi çok hızlı yapmalısınız,
 aksi takdirde 5 dakika daha beklemeniz gerekir. Bu nedenle ekranın
 kapanmasını önleyin. Samsung Galaxy Watch 4 ve 7\'de eşleştirmeyi
-kabul etmeniz gerekmez. Kullanılmış Dexcom G7/ONE+ sensörleri,
+kabul etmeniz gerekmez. Kullanılmış Dexcom G7/ONE+/Flex sensörleri,
 glikoz değerlerini kaydetmeyi bıraktıktan sonra uzun süre
 Bluetooth üzerinde etkin kalır. Juggluco\'nun yanlış sensörle
 eşleşmeye çalışmasını önlemek için, eski sensörleri
@@ -2082,7 +2082,7 @@ belirli miktarda yiyecek veya ilaç girmediğinizde alarmın
 <p style="margin-bottom: 0cm"><font color="#000080"><font face="Liberation Sans, sans-serif"><font size="4" style="font-size: 16pt"><u><b>Google
 Taraması</b></u></font></font></font></p>
 <p style="margin-bottom: 0cm">Sibionics sensör paketlerindeki ve
-Dexcom G7/ONE+ aplikatörlerindeki veri matrisini ve orta sol
+Dexcom G7/ONE+/Flex aplikatörlerindeki veri matrisini ve orta sol
 menüdeki QR kodunu tarayın→Google kod tarayıcısıyla yansıtın.
 İşaretli değilse, zXing kullanılır. Çoğu cihazda, Google
 taraması daha iyi çalışır, ancak bazen çalışmaz. Bir hatayla

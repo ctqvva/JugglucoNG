@@ -360,7 +360,7 @@
    <string name="notalldata">UYARI: “Alıcı” işaretlenmemiş, bazı veri türleri gönderilmiyor.</string>
   <string name="libresetalllabels">Öncelikle her etiket için ne yapılması gerektiğini belirtin.</string>
    <string name="photo">Fotoğraf</string>
-   <string name="photomessage">Dexcom G7 veya Sibionics (Çin) sensörünün veri matrisini (karekodunu) tarayın.</string>
+   <string name="photomessage">Dexcom G7/ONE+/Flex veya Sibionics (Çin) sensörünün veri matrisini (karekodunu) tarayın.</string>
    <string name="dexfuture">Tahmin (Dexcom)</string>
    <string name="initializing">Başlatılıyor</string> 
    <string name="startjuggluco">Juggluco telefonda çalışıyor mu?\n\nWIFI ve Bluetooth etkin mi?</string> 

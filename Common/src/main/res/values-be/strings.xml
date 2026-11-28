@@ -1581,7 +1581,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="wear_libre_nfc_caveat">Сэнсары Libre спачатку актывуюцца праз NFC тэлефона. Пасля актывацыі гэты гадзіннік можа ўзяць працу на сябе.</string>
     <string name="overwrite">Перазапісаць?</string>
     <string name="passive_only">Толькі пасіўны</string>
-    <string name="photomessage">Адсканіруйце матрыцу даных датчыка Dexcom G7/ONE+ або Sibionics GS1 ці QR-код люстэрка.</string>
+    <string name="photomessage">Адсканіруйце матрыцу даных датчыка Dexcom G7/ONE+/Flex або Sibionics GS1 ці QR-код люстэрка.</string>
     <string name="receive_from">Атрымаць ад</string>
     <string name="refreshing">Абнаўленне…</string>
     <string name="remaining">%1$s засталося</string>

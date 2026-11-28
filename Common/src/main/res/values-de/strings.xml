@@ -354,7 +354,7 @@
 
 <string name="libresetalllabels">Das Häkchen bei „Mengen senden“ können Sie erst setzen, nachdem Sie bei jedem Etikett angegeben haben, was damit geschehen soll.</string>
    <string name="photo">Foto</string>
-<string name="photomessage">Scannen Sie die Datenmatrix eines Dexcom G7/ONE+ oder Sibionics GS1 Sensors oder den Klon-QR-Code</string>
+<string name="photomessage">Scannen Sie die Datenmatrix eines Dexcom G7/ONE+/Flex oder Sibionics GS1 Sensors oder den Klon-QR-Code</string>
 
    <string name="initializing">Initialisierung</string> 
    <string name="startjuggluco">Juggluco läuft auf dem Telefon?\n\nWLAN und Bluetooth aktiviert?</string>

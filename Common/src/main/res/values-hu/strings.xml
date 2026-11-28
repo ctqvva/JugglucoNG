@@ -356,7 +356,7 @@
     <string name="notalldata">FIGYELMEZTETÉS: a “Fogadás innen” nincs beállítva, de egyes adattípusok nem kerülnek elküldésre.</string>
     <string name="libresetalllabels">Először minden címkéhez meg kell adni a kívánt műveletet.</string>
     <string name="photo">Fotó</string>
-    <string name="photomessage">Dexcom G7/ONE+ vagy Sibionics GS1 szenzor DataMatrix-kódjának, vagy a tükör QR-kódjának szkennelése.</string>
+    <string name="photomessage">Dexcom G7/ONE+/Flex vagy Sibionics GS1 szenzor DataMatrix-kódjának, vagy a tükör QR-kódjának szkennelése.</string>
     <string name="dexfuture">Előrejelzés (Dexcom)</string>
     <string name="initializing">Inicializálás</string>
     <string name="startjuggluco">Fut a Juggluco a telefonon?\n\nA WIFI és a Bluetooth be van kapcsolva?</string>

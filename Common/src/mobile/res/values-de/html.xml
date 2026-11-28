@@ -975,7 +975,7 @@ Menü → Einstellungen → Daten austauschen → Libreview → <a href="https:/
 <p><a href="https://www.juggluco.nl/Jugglucohelp/be/introhelp.html">be</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/de/introhelp.html">de</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/fr/introhelp.html">fr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/it/introhelp.html">it</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/nl/introhelp.html">nl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pl/introhelp.html">pl</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/pt/introhelp.html">pt</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/ru/introhelp.html">ru</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/tr/introhelp.html">tr</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/uk/introhelp.html">uk</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/zh/introhelp.html">zh</a>&emsp;&emsp;<a href="https://www.juggluco.nl/Jugglucohelp/introhelp.html?lang=en">en</a>&emsp;&emsp;</p>
 <p><font face="Times New Roman" size="4" style="font-size: 14pt">
 <a href="https://www.juggluco.nl/"><b>Juggluco</b></a> ist ein Applet zur Blutzuckerkontrolle bei Diabetikern. Es kann Freestyle Libre (0 und 2) Sensoren (über NFC) scannen und (über
-Bluetooth) Glukosewerte von<i><b>Freestyle Libre 2</b></i>, <b><i>2+</i></b>, <b><i>3</i></b>, <b><i>3+</i></b>, <i><b>Sibionics GS1Sb</b></i>, <i><b>Dexcom G7/ONE+</b></i> und <i><b>Accu-Chek SmartGuide</b></i> Sensoren empfangen.</p>
+Bluetooth) Glukosewerte von<i><b>Freestyle Libre 2</b></i>, <b><i>2+</i></b>, <b><i>3</i></b>, <b><i>3+</i></b>, <i><b>Sibionics GS1Sb</b></i>, <i><b>Dexcom G7/ONE+/Flex</b></i> und <i><b>Accu-Chek SmartGuide</b></i> Sensoren empfangen.</p>
 <p style="line-height: 115%; margin-bottom: 0cm">Wenn das Programm zum ersten Mal ausgeführt wird, können Sie einen
 Freestyle Libre <b>2</b> Sensor scannen, indem Sie ihn an den NFC-Sensor Ihres Smartphones
 halten. Anschließend versucht Juggluco, eine Bluetooth-Verbindung
@@ -988,14 +988,14 @@ Sensors verwendet haben , auf <a href="https://www.juggluco.nl/Jugglucohelp/geta
 Sie scannen. Es ist nicht möglich, einen Libre 3-Sensor zu
 übernehmen, der mit dem FreeStyle Libre 3-Lesegerät gestartet
 wurde.</p>
-<p>Um eine Verbindung zu <i><b>Sibionics GS1Sb-</b></i> , <i><b>Dexcom G7/ONE+-</b></i> und <i><b>Accu-Chek SmartGuide-</b></i>
+<p>Um eine Verbindung zu <i><b>Sibionics GS1Sb-</b></i> , <i><b>Dexcom G7/ONE+/Flex-</b></i> und <i><b>Accu-Chek SmartGuide-</b></i>
 Sensoren herzustellen, müssen Sie deren Datenmatrix mit dem linken
-Menü-&gt;Foto scannen. Dexcom G7/ONE+-Sensoren werden über
+Menü-&gt;Foto scannen. Dexcom G7/ONE+/Flex-Sensoren werden über
 Bluetooth gekoppelt, was Sie bei den meisten Telefonen akzeptieren
 müssen. Sie müssen sehr schnell zustimmen, sonst müssen Sie
 weitere 5 Minuten warten. Verhindern Sie so, dass sich der Bildschirm
 ausschaltet. Bei Samsung Galaxy Watch 4 und 7 müssen Sie der
-Kopplung nicht zustimmen. Verbrauchte Dexcom G7/ONE+-Sensoren bleiben
+Kopplung nicht zustimmen. Verbrauchte Dexcom G7/ONE+/Flex-Sensoren bleiben
 noch lange über Bluetooth aktiv, nachdem sie die Aufzeichnung von
 Glukosewerten beendet haben. Um zu verhindern, dass Juggluco
 versucht, eine Kopplung mit dem falschen Sensor herzustellen,
@@ -1902,7 +1902,7 @@ Option ist für Libre 3-Sensoren und US Libre 2-Sensoren immer
 aktiviert.</p>
 <p><b>Fehlerumgehung</b>: Nur unter WearOS für Libre 3 vorhanden. Dies muss auf der Samsung Galaxy Watch 5 und höher eingestellt werden, bis Samsung diesen Fehler behebt. Ohne diese Option werden die Glukosewerte im Abstand von 2 statt 1 Minute empfangen.</p>
 <p>⏰: Lassen Sie Juggluco eine Weckerfunktion verwenden, um den
-richtigen Zeitpunkt für die Verbindung mit Dexcom G7/ONE+-Sensoren
+richtigen Zeitpunkt für die Verbindung mit Dexcom G7/ONE+/Flex-Sensoren
 sicherzustellen. Wenn sich das Gerät sonst im Tiefschlaf befindet
 und nicht verwendet wird, wacht es manchmal nicht auf, um sich wieder
 mit dem Sensor zu verbinden, und es empfängt nicht sofort einen
@@ -2111,7 +2111,7 @@ Zeitspanne eingegeben haben.</p>
 <h2 class="western">Google-Scan</h2>
 <p style="line-height: 100%; margin-bottom: 0in"><span lang="de-DE">Wenn
 aktiviert, scannt Juggluco die Datenmatrix auf Sibionics
--Sensorpaketen und Dexcom G7/ONE+-Applikatoren sowie den QR-Code im
+-Sensorpaketen und Dexcom G7/ONE+/Flex-Applikatoren sowie den QR-Code im
 linken mittleren Menü → </span><span lang="de-DE">Klon</span><span lang="de-DE">
 mit dem <a href="https://developers.google.com/ml-kit/vision/barcode-scanning/code-scanner">Google-Codescanner</a>.
 Wenn deaktiviert, wird <a href="https://github.com/zxing/zxing">zXing</a>
