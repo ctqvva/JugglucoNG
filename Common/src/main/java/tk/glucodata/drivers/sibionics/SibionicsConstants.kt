@@ -85,7 +85,26 @@ object SibionicsConstants {
             appId = "com.sisensing.gs3",
             registrationKeyHex = "46C04E9267430C94F8B4B2375A8752D5CBE7A17814B502D9132489C0BFDFC99F0CAC670E98A1510AEA9186FAC6",
             fallbackShortCode = "YEZ1450H",
+        ),
+
+        /**
+         * GS3 sold in China. Not the international [GS3]: it is paired with the CN app, so it
+         * shares the CN registration key (session key GKSHGDU0TYA456G4), and it speaks its own
+         * AES-framed protocol driven by [SibionicsGs3BleManager], not the V120 one. No legacy
+         * native subtype exists for it. Kept last: sample journals store the ordinal.
+         */
+        GS3_CN(
+            id = "gs3cn",
+            legacySubtype = -1,
+            displayLabel = "Sibionics GS3 CN",
+            appId = "com.sisensing.sisensingcgm",
+            registrationKeyHex = "4E8E1CAF43051F97EEC9C1475A8752D5C387D17A65B002D9132489C0BFDFC99F0CAC670E8CBB1150E6D581B7D08FC03404052C57AD58",
+            fallbackShortCode = "GEPD802J",
         );
+
+        /** Driven by [SibionicsGs3BleManager] rather than [SibionicsBleManager]. */
+        val usesGs3Protocol: Boolean
+            get() = this == GS3_CN
 
         val prefersChineseProbe: Boolean
             get() = this == CHINESE
@@ -102,7 +121,7 @@ object SibionicsConstants {
         val expectedLifetimeMs: Long
             get() = when (this) {
                 SIBIONICS2 -> SIBIONICS2_EXPECTED_LIFETIME_MS
-                GS3 -> GS3_EXPECTED_LIFETIME_MS
+                GS3, GS3_CN -> GS3_EXPECTED_LIFETIME_MS
                 else -> EXTENDED_CHINESE_LIFETIME_MS
             }
 

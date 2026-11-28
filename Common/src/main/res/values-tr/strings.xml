@@ -378,6 +378,7 @@
     <string name="hematonix">Hematonix - com.sisensing.rusibionics</string>
     <string name="sibionics2">Sibionics 2</string>
     <string name="gs3">Sibionics GS3</string>
+    <string name="gs3cn">Sibionics GS3 (Çin)</string>
     <string name="datapresent">"Veri Mevcut: "</string>
     <string name="overwrite">Üzerine Yazılsın Mı?</string>
     <string name="autoqr">Otomatik QR</string>
@@ -489,6 +490,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="scan_sensor_title">QR Kodunu Tara</string>
     <string name="scan_sensor_instruction">Sibionics sensör kutusundaki QR kodunu tarayın.</string>
     <string name="scan_sensor_instruction_sibionics2">Sibionics 2 vericisindeki bağlantı kodunu tarayın veya aşağıdan Bluetooth ile vericiyi seçin.</string>
+    <string name="scan_sensor_instruction_gs3cn">Sibionics GS3 (Çin) Bluetooth üzerinden eşleşir. Sensörü yakında tutun ve aşağıdaki listeden seçin.</string>
     <string name="scan_qr_button">QR Tara</string>
     <string name="select_gallery_button">Galeriden Seç</string>
     <string name="skip_fake_sensor">Atla (Sahte sensör kullan)</string>

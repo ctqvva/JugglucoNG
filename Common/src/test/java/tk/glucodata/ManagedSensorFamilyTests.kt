@@ -67,6 +67,7 @@ class ManagedSensorFamilyTests {
             "Common/src/main/java/tk/glucodata/drivers/ottai/OttaiBleManager.kt" to "OTTAI",
             "Common/src/main/java/tk/glucodata/drivers/icanhealth/ICanHealthBleManager.kt" to "ICAN",
             "Common/src/main/java/tk/glucodata/drivers/sibionics/SibionicsBleManager.kt" to "SIBIONICS",
+            "Common/src/main/java/tk/glucodata/drivers/sibionics/SibionicsGs3BleManager.kt" to "SIBIONICS",
         )
         for ((path, family) in drivers) {
             val text = source(path)

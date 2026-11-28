@@ -51,6 +51,17 @@ object HistoryRepositoryAccess {
             .onFailure { Log.stack(TAG, "storeCurrentReadingAsync failed", it) }
     }
 
+    fun storeCurrentReadingBlocking(
+        timestamp: Long,
+        valueMgdl: Float,
+        rawValueMgdl: Float,
+        rate: Float,
+        sensorSerial: String,
+    ): Boolean =
+        runCatching { bridge?.storeCurrentReadingBlocking(timestamp, valueMgdl, rawValueMgdl, rate, sensorSerial) }
+            .onFailure { Log.stack(TAG, "storeCurrentReadingBlocking failed", it) }
+            .getOrNull() ?: false
+
     @JvmStatic
     fun storeCurrentReadingWithSourceAsync(
         timestamp: Long,

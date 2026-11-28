@@ -24,6 +24,16 @@ object MobileHistoryRepositoryBridge : HistoryRepositoryBridge {
         sensorSerial: String,
     ) = HistoryRepository.storeReadingAsync(timestamp, valueMgdl, rawValueMgdl, rate, sensorSerial)
 
+    override fun storeCurrentReadingBlocking(
+        timestamp: Long,
+        valueMgdl: Float,
+        rawValueMgdl: Float,
+        rate: Float,
+        sensorSerial: String,
+    ): Boolean = kotlinx.coroutines.runBlocking {
+        HistoryRepository().storeReading(timestamp, valueMgdl, rawValueMgdl, rate, sensorSerial)
+    }
+
     override fun storeCurrentReadingWithSourceAsync(
         timestamp: Long,
         valueMgdl: Float,
