@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -768,7 +767,7 @@ private val HeroBounce = spring<Float>(dampingRatio = 0.45f, stiffness = 380f)
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun rememberSensorHeroCompact(sharesScreen: Boolean): Boolean {
-    val height = LocalConfiguration.current.screenHeightDp
+    val height = rememberAdaptiveWindowMetrics().heightDp
     val keyboard = WindowInsets.isImeVisible
     return keyboard || height < 600 || (sharesScreen && height < 860)
 }

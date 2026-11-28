@@ -743,9 +743,8 @@ private fun resolveHeroLayout(
     val typography = MaterialTheme.typography
     val textMeasurer = rememberTextMeasurer()
     val widthClass = if (isCompactWindow && !isLandscape) {
-        // A low-density / large-font phone reports abundant dp width even though
-        // the physical canvas is still a phone. Width alone would select the
-        // largest display type and make the header dominate the viewport.
+        // A short window can still be wide. Width alone would select the largest
+        // display type and make the header dominate the viewport.
         AdaptiveContentWidthClass.Compact
     } else {
         adaptiveContentWidthClass(

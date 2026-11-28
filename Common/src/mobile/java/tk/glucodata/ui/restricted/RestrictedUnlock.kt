@@ -61,7 +61,6 @@ import tk.glucodata.ui.components.AppTopBar
 import tk.glucodata.ui.components.scrollsUnderTopBar
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -79,6 +78,7 @@ import tk.glucodata.RestrictedMode
 import tk.glucodata.RestrictedModePin
 import tk.glucodata.ui.components.IconButtonTooltip
 import tk.glucodata.ui.util.findActivity
+import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 import tk.glucodata.ui.symbols.Symbols
 
 /**
@@ -334,7 +334,7 @@ private fun PinPad(
     }
     val lockedOut = lockedOutUntil > now
     val keysEnabled = !lockedOut
-    val keySize = if (LocalConfiguration.current.screenHeightDp < 600) CompactKeySize else KeySize
+    val keySize = if (rememberAdaptiveWindowMetrics().heightDp < 600) CompactKeySize else KeySize
     val message = when {
         lockedOut -> stringResource(
             R.string.restricted_pin_locked_out,

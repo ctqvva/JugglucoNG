@@ -23,7 +23,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import tk.glucodata.DashboardChartColors
 
@@ -96,7 +99,7 @@ fun JugglucoTheme(
         // Display size (density) may grow at most 10% past the device's native density, so an
         // extreme Display Size setting cannot break M3 layouts. Font size is not capped here:
         // text follows the system setting, and the few surfaces too dense to reflow — the
-        // dashboard header and chart, sensor cards, Statistics, navigation labels — cap
+        // dashboard header and chart, sensor cards, Statistics, tab titles, navigation labels — cap
         // themselves with [FontScaleCap].
         val currentDensity = LocalDensity.current
         val nativeDensity = android.util.DisplayMetrics.DENSITY_DEVICE_STABLE / 160f
@@ -210,6 +213,22 @@ fun FontScaleCap(max: Float = DENSE_FONT_SCALE_CAP, content: @Composable () -> U
     val density = LocalDensity.current
     // Always provided, even when nothing is capped, so crossing the cap does not change the
     // shape of the composition and throw away the content's state.
-    val capped = if (density.fontScale <= max) density else Density(density.density, max)
-    CompositionLocalProvider(LocalDensity provides capped, content = content)
+    CompositionLocalProvider(LocalDensity provides density.withFontScaleAtMost(max), content = content)
 }
+
+internal fun Density.withFontScaleAtMost(max: Float): Density =
+    if (fontScale <= max) this else Density(density, max)
+
+/**
+ * This size as it is at the default font size, when the system's text is larger than that. The
+ * floor for text that must stay on one line: enlarged text gives its extra size back before it
+ * loses its end, and never becomes smaller than it is without any enlargement.
+ */
+fun TextUnit.withoutEnlargement(density: Density): TextUnit =
+    if (!isSp || density.fontScale <= 1f) this else with(density) { value.dp.toSp() }
+
+fun TextStyle.withoutEnlargement(density: Density): TextStyle = copy(
+    fontSize = fontSize.withoutEnlargement(density),
+    lineHeight = lineHeight.withoutEnlargement(density),
+    letterSpacing = letterSpacing.withoutEnlargement(density)
+)

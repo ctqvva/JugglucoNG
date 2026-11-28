@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import android.util.DisplayMetrics
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.platform.LocalContext
@@ -77,13 +78,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import tk.glucodata.R
 import tk.glucodata.ui.components.CompactSheetDragHandle
 import tk.glucodata.ui.components.StableModalBottomSheet
-import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 import tk.glucodata.ui.util.ExpressiveMotion
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
@@ -411,7 +412,7 @@ private fun titleOverflows(
     value: String,
     expandable: Boolean,
     widthPx: Int,
-    density: androidx.compose.ui.unit.Density,
+    density: Density,
     textMeasurer: androidx.compose.ui.text.TextMeasurer,
     titleStyle: androidx.compose.ui.text.TextStyle,
     valueStyle: androidx.compose.ui.text.TextStyle
@@ -1112,9 +1113,7 @@ internal fun PinnedMetricChip(
                 transitionSpec = { verticalValueSwap() },
                 label = "pinnedMetricValue"
             ) { value ->
-                val valueStyle = MaterialTheme.typography.titleMediumEmphasized.copy(
-                    fontFeatureSettings = "tnum"
-                ).scalePinnedStyle(contentScale)
+                val valueStyle = pinnedMetricValueStyle().scalePinnedStyle(contentScale)
                 // The cell is whatever the row shares out; "100%" a couple of dp wider
                 // than that used to lose its sign to the clip. The value gives up a
                 // fraction of a point of size instead — only in the chip that needs it,
@@ -1123,7 +1122,7 @@ internal fun PinnedMetricChip(
                     text = value,
                     style = valueStyle,
                     autoSize = TextAutoSize.StepBased(
-                        minFontSize = 11.sp * contentScale,
+                        minFontSize = 9.sp * contentScale,
                         maxFontSize = valueStyle.fontSize,
                         stepSize = 0.25.sp
                     ),
@@ -1148,6 +1147,12 @@ internal fun PinnedMetricChip(
         }
     }
 }
+
+/** A chip's value. [PinnedStatsStrip] measures with it to size the chips. */
+@Composable
+private fun pinnedMetricValueStyle(): TextStyle = MaterialTheme.typography.titleMediumEmphasized.copy(
+    fontFeatureSettings = "tnum"
+)
 
 private fun TextStyle.scalePinnedStyle(scale: Float): TextStyle = copy(
     fontSize = if (fontSize.isSp) fontSize * scale else fontSize,
@@ -1327,20 +1332,29 @@ internal fun PinnedStatsStrip(
                 // Measured in the style the pill draws its label in.
                 textWidth(windowLabel, pinnedWindowLabelStyle()) + 31.dp
             ).coerceAtLeast(62.dp)
-            val metricCellWidth = pinnedSpecs.maxOfOrNull { spec ->
+            // What a chip's content takes: 2 x 8dp padding, 2dp for rounding, and time in range's
+            // bar with its gap.
+            val metricContentWidth = pinnedSpecs.zip(pinned).maxOfOrNull { (spec, metric) ->
                 maxOf(
                     textWidth(spec.title, MaterialTheme.typography.labelSmall),
-                    textWidth(spec.value, MaterialTheme.typography.titleMedium)
-                ) + 24.dp
-            }?.coerceIn(96.dp, 124.dp) ?: 96.dp
+                    textWidth(spec.value, pinnedMetricValueStyle())
+                ) + 18.dp + if (metric == StatsMetric.TIME_IN_RANGE) 12.dp else 0.dp
+            }?.coerceAtMost(124.dp) ?: 0.dp
             val baseGap = 8.dp
             val useEstablishedPhoneLayout = shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = adaptiveMetrics.widthClass,
-                layoutDensity = adaptiveMetrics.layoutDensity
+                hasCompactRoom = adaptiveMetrics.hasCompactRoom,
+                fontScale = density.fontScale
             )
-            // Only constrained accessibility layouts and wider dp canvases use the
-            // range-picker-like content width. Scale the composition as one unit when
-            // even that preferred width does not fit.
+            // Only constrained or large-text layouts and wider dp canvases use the
+            // range-picker-like content width. A row too narrow for it first gives up the
+            // chips' spare width, then scales the composition as one unit.
+            val metricCellWidth = if (pinnedSpecs.isEmpty()) {
+                96.dp
+            } else {
+                val share = (maxWidth - compactWindowCellWidth - baseGap * (cells.size - 1)) / pinnedSpecs.size
+                share.coerceIn(metricContentWidth, (metricContentWidth + 6.dp).coerceIn(96.dp, 124.dp))
+            }
             val preferredWidth = compactWindowCellWidth +
                 metricCellWidth * pinnedSpecs.size +
                 baseGap * (cells.size - 1).coerceAtLeast(0)
@@ -1349,6 +1363,12 @@ internal fun PinnedStatsStrip(
             } else {
                 (maxWidth / preferredWidth).coerceIn(0.64f, 1f)
             }
+            // Enlarged text and display sizes never draw the strip smaller than it is without
+            // them: where fitting it would, the row is the established one at its usual size.
+            val unenlargedScale = pinnedStatsUnenlargedScale(adaptiveMetrics.isCompact, density)
+            val keepsUsualSize = !useEstablishedPhoneLayout &&
+                adaptiveMetrics.widthClass == AdaptiveWindowWidthClass.Compact &&
+                contentScale < unenlargedScale
 
             if (settling) {
                 // The shipped default is four; it stays four only if the row drew all of
@@ -1367,7 +1387,8 @@ internal fun PinnedStatsStrip(
             }
             val settlingAlpha = if (settling) 0f else 1f
 
-            if (useEstablishedPhoneLayout) {
+            if (useEstablishedPhoneLayout || keepsUsualSize) {
+                val cellScale = if (keepsUsualSize) unenlargedScale else 1f
                 // Preserve the dashboard's established phone composition: the window pill
                 // takes its natural width and the metric cards share every remaining pixel.
                 Row(
@@ -1375,7 +1396,7 @@ internal fun PinnedStatsStrip(
                         .fillMaxWidth()
                         .alpha(settlingAlpha)
                         .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(baseGap)
+                    horizontalArrangement = Arrangement.spacedBy(baseGap * cellScale)
                 ) {
                     cells.forEachIndexed { index, cell ->
                         cell(
@@ -1384,7 +1405,7 @@ internal fun PinnedStatsStrip(
                             } else {
                                 Modifier.weight(1f).fillMaxHeight()
                             },
-                            1f
+                            cellScale
                         )
                     }
                 }
@@ -1485,11 +1506,28 @@ internal fun PinnedStatsStrip(
     }
 }
 
+/** From this text size the strip fits its chips as a whole; equal shares would cut their titles. */
+private const val PINNED_STATS_FITTED_FONT_SCALE = 1.15f
+
 internal fun shouldUseEstablishedPinnedStatsPhoneLayout(
     widthClass: AdaptiveWindowWidthClass,
-    layoutDensity: AdaptiveLayoutDensity
+    hasCompactRoom: Boolean,
+    fontScale: Float
 ): Boolean = widthClass == AdaptiveWindowWidthClass.Compact &&
-    layoutDensity != AdaptiveLayoutDensity.Compact
+    !hasCompactRoom &&
+    fontScale < PINNED_STATS_FITTED_FONT_SCALE
+
+/**
+ * The content scale that undoes the text and display enlargement. 0, no limit, in a Compact
+ * window: its strip is fitted without any enlargement too.
+ */
+internal fun pinnedStatsUnenlargedScale(
+    isCompact: Boolean,
+    density: Density,
+    nativeDensity: Float = DisplayMetrics.DENSITY_DEVICE_STABLE / 160f
+): Float = if (isCompact) 0f else {
+    1f / (density.fontScale.coerceAtLeast(1f) * (density.density / nativeDensity).coerceAtLeast(1f))
+}
 
 /**
  * Slot editor.

@@ -1,10 +1,10 @@
 package tk.glucodata.ui.stats
 
+import androidx.compose.ui.unit.Density
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import tk.glucodata.ui.util.AdaptiveLayoutDensity
 import tk.glucodata.ui.util.AdaptiveWindowWidthClass
 
 /**
@@ -158,7 +158,8 @@ class StatsLayoutTests {
         assertTrue(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Regular
+                hasCompactRoom = false,
+                fontScale = 1f
             )
         )
     }
@@ -168,15 +169,48 @@ class StatsLayoutTests {
         assertFalse(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Compact,
-                layoutDensity = AdaptiveLayoutDensity.Compact
+                hasCompactRoom = true,
+                fontScale = 1f
             )
         )
         assertFalse(
             shouldUseEstablishedPinnedStatsPhoneLayout(
                 widthClass = AdaptiveWindowWidthClass.Medium,
-                layoutDensity = AdaptiveLayoutDensity.Regular
+                hasCompactRoom = false,
+                fontScale = 1f
             )
         )
+    }
+
+    @Test
+    fun largeTextFitsTheStatsStripInsteadOfCuttingItsTitles() {
+        assertTrue(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                hasCompactRoom = false,
+                fontScale = 1.1f
+            )
+        )
+        assertFalse(
+            shouldUseEstablishedPinnedStatsPhoneLayout(
+                widthClass = AdaptiveWindowWidthClass.Compact,
+                hasCompactRoom = false,
+                fontScale = 1.3f
+            )
+        )
+    }
+
+    @Test
+    fun enlargementNeverFitsTheStatsStripBelowItsUsualSize() {
+        fun scale(density: Float, fontScale: Float, isCompact: Boolean = false) =
+            pinnedStatsUnenlargedScale(isCompact, Density(density, fontScale), nativeDensity = 2.75f)
+        assertEquals(1f, scale(2.75f, 1f))
+        assertEquals(1f, scale(2f, 0.85f))
+        // What it draws at 1.3x text or a 1.1x display size, this undoes.
+        assertEquals(1f, scale(2.75f, 1.3f) * 1.3f, 0.001f)
+        assertEquals(1f, scale(3.025f, 1.15f) * 1.1f * 1.15f, 0.001f)
+        // A Compact window's strip is fitted without any enlargement too.
+        assertEquals(0f, scale(2.75f, 1.3f, isCompact = true))
     }
 
     @Test

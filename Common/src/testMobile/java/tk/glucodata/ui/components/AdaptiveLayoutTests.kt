@@ -412,6 +412,35 @@ class AdaptiveLayoutTests {
     }
 
     @Test
+    fun buttonRowWhoseLastButtonFillsKeepsTheOthersNaturalUntilItStacks() {
+        var width by mutableIntStateOf(320)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = AppTypography) {
+                    AdaptiveButtonRow(modifier = Modifier.width(width.dp), lastFills = true) {
+                        OutlinedButton(onClick = {}, shapes = ButtonDefaults.shapes()) { Text("Reset") }
+                        Button(onClick = {}, shapes = ButtonDefaults.shapes()) { Text("Pair again", maxLines = 1) }
+                    }
+                }
+            }
+        }
+        fun bounds(text: String) = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
+
+        var first = bounds("Reset")
+        var second = bounds("Pair again")
+        assertEquals(first.top, second.top, 0.5f)
+        assertTrue(second.width > first.width)
+        assertEquals(320f, second.right, 1f)
+
+        compose.runOnIdle { width = 160 }
+        first = bounds("Reset")
+        second = bounds("Pair again")
+        assertTrue(second.top >= first.bottom)
+        assertEquals(160f, first.width, 1f)
+        assertEquals(160f, second.width, 1f)
+    }
+
+    @Test
     fun connectedGroupKeepsItsHeightAtNormalTextSize() {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
@@ -463,6 +492,38 @@ class AdaptiveLayoutTests {
         assertTrue("group ${group.height} clips a $lineHeight label", group.height >= lineHeight)
         // Grows to the label, not to the invisible 48dp touch target.
         assertTrue("group ${group.height}", group.height < 48f)
+    }
+
+    @Test
+    fun connectedGroupLabelsAreNeverSmallerThanWithoutLargeText() {
+        var width by mutableIntStateOf(0)
+        var textSize by mutableFloatStateOf(1f)
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, textSize)) {
+                MaterialTheme(typography = AppTypography) {
+                    Box(Modifier.width(width.dp)) {
+                        ConnectedButtonGroup(
+                            options = listOf("Automatic", "Raw"),
+                            selectedOption = "Raw",
+                            onOptionSelected = {},
+                            label = { Text(it, maxLines = 1) },
+                            labelText = { it },
+                        )
+                    }
+                }
+            }
+        }
+        for (dp in 120..260 step 4) {
+            var default = 0f
+            for (scale in listOf(1f, 1.1f, 1.3f, 1.5f, 2f)) {
+                compose.runOnIdle { width = dp; textSize = scale }
+                compose.waitForIdle()
+                val layout = compose.onNodeWithText("Automatic", useUnmergedTree = true).textLayout()
+                val size = with(layout.layoutInput.density) { layout.layoutInput.style.fontSize.toDp().value }
+                if (scale == 1f) default = size
+                assertTrue("$dp dp at $scale: $default -> $size", size >= default - 0.01f)
+            }
+        }
     }
 
     @Test

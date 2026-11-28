@@ -468,7 +468,17 @@ what the rows around a slider already use.
 - Headings use `semantics { heading() }` (`TabScreenHeader` does).
 - Text scales with the system font size, up to the system's 2×. Dense surfaces whose
   layout is arithmetic (the dashboard header, chart and stat strip, sensor cards,
-  Statistics, the nav labels) wrap themselves in `FontScaleCap`, which stops them at 1.3×.
+  Statistics, the tab titles, the nav labels) wrap themselves in `FontScaleCap`, which stops
+  them at 1.3×.
+- Larger text never selects the Compact layout density, and neither does a display size above
+  the device's own: Compact means smaller type, the opposite of what was asked for. Only a window
+  that is small at the device's own density is Compact (`rememberAdaptiveWindowMetrics`). Where a
+  layout must give a fixed-size neighbour's room to the text, use `hasCompactRoom`. Take window
+  sizes from those metrics, not from `LocalConfiguration`: the theme limits how far display size
+  enlarges dp, so the configuration's dp are not the ones the screen lays out in.
+- A label that has to stay on one line may shrink, but never below its own size at the default
+  font size (`TextUnit.withoutEnlargement`; `labelSizes` steps down to it): enlarged text gives its
+  extra size back before it loses its end. Labels that share a size share it only down to there.
 - Anything holding text gets a minimum height, not a height: `heightIn(min = 56.dp)` on a
   button or a text field, never `height(56.dp)`. A fixed height cuts the text off at large
   font sizes.
@@ -477,7 +487,8 @@ what the rows around a slider already use.
   the longest word) and moves the action below when needed. Its slots must support
   intrinsic measurement; keep lazy lists and `BoxWithConstraints` outside them. Sibling
   action buttons that share a line equally use `AdaptiveButtonRow`: equal widths while
-  every label fits on one line, one full-width line each when one would wrap. Don't use a
+  every label fits on one line, one full-width line each when one would wrap (`lastFills` for a
+  natural-width button beside one that takes the rest). Don't use a
   `FlowRow` of weighted buttons for this; it breaks lines on the shortest word, so the
   labels wrap inside the buttons instead.
 - Journal menus share the chart's 1.3× font cap because their positions follow the chart

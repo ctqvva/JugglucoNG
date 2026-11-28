@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
@@ -48,11 +51,14 @@ class AlarmScreenLayoutTests {
         prefs.edit().clear().commit()
     }
 
-    private fun showAlarm(fontScale: Float, alarmLabel: String = "Glucose low") {
+    private var textSize by mutableFloatStateOf(1f)
+
+    private fun showAlarm(fontScale: Float, alarmLabel: String = "Glucose low", glucose: String = "3.1") {
+        textSize = fontScale
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
+            CompositionLocalProvider(LocalDensity provides Density(1f, textSize)) {
                 AlarmScreen(
-                    primaryGlucose = "3.1",
+                    primaryGlucose = glucose,
                     secondaryGlucose = null,
                     alarmLabel = alarmLabel,
                     supportingText = "Falling for 20 minutes",
@@ -67,10 +73,14 @@ class AlarmScreenLayoutTests {
         }
     }
 
-    private fun assertTypography(text: String, expected: TextStyle) {
+    private fun textLayout(text: String): TextLayoutResult {
         val layouts = mutableListOf<TextLayoutResult>()
         compose.onNodeWithText(text).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        val actual = layouts.single().layoutInput.style
+        return layouts.single()
+    }
+
+    private fun assertTypography(text: String, expected: TextStyle) {
+        val actual = textLayout(text).layoutInput.style
         assertEquals("$text family", expected.fontFamily, actual.fontFamily)
         assertEquals("$text weight", expected.fontWeight, actual.fontWeight)
     }
@@ -133,5 +143,37 @@ class AlarmScreenLayoutTests {
         showAlarm(fontScale = 2f)
         // 16dp under the dock, 16dp inside it.
         assertEquals(608f, bounds("Stop").bottom, 0.5f)
+    }
+
+    private fun valueSizeAt(fontScale: Float, value: String): Float {
+        compose.runOnIdle { textSize = fontScale }
+        compose.waitForIdle()
+        val layout = textLayout(value)
+        assertTrue("$value is cut at $fontScale", layout.getLineRight(0) <= layout.size.width)
+        return layout.layoutInput.style.fontSize.value
+    }
+
+    // The arrow gives its spare size to the value, as it did while large text meant Compact.
+    @Test
+    @Config(qualifiers = "en-w360dp-h780dp-mdpi")
+    fun largerTextEnlargesTheValueBesideTheArrow() {
+        showAlarm(fontScale = 1f, glucose = "350")
+        assertEquals(86f, valueSizeAt(1f, "350"))
+        // Compact drew it at 104.
+        for (scale in listOf(1.15f, 1.3f, 2f)) {
+            val size = valueSizeAt(scale, "350")
+            assertTrue("350 at $scale is $size", size >= 104f)
+        }
+    }
+
+    // A value short enough for its largest size beside the arrow leaves the arrow alone.
+    @Test
+    @Config(qualifiers = "en-w600dp-h960dp-mdpi")
+    fun theArrowStaysWhereTheValueNeedsNothing() {
+        showAlarm(fontScale = 1f, glucose = "3.1")
+        val default = valueSizeAt(1f, "3.1")
+        val widthAtDefault = textLayout("3.1").size.width
+        assertEquals(default, valueSizeAt(1.3f, "3.1"))
+        assertEquals(widthAtDefault, textLayout("3.1").size.width)
     }
 }

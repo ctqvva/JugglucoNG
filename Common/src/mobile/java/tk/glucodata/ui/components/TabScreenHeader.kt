@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import tk.glucodata.ui.FontScaleCap
 import tk.glucodata.ui.util.rememberAdaptiveWindowMetrics
 
 /**
@@ -47,7 +48,8 @@ object TabScreenDefaults {
  * The title sits [TabScreenDefaults.Gutter] inside the gutter — on the text inset of a card's
  * content rather than on the card's edge, which is where all three tabs have always put it.
  * Compact windows step down from `displaySmall` to `headlineMedium` so the title does not eat
- * a short screen.
+ * a short screen. Type this large gains nothing from the largest text sizes and a long word
+ * would break, so the title stops growing at the dense cap, on every tab alike.
  */
 @Composable
 fun TabScreenHeader(
@@ -62,17 +64,18 @@ fun TabScreenHeader(
             .padding(start = TabScreenDefaults.Gutter, bottom = if (compact) 16.dp else 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = if (compact) {
-                MaterialTheme.typography.headlineMedium
-            } else {
-                MaterialTheme.typography.displaySmall
-            },
-            modifier = Modifier
-                .weight(1f)
-                .semantics { heading() },
-        )
+        val titleModifier = Modifier.weight(1f)
+        FontScaleCap {
+            Text(
+                text = title,
+                style = if (compact) {
+                    MaterialTheme.typography.headlineMedium
+                } else {
+                    MaterialTheme.typography.displaySmall
+                },
+                modifier = titleModifier.semantics { heading() },
+            )
+        }
         // Actions centre on the title without adding height: a 48dp icon button made the
         // Statistics header taller than the other tabs', so its content started lower.
         Row(

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.rememberTextMeasurer
 import tk.glucodata.ui.symbols.Symbols
+import tk.glucodata.ui.withoutEnlargement
 
 /**
  * M3 Expressive connected button group: material3's [ToggleButton]s with the
@@ -162,11 +163,18 @@ fun <T> ConnectedButtonGroup(
                     val horizontalPadding = 4.dp
                     val iconAllowance = if (customIcon != null || showsCheck) 26.dp else 0.dp
                     val textWidthPx = with(density) { (availableWidth - horizontalPadding - iconAllowance).coerceAtLeast(24.dp).toPx() }
-                    listOf(
+                    val labelStyles = listOf(
                         MaterialTheme.typography.labelLarge,
                         MaterialTheme.typography.labelMedium,
                         MaterialTheme.typography.labelSmall
-                    ).firstOrNull { style ->
+                    )
+                    // Labels that enlarged text leaves no room for step down through the sizes
+                    // they have without it too: never smaller than they were, and no lost ends.
+                    val candidates = if (density.fontScale <= 1f) labelStyles else {
+                        (labelStyles + labelStyles.map { it.withoutEnlargement(density) })
+                            .sortedByDescending { with(density) { it.fontSize.toPx() } }
+                    }
+                    candidates.firstOrNull { style ->
                         options.maxOfOrNull { item ->
                             textMeasurer.measure(
                                 text = AnnotatedString(labelText(item)),
@@ -174,7 +182,7 @@ fun <T> ConnectedButtonGroup(
                                 maxLines = 1
                             ).size.width
                         }?.let { it <= textWidthPx } == true
-                    } ?: MaterialTheme.typography.labelSmall
+                    } ?: candidates.last()
                 } else {
                     when {
                         availableWidthPx == 0 -> MaterialTheme.typography.labelLarge
