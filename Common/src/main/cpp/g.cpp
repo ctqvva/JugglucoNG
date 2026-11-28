@@ -1982,23 +1982,7 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorWearDays)(
   const char *str = env->GetStringUTFChars(sensorId, NULL);
   if (!str)
     return;
-  if (SensorGlucoseData *hist = ensureDirectStreamShellForId(str, 0)) {
-    if (!hist->error()) {
-      if (auto *info = hist->getinfo()) {
-        info->wearduration2 = static_cast<uint16_t>(days * 24 * 60);
-        // Deliberately NOT raising info->days here. It is the shell's storage
-        // geometry, and data.dat/polls.dat/current.dat are all sized from it in
-        // the SensorGlucoseData constructor's initializer list, while maxpos()
-        // and maxstreampos() recompute from it on every call. Raising it
-        // mid-session would leave those bounds describing twice the region that
-        // is actually mapped. getmaxtime() consults wearduration2 instead, so
-        // the lifetime the sensor negotiated is honoured without touching the
-        // geometry of files that are already open.
-        LOGGER("setSensorWearDays: %s days=%d wear=%u\n", str, days,
-               info->wearduration2);
-      }
-    }
-  }
+  sensors->setWearDays(str, days);
   env->ReleaseStringUTFChars(sensorId, str);
 }
 
