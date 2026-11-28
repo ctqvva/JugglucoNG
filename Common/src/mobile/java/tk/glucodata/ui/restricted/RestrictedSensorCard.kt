@@ -237,7 +237,10 @@ private val SensorStackCorner = 4.dp
 private fun SensorLifeBar(life: SensorLife, modifier: Modifier = Modifier) {
     val locale = LocalConfiguration.current.locales[0]
     val ageMs = (life.nowMs - life.startMs).coerceAtLeast(0L)
-    val ratedDays = ((life.endMs - life.startMs + DAY_MS / 2) / DAY_MS).coerceAtLeast(1L)
+    // In half days, so a Libre 2's 14 days and 12 hours reads "14.5 days" and not "15 days".
+    val ratedDays = ManagedSensorStatusPolicy.wearDaysNumber(
+        ManagedSensorStatusPolicy.wearHalfDays(life.endMs - life.startMs)
+    )
     val textStyle = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
     val sensorAgeLabel = stringResource(R.string.sensor_age)
     Surface(
