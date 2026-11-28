@@ -2781,6 +2781,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_lingo">Lingo</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
     <string name="sensor_type_sibionics_2">Sibionics 2</string>
     <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3440,8 +3441,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_import_failed">无法加载连接凭据：%1$s</string>
     <string name="libre3_managed_identity_missing">连接凭据不可用。请打开设置 → Libre 3，检查网络并重试下载。传感器未更改。</string>
     <string name="libre3_status_services_missing">缺少传感器服务；正在重试</string>
+    <string name="libre3_lingo_identity_missing">扫描此传感器前，请在设置 → Libre 3 中导入 Lingo 应用身份。</string>
+    <string name="libre3_lingo_version_unsupported">此 Lingo 传感器使用不受支持的安全协议版本。</string>
     <string name="libre3_status_certificate_rejected">无法识别传感器证书；请重新扫描传感器</string>
     <string name="libre3_status_identity_missing">尚未导入 Libre 3 应用身份</string>
+    <string name="libre3_status_lingo_identity_missing">尚未导入 Lingo 应用身份</string>
     <string name="libre3_status_identity_rejected">传感器未接受应用身份</string>
     <string name="libre3_managed_receiver_save_failed">无法保存接收器 ID。请检查设备存储空间并重试。在 ID 保存成功前，NFC 配对将被阻止。</string>
 </resources>

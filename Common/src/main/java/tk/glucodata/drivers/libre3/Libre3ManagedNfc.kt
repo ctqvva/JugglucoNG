@@ -45,6 +45,8 @@ object Libre3ManagedNfc {
         data class Paired(val sensorId: String, val activated: Boolean) : Outcome()
         object NoResponse : Outcome()
         object MissingIdentity : Outcome()
+        object MissingLingoIdentity : Outcome()
+        object UnsupportedLingoVersion : Outcome()
         object NoAccountId : Outcome()
         data class Terminated(val serial: String) : Outcome()
         data class WrongReceiver(val serial: String) : Outcome()
@@ -91,16 +93,29 @@ object Libre3ManagedNfc {
                 Applic.Toaster(tk.glucodata.R.string.libre3_managed_identity_missing)
                 intArrayOf(RESULT_FAILED, 0)
             }
+            Outcome.MissingLingoIdentity -> {
+                Applic.Toaster(tk.glucodata.R.string.libre3_lingo_identity_missing)
+                intArrayOf(RESULT_FAILED, 0)
+            }
+            Outcome.UnsupportedLingoVersion -> {
+                Applic.Toaster(tk.glucodata.R.string.libre3_lingo_version_unsupported)
+                intArrayOf(RESULT_FAILED, 0)
+            }
             is Outcome.Terminated -> intArrayOf(RESULT_TERMINATED, 0)
             is Outcome.WrongReceiver -> intArrayOf(RESULT_WRONG_RECEIVER, 0)
             is Outcome.Failed -> intArrayOf(RESULT_FAILED, 0)
         }
     }
 
-    fun scan(tag: Tag): Outcome {
+    private fun scan(tag: Tag): Outcome {
         val ctx = Applic.app ?: return Outcome.Failed("no context")
-        val info = Libre3Nfc.parsePatchInfo(AlgNfcV.wholenfccmd(tag, Libre3Nfc.patchInfoCommand()))
-            ?: return Outcome.NoResponse
+        return scan(ctx) { command -> AlgNfcV.wholenfccmd(tag, command) }
+    }
+
+    internal fun scan(ctx: Context, transceive: (ByteArray) -> ByteArray?): Outcome {
+        val info = Libre3Nfc.parsePatchInfo(transceive(Libre3Nfc.patchInfoCommand())) ?: return Outcome.NoResponse
+        val isLingo = info.productType == Libre3Lingo.PRODUCT_TYPE
+        if (isLingo && info.securityVersion != Libre3Lingo.SECURITY_VERSION) return Outcome.UnsupportedLingoVersion
         Log.i(
             TAG,
             "patch info serial=${info.serial} state=${info.state} fw=${info.firmwareVersion} " +
@@ -113,7 +128,9 @@ object Libre3ManagedNfc {
         }
         // A0 starts the sensor's wear clock and A8 moves it to this receiver; neither is worth doing
         // when this phone could not authorize over BLE afterwards.
-        if (!runCatching { Libre3Persistence.ensureIdentities(ctx) }.getOrDefault(false)) return Outcome.MissingIdentity
+        if (!runCatching { Libre3Persistence.ensureIdentities(ctx, info.serial, isLingo) }.getOrDefault(false)) {
+            return if (isLingo) Outcome.MissingLingoIdentity else Outcome.MissingIdentity
+        }
 
         val override = when (Libre3NfcSettings.getMode()) {
             Libre3NfcSettings.MODE_ACTIVATE_A0 -> Libre3Nfc.CMD_ACTIVATE
@@ -121,13 +138,15 @@ object Libre3ManagedNfc {
             else -> null
         }
         val command = Libre3Nfc.chooseCommand(info, override)
-        val receiver = receiverId(ctx)
+        val known = Libre3Persistence.loadSensor(ctx, info.serial)?.takeIf { it.isLingo == isLingo }
+        val receiver = if (isLingo) {
+            known?.receiverId?.takeIf { it != 0L } ?: Libre3Lingo.RECEIVER_ID
+        } else receiverId(ctx)
         if (receiver == 0L) return Outcome.NoAccountId
         val nowSeconds = Math.round(System.currentTimeMillis() / 1000.0)
-        val response = AlgNfcV.wholenfccmd(tag, Libre3Nfc.activationCommand(command, nowSeconds, receiver))
+        val response = transceive(Libre3Nfc.activationCommand(command, nowSeconds, receiver))
         return when (val result = Libre3Nfc.parseActivationResponse(response, nowSeconds)) {
             is Libre3Nfc.ActivationResult.Success -> {
-                val known = Libre3Persistence.loadSensor(ctx, info.serial)
                 val startMs = pairingStartTimeMs(command, result, known?.startTimeMs) {
                     val legacyPtr = Natives.str2sensorptr(Libre3IdentityAdapter.legacyNativeName(info.serial))
                     if (legacyPtr != 0L) Natives.getSensorStartmsecFromSensorptr(legacyPtr) else 0L
@@ -355,7 +374,7 @@ object Libre3Registry {
             if (installed) {
                 failedDownloads.set(0)
                 wakeDriversWaitingForCredentials()
-            } else if (waitingForCredentials().isNotEmpty() &&
+            } else if (waitingForCredentials().any { it.isWaitingForDownload() } &&
                 !Libre3Persistence.autoProvisionBlocked(context) &&
                 Libre3Persistence.effectiveIdentitySource(context) != null
             ) {

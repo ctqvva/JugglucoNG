@@ -2756,6 +2756,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_lingo">Lingo</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
     <string name="sensor_type_sibionics_2">Sibionics 2</string>
     <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3425,8 +3426,11 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_import_failed">Impossibile caricare le credenziali: %1$s</string>
     <string name="libre3_managed_identity_missing">Credenziali non disponibili. Apri Impostazioni → Libre 3, controlla Internet e riprova il download. Il sensore non è stato modificato.</string>
     <string name="libre3_status_services_missing">Servizi del sensore mancanti; nuovo tentativo in corso</string>
+    <string name="libre3_lingo_identity_missing">Prima di scansionare questo sensore, importa un’identità dell’app Lingo in Impostazioni → Libre 3.</string>
+    <string name="libre3_lingo_version_unsupported">Questo sensore Lingo usa una versione del protocollo di sicurezza non supportata.</string>
     <string name="libre3_status_certificate_rejected">Certificato del sensore non riconosciuto; scansiona di nuovo il sensore</string>
     <string name="libre3_status_identity_missing">Nessuna identità Libre 3 importata</string>
+    <string name="libre3_status_lingo_identity_missing">Nessuna identità dell’app Lingo importata</string>
     <string name="libre3_status_identity_rejected">Il sensore non ha accettato l’identità dell’app</string>
     <string name="libre3_managed_receiver_save_failed">Impossibile salvare l’ID ricevitore. Controlla lo spazio sul dispositivo e riprova. L’associazione NFC resta bloccata finché l’ID non viene salvato.</string>
 </resources>

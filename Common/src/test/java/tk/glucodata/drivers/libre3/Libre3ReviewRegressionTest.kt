@@ -703,7 +703,73 @@ class Libre3ReviewRegressionTest {
         assertFalse(Libre3Persistence.autoProvisionBlocked(context))
         Libre3Persistence.clearIdentities(context)
         assertTrue(Libre3Persistence.autoProvisionBlocked(context))
-        assertFalse(Libre3Persistence.ensureIdentities(context))
+        assertFalse(Libre3Persistence.ensureIdentities(context, "0D1234ABC", isLingo = false))
+    }
+
+    @Test fun lingoScanWithoutMatchingCredentialsOnlyReadsPatchInfo() {
+        val patch = Libre3Bytes.parseHex("00A500030001000000C04E1E0D0101090C043036385A4D524631382F97")!!
+        fun scan(): Libre3ManagedNfc.Outcome {
+            var commands = 0
+            val outcome = Libre3ManagedNfc.scan(context) { command ->
+                assertArrayEquals(Libre3Nfc.patchInfoCommand(), command)
+                commands++
+                patch
+            }
+            assertEquals(1, commands)
+            assertTrue(Libre3Persistence.sensorIds(context).isEmpty())
+            return outcome
+        }
+        assertEquals(Libre3ManagedNfc.Outcome.MissingLingoIdentity, scan())
+        patch[3] = 2
+        assertEquals(Libre3ManagedNfc.Outcome.UnsupportedLingoVersion, scan())
+    }
+
+    @Test fun storedProductSelectsLingoAndOldRecordsStillSelectLibre3() {
+        val record = Libre3SensorRecord(
+            sensorId = sensor, bleAddress = "AA:BB:CC:DD:EE:FF", blePin = ByteArray(4),
+            startTimeMs = now, warmupMinutes = 60, wearMinutes = 20160, receiverId = 1001L,
+            firmware = "1", securityVersion = 3, productType = Libre3Lingo.PRODUCT_TYPE,
+        )
+        Libre3Persistence.saveSensor(context, record)
+        assertTrue(Libre3Persistence.loadSensor(context, sensor)!!.isLingo)
+        context.getSharedPreferences(Libre3Persistence.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().remove("$sensor.product").commit()
+        assertFalse(Libre3Persistence.loadSensor(context, sensor)!!.isLingo)
+    }
+
+    /**
+     * LibreView upload is the user's setting and covers a Lingo like any other sensor: the record
+     * native sends from has the sensor's own minutes, origin and rated wear, so record numbers are
+     * its life counts, and each live reading wakes the upload.
+     */
+    @Test fun aLingoReadingReachesTheLibreViewRecordOnItsOwnLifeCounts() {
+        // Life 63 is the minute that ends now, if a Lingo counts minutes as a Libre 3 does: its only
+        // capture is this one frame, with no arrival time to check the rule against.
+        val start = (System.currentTimeMillis() / 1000L - 64 * 60L) * 1000L
+        Libre3Persistence.saveSensor(context, pairing().copy(
+            startTimeMs = start, wearMinutes = 14 * 24 * 60, receiverId = Libre3Lingo.RECEIVER_ID,
+            securityVersion = Libre3Lingo.SECURITY_VERSION, productType = Libre3Lingo.PRODUCT_TYPE))
+        restartDriver()
+        set("nativeWindowChecked", false)
+        // The captured frame of Libre3LingoTest: life 63, 208 mg/dL uncapped.
+        val frame = Libre3Bytes.parseHex(
+            "3f002d00008000800000ffff00800800800080c94000800000ffff008008d0000080100000b90c70000109e14ced0e00000000")!!
+        invoke("onRealtime", Libre3Lingo.parseRealtime(frame))
+
+        val stored = Libre3ReviewNatives.nativeSeconds.single()
+        // Native counts record numbers from the end of life count 0.
+        assertEquals(start / 1000L + 60L, Libre3ReviewNatives.activationSec)
+        assertEquals("record number", 63L, (stored - Libre3ReviewNatives.activationSec + 30L) / 60L)
+        assertEquals(14, Libre3ReviewNatives.wearDays)
+        assertEquals(1, Libre3ReviewNatives.libreviewWakes)
+        assertEquals("Lingo", manager.getManagedUiSnapshot(sensor)!!.displayName)
+
+        // An hour in, the sensor gives no trend yet. Once it does, LibreView gets that one.
+        assertTrue(Libre3ReviewNatives.nativeTrends.isEmpty())
+        Libre3Bytes.putU16le(frame, 0, 64)
+        frame[29] = (0x08 or 4).toByte()
+        invoke("onRealtime", Libre3Lingo.parseRealtime(frame))
+        assertEquals(listOf(stored + 60L to 4), Libre3ReviewNatives.nativeTrends)
     }
 
     private fun failedPreferenceWrites(file: String, shouldFail: () -> Boolean): Context = object : ContextWrapper(context) {
@@ -821,7 +887,9 @@ class Libre3ReviewRegressionTest {
         assertEquals("Libre 3 Plus", record(plus).modelName)
         assertEquals("Libre 3", record(plain).modelName)
         // Another product line with a long wear is not a Plus.
-        assertEquals("Libre 3", record(plus).copy(productType = 9).modelName)
+        assertEquals("Lingo", record(plus).copy(productType = 9).modelName)
+        assertEquals("Lingo", record(plus).copy(productType = 9).displayName)
+        assertEquals("FreeStyle Libre 3 Plus", record(plus).displayName)
 
         Libre3Persistence.saveSensor(context, record(plus).copy(productType = 9))
         assertEquals(9, Libre3Persistence.loadSensor(context, sensor)!!.productType)

@@ -81,17 +81,17 @@ object Libre3Framing {
         }
     }
 
-    /** glucoseData arrives as 15 + 20 bytes; one frame is 29 plaintext + 4 tag + 2 sequence. */
-    class GlucoseAssembler {
-        private val buffer = java.io.ByteArrayOutputStream(FRAME_SIZE)
+    /** A full glucoseData frame includes a four-byte tag and two-byte sequence. */
+    class GlucoseAssembler(private val frameSize: Int = FRAME_SIZE) {
+        private val buffer = java.io.ByteArrayOutputStream(frameSize)
 
         fun feed(fragment: ByteArray): ByteArray? {
             buffer.write(fragment)
-            if (buffer.size() < FRAME_SIZE) return null
+            if (buffer.size() < frameSize) return null
             val all = buffer.toByteArray()
             buffer.reset()
-            if (all.size > FRAME_SIZE) buffer.write(all, FRAME_SIZE, all.size - FRAME_SIZE)
-            return all.copyOf(FRAME_SIZE)
+            if (all.size > frameSize) buffer.write(all, frameSize, all.size - frameSize)
+            return all.copyOf(frameSize)
         }
 
         fun reset() = buffer.reset()

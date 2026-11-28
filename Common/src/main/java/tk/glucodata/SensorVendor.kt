@@ -83,7 +83,8 @@ fun sensorBadge(
     val reported = modelToken(vendorModel)
     val model = reported.ifEmpty { fallbackModelToken(type) }
     val badge = when (vendor) {
-        SensorVendor.ABBOTT -> SensorBadge("LIBRE", model)
+        // A Lingo is not sold as a Libre.
+        SensorVendor.ABBOTT -> if (type == SensorTypeName.LINGO) SensorBadge("LINGO", "") else SensorBadge("LIBRE", model)
         SensorVendor.SIBIONICS -> SensorBadge("SIBI", model)
         SensorVendor.DEXCOM -> SensorBadge("DEX", model)
         SensorVendor.ROCHE -> SensorBadge("ACCU", model)
@@ -141,6 +142,7 @@ enum class SensorTypeName(
 ) {
     LIBRE_2(R.string.sensor_type_libre_2),
     LIBRE_3(R.string.sensor_type_libre_3),
+    LINGO(R.string.sensor_type_lingo),
     SIBIONICS_GS1(R.string.sensor_type_sibionics_gs1),
     SIBIONICS_2(R.string.sensor_type_sibionics_2),
     SIBIONICS_GS3(R.string.sensor_type_sibionics_gs3),
@@ -176,7 +178,8 @@ enum class SensorTypeName(
             }
             ManagedSensorUiFamily.NIGHTSCOUT -> NIGHTSCOUT
             ManagedSensorUiFamily.MEDTRUM -> MEDTRUM_EASYSENSE
-            ManagedSensorUiFamily.LIBRE3 -> LIBRE_3
+            ManagedSensorUiFamily.LIBRE3 ->
+                if (vendorModel.equals("Lingo", ignoreCase = true)) LINGO else LIBRE_3
             ManagedSensorUiFamily.GENERIC -> UNKNOWN
         }
 

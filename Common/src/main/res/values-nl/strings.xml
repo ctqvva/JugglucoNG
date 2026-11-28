@@ -2808,6 +2808,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_lingo">Lingo</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
     <string name="sensor_type_sibionics_2">Sibionics 2</string>
     <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3476,8 +3477,11 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="libre3_managed_identity_import_failed">Verbindingsgegevens konden niet worden geladen: %1$s</string>
     <string name="libre3_managed_identity_missing">Verbindingsgegevens ontbreken. Open Instellingen → Libre 3, controleer internet en probeer opnieuw te downloaden. De sensor is niet gewijzigd.</string>
     <string name="libre3_status_services_missing">Sensordiensten ontbreken; opnieuw proberen</string>
+    <string name="libre3_lingo_identity_missing">Importeer een Lingo-app-identiteit via Instellingen → Libre 3 voordat je deze sensor scant.</string>
+    <string name="libre3_lingo_version_unsupported">Deze Lingo-sensor gebruikt een beveiligingsversie die niet wordt ondersteund.</string>
     <string name="libre3_status_certificate_rejected">Sensorcertificaat niet herkend; scan de sensor opnieuw</string>
     <string name="libre3_status_identity_missing">Geen Libre 3-app-identiteit geïmporteerd</string>
+    <string name="libre3_status_lingo_identity_missing">Geen Lingo-app-identiteit geïmporteerd</string>
     <string name="libre3_status_identity_rejected">Sensor heeft de app-identiteit geweigerd</string>
     <string name="libre3_managed_receiver_save_failed">De ontvanger-ID kon niet worden opgeslagen. Controleer de apparaatopslag en probeer opnieuw. NFC-koppeling blijft geblokkeerd totdat de ID is opgeslagen.</string>
 </resources>

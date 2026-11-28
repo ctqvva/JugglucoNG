@@ -791,6 +791,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_managed_identity_imported">Imported %1$d app identities</string>
     <string name="libre3_managed_identity_import_failed">Could not load connection credentials: %1$s</string>
     <string name="libre3_managed_identity_missing">Connection credentials are unavailable. Open Settings → Libre 3, check internet access and retry the download. The sensor was not changed.</string>
+    <string name="libre3_lingo_identity_missing">Import a Lingo app identity in Settings → Libre 3 before scanning this sensor.</string>
+    <string name="libre3_lingo_version_unsupported">This Lingo sensor uses an unsupported security version.</string>
     <string name="libre3_activation_legacy_fallback">The open-source Libre 3 activation could not be verified; using the established method.</string>
     <string name="libreview_account_ready">Account ID ready</string>
     <string name="libreview_account_missing">Account ID missing</string>
@@ -3066,6 +3068,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="sensor_vendor_isens" translatable="false">i-SENS</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_lingo">Lingo</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
     <string name="sensor_type_sibionics_2">Sibionics 2</string>
     <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3757,6 +3760,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="libre3_status_services_missing">Sensor services missing; retrying</string>
     <string name="libre3_status_certificate_rejected">Sensor certificate not recognised; scan the sensor again</string>
     <string name="libre3_status_identity_missing">No Libre 3 app identity imported</string>
+    <string name="libre3_status_lingo_identity_missing">No Lingo app identity imported</string>
     <string name="libre3_status_identity_rejected">Sensor did not accept the app identity</string>
     <string name="libre3_managed_receiver_save_failed">Could not save the receiver ID. Check device storage and try again. NFC pairing is blocked until the ID is saved.</string>
 </resources>

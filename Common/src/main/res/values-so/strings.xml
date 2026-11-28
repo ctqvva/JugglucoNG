@@ -2956,6 +2956,7 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_lingo">Lingo</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
     <string name="sensor_type_sibionics_2">Sibionics 2</string>
     <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3617,8 +3618,11 @@ Marka la cadaadiyo OK waxay dhalin doontaa xidhiidh teleefankan oo waxa ay soo b
     <string name="libre3_managed_identity_import_failed">Xogta isku xirka lama soo gelin karin: %1$s</string>
     <string name="libre3_managed_identity_missing">Xogta isku xirka lama heli karo. Fur Dejimaha → Libre 3, hubi internetka oo mar kale soo deji. Dareemaha lama beddelin.</string>
     <string name="libre3_status_services_missing">Adeegyada dareemaha ayaa maqan; mar kale ayaa la isku dayayaa</string>
+    <string name="libre3_lingo_identity_missing">Ka hor intaadan iskaanka ka qaadin dareemahan, aqoonsiga abka Lingo ka soo geli Dejimaha → Libre 3.</string>
+    <string name="libre3_lingo_version_unsupported">Dareemahan Lingo wuxuu adeegsadaa nooc borotokool amni oo aan la taageerin.</string>
     <string name="libre3_status_certificate_rejected">Shahaadada dareemaha lama aqoonsan; mar kale iskaan garee</string>
     <string name="libre3_status_identity_missing">Aqoonsiga abka Libre 3 lama soo gelin</string>
+    <string name="libre3_status_lingo_identity_missing">Aqoonsiga abka Lingo lama soo gelin</string>
     <string name="libre3_status_identity_rejected">Dareemuhu ma aqbalin aqoonsiga abka</string>
     <string name="libre3_managed_receiver_save_failed">Aqoonsiga qaataha lama kaydin karin. Hubi kaydka qalabka oo mar kale isku day. Isku xirka NFC waa xanniban yahay ilaa aqoonsiga la kaydiyo.</string>
 </resources>

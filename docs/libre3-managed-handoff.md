@@ -155,6 +155,21 @@ services used are the generic managed-sensor mirror and lifecycle services.
   travel unsealed inside the Wear Data Layer and are sealed again on the watch. A watch
   that was reading a Libre 3 through the removed driver converts its own record the same
   way as the phone and downloads credentials itself if it is online. Not hardware-tested.
+- **Lingo:** The managed driver recognizes NFC product type 9 with security version 3.
+  Import the matching Lingo app identity in Settings → Libre 3, in the existing identity
+  JSON format, before scanning. The import requires the certificate
+  and matching P-256 scalar for the Lingo v3 app identity. The certificate must match
+  the certificate fingerprint in `Libre3Lingo.kt`. The app keeps the identity and
+  cached authorization in the device-local store. The regular Libre 3 identity
+  download does not supply it. First pairing uses upstream's receiver ID 1001.
+  Live readings prefer the sensor's uncapped glucose, as upstream Juggluco does.
+  Its minutes are dated by the Libre 3 life count rule and grid above, with no
+  Lingo-specific timing. That is assumed, not verified: the only Lingo capture is
+  a single frame without its arrival time, so no multi-frame hardware trace shows
+  a Lingo sending minute L at activation + (L + 1) min.
+  The source port and decoder tests do not establish fresh activation, takeover from
+  Abbott's Lingo app, cached reconnect, or live and historical delivery on hardware.
+
 - **Legacy history continuity:** managed ID is `<serial>`; legacy ID was
   `E07A-XX<serial>`. Existing history remains in its original series. The
   proprietary 149-byte auth blob cannot be converted, so the first connection after

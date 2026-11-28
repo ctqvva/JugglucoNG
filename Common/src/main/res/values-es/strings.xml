@@ -772,6 +772,8 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="libre3_nfc_command_switch_receiver">A8 Cambiar receptor</string>
      <string name="libre3_nfc_command_switch_receiver_desc">Forzar el comando A8 Cambiar receptor durante el escaneo</string>
      <string name="libre3_activation_legacy_fallback">No se pudo verificar la activación de código abierto de Libre 3; se usa el método establecido.</string>
+     <string name="libre3_lingo_identity_missing">Importa una identidad de la aplicación Lingo en Ajustes → Libre 3 antes de escanear este sensor.</string>
+     <string name="libre3_lingo_version_unsupported">Este sensor Lingo usa una versión del protocolo de seguridad que no es compatible.</string>
      <string name="libreview_account_ready">ID de cuenta listo</string>
      <string name="libreview_account_missing">ID de cuenta faltante</string>
      <string name="libreview_account_missing_desc">Introduce las credenciales y solicita el ID de cuenta para sensores Libre 3</string>
@@ -2990,6 +2992,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
      <string name="sensor_vendor_isens" translatable="false">i-SENS</string>
      <string name="sensor_type_libre_2">Libre 2</string>
      <string name="sensor_type_libre_3">Libre 3</string>
+     <string name="sensor_type_lingo">Lingo</string>
      <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
      <string name="sensor_type_sibionics_2">Sibionics 2</string>
      <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3702,6 +3705,7 @@ Al pulsar OK se generará una conexión en este teléfono y se mostrará un cód
     <string name="libre3_status_services_missing">Faltan servicios del sensor; reintentando</string>
     <string name="libre3_status_certificate_rejected">No se reconoce el certificado del sensor; vuelve a escanearlo</string>
     <string name="libre3_status_identity_missing">No se ha importado ninguna identidad de aplicación para Libre 3</string>
+    <string name="libre3_status_lingo_identity_missing">No se ha importado ninguna identidad de la aplicación Lingo</string>
     <string name="libre3_status_identity_rejected">El sensor no ha aceptado la identidad de la aplicación</string>
     <string name="libre3_managed_receiver_save_failed">No se ha podido guardar el ID del receptor. Comprueba el almacenamiento del dispositivo y vuelve a intentarlo. El emparejamiento NFC está bloqueado hasta que se guarde el ID.</string>
 </resources>

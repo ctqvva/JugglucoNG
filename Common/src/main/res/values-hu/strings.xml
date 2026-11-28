@@ -2849,6 +2849,7 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="sensor_vendor_medtrum">Medtrum</string>
     <string name="sensor_type_libre_2">Libre 2</string>
     <string name="sensor_type_libre_3">Libre 3</string>
+    <string name="sensor_type_lingo">Lingo</string>
     <string name="sensor_type_sibionics_gs1">Sibionics GS1</string>
     <string name="sensor_type_sibionics_2">Sibionics 2</string>
     <string name="sensor_type_sibionics_gs3">Sibionics GS3</string>
@@ -3501,8 +3502,11 @@ Az OK megnyomása létrehoz egy kapcsolatot ezen a telefonon, és megjelenít eg
     <string name="libre3_managed_identity_import_failed">Nem sikerült betölteni a kapcsolati adatokat: %1$s</string>
     <string name="libre3_managed_identity_missing">A kapcsolati adatok nem érhetők el. Nyissa meg a Beállítások → Libre 3 oldalt, ellenőrizze az internetet, és próbálja újra a letöltést. A szenzor nem változott.</string>
     <string name="libre3_status_services_missing">Hiányoznak a szenzor szolgáltatásai; újrapróbálkozás</string>
+    <string name="libre3_lingo_identity_missing">A szenzor beolvasása előtt importálja a Lingo alkalmazásazonosságát a Beállítások → Libre 3 oldalon.</string>
+    <string name="libre3_lingo_version_unsupported">Ez a Lingo szenzor a biztonsági protokoll nem támogatott verzióját használja.</string>
     <string name="libre3_status_certificate_rejected">A szenzor tanúsítványa nem ismerhető fel; olvassa be újra</string>
     <string name="libre3_status_identity_missing">Nincs importált Libre 3 alkalmazásazonosság</string>
+    <string name="libre3_status_lingo_identity_missing">Nincs importált Lingo alkalmazásazonosság</string>
     <string name="libre3_status_identity_rejected">A szenzor nem fogadta el az alkalmazásazonosságot</string>
     <string name="libre3_managed_receiver_save_failed">Nem sikerült menteni a vevőazonosítót. Ellenőrizze az eszköz tárhelyét, majd próbálja újra. Az NFC-párosítás az azonosító mentéséig le van tiltva.</string>
 </resources>
