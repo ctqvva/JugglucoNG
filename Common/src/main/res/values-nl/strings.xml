@@ -342,7 +342,7 @@
    <string name="notalldata">LETOP: “Ontvang van” niet aangevinkt, zonder alle data te zenden.</string>
 <string name="libresetalllabels">Je kunt ‘Zend hoeveelheden’ pas aanvinken nadat je voor elk label hebt aangegeven wat ermee moet gebeuren.</string>
    <string name="photo">Foto</string>
-<string name="photomessage">Scan data matrix van een Dexcom G7/ONE+ of Sibionics GS1 sensor of de kloon QR code</string>
+<string name="photomessage">Scan data matrix van een Dexcom G7/ONE+/Flex of Sibionics GS1 sensor of de kloon QR code</string>
    <string name="dexfuture">Voorspel (Dexcom)</string>
    <string name="initializing">Initialiseren</string>
 <string name="startjuggluco">Juggluco draait op telefoon?\n\nWIFI en Bluetooth ingeschakeld?</string>

@@ -361,7 +361,7 @@
    <string name="notalldata">OSTRZEŻENIE: Opcja &quot;Odbieraj&quot; nie jest włączona bez wysyłania wszystkich danych.</string>
 <string name="libresetalllabels">Opcję &quot;Wysyłaj wartości&quot; można zaznaczyć dopiero po określeniu, co należy zrobić z każdą etykietą.</string>
    <string name="photo">Zeskanuj kod</string>
-   <string name="photomessage">Zeskanuj kod QR sensora Dexcom G7 lub chińskiego sensora Sibionics.</string>
+   <string name="photomessage">Zeskanuj kod QR sensora Dexcom G7/ONE+/Flex lub chińskiego sensora Sibionics.</string>
    <string name="dexfuture">Przewidywanie (Dexcom)</string>
    <string name="initializing">Uruchomienie</string> 
    <string name="startjuggluco">Juggluco uruchomione na telefonie?\n\nWIFI i Bluetooth włączone?</string> 

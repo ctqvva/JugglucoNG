@@ -57,7 +57,7 @@ Browse [all releases](https://github.com/ctqvva/JugglucoNG/releases) for older v
 ## Sensor and data-source support
 
 - Abbott FreeStyle Libre / 2 / 2+ / 3 / 3+
-- Dexcom G7 / ONE+
+- Dexcom G7 / ONE+ / Flex
 - CareSens Air
 - Accu-Chek SmartGuide
 

@@ -1593,7 +1593,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="no_sensors_found">Сенсори не знайдено</string>
     <string name="wear_libre_nfc_caveat">Сенсори Libre спочатку активуються через NFC телефона. Після активації цей годинник може взяти роботу на себе.</string>
     <string name="overwrite">Перезаписати?</string>
-    <string name="photomessage">Відскануйте матрицю даних сенсора Dexcom G7/ONE+ або Sibionics GS1 чи QR-код дзеркала.</string>
+    <string name="photomessage">Відскануйте матрицю даних сенсора Dexcom G7/ONE+/Flex або Sibionics GS1 чи QR-код дзеркала.</string>
     <string name="refreshing">Оновлення…</string>
     <string name="remaining">%1$s залишилось</string>
     <string name="reset_all">Скинути все</string>

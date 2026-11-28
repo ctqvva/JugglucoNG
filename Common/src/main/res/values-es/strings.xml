@@ -382,7 +382,7 @@
     <string name="notalldata">ADVERTENCIA: \"Recibir de\" no establecido, pero algunos tipos de datos no se envían.</string>
    <string name="libresetalllabels">Primero especifica para cada etiqueta qué hacer con ella.</string>
     <string name="photo">Foto</string>
-    <string name="photomessage">Escanea la matriz de datos de un sensor Dexcom G7/ONE+ o Sibionics GS1 o el código QR de espejo.</string>
+    <string name="photomessage">Escanea la matriz de datos de un sensor Dexcom G7/ONE+/Flex o Sibionics GS1 o el código QR de espejo.</string>
     <string name="dexfuture">Predecir (Dexcom)</string>
     <string name="initializing">Inicializando</string> 
     <string name="startjuggluco">¿Juggluco ejecutándose en el teléfono?\n\n¿WIFI y Bluetooth activados?</string> 

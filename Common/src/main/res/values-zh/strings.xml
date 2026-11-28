@@ -574,6 +574,7 @@
     <string name="dexcom_sensor_desc">G7、ONE+、Flex</string>
     <string name="dexcom_15_day_models">%1$s（G7 / Flex）</string>
     <string name="scan_dexcom">扫描 Dexcom</string>
+    <string name="photomessage">扫描 Dexcom G7、ONE+、Flex 或 Sibionics GS1 传感器上的 DataMatrix 代码，或扫描镜像二维码。</string>
     <string name="dexcom_scan_instruction">扫描 Dexcom 传感器上的 DataMatrix 代码</string>
     <string name="dexcom_bluetooth_slot">蓝牙槽位</string>
     <string name="dexcom_slot_receiver_short">泵</string>

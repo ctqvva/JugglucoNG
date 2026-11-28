@@ -94,6 +94,7 @@ fun DexcomSetupWizard(
             SensorWizardHero(
                 SensorType.DEXCOM,
                 title = stringResource(R.string.dexcom_scan_instruction),
+                subtitle = stringResource(R.string.dexcom_sensor_desc),
                 compact = rememberSensorHeroCompact(sharesScreen = true),
             )
 

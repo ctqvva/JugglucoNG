@@ -364,7 +364,7 @@
     <string name="notalldata">АНХААРУУЛГА: “Хүлээн авах эх үүсвэр” тохируулаагүй байна, гэхдээ зарим өгөгдлийн төрлүүд илгээгдээгүй байна.</string>
     <string name="libresetalllabels">Эхлээд шошго бүрээр юу хийхийг зааж өгнө үү.</string>
     <string name="photo">Зураг</string>
-    <string name="photomessage">Dexcom G7/ONE+ эсвэл Sibionics GS1 мэдрэгчийн дата матрицыг эсвэл mirror QR кодыг уншуулна уу.</string>
+    <string name="photomessage">Dexcom G7/ONE+/Flex эсвэл Sibionics GS1 мэдрэгчийн дата матрицыг эсвэл mirror QR кодыг уншуулна уу.</string>
     <string name="dexfuture">Таамаглах (Dexcom)</string>
     <string name="initializing">Эхлүүлж байна</string>
     <string name="startjuggluco">Juggluco утсан дээр ажиллаж байна уу?\n\nWIFI болон Bluetooth идэвхжсэн үү?</string>

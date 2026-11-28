@@ -332,7 +332,7 @@ is an applet for the control of blood glucose by people with
 diabetes. It can scan Freestyle Libre (0 and 2) sensors (via NFC) and
 receive (via Bluetooth) glucose values from </font><font color="#4f81bd"><i><b>Freestyle
 Libre 2</i></b></font><font color="#ffffff">,</font> <font color="#4f81bd"><i><b>2+</b></i></font><font color="#ffffff">,</font> <font color="#4f81bd"><i><b>3</b></i></font><font color="#ffffff">,</font> <font color="#4f81bd"><i><b>3+</b></i></font><font color="#ffffff">,</font> <font color="#4f81bd"><i><b>Sibionics GS1Sb</b></i></font><font color="#ffffff">,
-</font><font color="#4f81bd"><i><b>Dexcom G7/ONE+</b></i></font><font color="#ffffff">
+</font><font color="#4f81bd"><i><b>Dexcom G7/ONE+/Flex</b></i></font><font color="#ffffff">
 and </font><font color="#4f81bd"><i><b>Accu-Chek SmartGuide</b></i></font><font color="#ffffff">
 sensors.</font></p>
 <p style="line-height: 115%; margin-bottom: 0cm"><font color="#ffffff">When
@@ -351,14 +351,14 @@ scanning.  </font><font color="#ffffff">It is not possible to take
 over a Libre 3 sensor started with FreeStyle Libre 3 reader or the
 USA Libre app for both Libre 2 and Libre 3. All mentioned sensors can be used with Juggluco when they are not activated by another app.</font></p>
 <p><font color="#ffffff">To connect to <font color="#4f81bd"><i><b>Sibionics
-GS1Sb</b></i></font>, <font color="#4f81bd"><i><b>Dexcom G7/ONE+</b></i></font>
+GS1Sb</b></i></font>, <font color="#4f81bd"><i><b>Dexcom G7/ONE+/Flex</b></i></font>
 and <font color="#4f81bd"><i><b>Accu-Chek SmartGuide</b></i></font>
 sensors you need to scan their data matrix with left menu-&gt;Photo.
-Dexcom G7/ONE+ sensors are paired via Bluetooth, which you have to
+Dexcom G7/ONE+/Flex sensors are paired via Bluetooth, which you have to
 accept on most phones. Agreeing you have to do very fast otherwise
 you have to wait another 5 minutes. So prevent the screen from
 turning off. On Samsung Galaxy Watch 4 and 7 you don’t need to
-agree to pair. Used up Dexcom G7/ONE+ sensors remain active via
+agree to pair. Used up Dexcom G7/ONE+/Flex sensors remain active via
 Bluetooth for a long time after they stopped recording glucose
 values. To prevent Juggluco from trying to pair with the wrong
 sensor, keep old sensors out of Bluetooth reach (for example 15
@@ -819,7 +819,7 @@ you didn\'t enter a certain amount of food or medication within a
 certain time period.</p>
 <h2 class="western">Google scan</h2>
 <p style="line-height: 100%; margin-bottom: 0in">Scan
-the data matrix on Sibionics sensor packages and on Dexcom G7/ONE+
+the data matrix on Sibionics sensor packages and on Dexcom G7/ONE+/Flex
 applicators and the QR code of left middle menu→Mirror with the
 <a href="https://developers.google.com/ml-kit/vision/barcode-scanning/code-scanner">Google
 code scanner</a>. If unchecked, <a href="https://github.com/zxing/zxing">zXing</a>

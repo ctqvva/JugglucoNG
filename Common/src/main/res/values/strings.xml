@@ -382,7 +382,7 @@
    <string name="notalldata">WARNING: “Receive from” not set, but some data types are not sent.</string>
   <string name="libresetalllabels">First specify for each label what should be done with it.</string>
    <string name="photo">Photo</string>
-   <string name="photomessage">Scan the data matrix of a Dexcom G7/ONE+ or Sibionics GS1 sensor or the mirror QR code.</string>
+   <string name="photomessage">Scan the data matrix of a Dexcom G7/ONE+/Flex or Sibionics GS1 sensor or the mirror QR code.</string>
    <string name="dexfuture">Predict (Dexcom)</string>
    <string name="initializing">Initializing</string> 
    <string name="startjuggluco">Juggluco running on phone?\n\nWIFI and Bluetooth enabled?</string> 
