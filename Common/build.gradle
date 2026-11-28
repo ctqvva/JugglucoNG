@@ -4,6 +4,33 @@ plugins {
     id 'com.google.devtools.ksp' version '2.3.11'
 }
 
+// The optional engine is a private debug input. Release and CI distribution paths
+// must never package it, even if the local developer has kept the property set.
+def careSensAirEnginePath = providers.gradleProperty('careSensAirEngineJar').getOrElse('')
+def careSensAirManaged = providers.gradleProperty('careSensAirManaged').getOrElse('false') == 'true'
+def careSensAirStandalone = providers.gradleProperty('careSensAirStandalone').getOrElse('false') == 'true'
+if (careSensAirStandalone && !careSensAirManaged) {
+    throw new GradleException('careSensAirStandalone requires careSensAirManaged')
+}
+if (careSensAirManaged && careSensAirEnginePath.isEmpty()) {
+    throw new GradleException('careSensAirManaged requires a local careSensAirEngineJar')
+}
+def careSensAirEngine = careSensAirEnginePath.isEmpty() ? null : new File(careSensAirEnginePath)
+def careSensAirEngineId = ''
+if (careSensAirEngine != null) {
+    if (project.hasProperty('requireProductionSigning') ||
+            providers.environmentVariable('CI').isPresent()) {
+        throw new GradleException('The private CareSens Air engine is only available for local debug builds')
+    }
+    if (!careSensAirEngine.isAbsolute() || !careSensAirEngine.isFile() ||
+            careSensAirEngine.canonicalFile.toPath().startsWith(rootDir.canonicalFile.toPath())) {
+        throw new GradleException('careSensAirEngineJar must be an absolute path to a JAR outside the checkout')
+    }
+    careSensAirEngineId = java.security.MessageDigest.getInstance('SHA-256')
+            .digest(providers.fileContents(layout.file(providers.provider { careSensAirEngine }).get()).asBytes.get())
+            .encodeHex().toString()
+}
+
 // Optional private BloodControl inputs. Missing inputs keep ordinary/CI builds usable.
 // A configured build must supply all four; never print their values in diagnostics.
 def bloodControlNames = ['BC_AIDEX_BEARER_TOKEN', 'BC_AIDEX_ENVELOPE_AES_BASE64',
@@ -79,6 +106,9 @@ android {
     }
 
     defaultConfig {
+        buildConfigField 'boolean', 'CARESENS_AIR_MANAGED', 'false'
+        buildConfigField 'boolean', 'CARESENS_AIR_STANDALONE', 'false'
+        buildConfigField 'String', 'CARESENS_AIR_ENGINE_ID', '""'
         bloodControlInputs.each { name, value ->
             buildConfigField 'String', name, groovy.json.JsonOutput.toJson(value)
         }
@@ -246,11 +276,14 @@ android {
         debug {
             manifestPlaceholders["requireWatch"] = "false"
             manifestPlaceholders["debuggable"] = "true"
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = careSensAirStandalone ? ".debug.caresens" : ".debug"
             versionNameSuffix = 'DEBUG'
 
             buildConfigField 'int', 'isReleaseID', '0'
             buildConfigField 'int', 'doLog', '1'
+            buildConfigField 'boolean', 'CARESENS_AIR_MANAGED', careSensAirManaged.toString()
+            buildConfigField 'boolean', 'CARESENS_AIR_STANDALONE', careSensAirStandalone.toString()
+            buildConfigField 'String', 'CARESENS_AIR_ENGINE_ID', '"' + careSensAirEngineId + '"'
 
             jniDebuggable = true
             debuggable = true
@@ -384,6 +417,9 @@ android {
         debug {
             assets.srcDirs += files("$projectDir/schemas")
         }
+        ['release', 'releasedub', 'releasedub2'].each { name ->
+            getByName(name).kotlin.srcDir('src/nonDebug/kotlin')
+        }
     }
 }
 
@@ -394,6 +430,10 @@ androidComponents {
     onVariants(selector().all()) { variant ->
         def buildTypeTag = [release: '', releasedub: 'dub', releasedub2: 'dub2', debug: 'debug']
                 .get(variant.buildType, variant.buildType)
+        if (variant.buildType == 'debug' && careSensAirStandalone) {
+            variant.packaging.jniLibs.excludes.add('**/libCALCULATION.so')
+            buildTypeTag = 'caresens-standalone'
+        }
         def isWear = variant.productFlavors.any { flavor -> flavor.second == 'wear' }
         def parts = [isWear ? 'wear' : '', buildTypeTag].findAll { it }
         def suffix = parts ? '-' + parts.join('-') : ''
@@ -421,6 +461,7 @@ ksp {
 }
 
 dependencies {
+    if (careSensAirEngine != null) debugImplementation files(careSensAirEngine)
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
     // Compose (versions come from the BOM unless pinned deliberately)

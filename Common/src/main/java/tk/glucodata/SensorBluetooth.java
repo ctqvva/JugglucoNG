@@ -1910,6 +1910,9 @@ public class SensorBluetooth {
                     return new AccuGattCallback(name, dataptr);
                 }
                 if (vers == SensorSourceResolver.SENSOR_KIND_CARESENS_AIR) {
+                    var managed = CareSensAirGattCallback.createIfSelected(name, dataptr);
+                    if (managed != null)
+                        return managed;
                     return new AirGattCallback(name, dataptr);
                 }
             }
