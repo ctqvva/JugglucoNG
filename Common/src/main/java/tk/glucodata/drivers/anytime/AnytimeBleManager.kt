@@ -4295,7 +4295,7 @@ class AnytimeBleManager(
         // and only once the vendor has stopped supplying one.
         val result = AnytimeAlgorithm.fromComputedRecord(record, qr, familyEntry)
         val stored = commitReading(result, sampleMs, Applic.app, live = true, history = false)
-        noteCt5ImportedId(record.glucoseId)
+        if (stored) noteCt5ImportedId(record.glucoseId)
         if (stored && wasWarmingUp) {
             Log.i(TAG, "CT5 warm-up complete at id=${record.glucoseId}; first glucose stored")
         }
@@ -4399,6 +4399,7 @@ class AnytimeBleManager(
     }
 
     private fun handleCt5Series(data: ByteArray) {
+        if (isRetired) return
         val key = ct5CipherKey
         if (key !in 0..255) {
             Log.w(TAG, "CT5 series before cipher key: ${data.joinToHex()}")
@@ -4465,15 +4466,6 @@ class AnytimeBleManager(
                 ct5RawScale.observe(record.iwNa, record.gluMgdl.toFloat())
             }
         }
-        // Every valid returned id resolves that part of a pending CT5 gap, even
-        // when Room already contained the glucose point. Without caching these
-        // ids, an "all existing" response completed the range and then the gap
-        // scanner immediately requested the exact same ids forever.
-        noteCt5GapProgress(records.map { it.glucoseId })
-        records.maxOfOrNull { it.glucoseId }?.let { maxId ->
-            if (maxId > historyLastPulledId) historyLastPulledId = maxId
-            clearCaughtUpCooldownIfNewerData(maxId)
-        }
         val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
         val now = System.currentTimeMillis()
         val maxId = records.maxOf { it.glucoseId }
@@ -4481,7 +4473,9 @@ class AnytimeBleManager(
         // One summary line per batch instead of one line per already-present point:
         // a reconnect trace has to stay readable.
         val tally = AnytimeCt5HistoryBatchTally()
+        var highestCommittedId = -1
         for (rec in records) {
+            if (isRetired) return
             lastIwNa = rec.iwNa
             lastIbNa = rec.ibNa
             lastTemperatureC = rec.temperatureC
@@ -4503,22 +4497,34 @@ class AnytimeBleManager(
             }
             val result = AnytimeAlgorithm.fromComputedRecord(rec, qr, familyEntry)
             activeHistoryTally = tally
-            try {
+            val committed = try {
                 commitReading(result, sampleMs, Applic.app, live = false, history = true)
             } finally {
                 activeHistoryTally = null
             }
-            noteCt5ImportedId(rec.glucoseId)
+            if (committed) highestCommittedId = maxOf(highestCommittedId, rec.glucoseId)
             if (rec.glucoseId > lastGlucoseId) lastGlucoseId = rec.glucoseId
         }
         Log.i(TAG, tally.describe(minId, maxId))
         flushPendingHistoryRoomImports()
-        advancePendingCt5GapAfterBatch()
-        persistAlgorithmState()
-        armNoDataWatchdog()
-        armPullFallback()
-        if (historyBackfillActive) {
-            handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+        synchronized(this) {
+            if (isRetired) return
+            // Resolve valid returned ids after the packet has been processed.
+            // This includes warm-up and already-present points so gap repair
+            // does not keep requesting the same ids.
+            noteCt5ImportedId(highestCommittedId)
+            noteCt5GapProgress(records.map { it.glucoseId })
+            historyLastPulledId = maxOf(historyLastPulledId, maxId)
+            clearCaughtUpCooldownIfNewerData(maxId)
+            advancePendingCt5GapAfterBatch()
+            persistAlgorithmState()
+            if (!stop) {
+                armNoDataWatchdog()
+                armPullFallback()
+                if (historyBackfillActive) {
+                    handler.postDelayed(historyBackfillRunnable, historyBatchDelayMs())
+                }
+            }
         }
         UiRefreshBus.requestStatusRefresh()
     }
@@ -4627,6 +4633,9 @@ class AnytimeBleManager(
         history: Boolean,
         skipHistoryImport: Boolean = false,
     ): Boolean {
+        // A pause stops live traffic, but a history packet already being
+        // processed must reach storage before its gap progress is recorded.
+        if (isRetired || (stop && (live || !history))) return false
         if (live) noteSessionSensorData()
         // Warm-up gate: hold back readings the model has not settled for yet, so they
         // never reach Nightscout/watch/notifications or the app's own history. CT5
@@ -4727,13 +4736,14 @@ class AnytimeBleManager(
                     )
                 )
             }
-            // Publish live after Room import, before native mirror refreshes.
-            // Otherwise AlertRuntime can resolve the just-imported managed point
-            // and emit the same sample under the alias before this callback.
-            if (live) {
+            // A removed mirror must be visible to main-sensor resolution before
+            // publishing. Otherwise publish before the native write wakes other
+            // consumers that might publish the same sample under its alias.
+            val mirroredForRecovery = live && recoverRemovedMirrorFromLiveReading(sampleMs, result)
+            if (live && !stop) {
                 emitGlucose(result, sampleMs, allowDirectFallback = true)
             }
-            if (shouldMirrorReadingIntoNative(live = live, history = history)) {
+            if (!mirroredForRecovery && (live || !history)) {
                 mirrorReadingIntoNative(sampleMs, result)
             }
         } else {
@@ -4742,20 +4752,29 @@ class AnytimeBleManager(
         return true
     }
 
-    private fun shouldMirrorReadingIntoNative(live: Boolean, history: Boolean): Boolean =
-        live || !history
-
-    private fun mirrorReadingIntoNative(sampleMs: Long, result: AnytimeAlgorithm.Result) {
-        mirrorValuesIntoNative(sampleMs, result.mgdl, result.rawMgdl, result.temperatureC)
+    // SuperGattCallback.setPause, free and discard take the same monitor. If a
+    // disconnect wins, a live callback already in flight cannot revive the slot.
+    @Synchronized
+    private fun recoverRemovedMirrorFromLiveReading(sampleMs: Long, result: AnytimeAlgorithm.Result): Boolean {
+        val name = SerialNumber ?: return false
+        if (stop) return false
+        val removed = runCatching { Natives.sensorRemovedByFullName(name) }
+            .onFailure { Log.stack(TAG, "recoverRemovedMirrorFromLiveReading", it) }
+            .getOrDefault(false)
+        if (!removed) return false
+        mirrorReadingIntoNative(sampleMs, result, reviveRemoved = true)
+        return true // A failed native write will be retried with the next live sample.
     }
 
-    private fun mirrorValuesIntoNative(
+    @Synchronized
+    private fun mirrorReadingIntoNative(
         sampleMs: Long,
-        glucoseMgdl: Float,
-        rawMgdlIn: Float,
-        temperatureCIn: Float,
+        result: AnytimeAlgorithm.Result,
+        reviveRemoved: Boolean = false,
     ) {
         val name = SerialNumber ?: return
+        if (stop) return
+        val glucoseMgdl = result.mgdl
         val sampleSec = sampleMs / 1000L
         if (sampleSec <= 0L || !glucoseMgdl.isFinite() || glucoseMgdl <= 0f) return
         runCatching {
@@ -4767,10 +4786,10 @@ class AnytimeBleManager(
             declareNativeLifetime(name, startSec)
             Natives.ensureSensorShell(name, startSec)
             Natives.setSensorManagedFamily(name, ManagedSensorUiFamily.ANYTIME.nativeCode)
-            val temperatureC = temperatureCIn
+            val temperatureC = result.temperatureC
                 .takeIf { it.isFinite() && it > -20f && it < 80f }
                 ?: 0f
-            val rawMgdl = if (rawMgdlIn.isNaN()) glucoseMgdl else rawMgdlIn
+            val rawMgdl = if (result.rawMgdl.isNaN()) glucoseMgdl else result.rawMgdl
                 .takeIf { it.isFinite() && it > 0f }
                 ?: glucoseMgdl
             val stored = Natives.addGlucoseStreamWithRawTemp(
@@ -4781,6 +4800,7 @@ class AnytimeBleManager(
                 name,
             )
             if (stored) {
+                if (reviveRemoved) Natives.setSensorRemovedByFullName(name, false)
                 NightscoutUploadWake.afterLiveNativeWrite("anytime", sampleMs)
             }
             if (dataptr == 0L) {
@@ -4790,7 +4810,7 @@ class AnytimeBleManager(
     }
 
     /**
-     * Batch form of [mirrorValuesIntoNative] for history imports.
+     * Batch form of [mirrorReadingIntoNative] for history imports.
      *
      * Mirroring history one reading at a time made the native side re-resolve the
      * shell, re-seed direct-stream state (stat + read + alloc), log a line and rewind
@@ -4802,8 +4822,13 @@ class AnytimeBleManager(
      * than once per reading — the native writes already rewind info->nightiter behind
      * the uploader cursor when they fill a gap, so one wake covers the whole batch.
      */
+    @Synchronized
     private fun mirrorHistoryBatchIntoNative(items: List<AnytimePendingHistoryRoomImport>) {
         val name = SerialNumber ?: return
+        // Room has already accepted this batch. Finish mirroring through a
+        // temporary pause, including ownership release. Full removal retires
+        // the callback and can delete the native files.
+        if (isRetired) return
         val valid = items.filter {
             it.reading.timestampMs / 1000L > 0L &&
                     it.reading.storageGlucoseMgdl.isFinite() &&
@@ -4838,7 +4863,7 @@ class AnytimeBleManager(
                     valid.maxOf { it.reading.timestampMs },
                 )
             }
-            if (dataptr == 0L) {
+            if (!stop && dataptr == 0L) {
                 dataptr = runCatching { Natives.getdataptr(name) }.getOrDefault(0L)
             }
         }.onFailure { Log.stack(TAG, "mirrorHistoryBatchIntoNative", it) }
@@ -4904,8 +4929,10 @@ class AnytimeBleManager(
         }.onFailure { Log.stack(TAG, "declareNativeLifetime", it) }
     }
 
+    @Synchronized
     private fun ensureNativeSensorShell() {
         val canonical = SerialNumber ?: return
+        if (stop) return
         runCatching {
             val startSec = (sensorStartAtMs / 1000L).coerceAtLeast(1L)
             declareNativeLifetime(canonical, startSec)
@@ -4915,17 +4942,6 @@ class AnytimeBleManager(
                 dataptr = runCatching { Natives.getdataptr(canonical) }.getOrDefault(0L)
             }
         }.onFailure { Log.stack(TAG, "ensureNativeSensorShell", it) }
-    }
-
-    private fun resolveNativeSensorPtr(): Long {
-        if (dataptr != 0L) {
-            runCatching { Natives.getsensorptr(dataptr) }
-                .getOrDefault(0L)
-                .takeIf { it != 0L }
-                ?.let { return it }
-        }
-        val canonical = SerialNumber ?: return 0L
-        return runCatching { Natives.str2sensorptr(canonical) }.getOrDefault(0L)
     }
 
     private fun queueHistoryReadingForRoom(sampleMs: Long, result: AnytimeAlgorithm.Result) {
@@ -4979,10 +4995,12 @@ class AnytimeBleManager(
     }
 
     private fun flushPendingHistoryRoomImports() {
+        if (isRetired) return
         val name = SerialNumber ?: return
         val pending = historyRoomImportBuffer.drain()
         if (pending.isEmpty()) return
         pending.groupBy { it.source }.forEach { (source, imports) ->
+            if (isRetired) return
             runCatching {
                 val imported = VirtualGlucoseSensorBridge.importHistory(
                     sensorSerial = name,
@@ -4996,6 +5014,7 @@ class AnytimeBleManager(
                         0L
                     },
                 )
+                if (isRetired) return
                 if (imported > 0) {
                     persistTemperatureHistory(imports.map { item ->
                         AnytimeRegistry.TemperatureRecord(
@@ -5478,10 +5497,13 @@ class AnytimeBleManager(
 
     override fun softReconnect() {
         Log.i(TAG, "softReconnect requested")
+        synchronized(this) {
+            if (isRetired) return
+            setPause(false)
+        }
         if (!ct5EndCycleInternalReconnect) {
             cancelCt5EndCycleRestart("softReconnect")
         }
-        setPause(false)
         cancelReconnect()
         clearGattCallbacks()
         val gatt = mBluetoothGatt
@@ -5493,10 +5515,6 @@ class AnytimeBleManager(
             .onFailure { Log.stack(TAG, "softReconnect(closeGatt)", it) }
         runCatching { close() }
             .onFailure { Log.stack(TAG, "softReconnect(close)", it) }
-        if (dataptr != 0L) {
-            runCatching { Natives.unfinishSensor(dataptr) }
-                .onFailure { Log.stack(TAG, "softReconnect(unfinishSensor)", it) }
-        }
         handler.postDelayed({
             if (!stop) connectDevice(0)
         }, SOFT_RECONNECT_SETTLE_MS)
@@ -5514,22 +5532,21 @@ class AnytimeBleManager(
 
     override fun terminateManagedSensor(wipeData: Boolean) {
         Log.i(TAG, "terminateManagedSensor requested wipeData=$wipeData")
+        retireCallback()
         cancelCt5EndCycleRestart("terminateManagedSensor")
-        setPause(true)
         cancelReconnect()
         clearGattCallbacks()
         val gatt = mBluetoothGatt
         phase = Phase.IDLE
-        val sensorPtr = resolveNativeSensorPtr()
         clearGattReferences()
         runCatching { gatt?.disconnect() }
             .onFailure { Log.stack(TAG, "terminateManagedSensor(disconnect)", it) }
         runCatching { gatt?.close() }
             .onFailure { Log.stack(TAG, "terminateManagedSensor(closeGatt)", it) }
-        if (sensorPtr != 0L) {
-            runCatching { Natives.finishfromSensorptr(sensorPtr) }
-                .onFailure { Log.stack(TAG, "terminateManagedSensor(finishfromSensorptr)", it) }
-        }
+        // The native directory basename can be a 12-character MAC. The older
+        // finishfromSensorptr lookup assumes a 16-character directory name.
+        runCatching { Natives.setSensorRemovedByFullName(SerialNumber, true) }
+            .onFailure { Log.stack(TAG, "terminateManagedSensor(setSensorRemovedByFullName)", it) }
         dataptr = 0L
         runCatching { close() }
             .onFailure { Log.stack(TAG, "terminateManagedSensor(close)", it) }

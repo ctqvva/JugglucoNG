@@ -702,6 +702,41 @@ fromjava(unfinishSensorById)(JNIEnv *env, jclass cl, jstring jsensor) {
   return JNI_TRUE;
 }
 
+static int sensorIndexFromFullName(JNIEnv *env, jstring jsensor) {
+  if (!sensors || !jsensor)
+    return -1;
+  const char *name = env->GetStringUTFChars(jsensor, nullptr);
+  if (!name)
+    return -1;
+  const int index = sensors->sensorindex(name);
+  env->ReleaseStringUTFChars(jsensor, name);
+  return index;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+fromjava(sensorRemovedByFullName)(JNIEnv *env, jclass cl, jstring jsensor) {
+  const int index = sensorIndexFromFullName(env, jsensor);
+  return index >= 0 && sensors->getsensor(index)->wasRemovedByUser() ? JNI_TRUE
+                                                                  : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+fromjava(setSensorRemovedByFullName)(JNIEnv *env, jclass cl, jstring jsensor,
+                                    jboolean removed) {
+  const int index = sensorIndexFromFullName(env, jsensor);
+  if (index < 0 || sensors->getsensor(index)->wasRemovedByUser() == removed)
+    return;
+  if (removed)
+    sensors->removesensor(index);
+  else
+    sensors->unfinishsensor(index);
+  if (SensorGlucoseData *sensorptr = sensors->getSensorData(index))
+    setstreaming(sensorptr);
+  setusedsensors();
+  if (backup)
+    backup->wakebackup(Backup::wakeall);
+}
+
 static void unfinishsensor(SensorGlucoseData *sensorptr, int sensorindex) {
   LOGGER("unfinishSensor %s\n", sensorptr->showsensorname().data());
   sensors->unfinishsensor(sensorindex);

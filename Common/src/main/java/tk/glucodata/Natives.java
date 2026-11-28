@@ -1061,6 +1061,10 @@ public class Natives {
         /** Reactivates every native slot of this id, including one removed by the user; false for an unknown id. */
         public static native boolean unfinishSensorById(String sensorId);
 
+        /** These match the full native slot name, including for ids that resemble a short alias. */
+        public static native boolean sensorRemovedByFullName(String sensorId);
+        public static native void setSensorRemovedByFullName(String sensorId, boolean removed);
+
         public static native long manualLibreAccountIDnumber();
 
         public static native void setApiSecret(String japisecret);

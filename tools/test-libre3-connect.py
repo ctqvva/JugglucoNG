@@ -42,6 +42,7 @@ class SuperGattCallback {
     static String LOG_ID="test";
     static final Object app=new Object();
     boolean stop=false, connectPending=false, ownership=false;
+    private volatile boolean retired;
     int timeoutPolicyUpdates;
     long dataptr=1L, foundtime=0L, connectTime=0L, reconnectGeneration=0L;
     String SerialNumber="synthetic", mActiveDeviceAddress="synthetic", mDeviceName;
