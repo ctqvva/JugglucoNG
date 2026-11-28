@@ -36,6 +36,7 @@ def library(directory):
                     source.index('bool airstream::setNumberNew(')]
     process = method(source, 'static jlong airProcessData(', source.index('// Returns 0:'))
     fixture = r'''
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -67,19 +68,29 @@ struct airstream {
   Memory<DeviceInfo3Obj> sensorInfo;
   Memory<air1_opcal4_arguments_t> generated;
   air_input input;
-  air1_opcal4_output_t output;
-  air1_opcal4_debug_t debug;
+  static constexpr int maxOutputs = 4;
+  air1_opcal4_output_t output[maxOutputs];
+  air1_opcal4_debug_t debug[maxOutputs];
+  std::vector<uint8_t> shadowState;
+  int shadowCount = 0;
   explicit airstream(SensorGlucoseData *s) : hist(s) {}
   void setNumberNew(int n) { tmpiter = 0; tmptot = n; }
 };
 static int opens = 0, closes = 0;
+static bool airShadow = false;
+// Sequence 20 stands for a clock jump: the vendor library then fills missed
+// records and writes up to four outputs and debug records.
 unsigned char algorithm(air1_opcal4_device_info_t *, air1_opcal4_cgm_input_t *in,
     air1_opcal4_cal_list_t *, air1_opcal4_arguments_t *, air1_opcal4_output_t *out,
-    air1_opcal4_debug_t *) {
-  out->result_glucose = 125;
-  out->seq_number_final = in->seq_number;
-  out->measurement_time_standard = in->measurement_time_standard;
-  return 1;
+    air1_opcal4_debug_t *debug) {
+  const int n = in->seq_number == 20 ? 4 : 1;
+  for (int i = 0; i < n; ++i) {
+    out[i].result_glucose = n == 1 ? 125 : 100 + 10 * i;
+    out[i].seq_number_final = in->seq_number - (n - 1 - i);
+    out[i].measurement_time_standard = in->measurement_time_standard;
+    debug[i].seq_number_final = out[i].seq_number_final;
+  }
+  return n;
 }
 void *openlib(std::string_view name) {
   assert(name == "/libCALCULATION.so");
@@ -90,7 +101,7 @@ int dlclose(void *) { ++closes; return 0; }
 void *dlsym(void *, const char *) {
   return opens == 2 ? nullptr : reinterpret_cast<void *>(&algorithm);
 }
-jlong mkres(SensorGlucoseData *, uint32_t, uint32_t, int, int, int, float) { return 1250; }
+jlong mkres(SensorGlucoseData *, uint32_t, uint32_t, int, int mgdL, int, float) { return mgdL * 10; }
 int rate2changeindex(float) { return 3; }
 void airsavehistory(SensorGlucoseData *, const air1_opcal4_output_t &) {}
 void showm(const m *) {}
@@ -110,6 +121,12 @@ int main() {
   assert(sample(stream, 7) == 0 && sensor.cursor == 0 && closes == 1);
   assert(sample(stream, 7) == 1250 && sensor.cursor == 7 && opens == 3);
   assert(sample(stream, 8) == 1250 && sensor.cursor == 8 && opens == 3);
+  // Filled records: all four fit, and the newest is the one reported.
+  assert(sample(stream, 20) == 1300 && sensor.cursor == 20);
+  airShadow = true;
+  assert(sample(stream, 21) == 1250 && stream.shadowCount == 1);
+  assert(stream.shadowState.size() == sizeof(air1_opcal4_arguments_t));
+  airShadow = false;
   std::vector<std::thread> workers;
   for (int i = 0; i < 8; ++i) workers.emplace_back([] {
     SensorGlucoseData other;
@@ -126,7 +143,7 @@ int main() {
     run([os.environ.get('CXX', 'c++'), '-std=c++17', '-pthread',
          '-I', str(ROOT / 'Common/src/main/cpp/air'), str(cpp), '-o', str(binary)])
     run([str(binary)])
-    print('Air library: failed dlopen/dlsym retry, cursor preservation, cached success, concurrent sensors passed')
+    print('Air library: failed dlopen/dlsym retry, cursor preservation, cached success, filled records, concurrent sensors passed')
 
 
 def gatt(directory):

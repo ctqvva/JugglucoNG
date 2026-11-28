@@ -38,6 +38,7 @@ struct accustream : streamdata {
 
 #include "air/air.hpp"
 #include <sys/stat.h>
+#include <vector>
 // Maps one T from dir/name. A missing or short file is a sensor seen for the
 // first time; it starts from T's member defaults rather than zeros.
 template <typename T>
@@ -57,10 +58,16 @@ struct airstream : streamdata {
   int tmptot = 0;
   int ininfo = 0;
   int errors = 0;
-  // Too large for the JNI thread's stack.
+  // Too large for the JNI thread's stack. The library writes one output and
+  // one debug record per record it processes, and processes up to four when
+  // it fills records it considers missed.
+  static constexpr int maxOutputs = 4;
   air_input input;
-  air1_opcal4_output_t output;
-  air1_opcal4_debug_t debug;
+  air1_opcal4_output_t output[maxOutputs];
+  air1_opcal4_debug_t debug[maxOutputs];
+  // Debug-build comparison with the open engine, see airProcessData.
+  std::vector<uint8_t> shadowState;
+  int shadowCount = 0;
   airstream(int sensindex, SensorGlucoseData *sens)
       : streamdata(careSensAirKind, sensindex, sens),
         sensorInfo(mmapWithDefaults<DeviceInfo3Obj>(hist->getsensordir(),

@@ -1,0 +1,19 @@
+# Regenerated datasets and local builds (see README.md)
+err16_ds.npz
+c0runs.pkl
+c1runs.pkl
+c0rows.pkl
+c0rows2.pkl
+d1X.npy
+d1Y.npy
+d2rows.npy
+cur_rows.pkl
+tran_rows.pkl
+dt2.npy
+lvl.npy
+lvl2.npy
+sd_recs.bin
+sd_state.bin
+liboracle.dylib
+eng.jar
+__pycache__/

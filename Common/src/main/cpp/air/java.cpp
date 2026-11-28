@@ -24,6 +24,7 @@
 // which is not part of this repository and has to be packaged in jniLibs.
 #if defined(SIBIONICS) && defined(DEXCOM)
 #include <dlfcn.h>
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -185,6 +186,53 @@ static void showm(const m *mptr) {
 }
 static jlong airProcessData(airstream *sdata, const jbyte *indata, int arlen,
                             jlong *timeres);
+
+// Debug builds hand every record, the vendor state before it and the
+// vendor's outputs to the open engine for a one-record comparison. The
+// vendor result stays authoritative.
+static bool airShadow = false;
+extern "C" JNIEXPORT void JNICALL fromjava(airSetOpenCalibrationShadow)(
+    JNIEnv *env, jclass cl, jboolean on) {
+  airShadow = on;
+}
+static jbyteArray byteArray(JNIEnv *env, const void *data, int len) {
+  jbyteArray out = env->NewByteArray(len);
+  if (out) env->SetByteArrayRegion(out, 0, len, reinterpret_cast<const jbyte *>(data));
+  return out;
+}
+static void shadowCheck(JNIEnv *env, airstream *sdata) {
+  static jclass shadowClass = nullptr;
+  static jmethodID check = nullptr;
+  if (!shadowClass) {
+    jclass local = env->FindClass("tk/glucodata/drivers/caresens/calibration/CareSensAirOpenCalibrationShadow");
+    if (!local) {
+      env->ExceptionClear();
+      airShadow = false;
+      return;
+    }
+    shadowClass = reinterpret_cast<jclass>(env->NewGlobalRef(local));
+    env->DeleteLocalRef(local);
+    check = env->GetStaticMethodID(shadowClass, "check", "([B[B[B[BI)V");
+    if (!check) {
+      env->ExceptionClear();
+      airShadow = false;
+      return;
+    }
+  }
+  const int count = std::min(sdata->shadowCount, airstream::maxOutputs);
+  jbyteArray device = byteArray(env, sdata->sensorInfo.data(), sizeof(air1_opcal4_device_info_t));
+  jbyteArray state = byteArray(env, sdata->shadowState.data(), sdata->shadowState.size());
+  jbyteArray input = byteArray(env, &sdata->input.cgm_input, sizeof(air1_opcal4_cgm_input_t));
+  jbyteArray outputs = byteArray(env, sdata->output, count * sizeof(air1_opcal4_output_t));
+  if (device && state && input && outputs)
+    env->CallStaticVoidMethod(shadowClass, check, device, state, input, outputs, count);
+  if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+  }
+  for (jbyteArray a : {device, state, input, outputs})
+    if (a) env->DeleteLocalRef(a);
+}
 extern "C" JNIEXPORT jlong JNICALL fromjava(airProcessData)(
     JNIEnv *env, jclass cl, jlong dataptr, jbyteArray value,
     jlongArray jtimeres) {
@@ -199,9 +247,16 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(airProcessData)(
   }
 
   airstream *sdata = reinterpret_cast<airstream *>(dataptr);
-  CritArSave<jlong> timeres(env, jtimeres);
-  const CritAr bluedata(env, value);
-  return airProcessData(sdata, bluedata.data(), arlen, timeres.data());
+  sdata->shadowCount = 0;
+  jlong result;
+  {
+    CritArSave<jlong> timeres(env, jtimeres);
+    const CritAr bluedata(env, value);
+    result = airProcessData(sdata, bluedata.data(), arlen, timeres.data());
+  }
+  // Java may only be called once the critical arrays are released.
+  if (sdata->shadowCount > 0) shadowCheck(env, sdata);
+  return result;
 }
 // Returns 0: no glucose (sensor error), 1: ignore, 2: disconnect,
 // 3: ask the number of records, otherwise the glucoseback() result.
@@ -273,18 +328,26 @@ static jlong airProcessData(airstream *sdata, const jbyte *indata, int arlen,
                       .measurement_time = mtime,
                       .glucose_array = air->glucose_array,
                       .temperature = air->temperature / 100.0}};
-    air1_opcal4_output_t &output = sdata->output;
-    output = {};
-    air1_opcal4_debug_t &debug = sdata->debug;
-    debug = {};
+    for (int i = 0; i < airstream::maxOutputs; ++i) {
+      sdata->output[i] = {};
+      sdata->debug[i] = {};
+    }
     showm(&input.data);
 
     DeviceInfo3Obj *deviceInfo = sdata->sensorInfo.data();
+    if (airShadow) {
+      const auto *state = reinterpret_cast<const uint8_t *>(sdata->generated.data());
+      sdata->shadowState.assign(state, state + sizeof(air1_opcal4_arguments_t));
+    }
 
     const unsigned char res = air1_opcal4_algorithm(
         reinterpret_cast<air1_opcal4_device_info_t *>(deviceInfo),
-        &input.cgm_input, &input.empty, sdata->generated.data(), &output,
-        &debug);
+        &input.cgm_input, &input.empty, sdata->generated.data(), sdata->output,
+        sdata->debug);
+    if (airShadow) sdata->shadowCount = res;
+    // After filling missed records the newest output is the last one.
+    const int used = std::clamp<int>(res, 1, airstream::maxOutputs);
+    const air1_opcal4_output_t &output = sdata->output[used - 1];
     const double mgdLdouble = output.result_glucose;
 
     if (res && !output.errcode) {

@@ -76,6 +76,9 @@ class AirGattCallback extends SuperGattCallback {
         if (doLog) {Log.d(LOG_ID, SerialNumber + " AirGattCallback(..)");}
         showtime = 6 * 60 * 1000L;
         unusedSensor = Natives.airGetLast(dataptr) <= 0;
+        // Compares the open calibration engine with libCALCULATION.so on real
+        // records; the library's result stays the one shown.
+        Natives.airSetOpenCalibrationShadow(BuildConfig.DEBUG);
     }
 
     private final String csairKey = "tq1Tg265o4UFD8tfPvNqUCiYyCxkhdZV";
@@ -89,7 +92,8 @@ class AirGattCallback extends SuperGattCallback {
     // (othersworking -> connectDevice), while SensorBluetooth.removeDevice holds
     // its own lock and then calls free() here. Holding both ways deadlocks.
     // dataptr's lifetime is guarded by nativeLock instead. It is held only around
-    // the native calls, which never call back into Java, so it is a leaf lock:
+    // the native calls, which call back into Java only for the lock-free open
+    // calibration comparison in debug builds, so it is a leaf lock:
     // free() takes it after this monitor, and nothing holding it waits for another.
     private final Object nativeLock = new Object();
 
